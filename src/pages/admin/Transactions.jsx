@@ -168,7 +168,9 @@ export default function AdminTransactions() {
 
       {/* Checkins Table */}
       {tab === 'checkins' && (
-        <div className="card p-0 overflow-hidden">
+        <>
+          <ManualCheckinForm onSuccess={() => qc.invalidateQueries(['admin-checkins'])} />
+          <div className="card p-0 overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
