@@ -53,22 +53,27 @@ export default {
         card: '0 2px 8px rgba(0,0,0,0.4)',
       },
       animation: {
-        'fade-in': 'fadeIn 0.3s ease-in-out',
-        'slide-up': 'slideUp 0.3s ease-out',
-        'pulse-glow': 'pulseGlow 2s infinite',
+        'fade-in':        'fadeIn 0.2s ease-in-out',
+        'slide-up':       'slideUp 0.25s ease-out',
+        'slide-in-left':  'slideInLeft 0.28s ease-out',
+        'pulse-glow':     'pulseGlow 2s infinite',
       },
       keyframes: {
         fadeIn: {
-          '0%': { opacity: '0' },
+          '0%':   { opacity: '0' },
           '100%': { opacity: '1' },
         },
         slideUp: {
-          '0%': { opacity: '0', transform: 'translateY(10px)' },
+          '0%':   { opacity: '0', transform: 'translateY(8px)' },
           '100%': { opacity: '1', transform: 'translateY(0)' },
+        },
+        slideInLeft: {
+          '0%':   { opacity: '0', transform: 'translateX(-20px)' },
+          '100%': { opacity: '1', transform: 'translateX(0)' },
         },
         pulseGlow: {
           '0%, 100%': { boxShadow: '0 0 5px rgba(37,211,102,0.3)' },
-          '50%': { boxShadow: '0 0 20px rgba(37,211,102,0.6)' },
+          '50%':      { boxShadow: '0 0 20px rgba(37,211,102,0.6)' },
         },
       },
     },
