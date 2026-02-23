@@ -3,8 +3,10 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import { Plus, CheckCircle, XCircle, Phone, Building2 } from 'lucide-react'
 import toast from 'react-hot-toast'
+import AddProducerModal from '@/components/ui/AddProducerModal'
 
 export default function AdminProducers() {
+  const [showAddProducer, setShowAddProducer] = useState(false)
   const qc = useQueryClient()
 
   const { data: producers, isLoading } = useQuery({
@@ -45,7 +47,7 @@ export default function AdminProducers() {
           <h1 className="text-2xl font-black text-white">מפיקים</h1>
           <p className="text-muted text-sm mt-0.5">{producers?.length || 0} מפיקים במערכת</p>
         </div>
-        <button className="btn-primary">
+        <button onClick={() => setShowAddProducer(true)} className="btn-primary">
           <Plus size={16} /> הוסף מפיק
         </button>
       </div>
@@ -103,6 +105,13 @@ export default function AdminProducers() {
               </div>
             ))}
       </div>
+
+      {showAddProducer && (
+        <AddProducerModal
+          onClose={() => setShowAddProducer(false)}
+          onSuccess={() => setShowAddProducer(false)}
+        />
+      )}
     </div>
   )
 }

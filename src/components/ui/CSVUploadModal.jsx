@@ -1,4 +1,5 @@
 import { useState, useRef } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/contexts/AuthContext'
 import { Upload, X, FileText, CheckCircle, AlertCircle } from 'lucide-react'
@@ -68,7 +69,23 @@ function normalizeRow(raw, producerId, eventId) {
 
 export default function CSVUploadModal({ eventId, producerId: propProducerId, onClose, onSuccess }) {
   const { producerId: authProducerId, isAdmin } = useAuth()
-  const producerId = propProducerId || authProducerId
+  const [pickedProducerId, setPickedProducerId] = useState(propProducerId || '')
+  const producerId = propProducerId || authProducerId || (pickedProducerId || null)
+
+  const { data: producers } = useQuery({
+    queryKey: ['admin-producers-list'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('producers')
+        .select('id, name')
+        .eq('is_active', true)
+        .order('name')
+      if (error) throw error
+      return data || []
+    },
+    enabled: isAdmin && !propProducerId && !authProducerId,
+  })
+
   const [file, setFile] = useState(null)
   const [preview, setPreview] = useState(null)
   const [uploading, setUploading] = useState(false)
@@ -154,6 +171,23 @@ export default function CSVUploadModal({ eventId, producerId: propProducerId, on
         </div>
 
         <div className="p-5 space-y-4">
+          {/* Producer picker for admin when no event selected */}
+          {isAdmin && !propProducerId && !authProducerId && (
+            <div>
+              <label className="label">בחר מפיק *</label>
+              <select
+                value={pickedProducerId}
+                onChange={(e) => setPickedProducerId(e.target.value)}
+                className="input"
+              >
+                <option value="">בחר מפיק</option>
+                {(producers || []).map((p) => (
+                  <option key={p.id} value={p.id}>{p.name}</option>
+                ))}
+              </select>
+            </div>
+          )}
+
           {/* Drop zone */}
           <div
             className={`
@@ -230,7 +264,7 @@ export default function CSVUploadModal({ eventId, producerId: propProducerId, on
           <div className="flex gap-2">
             <button
               onClick={handleUpload}
-              disabled={!file || uploading || !!result}
+              disabled={!file || !producerId || uploading || !!result}
               className="btn-primary flex-1"
             >
               {uploading ? (

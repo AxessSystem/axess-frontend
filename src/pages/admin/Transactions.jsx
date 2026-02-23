@@ -1,8 +1,8 @@
 import { useState } from 'react'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
-import { Search, CheckSquare, XSquare } from 'lucide-react'
-import toast from 'react-hot-toast'
+import { Search } from 'lucide-react'
+import ManualCheckinForm from '@/components/ui/ManualCheckinForm'
 
 export default function AdminTransactions() {
   const [search, setSearch] = useState('')
@@ -202,6 +202,7 @@ export default function AdminTransactions() {
             </table>
           </div>
         </div>
+        </>
       )}
     </div>
   )

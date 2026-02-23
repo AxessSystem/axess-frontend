@@ -1,13 +1,16 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
-import { Plus, Upload, Calendar, MapPin, Users } from 'lucide-react'
+import { Plus, Upload, MapPin } from 'lucide-react'
 import toast from 'react-hot-toast'
 import CSVUploadModal from '@/components/ui/CSVUploadModal'
+import AddEventModal from '@/components/ui/AddEventModal'
 
 export default function AdminEvents() {
   const [showCSV, setShowCSV] = useState(false)
+  const [showAddEvent, setShowAddEvent] = useState(false)
   const [selectedEvent, setSelectedEvent] = useState(null)
+  const [selectedProducerId, setSelectedProducerId] = useState(null)
   const qc = useQueryClient()
 
   const { data: events, isLoading } = useQuery({
@@ -16,7 +19,7 @@ export default function AdminEvents() {
       const { data, error } = await supabase
         .from('events')
         .select(`
-          id, name, slug, venue, genre, event_date,
+          id, producer_id, name, slug, venue, genre, event_date,
           is_active, capacity, created_at,
           producers(name),
           transactions(id)
@@ -36,12 +39,12 @@ export default function AdminEvents() {
         </div>
         <div className="flex gap-2">
           <button
-            onClick={() => { setSelectedEvent(null); setShowCSV(true) }}
+            onClick={() => { setSelectedEvent(null); setSelectedProducerId(null); setShowCSV(true) }}
             className="btn-secondary"
           >
             <Upload size={16} /> ייבוא CSV
           </button>
-          <button className="btn-primary">
+          <button onClick={() => setShowAddEvent(true)} className="btn-primary">
             <Plus size={16} /> אירוע חדש
           </button>
         </div>
@@ -106,7 +109,7 @@ export default function AdminEvents() {
                       </td>
                       <td className="table-td">
                         <button
-                          onClick={() => { setSelectedEvent(ev.id); setShowCSV(true) }}
+                          onClick={() => { setSelectedEvent(ev.id); setSelectedProducerId(ev.producer_id); setShowCSV(true) }}
                           className="btn-ghost text-xs"
                         >
                           <Upload size={13} /> CSV
@@ -122,12 +125,20 @@ export default function AdminEvents() {
       {showCSV && (
         <CSVUploadModal
           eventId={selectedEvent}
+          producerId={selectedProducerId}
           onClose={() => setShowCSV(false)}
           onSuccess={() => {
             setShowCSV(false)
             qc.invalidateQueries(['admin-events'])
             toast.success('הקובץ יובא בהצלחה')
           }}
+        />
+      )}
+
+      {showAddEvent && (
+        <AddEventModal
+          onClose={() => setShowAddEvent(false)}
+          onSuccess={() => setShowAddEvent(false)}
         />
       )}
     </div>
