@@ -9,6 +9,8 @@ import DashboardLayout from '@/components/layout/DashboardLayout'
 import Landing from '@/pages/Landing'
 import Login from '@/pages/Login'
 import NotFound from '@/pages/NotFound'
+import Terms from '@/pages/Terms'
+import Privacy from '@/pages/Privacy'
 
 import AdminDashboard from '@/pages/admin/Dashboard'
 import AdminAudience from '@/pages/admin/Audience'
@@ -53,6 +55,8 @@ export default function App() {
           {/* Public */}
           <Route path="/" element={<Landing />} />
           <Route path="/login" element={<Login />} />
+          <Route path="/terms" element={<Terms />} />
+          <Route path="/privacy" element={<Privacy />} />
 
           {/* Admin */}
           <Route element={<AdminRoute />}>
