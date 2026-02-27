@@ -11,6 +11,7 @@ import Login from '@/pages/Login'
 import NotFound from '@/pages/NotFound'
 import Terms from '@/pages/Terms'
 import Privacy from '@/pages/Privacy'
+import Validator from '@/pages/Validator'
 
 import AdminDashboard from '@/pages/admin/Dashboard'
 import AdminAudience from '@/pages/admin/Audience'
@@ -57,6 +58,7 @@ export default function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/terms" element={<Terms />} />
           <Route path="/privacy" element={<Privacy />} />
+          <Route path="/v/:slug" element={<Validator />} />
 
           {/* Admin */}
           <Route element={<AdminRoute />}>
