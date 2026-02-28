@@ -4,8 +4,12 @@ import { motion, useInView, useAnimation } from 'framer-motion'
 import {
   MessageCircle, BarChart3, Upload, CheckCircle, ArrowLeft,
   Menu, X, Star, Zap, Shield, Clock, TrendingUp, Users,
-  QrCode, ChevronDown, ExternalLink
+  QrCode, ChevronDown, ExternalLink,
+  Utensils, Music, Hotel, ShoppingBag, Dumbbell, Building2
 } from 'lucide-react'
+import LivePreview from '@/components/LivePreview'
+import ROISection from '@/components/ROISection'
+import SmartInsights from '@/components/SmartInsights'
 
 const AXESS_PHONE = import.meta.env.VITE_AXESS_PHONE || '972500000000'
 const WA_LINK = `https://wa.me/${AXESS_PHONE}?text=${encodeURIComponent('שלום AXESS אני רוצה להצטרף')}`
@@ -623,7 +627,7 @@ export default function Landing() {
       {/* ── USE CASES ── */}
       <Section id="usecases" className="py-20 lg:py-28 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
-          <div className="text-center mb-16">
+          <div className="text-center mb-14">
             <h2 className="text-4xl lg:text-5xl font-black text-dark mb-4" style={{ fontFamily: 'Outfit, sans-serif' }}>
               מתאים לכל עסק
             </h2>
@@ -632,29 +636,46 @@ export default function Landing() {
 
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
             {[
-              { icon: '🍕', name: 'מסעדות', use: 'קופוני ארוחה ללקוחות חוזרים' },
-              { icon: '🎵', name: 'אירועים', use: 'כרטיסי כניסה דיגיטליים' },
-              { icon: '🏨', name: 'מלונות', use: 'אישורי הזמנה + הטבות' },
-              { icon: '👗', name: 'חנויות', use: 'מבצעים ממוקדים לפי רכישות' },
-              { icon: '💪', name: 'חדרי כושר', use: 'כרטיסיות וחידוש מנוי' },
-              { icon: '🏛️', name: 'ארגונים', use: 'תקשורת ממוקדת לחברים' },
-            ].map(({ icon, name, use }, i) => (
+              { Icon: Utensils,   name: 'מסעדות',     use: 'קופוני ארוחה ללקוחות חוזרים' },
+              { Icon: Music,      name: 'אירועים',    use: 'כרטיסי כניסה דיגיטליים' },
+              { Icon: Hotel,      name: 'מלונות',     use: 'אישורי הזמנה + הטבות' },
+              { Icon: ShoppingBag,name: 'חנויות',     use: 'מבצעים ממוקדים לפי רכישות' },
+              { Icon: Dumbbell,   name: 'חדרי כושר',  use: 'כרטיסיות וחידוש מנוי' },
+              { Icon: Building2,  name: 'ארגונים',    use: 'תקשורת ממוקדת לחברים' },
+            ].map(({ Icon, name, use }, i) => (
               <motion.div
                 key={name}
                 initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: i * 0.08 }}
-                className="landing-card text-center hover:border-primary/30 hover:-translate-y-1 cursor-default"
+                className="group bg-white rounded-2xl p-8 text-center cursor-default transition-all duration-300 hover:-translate-y-1"
+                style={{
+                  border: '1px solid #E2E8F0',
+                  boxShadow: '0 1px 4px rgba(0,0,0,0.04)',
+                }}
+                whileHover={{ borderColor: '#2563EB', boxShadow: '0 4px 20px rgba(37,99,235,0.10)' }}
               >
-                <div className="text-4xl mb-3">{icon}</div>
-                <div className="font-bold text-dark text-sm mb-1">{name}</div>
+                <div className="w-12 h-12 rounded-xl bg-primary/8 flex items-center justify-center mx-auto mb-4 group-hover:bg-primary/12 transition-colors"
+                  style={{ background: 'rgba(37,99,235,0.07)' }}>
+                  <Icon size={22} className="text-primary" strokeWidth={1.5} />
+                </div>
+                <div className="font-bold text-dark text-sm mb-1.5">{name}</div>
                 <div className="text-gray-500 text-xs leading-relaxed">{use}</div>
               </motion.div>
             ))}
           </div>
         </div>
       </Section>
+
+      {/* ── LIVE PREVIEW ── */}
+      <LivePreview />
+
+      {/* ── ROI SECTION ── */}
+      <ROISection />
+
+      {/* ── SMART INSIGHTS ── */}
+      <SmartInsights />
 
       {/* ── PRICING ── */}
       <Section id="pricing" className="py-20 lg:py-28 bg-gray-100">
