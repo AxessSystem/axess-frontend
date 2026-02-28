@@ -4,11 +4,11 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   Upload, Users, FileText, Calendar, QrCode, Send,
   ChevronRight, ChevronLeft, Check, X, AlertCircle,
-  ToggleLeft, ToggleRight, Eye
+  ToggleLeft, ToggleRight, Eye, Phone
 } from 'lucide-react'
 import StepIndicator from '@/components/ui/StepIndicator'
 
-const STEPS = ['העלאה', 'נמענים', 'הודעה', 'תזמון', 'Validator', 'שליחה']
+const STEPS = ['העלאה', 'נמענים', 'הודעה', 'תזמון', 'Text Lead', 'Validator', 'שליחה']
 
 const MAX_CHARS = 201
 
@@ -367,7 +367,128 @@ function StepSchedule({ onNext, onPrev, data, setData }) {
   )
 }
 
-/* ── Step 5: Validator ── */
+/* ── Step 5: Text Lead ── */
+const VIRTUAL_NUMBER_REGEX = /^05\d{8}$/
+
+function StepTextLead({ onNext, onPrev, data, setData }) {
+  const enabled = !!data.textLeadEnabled
+  const number = data.virtualNumber || ''
+  const isValid = !enabled || VIRTUAL_NUMBER_REGEX.test(number.replace(/-/g, ''))
+  const showError = enabled && number.length > 0 && !isValid
+
+  return (
+    <div className="space-y-5">
+      <div>
+        <h2 className="text-xl font-bold text-white mb-1">Text Lead — מספר וירטואלי</h2>
+        <p className="text-muted text-sm">אפשר לקהל להשיב ישירות להודעה</p>
+      </div>
+
+      {/* Toggle card */}
+      <div
+        onClick={() => setData(d => ({ ...d, textLeadEnabled: !d.textLeadEnabled, virtualNumber: d.textLeadEnabled ? '' : d.virtualNumber }))}
+        className={`flex items-center justify-between p-4 rounded-xl border-2 cursor-pointer transition-all duration-200 ${
+          enabled
+            ? 'border-primary bg-primary/5'
+            : 'border-border bg-surface-50 hover:border-border-light'
+        }`}
+      >
+        <div className="flex items-center gap-3">
+          <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 transition-all ${
+            enabled ? 'bg-primary/10' : 'bg-surface-100'
+          }`}>
+            <Phone size={18} className={enabled ? 'text-primary' : 'text-muted'} />
+          </div>
+          <div>
+            <div className="text-sm font-semibold text-white">אפשר לקהל להשיב להודעה</div>
+            <div className="text-xs text-muted mt-0.5">כל תשובה תגיע אליך ישירות ב-WhatsApp</div>
+          </div>
+        </div>
+        <div className={`w-12 h-6 rounded-full transition-all duration-200 flex items-center px-1 flex-shrink-0 ${
+          enabled ? 'bg-primary' : 'bg-surface-100 border border-border'
+        }`}>
+          <div className={`w-4 h-4 rounded-full bg-white shadow transition-all duration-200 ${
+            enabled ? 'translate-x-6' : 'translate-x-0'
+          }`} />
+        </div>
+      </div>
+
+      {/* Virtual number field */}
+      {enabled && (
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.2 }}
+          className="space-y-3"
+        >
+          <div>
+            <label className="label">מספר וירטואלי</label>
+            <div className="relative">
+              <Phone size={16} className="absolute top-1/2 -translate-y-1/2 right-3 text-muted pointer-events-none" />
+              <input
+                className={`input pr-9 transition-all ${
+                  showError
+                    ? 'ring-2 ring-red-500/40 border-red-500/40'
+                    : number && isValid
+                    ? 'ring-2 ring-accent/30 border-accent/40'
+                    : ''
+                }`}
+                placeholder="05XXXXXXXX"
+                value={number}
+                maxLength={10}
+                onChange={e => {
+                  const val = e.target.value.replace(/[^\d]/g, '')
+                  setData(d => ({ ...d, virtualNumber: val }))
+                }}
+                dir="ltr"
+              />
+              {number && isValid && (
+                <Check size={16} className="absolute top-1/2 -translate-y-1/2 left-3 text-accent" />
+              )}
+            </div>
+
+            {showError && (
+              <div className="flex items-center gap-1.5 text-red-400 text-xs mt-1.5">
+                <AlertCircle size={12} />
+                פורמט לא תקין — נדרש 05XXXXXXXX (10 ספרות)
+              </div>
+            )}
+
+            {number && isValid && (
+              <div className="flex items-center gap-1.5 text-accent text-xs mt-1.5">
+                <Check size={12} />
+                המספר תקין
+              </div>
+            )}
+          </div>
+
+          {/* Info box */}
+          <div className="flex items-start gap-3 bg-primary/5 border border-primary/20 rounded-xl p-4">
+            <span className="text-xl flex-shrink-0">📞</span>
+            <div className="text-sm text-subtle leading-relaxed">
+              תשובות מהקהל יגיעו אליך ישירות ב-WhatsApp למספר שהזנת. המספר הוירטואלי יופיע כשולח ה-SMS.
+            </div>
+          </div>
+        </motion.div>
+      )}
+
+      <div className="flex justify-between">
+        <button onClick={onPrev} className="btn-secondary gap-2">
+          <ChevronRight size={16} /> חזור
+        </button>
+        <button
+          onClick={onNext}
+          disabled={enabled && !isValid}
+          className="btn-primary gap-2 disabled:opacity-40"
+        >
+          המשך
+          <ChevronLeft size={16} />
+        </button>
+      </div>
+    </div>
+  )
+}
+
+/* ── Step 6: Validator ── */
 function StepValidator({ onNext, onPrev, data, setData }) {
   return (
     <div className="space-y-5">
@@ -519,6 +640,7 @@ function StepSummary({ onPrev, data, onSubmit }) {
           { label: 'נמענים', value: `${data.recipientCount || 6} נמענים` },
           { label: 'הודעה', value: data.message ? `${data.message.length} תווים` : '—' },
           { label: 'תזמון', value: data.scheduleType === 'now' ? 'שליחה מיידית' : `${data.scheduleDate} ${data.scheduleTime || ''}` },
+          { label: 'Text Lead', value: data.textLeadEnabled ? `📞 ${data.virtualNumber}` : 'לא מופעל' },
           { label: 'Validator', value: data.validatorEnabled ? `✅ ${data.validatorTitle || 'מופעל'}` : 'לא מופעל' },
         ].map(({ label, value }) => (
           <div key={label} className="flex items-center justify-between py-3 border-b border-border">
@@ -576,7 +698,7 @@ export default function NewCampaign() {
     validatorEnabled: false,
   })
 
-  const next = () => setStep(s => Math.min(s + 1, 6))
+  const next = () => setStep(s => Math.min(s + 1, 7))
   const prev = () => setStep(s => Math.max(s - 1, 1))
 
   return (
@@ -605,8 +727,9 @@ export default function NewCampaign() {
             {step === 2 && <StepRecipients onNext={next} onPrev={prev} data={data} setData={setData} />}
             {step === 3 && <StepMessage onNext={next} onPrev={prev} data={data} setData={setData} />}
             {step === 4 && <StepSchedule onNext={next} onPrev={prev} data={data} setData={setData} />}
-            {step === 5 && <StepValidator onNext={next} onPrev={prev} data={data} setData={setData} />}
-            {step === 6 && <StepSummary onPrev={prev} data={data} onSubmit={() => navigate('/dashboard')} />}
+            {step === 5 && <StepTextLead onNext={next} onPrev={prev} data={data} setData={setData} />}
+            {step === 6 && <StepValidator onNext={next} onPrev={prev} data={data} setData={setData} />}
+            {step === 7 && <StepSummary onPrev={prev} data={data} onSubmit={() => navigate('/dashboard')} />}
           </motion.div>
         </AnimatePresence>
       </div>
