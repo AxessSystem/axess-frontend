@@ -17,6 +17,9 @@ import Validator from '@/pages/Validator'
 
 /* ── New AXESS pages (lazy) ── */
 const Onboarding = lazy(() => import('@/pages/Onboarding'))
+const About      = lazy(() => import('@/pages/About'))
+const Pricing    = lazy(() => import('@/pages/Pricing'))
+const Features   = lazy(() => import('@/pages/Features'))
 
 /* ── Client Dashboard (lazy bundle) ── */
 const ClientLayout   = lazy(() => import('@/pages/dashboard/Layout'))
@@ -87,6 +90,9 @@ export default function App() {
             <Route path="/" element={<Landing />} />
             <Route path="/login" element={<Login />} />
             <Route path="/onboarding" element={<Onboarding />} />
+            <Route path="/about" element={<About />} />
+            <Route path="/pricing" element={<Pricing />} />
+            <Route path="/features" element={<Features />} />
             <Route path="/terms" element={<Terms />} />
             <Route path="/privacy" element={<Privacy />} />
             <Route path="/v/:slug" element={<Validator />} />

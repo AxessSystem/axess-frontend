@@ -1,4 +1,220 @@
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,600;12..96,700;12..96,800&family=Outfit:wght@400;500;600;700;800;900&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=JetBrains+Mono:wght@400;500;700&display=swap');
+
+/* ═══════════════════════════════════════════
+   AXESS Design System v2.0 — CSS Variables
+   ═══════════════════════════════════════════ */
+:root {
+  /* Colors — v2 */
+  --v2-primary: #00C37A;
+  --v2-primary-dark: #00A366;
+  --v2-primary-glow: rgba(0, 195, 122, 0.15);
+  --v2-accent: #6366F1;
+  --v2-accent-glow: rgba(99, 102, 241, 0.15);
+  --v2-dark: #080C14;
+  --v2-dark-2: #0F1623;
+  --v2-dark-3: #161E2E;
+  --v2-gray-100: #F8FAFC;
+  --v2-gray-200: #EFF3F8;
+  --v2-gray-400: #94A3B8;
+  --v2-gray-600: #475569;
+  --v2-white: #FFFFFF;
+
+  /* Typography Scale */
+  --text-hero: clamp(52px, 8vw, 82px);
+  --text-h1: clamp(36px, 5vw, 56px);
+  --text-h2: clamp(28px, 4vw, 44px);
+  --text-h3: clamp(20px, 2.5vw, 28px);
+  --text-body-lg: 20px;
+  --text-body: 18px;
+  --text-sm: 15px;
+  --text-micro: 13px;
+  --line-height-tight: 1.15;
+  --line-height-body: 1.85;
+
+  /* Spacing (8pt grid) */
+  --space-1: 8px;
+  --space-2: 16px;
+  --space-3: 24px;
+  --space-4: 32px;
+  --space-6: 48px;
+  --space-8: 64px;
+  --space-12: 96px;
+  --space-16: 128px;
+
+  /* Shape */
+  --radius-sm: 8px;
+  --radius-md: 16px;
+  --radius-lg: 24px;
+  --radius-xl: 32px;
+  --radius-full: 9999px;
+
+  /* Shadows */
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.06);
+  --shadow-md: 0 4px 16px rgba(0,0,0,0.10), 0 2px 6px rgba(0,0,0,0.08);
+  --shadow-lg: 0 12px 40px rgba(0,0,0,0.15), 0 4px 12px rgba(0,0,0,0.10);
+  --shadow-xl: 0 24px 64px rgba(0,0,0,0.20);
+  --shadow-glow-green: 0 0 40px rgba(0, 195, 122, 0.25);
+  --shadow-glow-purple: 0 0 40px rgba(99, 102, 241, 0.20);
+
+  /* Glass */
+  --glass-bg: rgba(255,255,255,0.06);
+  --glass-border: rgba(255,255,255,0.10);
+  --glass-bg-light: rgba(255,255,255,0.80);
+  --glass-blur: blur(20px);
+}
+
+/* ── v2 Animation Keyframes ── */
+@keyframes fadeUp {
+  0%   { opacity: 0; transform: translateY(24px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+@keyframes glow {
+  0%, 100% { opacity: 0.5; }
+  50%       { opacity: 1; }
+}
+@keyframes floatAnim {
+  0%, 100% { transform: translateY(0); }
+  50%       { transform: translateY(-8px); }
+}
+@keyframes gridScroll {
+  0%   { transform: translateY(0); }
+  100% { transform: translateY(-50%); }
+}
+@keyframes shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+@keyframes pulseGreen {
+  0%, 100% { box-shadow: 0 0 0 0 var(--v2-primary-glow); }
+  50%       { box-shadow: 0 0 0 10px transparent; }
+}
+@keyframes rippleEffect {
+  0%   { transform: scale(0); opacity: 0.5; }
+  100% { transform: scale(3); opacity: 0; }
+}
+
+/* ── v2 Utility Classes ── */
+.font-bricolage { font-family: 'Bricolage Grotesque', 'Outfit', ui-sans-serif, system-ui; }
+.font-mono-nums  { font-family: 'JetBrains Mono', 'Courier New', monospace; }
+
+.text-gradient-v2 {
+  background: linear-gradient(135deg, var(--v2-primary), var(--v2-accent));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.glass-card {
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  backdrop-filter: var(--glass-blur);
+}
+
+.animate-fade-up {
+  animation: fadeUp 0.6s ease-out forwards;
+}
+
+.animate-float-v2 {
+  animation: floatAnim 4s ease-in-out infinite;
+}
+
+.animate-pulse-green {
+  animation: pulseGreen 2s ease-in-out infinite;
+}
+
+.glow-green-v2 {
+  box-shadow: var(--shadow-glow-green);
+}
+
+.hero-grid-bg {
+  background-image:
+    linear-gradient(rgba(255,255,255,0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.04) 1px, transparent 1px);
+  background-size: 48px 48px;
+  animation: gridScroll 20s linear infinite;
+}
+
+/* ── v2 Button Styles ── */
+.btn-v2-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 14px 32px;
+  background: var(--v2-primary);
+  color: var(--v2-dark);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 16px;
+  font-weight: 700;
+  border-radius: var(--radius-full);
+  border: none;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  position: relative;
+  overflow: hidden;
+  text-decoration: none;
+}
+.btn-v2-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-glow-green);
+}
+.btn-v2-primary:active { transform: scale(0.97); }
+.btn-v2-primary .ripple-circle {
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.35);
+  animation: rippleEffect 0.6s ease-out forwards;
+  pointer-events: none;
+}
+
+.btn-v2-ghost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 14px 32px;
+  background: transparent;
+  color: var(--v2-white);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 16px;
+  font-weight: 600;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--glass-border);
+  cursor: pointer;
+  transition: border-color 0.2s ease, color 0.2s ease;
+  text-decoration: none;
+}
+.btn-v2-ghost:hover {
+  border-color: var(--v2-primary);
+  color: var(--v2-primary);
+}
+
+/* ── v2 Stat Cards ── */
+.stat-card-v2 {
+  background: var(--v2-dark-3);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-6);
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+.stat-card-v2:hover {
+  border-color: var(--v2-primary);
+  box-shadow: var(--shadow-glow-green);
+}
+
+/* ── v2 Business Cards ── */
+.biz-card-v2 {
+  background: var(--v2-dark-3);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-4);
+  cursor: pointer;
+  transition: border-color 0.25s ease, transform 0.25s ease;
+}
+.biz-card-v2:hover {
+  border-color: var(--v2-primary);
+  transform: translateY(-3px);
+}
 
 @tailwind base;
 @tailwind components;

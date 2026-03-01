@@ -10,8 +10,10 @@ import {
 import LivePreview from '@/components/LivePreview'
 import ROISection from '@/components/ROISection'
 import SmartInsights from '@/components/SmartInsights'
+import Header from '@/components/Header'
+import BusinessModal from '@/components/BusinessModal'
 
-const AXESS_PHONE = import.meta.env.VITE_AXESS_PHONE || '972500000000'
+const AXESS_PHONE = import.meta.env.VITE_AXESS_PHONE || '972586829494'
 const WA_LINK = `https://wa.me/${AXESS_PHONE}?text=${encodeURIComponent('שלום AXESS אני רוצה להצטרף')}`
 
 /* ── Scroll Reveal Hook ── */
@@ -294,100 +296,104 @@ function Section({ children, className = '', id = '' }) {
 
 /* ── Main Landing ── */
 export default function Landing() {
-  const [menuOpen, setMenuOpen] = useState(false)
-  const [scrolled, setScrolled] = useState(false)
-
-  useEffect(() => {
-    const handler = () => setScrolled(window.scrollY > 20)
-    window.addEventListener('scroll', handler)
-    return () => window.removeEventListener('scroll', handler)
-  }, [])
+  const [activeBiz, setActiveBiz] = useState(null)
 
   return (
-    <div className="min-h-screen bg-white" dir="rtl">
-
+    <div
+      dir="rtl"
+      style={{ minHeight: '100vh', background: 'var(--v2-dark)', color: '#ffffff' }}
+    >
       {/* ── HEADER ── */}
-      <header
-        className={`fixed top-0 inset-x-0 z-50 transition-all duration-300 ${
-          scrolled ? 'bg-white/90 backdrop-blur-md shadow-sm border-b border-gray-100' : 'bg-transparent'
-        }`}
-      >
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
-          {/* Logo */}
-          <div className="flex items-center gap-2">
-            <div className="w-9 h-9 rounded-xl bg-primary flex items-center justify-center shadow-glow-primary">
-              <span className="text-base font-black text-white">A</span>
-            </div>
-            <span className="text-xl font-black text-dark" style={{ fontFamily: 'Outfit, sans-serif' }}>
-              AXESS
-            </span>
-          </div>
-
-          {/* Desktop Nav */}
-          <nav className="hidden md:flex items-center gap-8">
-            {[
-              { label: 'מוצר', href: '#how' },
-              { label: 'תמחור', href: '#pricing' },
-              { label: 'דוגמאות', href: '#usecases' },
-              { label: 'כניסה', href: '/login' },
-            ].map(({ label, href }) => (
-              href.startsWith('/') ? (
-                <Link key={label} to={href} className="text-gray-500 hover:text-dark font-medium text-sm transition-colors">
-                  {label}
-                </Link>
-              ) : (
-                <a key={label} href={href} className="text-gray-500 hover:text-dark font-medium text-sm transition-colors">
-                  {label}
-                </a>
-              )
-            ))}
-          </nav>
-
-          {/* CTA */}
-          <div className="hidden md:flex items-center gap-3">
-            <Link to="/login" className="text-gray-500 hover:text-dark font-medium text-sm transition-colors">
-              כניסה
-            </Link>
-            <a href={WA_LINK} target="_blank" rel="noopener noreferrer" className="btn-landing-primary text-sm px-5 py-2.5">
-              התחל בחינם
-            </a>
-          </div>
-
-          {/* Mobile hamburger */}
-          <button
-            className="md:hidden p-2 rounded-lg hover:bg-gray-100 transition-colors"
-            onClick={() => setMenuOpen(!menuOpen)}
-          >
-            {menuOpen ? <X size={22} className="text-dark" /> : <Menu size={22} className="text-dark" />}
-          </button>
-        </div>
-
-        {/* Mobile Menu */}
-        {menuOpen && (
-          <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="md:hidden bg-white border-t border-gray-100 px-4 py-4 flex flex-col gap-3"
-          >
-            {['מוצר', 'תמחור', 'דוגמאות'].map(item => (
-              <a key={item} href={`#${item}`} className="text-gray-600 font-medium py-2 border-b border-gray-50">
-                {item}
-              </a>
-            ))}
-            <a href={WA_LINK} target="_blank" rel="noopener noreferrer" className="btn-landing-primary text-center mt-2">
-              התחל בחינם
-            </a>
-          </motion.div>
-        )}
-      </header>
+      <Header />
 
       {/* ── HERO ── */}
-      <section className="relative min-h-screen flex items-center bg-grid pt-20" style={{ background: 'linear-gradient(135deg, #EFF6FF 0%, #F8FAFC 50%, #F0FDF4 100%)' }}>
-        {/* Grid overlay */}
-        <div className="absolute inset-0 bg-grid opacity-60 pointer-events-none" />
+      <section
+        style={{
+          position: 'relative',
+          minHeight: '100vh',
+          display: 'flex',
+          alignItems: 'center',
+          overflow: 'hidden',
+          background: 'var(--v2-dark)',
+        }}
+      >
+        {/* Scrolling grid */}
+        <div
+          className="hero-grid-bg"
+          style={{
+            position: 'absolute',
+            inset: 0,
+            zIndex: 0,
+            height: '200%',
+          }}
+        />
 
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 py-16 lg:py-24 w-full">
-          <div className="grid lg:grid-cols-2 gap-12 items-center">
+        {/* Radial green glow center */}
+        <div
+          style={{
+            position: 'absolute',
+            inset: 0,
+            zIndex: 1,
+            background: 'radial-gradient(ellipse 60% 50% at 50% 40%, rgba(0,195,122,0.08) 0%, transparent 70%)',
+            pointerEvents: 'none',
+          }}
+        />
+
+        {/* Orb 1 — green top-right */}
+        <div
+          className="animate-float-v2"
+          style={{
+            position: 'absolute',
+            top: '-10%',
+            left: '-5%',
+            width: 400,
+            height: 400,
+            borderRadius: '50%',
+            background: 'var(--v2-primary)',
+            opacity: 0.10,
+            filter: 'blur(120px)',
+            zIndex: 1,
+            pointerEvents: 'none',
+            animationDelay: '0s',
+          }}
+        />
+        {/* Orb 2 — purple bottom-right */}
+        <div
+          className="animate-float-v2"
+          style={{
+            position: 'absolute',
+            bottom: '-5%',
+            right: '-5%',
+            width: 300,
+            height: 300,
+            borderRadius: '50%',
+            background: 'var(--v2-accent)',
+            opacity: 0.09,
+            filter: 'blur(100px)',
+            zIndex: 1,
+            pointerEvents: 'none',
+            animationDelay: '2s',
+          }}
+        />
+
+        <div
+          style={{
+            position: 'relative',
+            zIndex: 2,
+            maxWidth: 1280,
+            margin: '0 auto',
+            padding: '80px 24px 60px',
+            width: '100%',
+          }}
+        >
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
+              gap: 48,
+              alignItems: 'center',
+            }}
+          >
             {/* Left — Text */}
             <motion.div
               initial={{ opacity: 0, x: 30 }}
@@ -398,182 +404,330 @@ export default function Landing() {
               <motion.div
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.2 }}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20 text-primary text-sm font-semibold mb-6"
+                transition={{ delay: 0 }}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  padding: '8px 16px',
+                  borderRadius: 'var(--radius-full)',
+                  background: 'var(--glass-bg)',
+                  border: '1px solid var(--glass-border)',
+                  fontSize: 13,
+                  fontWeight: 600,
+                  color: 'var(--v2-gray-400)',
+                  marginBottom: 24,
+                }}
               >
-                <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
-                פלטפורמת SMS Marketing #1 בישראל 🇮🇱
+                <span style={{ color: 'var(--v2-primary)' }}>✦</span>
+                פלטפורמת השיווק החכמה של ישראל
               </motion.div>
 
               <motion.h1
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.3, duration: 0.7 }}
-                className="text-5xl lg:text-6xl xl:text-7xl font-black text-dark leading-tight mb-6"
-                style={{ fontFamily: 'Outfit, sans-serif' }}
+                transition={{ delay: 0.1, duration: 0.7 }}
+                style={{
+                  fontFamily: "'Bricolage Grotesque', 'Outfit', sans-serif",
+                  fontWeight: 800,
+                  fontSize: 'var(--text-hero)',
+                  lineHeight: 'var(--line-height-tight)',
+                  color: '#ffffff',
+                  marginBottom: 24,
+                  letterSpacing: '-0.02em',
+                }}
               >
-                שווק חכם.
+                מערכת שיווק מתוחכמת,
                 <br />
-                <span className="text-gradient-primary">מדוד תוצאות.</span>
+                חכמה ונגישה שמביאה
                 <br />
-                צמח מהר.
+                <span className="text-gradient-v2">תוצאות מיידיות</span> ברווחים
+                <br />
+                עם ניהול חכם ושדרוג
+                <br />
+                חווית לקוח.
               </motion.h1>
 
               <motion.p
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.45, duration: 0.6 }}
-                className="text-lg text-gray-500 mb-8 max-w-lg leading-relaxed"
+                transition={{ delay: 0.2, duration: 0.6 }}
+                style={{
+                  fontSize: 'var(--text-body-lg)',
+                  color: 'var(--v2-gray-400)',
+                  lineHeight: 'var(--line-height-body)',
+                  maxWidth: 520,
+                  marginBottom: 36,
+                }}
               >
-                שלח קמפיינים ממוקדים, עקוב אחר כל לחיצה, מדוד כל מימוש — הכל מתוך WhatsApp שלך
+                שלח קמפיינים ממוקדים, עקוב אחר כל לחיצה,
+                מדוד כל מימוש — הכל מתוך WhatsApp שלך.
               </motion.p>
 
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.6 }}
-                className="flex flex-wrap gap-4"
+                transition={{ delay: 0.3 }}
+                style={{ display: 'flex', flexWrap: 'wrap', gap: 14, marginBottom: 28 }}
               >
                 <a
                   href={WA_LINK}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="btn-landing-primary text-base px-8 py-3.5 gap-2"
+                  className="btn-v2-primary"
                 >
-                  <MessageCircle size={20} />
-                  התחל בחינם
+                  <MessageCircle size={18} />
+                  התחל בחינם — חינם
                 </a>
-                <a
-                  href="#demo"
-                  className="btn-landing-secondary text-base px-8 py-3.5"
-                >
-                  צפה בהדגמה
-                  <ChevronDown size={18} />
+                <a href="#demo" className="btn-v2-ghost">
+                  צפה בהדגמה ↓
                 </a>
               </motion.div>
 
-              {/* Trust badges */}
+              {/* Trust pills */}
               <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                transition={{ delay: 0.8 }}
-                className="flex flex-wrap gap-4 mt-8"
+                transition={{ delay: 0.4 }}
+                style={{ display: 'flex', flexWrap: 'wrap', gap: 16 }}
               >
                 {['ללא עמלת הצטרפות', 'קרדיטים לא פגים', 'תמיכה בעברית'].map(item => (
-                  <div key={item} className="flex items-center gap-1.5 text-sm text-gray-500">
-                    <CheckCircle size={15} className="text-accent" />
+                  <div
+                    key={item}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 6,
+                      fontSize: 'var(--text-micro)',
+                      color: 'var(--v2-gray-400)',
+                    }}
+                  >
+                    <span style={{ color: 'var(--v2-primary)', fontWeight: 700 }}>✓</span>
                     {item}
                   </div>
                 ))}
               </motion.div>
             </motion.div>
 
-            {/* Right — Phone Animation */}
+            {/* Right — Phone Animation (UNTOUCHED) */}
             <motion.div
               initial={{ opacity: 0, x: -30 }}
               animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.7, delay: 0.3 }}
-              className="flex justify-center lg:justify-start"
+              transition={{ duration: 0.7, delay: 0.2 }}
+              style={{ display: 'flex', justifyContent: 'center' }}
               id="demo"
             >
-              <WhatsAppAnimation />
+              <div
+                className="animate-float-v2"
+                style={{
+                  filter: 'drop-shadow(0 0 40px rgba(0,195,122,0.18))',
+                }}
+              >
+                <WhatsAppAnimation />
+              </div>
             </motion.div>
           </div>
         </div>
       </section>
 
-      {/* ── ROI NUMBERS ── */}
-      <Section className="bg-primary py-16 lg:py-20">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 text-center">
+      {/* ── ROI NUMBERS — v2 card style ── */}
+      <section
+        style={{
+          background: 'var(--v2-dark-2)',
+          borderTop: '1px solid var(--glass-border)',
+          borderBottom: '1px solid var(--glass-border)',
+          padding: 'var(--space-12) 0',
+        }}
+      >
+        <div style={{ maxWidth: 1280, margin: '0 auto', padding: '0 24px' }}>
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+              gap: 'var(--space-4)',
+            }}
+          >
             {[
-              { value: 201, suffix: ' תווים', label: 'במחיר הודעה אחת', icon: '📝' },
-              { value: 3, suffix: ' דקות', label: 'מקמפיין לשליחה', icon: '⚡' },
-              { value: 40, suffix: '%', label: 'אחוז מימוש ממוצע', prefix: 'עד ', icon: '🎯' },
-            ].map(({ value, suffix, label, icon, prefix }) => (
+              {
+                value: 201,
+                suffix: ' תווים',
+                label: 'במחיר הודעה אחת',
+                sub: '201 תווים, חיוב אחד. שלח יותר בפחות.',
+                svgPath: 'M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z M8 10h8 M8 13h5',
+              },
+              {
+                value: 3,
+                suffix: ' דקות',
+                label: 'מקמפיין לשליחה',
+                sub: 'אונבורדינג מהיר. ממשק ב-WhatsApp. ללא הדרכות.',
+                svgPath: 'M13 2L3 14h9l-1 8 10-12h-9l1-8z',
+              },
+              {
+                value: 40,
+                suffix: '%',
+                prefix: 'עד ',
+                label: 'אחוז מימוש ממוצע',
+                sub: 'Validator ייחודי לכל לקוח. מדידה מדויקת.',
+                svgPath: 'M23 6l-9.5 9.5-5-5L1 18 M17 6h6v6',
+              },
+            ].map(({ value, suffix, prefix, label, sub, svgPath }, i) => (
               <motion.div
                 key={label}
-                initial={{ opacity: 0, y: 20 }}
+                initial={{ opacity: 0, y: 24 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
-                transition={{ duration: 0.5 }}
-                className="text-white"
+                transition={{ delay: i * 0.12 }}
+                className="stat-card-v2"
               >
-                <div className="text-4xl mb-2">{icon}</div>
-                <div className="text-5xl lg:text-6xl font-black mb-2" style={{ fontFamily: 'Outfit, sans-serif' }}>
-                  <CounterNumber end={value} suffix={suffix} prefix={prefix} />
+                {/* SVG icon */}
+                <svg
+                  width="28"
+                  height="28"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="var(--v2-primary)"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  style={{ marginBottom: 16 }}
+                >
+                  {svgPath.split(' M ').map((seg, si) => (
+                    <path key={si} d={si === 0 ? seg : 'M ' + seg} />
+                  ))}
+                </svg>
+
+                {/* Counter */}
+                <div
+                  style={{
+                    fontFamily: "'Bricolage Grotesque', 'JetBrains Mono', monospace",
+                    fontWeight: 800,
+                    fontSize: 'clamp(48px, 7vw, 72px)',
+                    lineHeight: 1,
+                    color: '#ffffff',
+                    marginBottom: 8,
+                    letterSpacing: '-0.03em',
+                  }}
+                >
+                  <CounterNumber end={value} suffix={suffix} prefix={prefix || ''} />
                 </div>
-                <div className="text-white/70 text-lg">{label}</div>
+
+                <div style={{ fontWeight: 700, fontSize: 16, color: '#ffffff', marginBottom: 6 }}>
+                  {label}
+                </div>
+                <div style={{ fontSize: 14, color: 'var(--v2-gray-400)', lineHeight: 1.6 }}>
+                  {sub}
+                </div>
               </motion.div>
             ))}
           </div>
         </div>
-      </Section>
+      </section>
 
       {/* ── HOW IT WORKS ── */}
-      <Section id="how" className="py-20 lg:py-28 bg-white">
+      <Section
+        id="how"
+        style={{ background: 'var(--v2-dark-2)', padding: 'var(--space-12) 0' }}
+      >
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <div className="text-center mb-16">
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 text-primary text-sm font-semibold mb-4">
-              <Zap size={14} />
+            <div
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 8,
+                padding: '8px 16px',
+                borderRadius: 'var(--radius-full)',
+                background: 'rgba(0,195,122,0.10)',
+                border: '1px solid rgba(0,195,122,0.20)',
+                color: 'var(--v2-primary)',
+                fontSize: 13,
+                fontWeight: 600,
+                marginBottom: 16,
+              }}
+            >
+              <Zap size={13} />
               פשוט להתחיל
             </div>
-            <h2 className="text-4xl lg:text-5xl font-black text-dark mb-4" style={{ fontFamily: 'Outfit, sans-serif' }}>
+            <h2
+              style={{
+                fontFamily: "'Bricolage Grotesque', 'Outfit', sans-serif",
+                fontWeight: 800,
+                fontSize: 'var(--text-h2)',
+                color: '#ffffff',
+                marginBottom: 12,
+                letterSpacing: '-0.02em',
+              }}
+            >
               פשוט. מהיר. רווחי.
             </h2>
-            <p className="text-gray-500 text-lg max-w-xl mx-auto">
+            <p style={{ color: 'var(--v2-gray-400)', fontSize: 18, maxWidth: 480, margin: '0 auto' }}>
               שלושה שלבים פשוטים מהרשמה ועד קמפיין חי
             </p>
           </div>
 
           <div className="grid md:grid-cols-3 gap-6 lg:gap-8 relative">
-            {/* Connecting arrows (desktop) */}
-            <div className="hidden md:block absolute top-12 right-[calc(33%+24px)] left-[calc(33%+24px)] h-0.5 bg-gradient-to-l from-primary/30 to-primary/30 via-primary/60" />
-
             {[
               {
                 step: '01',
                 icon: '📋',
                 title: 'העלה רשימה',
                 desc: 'CSV, Excel או הדבקה ישירה — המערכת מנרמלת הכל אוטומטית',
-                color: 'bg-blue-50 border-blue-100',
-                iconBg: 'bg-primary/10',
               },
               {
                 step: '02',
                 icon: '✍️',
                 title: 'הגדר קמפיין',
                 desc: 'כתוב הודעה, בחר קהל, תזמן — הכל מתוך WhatsApp',
-                color: 'bg-purple-50 border-purple-100',
-                iconBg: 'bg-purple-100',
               },
               {
                 step: '03',
                 icon: '📊',
                 title: 'מדוד תוצאות',
                 desc: 'קבל דוח חי: נשלח / נמסר / הוקלק / מומש',
-                color: 'bg-green-50 border-green-100',
-                iconBg: 'bg-accent/10',
               },
-            ].map(({ step, icon, title, desc, color, iconBg }, i) => (
+            ].map(({ step, icon, title, desc }, i) => (
               <motion.div
                 key={step}
                 initial={{ opacity: 0, y: 30 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: i * 0.15, duration: 0.5 }}
-                className={`landing-card border-2 ${color} relative`}
+                className="stat-card-v2"
+                style={{ position: 'relative' }}
               >
-                <div className="absolute -top-4 right-6 w-8 h-8 rounded-full bg-primary text-white text-sm font-black flex items-center justify-center shadow-glow-primary">
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: -14,
+                    right: 20,
+                    width: 32,
+                    height: 32,
+                    borderRadius: '50%',
+                    background: 'var(--v2-primary)',
+                    color: 'var(--v2-dark)',
+                    fontSize: 13,
+                    fontWeight: 800,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    boxShadow: 'var(--shadow-glow-green)',
+                  }}
+                >
                   {step}
                 </div>
-                <div className={`w-14 h-14 rounded-2xl ${iconBg} flex items-center justify-center text-3xl mb-4 mt-2`}>
-                  {icon}
-                </div>
-                <h3 className="text-xl font-bold text-dark mb-2" style={{ fontFamily: 'Outfit, sans-serif' }}>
+                <div style={{ fontSize: 36, marginBottom: 16, marginTop: 8 }}>{icon}</div>
+                <h3
+                  style={{
+                    fontFamily: "'Bricolage Grotesque', 'Outfit', sans-serif",
+                    fontWeight: 700,
+                    fontSize: 20,
+                    color: '#ffffff',
+                    marginBottom: 8,
+                  }}
+                >
                   {title}
                 </h3>
-                <p className="text-gray-500 leading-relaxed">{desc}</p>
+                <p style={{ color: 'var(--v2-gray-400)', lineHeight: 1.7, fontSize: 15 }}>{desc}</p>
               </motion.div>
             ))}
           </div>
@@ -581,24 +735,47 @@ export default function Landing() {
       </Section>
 
       {/* ── VALIDATOR (DIFFERENTIATOR) ── */}
-      <Section className="py-20 lg:py-28 bg-gray-100">
+      <Section style={{ background: 'var(--v2-dark-3)', padding: 'var(--space-12) 0' }}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <div className="grid lg:grid-cols-2 gap-12 items-center">
             {/* Text */}
             <div>
-              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-accent/10 text-accent text-sm font-semibold mb-6">
-                <QrCode size={14} />
+              <div
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  padding: '8px 16px',
+                  borderRadius: 'var(--radius-full)',
+                  background: 'rgba(99,102,241,0.12)',
+                  border: '1px solid rgba(99,102,241,0.25)',
+                  color: 'var(--v2-accent)',
+                  fontSize: 13,
+                  fontWeight: 600,
+                  marginBottom: 20,
+                }}
+              >
+                <QrCode size={13} />
                 הבידול שלנו
               </div>
-              <h2 className="text-4xl lg:text-5xl font-black text-dark mb-6" style={{ fontFamily: 'Outfit, sans-serif' }}>
+              <h2
+                style={{
+                  fontFamily: "'Bricolage Grotesque', 'Outfit', sans-serif",
+                  fontWeight: 800,
+                  fontSize: 'var(--text-h2)',
+                  color: '#ffffff',
+                  marginBottom: 16,
+                  letterSpacing: '-0.02em',
+                }}
+              >
                 הכרטיס הדיגיטלי החדש
               </h2>
-              <p className="text-gray-500 text-lg mb-8 leading-relaxed">
+              <p style={{ color: 'var(--v2-gray-400)', fontSize: 18, marginBottom: 28, lineHeight: 1.7 }}>
                 כל לקוח מקבל כרטיס/קופון ייחודי שמגיע ב-SMS.
                 לוחץ → רואה → ממש → נרשם בדאטהבייס שלך.
               </p>
 
-              <div className="grid grid-cols-1 gap-3">
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                 {[
                   'כרטיס כניסה לאירוע',
                   'קופון הנחה לחנות',
@@ -606,17 +783,28 @@ export default function Landing() {
                   'אישור הזמנה למלון',
                   'כל עסק — כל שימוש',
                 ].map(item => (
-                  <div key={item} className="flex items-center gap-3">
-                    <div className="w-6 h-6 rounded-full bg-accent/10 flex items-center justify-center flex-shrink-0">
-                      <CheckCircle size={14} className="text-accent" />
+                  <div key={item} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <div
+                      style={{
+                        width: 24,
+                        height: 24,
+                        borderRadius: '50%',
+                        background: 'rgba(0,195,122,0.12)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        flexShrink: 0,
+                      }}
+                    >
+                      <CheckCircle size={14} style={{ color: 'var(--v2-primary)' }} />
                     </div>
-                    <span className="text-dark font-medium">{item}</span>
+                    <span style={{ color: '#ffffff', fontWeight: 500, fontSize: 15 }}>{item}</span>
                   </div>
                 ))}
               </div>
             </div>
 
-            {/* Validator Animation */}
+            {/* Validator Animation — UNTOUCHED */}
             <div className="flex justify-center">
               <ValidatorAnimation />
             </div>
@@ -624,49 +812,98 @@ export default function Landing() {
         </div>
       </Section>
 
-      {/* ── USE CASES ── */}
-      <Section id="usecases" className="py-20 lg:py-28 bg-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6">
-          <div className="text-center mb-14">
-            <h2 className="text-4xl lg:text-5xl font-black text-dark mb-4" style={{ fontFamily: 'Outfit, sans-serif' }}>
-              מתאים לכל עסק
+      {/* ── USE CASES — v2 dark ── */}
+      <section
+        id="usecases"
+        style={{
+          background: 'var(--v2-dark)',
+          padding: 'var(--space-12) 0',
+        }}
+      >
+        <div style={{ maxWidth: 1280, margin: '0 auto', padding: '0 24px' }}>
+          <div style={{ textAlign: 'center', marginBottom: 56 }}>
+            <h2
+              style={{
+                fontFamily: "'Bricolage Grotesque', 'Outfit', sans-serif",
+                fontWeight: 800,
+                fontSize: 'var(--text-h2)',
+                color: '#ffffff',
+                marginBottom: 12,
+                letterSpacing: '-0.02em',
+              }}
+            >
+              לכל עסק — פתרון מדויק
             </h2>
-            <p className="text-gray-500 text-lg">מסעדות, אירועים, מלונות ועוד</p>
+            <p style={{ color: 'var(--v2-gray-400)', fontSize: 'var(--text-body)' }}>
+              לחץ על סוג העסק שלך לראות איך AXESS עובד עבורך
+            </p>
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
+              gap: 16,
+            }}
+          >
             {[
-              { Icon: Utensils,   name: 'מסעדות',     use: 'קופוני ארוחה ללקוחות חוזרים' },
-              { Icon: Music,      name: 'אירועים',    use: 'כרטיסי כניסה דיגיטליים' },
-              { Icon: Hotel,      name: 'מלונות',     use: 'אישורי הזמנה + הטבות' },
-              { Icon: ShoppingBag,name: 'חנויות',     use: 'מבצעים ממוקדים לפי רכישות' },
-              { Icon: Dumbbell,   name: 'חדרי כושר',  use: 'כרטיסיות וחידוש מנוי' },
-              { Icon: Building2,  name: 'ארגונים',    use: 'תקשורת ממוקדת לחברים' },
-            ].map(({ Icon, name, use }, i) => (
+              { Icon: Music,       name: 'אירועים',    use: 'כרטיסי כניסה דיגיטליים',      bizKey: 'events' },
+              { Icon: Hotel,       name: 'מלונות',     use: 'אישורי הזמנה + Upsell',        bizKey: 'hotels' },
+              { Icon: Utensils,    name: 'מסעדות',     use: 'קופוני ארוחה ללקוחות חוזרים', bizKey: 'restaurants' },
+              { Icon: ShoppingBag, name: 'חנויות',     use: 'מבצעים ממוקדים לפי רכישות',   bizKey: 'stores' },
+              { Icon: Dumbbell,    name: 'חדרי כושר',  use: 'כרטיסיות וחידוש מנוי',         bizKey: 'gyms' },
+              { Icon: Building2,   name: 'ארגונים',    use: 'תקשורת ממוקדת לחברים',         bizKey: 'orgs' },
+            ].map(({ Icon, name, use, bizKey }, i) => (
               <motion.div
                 key={name}
                 initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: i * 0.08 }}
-                className="group bg-white rounded-2xl p-8 text-center cursor-default transition-all duration-300 hover:-translate-y-1"
-                style={{
-                  border: '1px solid #E2E8F0',
-                  boxShadow: '0 1px 4px rgba(0,0,0,0.04)',
-                }}
-                whileHover={{ borderColor: '#2563EB', boxShadow: '0 4px 20px rgba(37,99,235,0.10)' }}
+                className="biz-card-v2"
+                onClick={() => setActiveBiz(bizKey)}
+                role="button"
+                tabIndex={0}
+                onKeyDown={e => e.key === 'Enter' && setActiveBiz(bizKey)}
               >
-                <div className="w-12 h-12 rounded-xl bg-primary/8 flex items-center justify-center mx-auto mb-4 group-hover:bg-primary/12 transition-colors"
-                  style={{ background: 'rgba(37,99,235,0.07)' }}>
-                  <Icon size={22} className="text-primary" strokeWidth={1.5} />
+                <div
+                  style={{
+                    width: 48,
+                    height: 48,
+                    borderRadius: 14,
+                    background: 'rgba(0,195,122,0.10)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    marginBottom: 14,
+                  }}
+                >
+                  <Icon size={22} style={{ color: 'var(--v2-primary)' }} strokeWidth={1.5} />
                 </div>
-                <div className="font-bold text-dark text-sm mb-1.5">{name}</div>
-                <div className="text-gray-500 text-xs leading-relaxed">{use}</div>
+                <div style={{ fontWeight: 700, color: '#ffffff', fontSize: 15, marginBottom: 6 }}>
+                  {name}
+                </div>
+                <div style={{ color: 'var(--v2-gray-400)', fontSize: 13, lineHeight: 1.5 }}>
+                  {use}
+                </div>
+                <div
+                  style={{
+                    marginTop: 14,
+                    fontSize: 12,
+                    color: 'var(--v2-primary)',
+                    fontWeight: 600,
+                  }}
+                >
+                  ← פרטים נוספים
+                </div>
               </motion.div>
             ))}
           </div>
         </div>
-      </Section>
+      </section>
+
+      {/* ── BUSINESS MODAL ── */}
+      <BusinessModal bizKey={activeBiz} onClose={() => setActiveBiz(null)} />
 
       {/* ── LIVE PREVIEW ── */}
       <LivePreview />
@@ -678,27 +915,59 @@ export default function Landing() {
       <SmartInsights />
 
       {/* ── PRICING ── */}
-      <Section id="pricing" className="py-20 lg:py-28 bg-gray-100">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6">
-          <div className="text-center mb-16">
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 text-primary text-sm font-semibold mb-4">
-              <TrendingUp size={14} />
+      <section
+        id="pricing"
+        style={{ background: 'var(--v2-dark-2)', padding: 'var(--space-12) 0' }}
+      >
+        <div style={{ maxWidth: 1280, margin: '0 auto', padding: '0 24px' }}>
+          <div style={{ textAlign: 'center', marginBottom: 56 }}>
+            <div
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 8,
+                padding: '8px 16px',
+                borderRadius: 'var(--radius-full)',
+                background: 'rgba(0,195,122,0.10)',
+                border: '1px solid rgba(0,195,122,0.20)',
+                color: 'var(--v2-primary)',
+                fontSize: 13,
+                fontWeight: 600,
+                marginBottom: 16,
+              }}
+            >
+              <TrendingUp size={13} />
               תמחור שקוף
             </div>
-            <h2 className="text-4xl lg:text-5xl font-black text-dark mb-4" style={{ fontFamily: 'Outfit, sans-serif' }}>
+            <h2
+              style={{
+                fontFamily: "'Bricolage Grotesque', 'Outfit', sans-serif",
+                fontWeight: 800,
+                fontSize: 'var(--text-h2)',
+                color: '#ffffff',
+                marginBottom: 12,
+                letterSpacing: '-0.02em',
+              }}
+            >
               תשלום רק על מה ששלחת
             </h2>
-            <p className="text-gray-500 text-lg">
+            <p style={{ color: 'var(--v2-gray-400)', fontSize: 18 }}>
               קרדיטים לא פגים. אין חוזים. אין דמי מנוי.
             </p>
           </div>
 
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
+              gap: 16,
+            }}
+          >
             {[
-              { name: 'Basic', price: '8', unit: 'אג׳ להודעה', range: 'עד 10,000 הודעות', featured: false },
-              { name: 'Business', price: '7', unit: 'אג׳ להודעה', range: '10,001–50,000 הודעות', featured: true },
-              { name: 'Premium', price: '6', unit: 'אג׳ להודעה', range: '50,001–200,000 הודעות', featured: false },
-              { name: 'Enterprise', price: '5', unit: 'אג׳ להודעה', range: '200,001+ הודעות', featured: false },
+              { name: 'Basic',      price: '8', unit: 'אג׳ להודעה', range: 'עד 10,000 הודעות',         featured: false },
+              { name: 'Business',   price: '7', unit: 'אג׳ להודעה', range: '10,001–50,000 הודעות',      featured: true  },
+              { name: 'Premium',    price: '6', unit: 'אג׳ להודעה', range: '50,001–200,000 הודעות',     featured: false },
+              { name: 'Enterprise', price: '5', unit: 'אג׳ להודעה', range: '200,001+ הודעות',           featured: false },
             ].map(({ name, price, unit, range, featured }, i) => (
               <motion.div
                 key={name}
@@ -706,30 +975,80 @@ export default function Landing() {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: i * 0.1 }}
-                className={featured ? 'pricing-card-featured' : 'pricing-card'}
+                style={{
+                  background: featured ? 'var(--v2-primary)' : 'var(--v2-dark-3)',
+                  border: featured ? 'none' : '1px solid var(--glass-border)',
+                  borderRadius: 'var(--radius-lg)',
+                  padding: 'var(--space-4)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  position: 'relative',
+                  boxShadow: featured ? 'var(--shadow-glow-green)' : 'none',
+                }}
               >
                 {featured && (
-                  <div className="absolute top-4 left-4 bg-white/20 text-white text-xs font-bold px-3 py-1 rounded-full">
+                  <div
+                    style={{
+                      position: 'absolute',
+                      top: 14,
+                      left: 14,
+                      background: 'rgba(0,0,0,0.25)',
+                      color: 'var(--v2-dark)',
+                      fontSize: 11,
+                      fontWeight: 800,
+                      padding: '4px 10px',
+                      borderRadius: 'var(--radius-full)',
+                    }}
+                  >
                     הכי פופולרי
                   </div>
                 )}
-                <div className={`text-sm font-semibold mb-4 ${featured ? 'text-white/80' : 'text-gray-500'}`}>
+                <div
+                  style={{
+                    fontSize: 13,
+                    fontWeight: 700,
+                    marginBottom: 16,
+                    color: featured ? 'rgba(8,12,20,0.75)' : 'var(--v2-gray-400)',
+                  }}
+                >
                   {name}
                 </div>
-                <div className={`text-5xl font-black mb-1 ${featured ? 'text-white' : 'text-dark'}`} style={{ fontFamily: 'Outfit, sans-serif' }}>
+                <div
+                  style={{
+                    fontFamily: "'Bricolage Grotesque', monospace",
+                    fontWeight: 800,
+                    fontSize: 52,
+                    lineHeight: 1,
+                    color: featured ? 'var(--v2-dark)' : '#ffffff',
+                    marginBottom: 4,
+                    letterSpacing: '-0.03em',
+                  }}
+                >
                   {price}
                 </div>
-                <div className={`text-sm mb-2 ${featured ? 'text-white/80' : 'text-gray-500'}`}>{unit}</div>
-                <div className={`text-xs mb-6 ${featured ? 'text-white/60' : 'text-gray-400'}`}>{range}</div>
+                <div style={{ fontSize: 13, color: featured ? 'rgba(8,12,20,0.7)' : 'var(--v2-gray-400)', marginBottom: 4 }}>
+                  {unit}
+                </div>
+                <div style={{ fontSize: 12, color: featured ? 'rgba(8,12,20,0.55)' : 'var(--v2-gray-400)', marginBottom: 24 }}>
+                  {range}
+                </div>
                 <a
                   href={WA_LINK}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className={`mt-auto block text-center py-3 rounded-xl font-semibold text-sm transition-all duration-200 ${
-                    featured
-                      ? 'bg-white text-primary hover:bg-primary-light'
-                      : 'bg-primary text-white hover:bg-primary-dark'
-                  }`}
+                  style={{
+                    marginTop: 'auto',
+                    display: 'block',
+                    textAlign: 'center',
+                    padding: '12px',
+                    borderRadius: 'var(--radius-md)',
+                    fontWeight: 700,
+                    fontSize: 14,
+                    textDecoration: 'none',
+                    transition: 'opacity 0.2s',
+                    background: featured ? 'rgba(8,12,20,0.15)' : 'var(--v2-primary)',
+                    color: featured ? 'var(--v2-dark)' : 'var(--v2-dark)',
+                  }}
                 >
                   התחל עכשיו
                 </a>
@@ -737,98 +1056,186 @@ export default function Landing() {
             ))}
           </div>
 
-          <div className="text-center mt-8 text-gray-500 text-sm">
+          <div style={{ textAlign: 'center', marginTop: 24, color: 'var(--v2-gray-400)', fontSize: 14 }}>
             מינימום רכישה: 1,500 הודעות • ללא עמלת הצטרפות • תמיכה בעברית
           </div>
         </div>
-      </Section>
+      </section>
 
       {/* ── FINAL CTA ── */}
-      <Section className="py-20 lg:py-28">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6">
-          <div className="rounded-3xl bg-gradient-to-bl from-[#1E40AF] to-[#2563EB] p-12 lg:p-16 text-center relative overflow-hidden">
-            {/* Decorative circles */}
-            <div className="absolute -top-20 -right-20 w-64 h-64 rounded-full bg-white/5 pointer-events-none" />
-            <div className="absolute -bottom-16 -left-16 w-48 h-48 rounded-full bg-white/5 pointer-events-none" />
-
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              className="relative z-10"
+      <section style={{ background: 'var(--v2-dark)', padding: 'var(--space-12) 0' }}>
+        <div style={{ maxWidth: 900, margin: '0 auto', padding: '0 24px' }}>
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            style={{
+              borderRadius: 'var(--radius-xl)',
+              background: 'linear-gradient(135deg, rgba(0,195,122,0.12) 0%, rgba(99,102,241,0.10) 100%)',
+              border: '1px solid rgba(0,195,122,0.20)',
+              padding: 'var(--space-12)',
+              textAlign: 'center',
+              position: 'relative',
+              overflow: 'hidden',
+            }}
+          >
+            <div
+              style={{
+                position: 'absolute',
+                top: -80,
+                right: -80,
+                width: 240,
+                height: 240,
+                borderRadius: '50%',
+                background: 'var(--v2-primary)',
+                opacity: 0.06,
+                filter: 'blur(60px)',
+                pointerEvents: 'none',
+              }}
+            />
+            <h2
+              style={{
+                fontFamily: "'Bricolage Grotesque', 'Outfit', sans-serif",
+                fontWeight: 800,
+                fontSize: 'var(--text-h1)',
+                color: '#ffffff',
+                marginBottom: 16,
+                letterSpacing: '-0.02em',
+                position: 'relative',
+              }}
             >
-              <h2 className="text-4xl lg:text-5xl font-black text-white mb-4" style={{ fontFamily: 'Outfit, sans-serif' }}>
-                מוכן להכפיל את ההכנסות שלך?
-              </h2>
-              <p className="text-white/70 text-lg mb-8">
-                הצטרף לאלפי עסקים שכבר שולחים עם AXESS
-              </p>
-              <a
-                href={WA_LINK}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 bg-white text-primary font-bold text-lg px-10 py-4 rounded-xl hover:bg-primary-light transition-all duration-200 shadow-lg hover:shadow-xl active:scale-95"
-              >
-                <MessageCircle size={22} />
-                פתח חשבון עכשיו
-              </a>
-              <div className="mt-6 flex flex-wrap justify-center gap-6 text-white/60 text-sm">
-                <span>✓ מינימום 1,500 הודעות</span>
-                <span>✓ ללא עמלת הצטרפות</span>
-                <span>✓ תמיכה בעברית</span>
-              </div>
-            </motion.div>
-          </div>
+              מוכן להכפיל את ההכנסות שלך?
+            </h2>
+            <p style={{ color: 'var(--v2-gray-400)', fontSize: 18, marginBottom: 32, position: 'relative' }}>
+              הצטרף לאלפי עסקים שכבר שולחים עם AXESS
+            </p>
+            <a
+              href={WA_LINK}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="btn-v2-primary"
+              style={{ fontSize: 17, padding: '16px 40px', position: 'relative' }}
+            >
+              <MessageCircle size={20} />
+              פתח חשבון עכשיו
+            </a>
+            <div
+              style={{
+                marginTop: 24,
+                display: 'flex',
+                flexWrap: 'wrap',
+                justifyContent: 'center',
+                gap: 24,
+                color: 'var(--v2-gray-400)',
+                fontSize: 13,
+                position: 'relative',
+              }}
+            >
+              <span>✓ מינימום 1,500 הודעות</span>
+              <span>✓ ללא עמלת הצטרפות</span>
+              <span>✓ תמיכה בעברית</span>
+            </div>
+          </motion.div>
         </div>
-      </Section>
+      </section>
 
       {/* ── FOOTER ── */}
-      <footer className="bg-dark text-white py-16">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6">
-          <div className="grid md:grid-cols-3 gap-10 mb-12">
+      <footer
+        style={{
+          background: 'var(--v2-dark-2)',
+          borderTop: '1px solid var(--glass-border)',
+          padding: 'var(--space-12) 0 var(--space-8)',
+          color: '#ffffff',
+        }}
+      >
+        <div style={{ maxWidth: 1280, margin: '0 auto', padding: '0 24px' }}>
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
+              gap: 40,
+              marginBottom: 48,
+            }}
+          >
             {/* Brand */}
             <div>
-              <div className="flex items-center gap-2 mb-4">
-                <div className="w-9 h-9 rounded-xl bg-primary flex items-center justify-center">
-                  <span className="text-base font-black text-white">A</span>
-                </div>
-                <span className="text-xl font-black" style={{ fontFamily: 'Outfit, sans-serif' }}>AXESS</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 12 }}>
+                <span
+                  style={{
+                    fontFamily: "'Bricolage Grotesque', 'Outfit', sans-serif",
+                    fontWeight: 800,
+                    fontSize: 20,
+                    color: '#ffffff',
+                  }}
+                >
+                  AXESS
+                </span>
+                <span
+                  className="animate-pulse-green"
+                  style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--v2-primary)', display: 'inline-block' }}
+                />
               </div>
-              <p className="text-gray-400 text-sm leading-relaxed mb-4">
+              <p style={{ color: 'var(--v2-gray-400)', fontSize: 14, lineHeight: 1.7 }}>
                 פלטפורמת SMS Marketing המובילה בישראל. שלח, מדוד, צמח.
               </p>
-              <div className="flex gap-3">
-                {['📱', '💬', '📧'].map((icon, i) => (
-                  <button key={i} className="w-9 h-9 rounded-lg bg-white/10 flex items-center justify-center hover:bg-white/20 transition-colors text-sm">
-                    {icon}
-                  </button>
-                ))}
-              </div>
             </div>
 
             {/* Product */}
             <div>
-              <h4 className="font-bold mb-4 text-white">מוצר</h4>
-              <ul className="space-y-2.5">
-                {['תכונות', 'תמחור', 'API', 'Validator'].map(item => (
-                  <li key={item}>
-                    <a href="#" className="text-gray-400 hover:text-white text-sm transition-colors">{item}</a>
+              <h4 style={{ fontWeight: 700, marginBottom: 16, color: '#ffffff', fontSize: 15 }}>מוצר</h4>
+              <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {[
+                  { label: 'תכונות', href: '/features' },
+                  { label: 'תמחור', href: '/pricing' },
+                  { label: 'Validator', href: '/#validator' },
+                ].map(({ label, href }) => (
+                  <li key={label}>
+                    <Link
+                      to={href}
+                      style={{ color: 'var(--v2-gray-400)', textDecoration: 'none', fontSize: 14, transition: 'color 0.2s' }}
+                      onMouseEnter={e => (e.target.style.color = '#ffffff')}
+                      onMouseLeave={e => (e.target.style.color = 'var(--v2-gray-400)')}
+                    >
+                      {label}
+                    </Link>
                   </li>
                 ))}
               </ul>
             </div>
 
-            {/* Legal */}
+            {/* Company */}
             <div>
-              <h4 className="font-bold mb-4 text-white">משפטי</h4>
-              <ul className="space-y-2.5">
-                <li><Link to="/terms" className="text-gray-400 hover:text-white text-sm transition-colors">תנאי שימוש</Link></li>
-                <li><Link to="/privacy" className="text-gray-400 hover:text-white text-sm transition-colors">מדיניות פרטיות</Link></li>
+              <h4 style={{ fontWeight: 700, marginBottom: 16, color: '#ffffff', fontSize: 15 }}>חברה</h4>
+              <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {[
+                  { label: 'עלינו', href: '/about' },
+                  { label: 'תנאי שימוש', href: '/terms' },
+                  { label: 'מדיניות פרטיות', href: '/privacy' },
+                ].map(({ label, href }) => (
+                  <li key={label}>
+                    <Link
+                      to={href}
+                      style={{ color: 'var(--v2-gray-400)', textDecoration: 'none', fontSize: 14, transition: 'color 0.2s' }}
+                      onMouseEnter={e => (e.target.style.color = '#ffffff')}
+                      onMouseLeave={e => (e.target.style.color = 'var(--v2-gray-400)')}
+                    >
+                      {label}
+                    </Link>
+                  </li>
+                ))}
               </ul>
             </div>
           </div>
 
-          <div className="border-t border-white/10 pt-8 text-center text-gray-500 text-sm">
+          <div
+            style={{
+              borderTop: '1px solid rgba(255,255,255,0.07)',
+              paddingTop: 24,
+              textAlign: 'center',
+              color: 'var(--v2-gray-400)',
+              fontSize: 13,
+            }}
+          >
             © 2026 AXESS. כל הזכויות שמורות.
           </div>
         </div>
