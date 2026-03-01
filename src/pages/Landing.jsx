@@ -294,6 +294,147 @@ function Section({ children, className = '', id = '' }) {
   )
 }
 
+/* ── Campaign Mock (card 2 alternating) ── */
+function CampaignMock() {
+  const [phase, setPhase] = useState(0)
+  useEffect(() => {
+    const t = setInterval(() => setPhase(p => (p + 1) % 2), 3000)
+    return () => clearInterval(t)
+  }, [])
+  return (
+    <div style={{ position: 'relative', height: 90, overflow: 'hidden' }}>
+      {/* WA mock */}
+      <div
+        style={{
+          position: 'absolute',
+          inset: 0,
+          background: '#075E54',
+          borderRadius: 12,
+          padding: 12,
+          fontSize: 11,
+          opacity: phase === 0 ? 1 : 0,
+          transform: phase === 0 ? 'translateY(0)' : 'translateY(-8px)',
+          transition: 'opacity 0.5s ease, transform 0.5s ease',
+        }}
+      >
+        <div style={{ background: 'rgba(255,255,255,0.15)', borderRadius: 8, padding: '5px 8px', color: '#fff', marginBottom: 6, display: 'inline-block', maxWidth: '90%' }}>
+          שלח הודעה: &quot;מבצע סוף שבוע...&quot;
+        </div>
+        <div style={{ background: '#dcf8c6', borderRadius: 8, padding: '5px 8px', color: '#075E54', display: 'inline-block', maxWidth: '90%', float: 'left' }}>
+          ✓ הוגדר! 500 נמענים מוכנים
+        </div>
+      </div>
+      {/* Dashboard mock */}
+      <div
+        style={{
+          position: 'absolute',
+          inset: 0,
+          background: 'var(--v2-dark-3)',
+          borderRadius: 12,
+          padding: 12,
+          fontSize: 11,
+          border: '1px solid rgba(255,255,255,0.07)',
+          opacity: phase === 1 ? 1 : 0,
+          transform: phase === 1 ? 'translateY(0)' : 'translateY(8px)',
+          transition: 'opacity 0.5s ease, transform 0.5s ease',
+        }}
+      >
+        <div style={{ display: 'flex', gap: 6, marginBottom: 6, alignItems: 'center' }}>
+          <span style={{ color: 'var(--v2-gray-400)', fontSize: 10 }}>שם קמפיין</span>
+          <div style={{ flex: 1, height: 16, background: 'rgba(255,255,255,0.06)', borderRadius: 4 }} />
+        </div>
+        <div style={{ display: 'flex', gap: 6, marginBottom: 8, alignItems: 'center' }}>
+          <span style={{ color: 'var(--v2-gray-400)', fontSize: 10 }}>תאריך שליחה</span>
+          <div style={{ flex: 1, height: 16, background: 'rgba(255,255,255,0.06)', borderRadius: 4 }} />
+        </div>
+        <div style={{ background: 'var(--v2-primary)', color: 'var(--v2-dark)', borderRadius: 6, padding: '4px 10px', fontSize: 11, fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+          שלח עכשיו ▶
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/* ── Hero H1 Slider ── */
+const HERO_SLIDES = [
+  'מערכת שיווק חכמה לתוצאות מיידיות ברווחים',
+  'ניהול קמפיינים ייחודיים להגברת מעורבות ושדרוג חווית לקוח',
+  'נגישות מירבית לתפעול קל ונוח כולל שימוש בכלים מותאמים אישית',
+]
+
+function HeroSlider() {
+  const [current, setCurrent] = useState(0)
+  const [visible, setVisible] = useState(true)
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setVisible(false)
+      setTimeout(() => {
+        setCurrent(c => (c + 1) % HERO_SLIDES.length)
+        setVisible(true)
+      }, 400)
+    }, 4000)
+    return () => clearInterval(interval)
+  }, [])
+
+  const goTo = (idx) => {
+    if (idx === current) return
+    setVisible(false)
+    setTimeout(() => {
+      setCurrent(idx)
+      setVisible(true)
+    }, 400)
+  }
+
+  return (
+    <div>
+      <div
+        style={{
+          minHeight: 160,
+          display: 'flex',
+          alignItems: 'flex-start',
+        }}
+      >
+        <h1
+          style={{
+            fontFamily: "'Bricolage Grotesque', 'Outfit', sans-serif",
+            fontWeight: 800,
+            fontSize: 'var(--text-hero)',
+            lineHeight: 'var(--line-height-tight)',
+            color: '#ffffff',
+            marginBottom: 0,
+            letterSpacing: '-0.02em',
+            opacity: visible ? 1 : 0,
+            transform: visible ? 'translateY(0)' : 'translateY(12px)',
+            transition: 'opacity 0.4s ease, transform 0.4s ease',
+          }}
+        >
+          {HERO_SLIDES[current]}
+        </h1>
+      </div>
+      {/* Dot indicators */}
+      <div style={{ display: 'flex', gap: 8, marginTop: 16, marginBottom: 24 }}>
+        {HERO_SLIDES.map((_, i) => (
+          <button
+            key={i}
+            onClick={() => goTo(i)}
+            style={{
+              width: i === current ? 24 : 8,
+              height: 8,
+              borderRadius: 4,
+              background: i === current ? 'var(--v2-primary)' : 'rgba(255,255,255,0.2)',
+              border: 'none',
+              cursor: 'pointer',
+              padding: 0,
+              transition: 'width 0.3s ease, background 0.3s ease',
+            }}
+          />
+        ))}
+      </div>
+    </div>
+  )
+}
+
 /* ── Main Landing ── */
 export default function Landing() {
   const [activeBiz, setActiveBiz] = useState(null)
@@ -423,30 +564,14 @@ export default function Landing() {
                 פלטפורמת השיווק החכמה של ישראל
               </motion.div>
 
-              <motion.h1
+              {/* H1 Slider */}
+              <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.1, duration: 0.7 }}
-                style={{
-                  fontFamily: "'Bricolage Grotesque', 'Outfit', sans-serif",
-                  fontWeight: 800,
-                  fontSize: 'var(--text-hero)',
-                  lineHeight: 'var(--line-height-tight)',
-                  color: '#ffffff',
-                  marginBottom: 24,
-                  letterSpacing: '-0.02em',
-                }}
               >
-                מערכת שיווק מתוחכמת,
-                <br />
-                חכמה ונגישה שמביאה
-                <br />
-                <span className="text-gradient-v2">תוצאות מיידיות</span> ברווחים
-                <br />
-                עם ניהול חכם ושדרוג
-                <br />
-                חווית לקוח.
-              </motion.h1>
+                <HeroSlider />
+              </motion.div>
 
               <motion.p
                 initial={{ opacity: 0, y: 20 }}
@@ -477,10 +602,7 @@ export default function Landing() {
                   className="btn-v2-primary"
                 >
                   <MessageCircle size={18} />
-                  התחל בחינם — חינם
-                </a>
-                <a href="#demo" className="btn-v2-ghost">
-                  צפה בהדגמה ↓
+                  פתח חשבון — חינם
                 </a>
               </motion.div>
 
@@ -491,7 +613,13 @@ export default function Landing() {
                 transition={{ delay: 0.4 }}
                 style={{ display: 'flex', flexWrap: 'wrap', gap: 16 }}
               >
-                {['ללא עמלת הצטרפות', 'קרדיטים לא פגים', 'תמיכה בעברית'].map(item => (
+                {[
+                  'מספר וירטואלי',
+                  'הודעות חוזרות',
+                  'ניהול קמפיין ודאטה',
+                  'חשיפה ומעורבות',
+                  'שימוש בכלים חכמים',
+                ].map(item => (
                   <div
                     key={item}
                     style={{
@@ -666,70 +794,94 @@ export default function Landing() {
           </div>
 
           <div className="grid md:grid-cols-3 gap-6 lg:gap-8 relative">
-            {[
-              {
-                step: '01',
-                icon: '📋',
-                title: 'העלה רשימה',
-                desc: 'CSV, Excel או הדבקה ישירה — המערכת מנרמלת הכל אוטומטית',
-              },
-              {
-                step: '02',
-                icon: '✍️',
-                title: 'הגדר קמפיין',
-                desc: 'כתוב הודעה, בחר קהל, תזמן — הכל מתוך WhatsApp',
-              },
-              {
-                step: '03',
-                icon: '📊',
-                title: 'מדוד תוצאות',
-                desc: 'קבל דוח חי: נשלח / נמסר / הוקלק / מומש',
-              },
-            ].map(({ step, icon, title, desc }, i) => (
-              <motion.div
-                key={step}
-                initial={{ opacity: 0, y: 30 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: i * 0.15, duration: 0.5 }}
-                className="stat-card-v2"
-                style={{ position: 'relative' }}
-              >
-                <div
-                  style={{
-                    position: 'absolute',
-                    top: -14,
-                    right: 20,
-                    width: 32,
-                    height: 32,
-                    borderRadius: '50%',
-                    background: 'var(--v2-primary)',
-                    color: 'var(--v2-dark)',
-                    fontSize: 13,
-                    fontWeight: 800,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    boxShadow: 'var(--shadow-glow-green)',
-                  }}
-                >
-                  {step}
+
+            {/* Card 1 — Upload list with table mock */}
+            <motion.div
+              initial={{ opacity: 0, y: 30 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: 0, duration: 0.5 }}
+              className="stat-card-v2"
+              style={{ position: 'relative' }}
+            >
+              <div style={{ position: 'absolute', top: -14, right: 20, width: 32, height: 32, borderRadius: '50%', background: 'var(--v2-primary)', color: 'var(--v2-dark)', fontSize: 13, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: 'var(--shadow-glow-green)' }}>01</div>
+              {/* Table mock */}
+              <div style={{ background: 'rgba(8,12,20,0.6)', borderRadius: 8, padding: 12, fontSize: 11, border: '1px solid var(--glass-border)', marginBottom: 16, marginTop: 8 }}>
+                {/* Header row */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 4, marginBottom: 6, background: 'rgba(0,195,122,0.18)', borderRadius: 4, padding: '4px 6px' }}>
+                  <span style={{ color: 'var(--v2-primary)', fontWeight: 700 }}>שם</span>
+                  <span style={{ color: 'var(--v2-primary)', fontWeight: 700 }}>טלפון</span>
+                  <span style={{ color: 'var(--v2-primary)', fontWeight: 700 }}>עיר</span>
                 </div>
-                <div style={{ fontSize: 36, marginBottom: 16, marginTop: 8 }}>{icon}</div>
-                <h3
-                  style={{
-                    fontFamily: "'Bricolage Grotesque', 'Outfit', sans-serif",
-                    fontWeight: 700,
-                    fontSize: 20,
-                    color: '#ffffff',
-                    marginBottom: 8,
-                  }}
-                >
-                  {title}
-                </h3>
-                <p style={{ color: 'var(--v2-gray-400)', lineHeight: 1.7, fontSize: 15 }}>{desc}</p>
-              </motion.div>
-            ))}
+                {[
+                  ['יוסי כהן', '054-***', 'תל אביב'],
+                  ['מיכל לוי', '052-***', 'חיפה'],
+                  ['דני מור',  '050-***', 'ירושלים'],
+                ].map((row, ri) => (
+                  <div key={ri} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 4, padding: '3px 6px', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                    {row.map((cell, ci) => (
+                      <span key={ci} style={{ color: 'var(--v2-gray-400)' }}>{cell}</span>
+                    ))}
+                  </div>
+                ))}
+                <div style={{ padding: '4px 6px', color: 'rgba(148,163,184,0.5)', fontStyle: 'italic' }}>... ועוד 847 איש</div>
+              </div>
+              <h3 style={{ fontFamily: "'Bricolage Grotesque', 'Outfit', sans-serif", fontWeight: 700, fontSize: 20, color: '#ffffff', marginBottom: 8 }}>העלה רשימה</h3>
+              <p style={{ color: 'var(--v2-gray-400)', lineHeight: 1.7, fontSize: 15 }}>CSV, Excel או הדבקה ישירה — המערכת מנרמלת הכל אוטומטית</p>
+            </motion.div>
+
+            {/* Card 2 — Campaign with alternating mock */}
+            <motion.div
+              initial={{ opacity: 0, y: 30 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: 0.15, duration: 0.5 }}
+              className="stat-card-v2"
+              style={{ position: 'relative' }}
+            >
+              <div style={{ position: 'absolute', top: -14, right: 20, width: 32, height: 32, borderRadius: '50%', background: 'var(--v2-primary)', color: 'var(--v2-dark)', fontSize: 13, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: 'var(--shadow-glow-green)' }}>02</div>
+              <div style={{ marginBottom: 16, marginTop: 8 }}>
+                <CampaignMock />
+              </div>
+              <h3 style={{ fontFamily: "'Bricolage Grotesque', 'Outfit', sans-serif", fontWeight: 700, fontSize: 20, color: '#ffffff', marginBottom: 8 }}>הגדר קמפיין</h3>
+              <p style={{ color: 'var(--v2-gray-400)', lineHeight: 1.7, fontSize: 15 }}>כתוב הודעה, בחר קהל, תזמן — הכל מתוך WhatsApp</p>
+            </motion.div>
+
+            {/* Card 3 — Results mock with progress bars */}
+            <motion.div
+              initial={{ opacity: 0, y: 30 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: 0.3, duration: 0.5 }}
+              className="stat-card-v2"
+              style={{ position: 'relative' }}
+            >
+              <div style={{ position: 'absolute', top: -14, right: 20, width: 32, height: 32, borderRadius: '50%', background: 'var(--v2-primary)', color: 'var(--v2-dark)', fontSize: 13, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: 'var(--shadow-glow-green)' }}>03</div>
+              <div style={{ background: 'rgba(8,12,20,0.6)', borderRadius: 8, padding: 12, fontSize: 11, border: '1px solid var(--glass-border)', marginBottom: 16, marginTop: 8 }}>
+                {[
+                  { label: 'נשלח',  val: 847, pct: 100 },
+                  { label: 'נמסר',  val: 821, pct: 97 },
+                  { label: 'הוקלק', val: 340, pct: 40 },
+                  { label: 'מומש',  val: 187, pct: 22 },
+                ].map(({ label, val, pct }) => (
+                  <div key={label} style={{ marginBottom: 8 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3 }}>
+                      <span style={{ color: 'var(--v2-gray-400)' }}>{label}</span>
+                      <span style={{ color: '#ffffff', fontWeight: 600 }}>{val.toLocaleString('he-IL')} <span style={{ color: 'var(--v2-gray-400)' }}>{pct}%</span></span>
+                    </div>
+                    <div style={{ height: 4, background: 'rgba(255,255,255,0.08)', borderRadius: 9999, overflow: 'hidden' }}>
+                      <div style={{ height: '100%', width: `${pct}%`, background: 'var(--v2-primary)', borderRadius: 9999 }} />
+                    </div>
+                  </div>
+                ))}
+                <div style={{ marginTop: 10, color: 'var(--v2-primary)', fontWeight: 700, fontSize: 12 }}>
+                  💰 הכנסה משוערת: ₪12,400
+                </div>
+              </div>
+              <h3 style={{ fontFamily: "'Bricolage Grotesque', 'Outfit', sans-serif", fontWeight: 700, fontSize: 20, color: '#ffffff', marginBottom: 8 }}>מדוד תוצאות</h3>
+              <p style={{ color: 'var(--v2-gray-400)', lineHeight: 1.7, fontSize: 15 }}>קבל דוח חי: נשלח / נמסר / הוקלק / מומש</p>
+            </motion.div>
+
           </div>
         </div>
       </Section>
@@ -756,7 +908,7 @@ export default function Landing() {
                 }}
               >
                 <QrCode size={13} />
-                הבידול שלנו
+                למה AXESS?
               </div>
               <h2
                 style={{
@@ -898,6 +1050,34 @@ export default function Landing() {
                 </div>
               </motion.div>
             ))}
+          </div>
+
+          {/* See all link */}
+          <div style={{ textAlign: 'center', marginTop: 48 }}>
+            <a
+              href="/industries"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 8,
+                color: 'var(--v2-primary)',
+                fontSize: 'var(--text-body)',
+                fontWeight: 600,
+                textDecoration: 'none',
+                border: '1px solid var(--v2-primary)',
+                borderRadius: 'var(--radius-full)',
+                padding: '12px 28px',
+                transition: '200ms ease',
+              }}
+              onMouseEnter={e => {
+                e.currentTarget.style.background = 'rgba(0,195,122,0.08)'
+              }}
+              onMouseLeave={e => {
+                e.currentTarget.style.background = 'transparent'
+              }}
+            >
+              מעבר לכל סוגי העסקים ←
+            </a>
           </div>
         </div>
       </section>
@@ -1093,47 +1273,53 @@ export default function Landing() {
                 pointerEvents: 'none',
               }}
             />
-            <h2
-              style={{
-                fontFamily: "'Bricolage Grotesque', 'Outfit', sans-serif",
-                fontWeight: 800,
-                fontSize: 'var(--text-h1)',
-                color: '#ffffff',
-                marginBottom: 16,
-                letterSpacing: '-0.02em',
-                position: 'relative',
-              }}
-            >
-              מוכן להכפיל את ההכנסות שלך?
-            </h2>
-            <p style={{ color: 'var(--v2-gray-400)', fontSize: 18, marginBottom: 32, position: 'relative' }}>
-              הצטרף לאלפי עסקים שכבר שולחים עם AXESS
-            </p>
-            <a
-              href={WA_LINK}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="btn-v2-primary"
-              style={{ fontSize: 17, padding: '16px 40px', position: 'relative' }}
-            >
-              <MessageCircle size={20} />
-              פתח חשבון עכשיו
-            </a>
-            <div
-              style={{
-                marginTop: 24,
-                display: 'flex',
-                flexWrap: 'wrap',
-                justifyContent: 'center',
-                gap: 24,
-                color: 'var(--v2-gray-400)',
-                fontSize: 13,
-                position: 'relative',
-              }}
-            >
-              <span>✓ מינימום 1,500 הודעות</span>
-              <span>✓ ללא עמלת הצטרפות</span>
-              <span>✓ תמיכה בעברית</span>
+            {/* Content wrapper — max 640px centered */}
+            <div style={{ maxWidth: 640, margin: '0 auto', position: 'relative' }}>
+              <h2
+                style={{
+                  fontFamily: "'Bricolage Grotesque', 'Outfit', sans-serif",
+                  fontWeight: 800,
+                  fontSize: 'var(--text-h1)',
+                  color: '#ffffff',
+                  marginBottom: 16,
+                  letterSpacing: '-0.02em',
+                }}
+              >
+                מוכן להכפיל את ההכנסות שלך?
+              </h2>
+              <p style={{ color: 'var(--v2-gray-400)', fontSize: 18, marginBottom: 32 }}>
+                הצטרף לאלפי עסקים שכבר שולחים עם AXESS
+              </p>
+              <a
+                href={WA_LINK}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="btn-v2-primary"
+                style={{
+                  fontSize: 17,
+                  padding: '16px 40px',
+                  display: 'inline-flex',
+                  width: 'auto',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                <MessageCircle size={20} />
+                פתח חשבון עכשיו
+              </a>
+              <div
+                style={{
+                  marginTop: 24,
+                  display: 'flex',
+                  flexWrap: 'wrap',
+                  justifyContent: 'center',
+                  gap: 24,
+                  color: 'var(--v2-gray-400)',
+                  fontSize: 13,
+                }}
+              >
+                <span>✓ מינימום 1,500 הודעות</span>
+                <span>✓ ללא עמלת הצטרפות</span>
+              </div>
             </div>
           </motion.div>
         </div>
@@ -1157,23 +1343,39 @@ export default function Landing() {
               marginBottom: 48,
             }}
           >
-            {/* Brand */}
+            {/* Brand — QR Logo */}
             <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 12 }}>
-                <span
-                  style={{
-                    fontFamily: "'Bricolage Grotesque', 'Outfit', sans-serif",
-                    fontWeight: 800,
-                    fontSize: 20,
-                    color: '#ffffff',
-                  }}
-                >
-                  AXESS
-                </span>
-                <span
-                  className="animate-pulse-green"
-                  style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--v2-primary)', display: 'inline-block' }}
-                />
+              <div style={{ marginBottom: 14 }}>
+                {/* QR Logo (same as Header) */}
+                <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', gap: 10 }}>
+                  <div style={{ position: 'relative', width: 32, height: 32 }}>
+                    <svg width="32" height="32" viewBox="0 0 36 36" fill="none">
+                      <rect x="1" y="1" width="34" height="34" rx="6" stroke="var(--v2-primary)" strokeWidth="1.5" fill="#161E2E" />
+                      <rect x="5" y="5" width="10" height="10" rx="2" fill="var(--v2-primary)" />
+                      <rect x="7" y="7" width="6" height="6" rx="1" fill="#161E2E" />
+                      <rect x="9" y="9" width="2" height="2" fill="var(--v2-primary)" />
+                      <rect x="21" y="5" width="10" height="10" rx="2" fill="var(--v2-primary)" />
+                      <rect x="23" y="7" width="6" height="6" rx="1" fill="#161E2E" />
+                      <rect x="25" y="9" width="2" height="2" fill="var(--v2-primary)" />
+                      <rect x="5" y="21" width="10" height="10" rx="2" fill="var(--v2-primary)" />
+                      <rect x="7" y="23" width="6" height="6" rx="1" fill="#161E2E" />
+                      <rect x="9" y="25" width="2" height="2" fill="var(--v2-primary)" />
+                      <rect x="17" y="5" width="2" height="2" fill="var(--v2-primary)" />
+                      <rect x="17" y="9" width="2" height="2" fill="var(--v2-primary)" />
+                      <rect x="21" y="17" width="2" height="2" fill="var(--v2-primary)" />
+                      <rect x="25" y="17" width="2" height="2" fill="var(--v2-primary)" />
+                      <rect x="17" y="21" width="2" height="2" fill="var(--v2-primary)" />
+                      <rect x="25" y="25" width="2" height="2" fill="var(--v2-primary)" />
+                    </svg>
+                    <div
+                      className="animate-pulse-green"
+                      style={{ position: 'absolute', top: -6, right: -6, width: 12, height: 12, background: 'var(--v2-primary)', borderRadius: '50%', border: '2px solid #080C14' }}
+                    />
+                  </div>
+                  <span style={{ fontFamily: "'Bricolage Grotesque', 'Outfit', sans-serif", fontWeight: 800, fontSize: 20, color: '#ffffff', letterSpacing: '-0.5px' }}>
+                    AXESS
+                  </span>
+                </div>
               </div>
               <p style={{ color: 'var(--v2-gray-400)', fontSize: 14, lineHeight: 1.7 }}>
                 פלטפורמת SMS Marketing המובילה בישראל. שלח, מדוד, צמח.
@@ -1188,6 +1390,32 @@ export default function Landing() {
                   { label: 'תכונות', href: '/features' },
                   { label: 'תמחור', href: '/pricing' },
                   { label: 'Validator', href: '/#validator' },
+                ].map(({ label, href }) => (
+                  <li key={label}>
+                    <Link
+                      to={href}
+                      style={{ color: 'var(--v2-gray-400)', textDecoration: 'none', fontSize: 14, transition: 'color 0.2s' }}
+                      onMouseEnter={e => (e.target.style.color = '#ffffff')}
+                      onMouseLeave={e => (e.target.style.color = 'var(--v2-gray-400)')}
+                    >
+                      {label}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            {/* Industries */}
+            <div>
+              <h4 style={{ fontWeight: 700, marginBottom: 16, color: '#ffffff', fontSize: 15 }}>סוגי עסקים</h4>
+              <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {[
+                  { label: 'אירועים',   href: '/industries/events' },
+                  { label: 'מלונות',    href: '/industries/hotels' },
+                  { label: 'מסעדות',    href: '/industries/restaurants' },
+                  { label: 'חנויות',    href: '/industries/retail' },
+                  { label: 'חדרי כושר', href: '/industries/gyms' },
+                  { label: 'ארגונים',   href: '/industries/organizations' },
                 ].map(({ label, href }) => (
                   <li key={label}>
                     <Link

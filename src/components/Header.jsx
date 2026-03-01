@@ -1,17 +1,96 @@
 import { useState, useEffect, useRef } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Menu, X } from 'lucide-react'
+import { Menu, X, ChevronDown } from 'lucide-react'
 
 const AXESS_PHONE = import.meta.env.VITE_AXESS_PHONE || '972586829494'
 const WA_LINK = `https://wa.me/${AXESS_PHONE}?text=${encodeURIComponent('שלום AXESS אני רוצה להצטרף')}`
 
-const NAV_LINKS = [
-  { label: 'מוצר',    href: '/#how' },
-  { label: 'תכונות',  href: '/features' },
-  { label: 'תמחור',   href: '/pricing' },
-  { label: 'עלינו',   href: '/about' },
+const INDUSTRIES = [
+  { label: 'אירועים',   slug: 'events' },
+  { label: 'מלונות',    slug: 'hotels' },
+  { label: 'מסעדות',    slug: 'restaurants' },
+  { label: 'חנויות',    slug: 'retail' },
+  { label: 'חדרי כושר', slug: 'gyms' },
+  { label: 'ארגונים',   slug: 'organizations' },
 ]
+
+const NAV_LINKS = [
+  { label: 'מוצר',         href: '/#how' },
+  { label: 'תכונות',       href: '/features' },
+  { label: 'סוגי עסקים',   href: null, dropdown: true },
+  { label: 'תמחור',        href: '/pricing' },
+  { label: 'עלינו',        href: '/about' },
+]
+
+/* ── QR Logo ── */
+function AxessLogo() {
+  return (
+    <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', gap: 10 }}>
+      {/* QR Container */}
+      <div style={{ position: 'relative', width: 36, height: 36 }}>
+        {/* QR SVG */}
+        <svg width="36" height="36" viewBox="0 0 36 36" fill="none">
+          {/* Outer border */}
+          <rect x="1" y="1" width="34" height="34" rx="6" stroke="var(--v2-primary)" strokeWidth="1.5" fill="var(--v2-dark-3, #161E2E)" />
+          {/* Top-left QR block */}
+          <rect x="5" y="5" width="10" height="10" rx="2" fill="var(--v2-primary)" />
+          <rect x="7" y="7" width="6" height="6" rx="1" fill="var(--v2-dark-3, #161E2E)" />
+          <rect x="9" y="9" width="2" height="2" fill="var(--v2-primary)" />
+          {/* Top-right QR block */}
+          <rect x="21" y="5" width="10" height="10" rx="2" fill="var(--v2-primary)" />
+          <rect x="23" y="7" width="6" height="6" rx="1" fill="var(--v2-dark-3, #161E2E)" />
+          <rect x="25" y="9" width="2" height="2" fill="var(--v2-primary)" />
+          {/* Bottom-left QR block */}
+          <rect x="5" y="21" width="10" height="10" rx="2" fill="var(--v2-primary)" />
+          <rect x="7" y="23" width="6" height="6" rx="1" fill="var(--v2-dark-3, #161E2E)" />
+          <rect x="9" y="25" width="2" height="2" fill="var(--v2-primary)" />
+          {/* Center dots pattern */}
+          <rect x="17" y="5" width="2" height="2" fill="var(--v2-primary)" />
+          <rect x="17" y="9" width="2" height="2" fill="var(--v2-primary)" />
+          <rect x="17" y="13" width="2" height="2" fill="var(--v2-primary)" />
+          <rect x="21" y="17" width="2" height="2" fill="var(--v2-primary)" />
+          <rect x="25" y="17" width="2" height="2" fill="var(--v2-primary)" />
+          <rect x="29" y="17" width="2" height="2" fill="var(--v2-primary)" />
+          <rect x="17" y="21" width="2" height="2" fill="var(--v2-primary)" />
+          <rect x="21" y="25" width="2" height="2" fill="var(--v2-primary)" />
+          <rect x="25" y="21" width="2" height="2" fill="var(--v2-primary)" />
+          <rect x="29" y="25" width="2" height="2" fill="var(--v2-primary)" />
+          <rect x="17" y="29" width="2" height="2" fill="var(--v2-primary)" />
+          <rect x="25" y="29" width="2" height="2" fill="var(--v2-primary)" />
+          <rect x="29" y="29" width="2" height="2" fill="var(--v2-primary)" />
+        </svg>
+        {/* Floating green dot */}
+        <div
+          className="animate-pulse-green"
+          style={{
+            position: 'absolute',
+            top: -8,
+            right: -8,
+            width: 16,
+            height: 16,
+            background: 'var(--v2-primary)',
+            borderRadius: '50%',
+            border: '2px solid var(--v2-dark, #080C14)',
+            zIndex: 10,
+          }}
+        />
+      </div>
+      {/* AXESS text */}
+      <span
+        style={{
+          fontFamily: "'Bricolage Grotesque', 'Outfit', sans-serif",
+          fontSize: 22,
+          fontWeight: 800,
+          color: '#ffffff',
+          letterSpacing: '-0.5px',
+        }}
+      >
+        AXESS
+      </span>
+    </div>
+  )
+}
 
 /* ── Ripple hook ── */
 function useRipple() {
@@ -31,6 +110,8 @@ function useRipple() {
 export default function Header() {
   const [scrolled, setScrolled] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
+  const [dropdownOpen, setDropdownOpen] = useState(false)
+  const dropdownRef = useRef(null)
   const location = useLocation()
   const { ripples, addRipple } = useRipple()
 
@@ -40,8 +121,18 @@ export default function Header() {
     return () => window.removeEventListener('scroll', handler)
   }, [])
 
-  // Close mobile menu on route change
-  useEffect(() => { setMenuOpen(false) }, [location])
+  useEffect(() => { setMenuOpen(false); setDropdownOpen(false) }, [location])
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    const handler = (e) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+        setDropdownOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [])
 
   return (
     <>
@@ -70,47 +161,108 @@ export default function Header() {
           }}
         >
           {/* ── Logo ── */}
-          <Link
-            to="/"
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 6,
-              textDecoration: 'none',
-            }}
-          >
-            <span
-              style={{
-                fontFamily: "'Bricolage Grotesque', 'Outfit', sans-serif",
-                fontWeight: 800,
-                fontSize: 22,
-                color: '#ffffff',
-                letterSpacing: '-0.02em',
-              }}
-            >
-              AXESS
-            </span>
-            <span
-              className="animate-pulse-green"
-              style={{
-                width: 7,
-                height: 7,
-                borderRadius: '50%',
-                background: 'var(--v2-primary)',
-                display: 'inline-block',
-                marginBottom: 2,
-              }}
-            />
+          <Link to="/" style={{ textDecoration: 'none' }}>
+            <AxessLogo />
           </Link>
 
           {/* ── Desktop Nav ── */}
           <nav
             className="hidden md:flex"
-            style={{ alignItems: 'center', gap: 32 }}
+            style={{ alignItems: 'center', gap: 28 }}
           >
-            {NAV_LINKS.map(({ label, href }) => {
-              const isExternal = href.startsWith('/#')
-              const isActive = !isExternal && location.pathname === href
+            {NAV_LINKS.map(({ label, href, dropdown }) => {
+              if (dropdown) {
+                return (
+                  <div
+                    key={label}
+                    ref={dropdownRef}
+                    style={{ position: 'relative' }}
+                    onMouseEnter={() => setDropdownOpen(true)}
+                    onMouseLeave={() => setDropdownOpen(false)}
+                  >
+                    <button
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 4,
+                        color: 'var(--v2-gray-400)',
+                        fontSize: 15,
+                        fontWeight: 500,
+                        background: 'none',
+                        border: 'none',
+                        cursor: 'pointer',
+                        padding: 0,
+                        transition: 'color 0.2s ease',
+                      }}
+                      onMouseEnter={e => (e.currentTarget.style.color = '#ffffff')}
+                      onMouseLeave={e => (e.currentTarget.style.color = 'var(--v2-gray-400)')}
+                    >
+                      {label}
+                      <ChevronDown
+                        size={14}
+                        style={{
+                          transition: 'transform 0.2s',
+                          transform: dropdownOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+                        }}
+                      />
+                    </button>
+
+                    <AnimatePresence>
+                      {dropdownOpen && (
+                        <motion.div
+                          initial={{ opacity: 0, y: 6 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: 6 }}
+                          transition={{ duration: 0.18 }}
+                          style={{
+                            position: 'absolute',
+                            top: '100%',
+                            right: 0,
+                            marginTop: 8,
+                            background: 'rgba(15,22,35,0.98)',
+                            border: '1px solid rgba(255,255,255,0.10)',
+                            borderRadius: 14,
+                            padding: '8px',
+                            minWidth: 160,
+                            backdropFilter: 'blur(20px)',
+                            zIndex: 200,
+                          }}
+                        >
+                          {INDUSTRIES.map(({ label: iLabel, slug }) => (
+                            <Link
+                              key={slug}
+                              to={`/industries/${slug}`}
+                              style={{
+                                display: 'block',
+                                padding: '9px 14px',
+                                color: 'var(--v2-gray-400)',
+                                fontSize: 14,
+                                fontWeight: 500,
+                                textDecoration: 'none',
+                                borderRadius: 8,
+                                transition: 'background 0.15s, color 0.15s',
+                              }}
+                              onMouseEnter={e => {
+                                e.currentTarget.style.background = 'rgba(0,195,122,0.10)'
+                                e.currentTarget.style.color = '#ffffff'
+                              }}
+                              onMouseLeave={e => {
+                                e.currentTarget.style.background = 'transparent'
+                                e.currentTarget.style.color = 'var(--v2-gray-400)'
+                              }}
+                            >
+                              {iLabel}
+                            </Link>
+                          ))}
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+                )
+              }
+
+              const isExternal = href && href.startsWith('/#')
+              const isActive = !isExternal && href && location.pathname === href
               return isExternal ? (
                 <a
                   key={label}
@@ -188,7 +340,7 @@ export default function Header() {
                   style={{ width: rp.size, height: rp.size, left: rp.x, top: rp.y }}
                 />
               ))}
-              התחל בחינם
+              פתח חשבון — חינם
             </a>
           </div>
 
@@ -229,10 +381,48 @@ export default function Header() {
               display: 'flex',
               flexDirection: 'column',
               gap: 4,
+              maxHeight: 'calc(100vh - 68px)',
+              overflowY: 'auto',
             }}
           >
-            {NAV_LINKS.map(({ label, href }) =>
-              href.startsWith('/#') ? (
+            {NAV_LINKS.map(({ label, href, dropdown }) => {
+              if (dropdown) {
+                return (
+                  <div key={label}>
+                    <div
+                      style={{
+                        color: 'var(--v2-gray-400)',
+                        fontSize: 14,
+                        fontWeight: 600,
+                        padding: '8px 0 4px',
+                        borderBottom: '1px solid rgba(255,255,255,0.05)',
+                        marginBottom: 4,
+                        letterSpacing: '0.02em',
+                        textTransform: 'uppercase',
+                      }}
+                    >
+                      {label}
+                    </div>
+                    {INDUSTRIES.map(({ label: iLabel, slug }) => (
+                      <Link
+                        key={slug}
+                        to={`/industries/${slug}`}
+                        style={{
+                          display: 'block',
+                          color: 'var(--v2-gray-400)',
+                          fontSize: 15,
+                          fontWeight: 500,
+                          textDecoration: 'none',
+                          padding: '8px 12px',
+                        }}
+                      >
+                        {iLabel}
+                      </Link>
+                    ))}
+                  </div>
+                )
+              }
+              return href && href.startsWith('/#') ? (
                 <a
                   key={label}
                   href={href}
@@ -264,7 +454,7 @@ export default function Header() {
                   {label}
                 </Link>
               )
-            )}
+            })}
             <Link
               to="/login"
               style={{
@@ -285,7 +475,7 @@ export default function Header() {
               className="btn-v2-primary"
               style={{ marginTop: 12, textAlign: 'center', justifyContent: 'center' }}
             >
-              התחל בחינם
+              פתח חשבון — חינם
             </a>
           </motion.div>
         )}
