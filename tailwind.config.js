@@ -9,40 +9,40 @@ export default {
     extend: {
       colors: {
         primary: {
-          DEFAULT: '#2563EB',
-          light: '#EFF6FF',
-          dark: '#1D4ED8',
+          DEFAULT: '#00C37A',
+          light: 'rgba(0,195,122,0.12)',
+          dark: '#00A366',
         },
         accent: {
-          DEFAULT: '#10B981',
-          dark: '#059669',
-          light: '#D1FAE5',
+          DEFAULT: '#6366F1',
+          dark: '#4F46E5',
+          light: 'rgba(99,102,241,0.12)',
         },
-        dark: '#0F172A',
+        dark: '#080C14',
         'gray-100': '#F8FAFC',
-        'gray-200': '#F1F5F9',
+        'gray-200': '#EFF3F8',
         'gray-500': '#64748B',
         // WhatsApp Green (kept for existing pages)
         wa: {
-          DEFAULT: '#25D366',
-          dark: '#128C7E',
-          light: '#dcfce7',
+          DEFAULT: '#00C37A',
+          dark: '#00A366',
+          light: 'rgba(0,195,122,0.12)',
         },
-        // Dark surfaces (kept for existing dashboard)
+        // Dark surfaces — mapped to v2 design system
         surface: {
-          DEFAULT: '#1C1C1C',
-          50: '#2a2a2a',
-          100: '#242424',
-          200: '#1c1c1c',
-          300: '#141414',
-          400: '#0d0d0d',
+          DEFAULT: '#161E2E',
+          50: '#1A2236',
+          100: '#0F1623',
+          200: '#080C14',
+          300: '#0A0E18',
+          400: '#060910',
         },
         border: {
-          DEFAULT: '#2a2a2a',
-          light: '#3a3a3a',
+          DEFAULT: 'rgba(255,255,255,0.10)',
+          light: 'rgba(255,255,255,0.16)',
         },
-        muted: '#6b7280',
-        subtle: '#9ca3af',
+        muted: '#94A3B8',
+        subtle: '#CBD5E1',
       },
       fontFamily: {
         sans: ['DM Sans', 'Inter', 'ui-sans-serif', 'system-ui'],

@@ -43,13 +43,13 @@ const chartData = generateChartData()
 function CustomTooltip({ active, payload, label }) {
   if (!active || !payload?.length) return null
   return (
-    <div className="bg-surface-100 border border-border rounded-xl p-3 text-xs shadow-lg">
-      <div className="text-muted mb-2">{label}</div>
+    <div style={{ background: 'var(--v2-dark-2)', border: '1px solid var(--glass-border)', borderRadius: 'var(--radius-md)', padding: '10px 14px', fontSize: 12, boxShadow: 'var(--shadow-lg)' }}>
+      <div style={{ color: 'var(--v2-gray-400)', marginBottom: 8 }}>{label}</div>
       {payload.map(p => (
-        <div key={p.dataKey} className="flex items-center gap-2">
-          <div className="w-2 h-2 rounded-full" style={{ background: p.color }} />
-          <span className="text-subtle">{p.dataKey === 'sent' ? 'נשלח' : 'נמסר'}:</span>
-          <span className="text-white font-semibold">{p.value.toLocaleString('he-IL')}</span>
+        <div key={p.dataKey} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+          <div style={{ width: 8, height: 8, borderRadius: '50%', background: p.color }} />
+          <span style={{ color: 'var(--v2-gray-400)' }}>{p.dataKey === 'sent' ? 'נשלח' : 'נמסר'}:</span>
+          <span style={{ color: '#ffffff', fontWeight: 700 }}>{p.value.toLocaleString('he-IL')}</span>
         </div>
       ))}
     </div>
@@ -104,14 +104,29 @@ export default function Overview() {
       {/* Page header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-black text-white" style={{ fontFamily: 'Outfit, sans-serif' }}>
+          <h1 style={{ fontFamily: "'Bricolage Grotesque', 'Outfit', sans-serif", fontWeight: 800, fontSize: 26, color: '#ffffff', letterSpacing: '-0.02em' }}>
             סקירה כללית
           </h1>
-          <p className="text-muted text-sm mt-0.5">ברוך הבא, קפה רוטשילד 👋</p>
+          <p style={{ color: 'var(--v2-gray-400)', fontSize: 14, marginTop: 2 }}>ברוך הבא, קפה רוטשילד 👋</p>
         </div>
         <Link
           to="/dashboard/new-campaign"
-          className="btn-primary gap-2 hidden sm:flex"
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 8,
+            background: 'var(--v2-primary)',
+            color: 'var(--v2-dark)',
+            padding: '10px 20px',
+            borderRadius: 'var(--radius-full)',
+            fontWeight: 700,
+            fontSize: 14,
+            textDecoration: 'none',
+            transition: 'transform 0.2s, box-shadow 0.2s',
+          }}
+          className="hidden sm:inline-flex"
+          onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = 'var(--shadow-glow-green)' }}
+          onMouseLeave={e => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = 'none' }}
         >
           <Plus size={16} />
           קמפיין חדש
@@ -138,21 +153,18 @@ export default function Overview() {
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.4 }}
-          className="card"
+          style={{ background: 'var(--v2-dark-3)', border: '1px solid var(--glass-border)', borderRadius: 'var(--radius-lg)', padding: '20px' }}
         >
-          <div className="flex items-center justify-between mb-3">
-            <div className="text-sm font-semibold text-white">שימוש בחבילה — Basic</div>
-            <span className="text-xs text-muted">4,820 / 10,000 הודעות</span>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+            <div style={{ fontSize: 14, fontWeight: 600, color: '#ffffff' }}>שימוש בחבילה — Basic</div>
+            <span style={{ fontSize: 12, color: 'var(--v2-gray-400)' }}>4,820 / 10,000 הודעות</span>
           </div>
-          <div className="w-full bg-surface-50 rounded-full h-2.5">
-            <div
-              className="h-2.5 rounded-full bg-primary transition-all duration-1000"
-              style={{ width: '48.2%' }}
-            />
+          <div style={{ width: '100%', background: 'rgba(255,255,255,0.06)', borderRadius: 9999, height: 8 }}>
+            <div style={{ height: '100%', borderRadius: 9999, background: 'var(--v2-primary)', width: '48.2%', transition: 'width 1s ease' }} />
           </div>
-          <div className="flex justify-between mt-2 text-xs text-muted">
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8, fontSize: 12, color: 'var(--v2-gray-400)' }}>
             <span>51.8% נותר</span>
-            <Link to="/dashboard/settings" className="text-primary hover:underline">שדרג חבילה</Link>
+            <Link to="/dashboard/settings" style={{ color: 'var(--v2-primary)', textDecoration: 'none', fontWeight: 600 }}>שדרג חבילה</Link>
           </div>
         </motion.div>
       )}
@@ -162,21 +174,21 @@ export default function Overview() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.5 }}
-        className="card"
+        style={{ background: 'var(--v2-dark-3)', border: '1px solid var(--glass-border)', borderRadius: 'var(--radius-lg)', padding: '20px' }}
       >
-        <div className="flex items-center justify-between mb-6">
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
           <div>
-            <h2 className="text-base font-bold text-white">שליחות — 30 יום אחרונים</h2>
-            <p className="text-xs text-muted mt-0.5">נשלח ונמסר לפי יום</p>
+            <h2 style={{ fontFamily: "'Bricolage Grotesque', 'Outfit', sans-serif", fontWeight: 700, fontSize: 16, color: '#ffffff' }}>שליחות — 30 יום אחרונים</h2>
+            <p style={{ fontSize: 12, color: 'var(--v2-gray-400)', marginTop: 2 }}>נשלח ונמסר לפי יום</p>
           </div>
-          <div className="flex items-center gap-4 text-xs">
-            <div className="flex items-center gap-1.5">
-              <div className="w-3 h-3 rounded-full bg-primary" />
-              <span className="text-muted">נשלח</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16, fontSize: 12 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <div style={{ width: 10, height: 10, borderRadius: '50%', background: 'var(--v2-primary)' }} />
+              <span style={{ color: 'var(--v2-gray-400)' }}>נשלח</span>
             </div>
-            <div className="flex items-center gap-1.5">
-              <div className="w-3 h-3 rounded-full bg-accent" />
-              <span className="text-muted">נמסר</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <div style={{ width: 10, height: 10, borderRadius: '50%', background: 'var(--v2-accent)' }} />
+              <span style={{ color: 'var(--v2-gray-400)' }}>נמסר</span>
             </div>
           </div>
         </div>
@@ -185,24 +197,24 @@ export default function Overview() {
           <AreaChart data={chartData} margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>
             <defs>
               <linearGradient id="sentGrad" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#2563EB" stopOpacity={0.3} />
-                <stop offset="95%" stopColor="#2563EB" stopOpacity={0} />
+                <stop offset="5%" stopColor="#00C37A" stopOpacity={0.25} />
+                <stop offset="95%" stopColor="#00C37A" stopOpacity={0} />
               </linearGradient>
               <linearGradient id="deliveredGrad" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#10B981" stopOpacity={0.3} />
-                <stop offset="95%" stopColor="#10B981" stopOpacity={0} />
+                <stop offset="5%" stopColor="#6366F1" stopOpacity={0.2} />
+                <stop offset="95%" stopColor="#6366F1" stopOpacity={0} />
               </linearGradient>
             </defs>
-            <CartesianGrid strokeDasharray="3 3" stroke="#2a2a2a" />
+            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" />
             <XAxis
               dataKey="date"
-              tick={{ fill: '#6b7280', fontSize: 11 }}
+              tick={{ fill: '#94A3B8', fontSize: 11 }}
               tickLine={false}
               axisLine={false}
               interval={4}
             />
             <YAxis
-              tick={{ fill: '#6b7280', fontSize: 11 }}
+              tick={{ fill: '#94A3B8', fontSize: 11 }}
               tickLine={false}
               axisLine={false}
             />
@@ -210,7 +222,7 @@ export default function Overview() {
             <Area
               type="monotone"
               dataKey="sent"
-              stroke="#2563EB"
+              stroke="#00C37A"
               strokeWidth={2}
               fill="url(#sentGrad)"
               dot={false}
@@ -218,7 +230,7 @@ export default function Overview() {
             <Area
               type="monotone"
               dataKey="delivered"
-              stroke="#10B981"
+              stroke="#6366F1"
               strokeWidth={2}
               fill="url(#deliveredGrad)"
               dot={false}
@@ -232,73 +244,74 @@ export default function Overview() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.6 }}
-        className="card"
+        style={{ background: 'var(--v2-dark-3)', border: '1px solid var(--glass-border)', borderRadius: 'var(--radius-lg)', padding: '20px' }}
       >
-        <div className="flex items-center justify-between mb-5">
-          <h2 className="text-base font-bold text-white">קמפיינים אחרונים</h2>
-          <Link to="/dashboard/reports" className="text-sm text-primary hover:underline flex items-center gap-1">
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+          <h2 style={{ fontFamily: "'Bricolage Grotesque', 'Outfit', sans-serif", fontWeight: 700, fontSize: 16, color: '#ffffff' }}>קמפיינים אחרונים</h2>
+          <Link to="/dashboard/reports" style={{ fontSize: 13, color: 'var(--v2-primary)', textDecoration: 'none', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}>
             כל הקמפיינים
-            <ArrowLeft size={14} />
+            <ArrowLeft size={13} />
           </Link>
         </div>
 
         {loading ? (
-          <div className="space-y-3">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             {[1, 2, 3].map(i => (
-              <div key={i} className="h-12 bg-surface-50 rounded-xl animate-pulse" />
+              <div key={i} style={{ height: 44, background: 'rgba(255,255,255,0.04)', borderRadius: 'var(--radius-md)', animation: 'pulse 1.5s ease-in-out infinite' }} />
             ))}
           </div>
         ) : (
-          <div className="overflow-x-auto -mx-5">
-            <table className="w-full min-w-[640px]">
+          <div style={{ overflowX: 'auto', margin: '0 -20px' }}>
+            <table style={{ width: '100%', minWidth: 640, borderCollapse: 'collapse' }}>
               <thead>
-                <tr className="border-b border-border">
-                  <th className="table-th">שם קמפיין</th>
-                  <th className="table-th">תאריך</th>
-                  <th className="table-th">נשלח</th>
-                  <th className="table-th">נמסר</th>
-                  <th className="table-th">הוקלק</th>
-                  <th className="table-th">מומש</th>
-                  <th className="table-th">סטטוס</th>
+                <tr style={{ background: 'var(--v2-dark-2)' }}>
+                  {['שם קמפיין', 'תאריך', 'נשלח', 'נמסר', 'הוקלק', 'מומש', 'סטטוס'].map(h => (
+                    <th key={h} style={{ padding: '10px 16px', textAlign: 'right', fontSize: 11, fontWeight: 600, color: 'var(--v2-gray-400)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{h}</th>
+                  ))}
                 </tr>
               </thead>
               <tbody>
                 {MOCK_CAMPAIGNS.map(c => (
-                  <tr key={c.id} className="table-row">
-                    <td className="table-td font-medium text-white px-4 py-3">{c.name}</td>
-                    <td className="table-td">{c.date}</td>
-                    <td className="table-td">{c.sent > 0 ? c.sent.toLocaleString('he-IL') : '—'}</td>
-                    <td className="table-td">
+                  <tr
+                    key={c.id}
+                    style={{ borderBottom: '1px solid var(--glass-border)', transition: 'background 0.15s' }}
+                    onMouseEnter={e => (e.currentTarget.style.background = 'var(--glass-bg)')}
+                    onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                  >
+                    <td style={{ padding: '12px 16px', fontSize: 14, fontWeight: 600, color: '#ffffff' }}>{c.name}</td>
+                    <td style={{ padding: '12px 16px', fontSize: 13, color: 'var(--v2-gray-400)' }}>{c.date}</td>
+                    <td style={{ padding: '12px 16px', fontSize: 13, color: 'var(--v2-gray-400)' }}>{c.sent > 0 ? c.sent.toLocaleString('he-IL') : '—'}</td>
+                    <td style={{ padding: '12px 16px', fontSize: 13 }}>
                       {c.delivered > 0 ? (
-                        <span className="text-accent">
+                        <span style={{ color: 'var(--v2-accent)' }}>
                           {c.delivered.toLocaleString('he-IL')}
-                          <span className="text-muted text-xs mr-1">
+                          <span style={{ color: 'var(--v2-gray-400)', fontSize: 11, marginRight: 4 }}>
                             ({Math.round(c.delivered / c.sent * 100)}%)
                           </span>
                         </span>
                       ) : '—'}
                     </td>
-                    <td className="table-td">
+                    <td style={{ padding: '12px 16px', fontSize: 13 }}>
                       {c.clicked > 0 ? (
-                        <span className="text-primary">
+                        <span style={{ color: 'var(--v2-primary)' }}>
                           {c.clicked.toLocaleString('he-IL')}
-                          <span className="text-muted text-xs mr-1">
+                          <span style={{ color: 'var(--v2-gray-400)', fontSize: 11, marginRight: 4 }}>
                             ({Math.round(c.clicked / c.sent * 100)}%)
                           </span>
                         </span>
                       ) : '—'}
                     </td>
-                    <td className="table-td">
+                    <td style={{ padding: '12px 16px', fontSize: 13 }}>
                       {c.redeemed > 0 ? (
-                        <span className="text-yellow-400">
+                        <span style={{ color: '#F59E0B' }}>
                           {c.redeemed.toLocaleString('he-IL')}
-                          <span className="text-muted text-xs mr-1">
+                          <span style={{ color: 'var(--v2-gray-400)', fontSize: 11, marginRight: 4 }}>
                             ({Math.round(c.redeemed / c.clicked * 100)}%)
                           </span>
                         </span>
                       ) : '—'}
                     </td>
-                    <td className="table-td">
+                    <td style={{ padding: '12px 16px' }}>
                       <CampaignStatusBadge status={c.status} />
                     </td>
                   </tr>

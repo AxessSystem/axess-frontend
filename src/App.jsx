@@ -16,10 +16,18 @@ import Privacy from '@/pages/Privacy'
 import Validator from '@/pages/Validator'
 
 /* ── New AXESS pages (lazy) ── */
-const Onboarding = lazy(() => import('@/pages/Onboarding'))
-const About      = lazy(() => import('@/pages/About'))
-const Pricing    = lazy(() => import('@/pages/Pricing'))
-const Features   = lazy(() => import('@/pages/Features'))
+const Onboarding      = lazy(() => import('@/pages/Onboarding'))
+const About           = lazy(() => import('@/pages/About'))
+const Pricing         = lazy(() => import('@/pages/Pricing'))
+const Features        = lazy(() => import('@/pages/Features'))
+
+/* ── Industry pages (lazy) ── */
+const IndustryEvents        = lazy(() => import('@/pages/industries/Events'))
+const IndustryHotels        = lazy(() => import('@/pages/industries/Hotels'))
+const IndustryRestaurants   = lazy(() => import('@/pages/industries/Restaurants'))
+const IndustryRetail        = lazy(() => import('@/pages/industries/Retail'))
+const IndustryGyms          = lazy(() => import('@/pages/industries/Gyms'))
+const IndustryOrganizations = lazy(() => import('@/pages/industries/Organizations'))
 
 /* ── Client Dashboard (lazy bundle) ── */
 const ClientLayout   = lazy(() => import('@/pages/dashboard/Layout'))
@@ -49,12 +57,12 @@ const ProducerReports   = lazy(() => import('@/pages/producer/Reports'))
 /* ── Loading fallback ── */
 function PageLoader() {
   return (
-    <div className="min-h-screen bg-surface-200 flex items-center justify-center">
-      <div className="flex flex-col items-center gap-4">
-        <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center animate-pulse">
-          <span className="text-base font-black text-white">A</span>
+    <div style={{ minHeight: '100vh', background: 'var(--v2-dark)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
+        <div style={{ width: 44, height: 44, borderRadius: 12, background: 'var(--v2-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <span style={{ fontSize: 16, fontWeight: 900, color: 'var(--v2-dark)' }}>A</span>
         </div>
-        <div className="w-6 h-6 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+        <div style={{ width: 24, height: 24, border: '2px solid rgba(0,195,122,0.3)', borderTopColor: 'var(--v2-primary)', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
       </div>
     </div>
   )
@@ -68,15 +76,15 @@ export default function App() {
           position="top-center"
           toastOptions={{
             style: {
-              background: '#242424',
+              background: 'var(--v2-dark-2)',
               color: '#fff',
-              border: '1px solid #2a2a2a',
-              borderRadius: '12px',
+              border: '1px solid var(--glass-border)',
+              borderRadius: '16px',
               fontSize: '14px',
               direction: 'rtl',
             },
             success: {
-              iconTheme: { primary: '#10B981', secondary: '#fff' },
+              iconTheme: { primary: '#00C37A', secondary: '#080C14' },
             },
             error: {
               iconTheme: { primary: '#f87171', secondary: '#fff' },
@@ -96,6 +104,15 @@ export default function App() {
             <Route path="/terms" element={<Terms />} />
             <Route path="/privacy" element={<Privacy />} />
             <Route path="/v/:slug" element={<Validator />} />
+
+            {/* ── Industries ── */}
+            <Route path="/industries" element={<Navigate to="/industries/events" replace />} />
+            <Route path="/industries/events"        element={<IndustryEvents />} />
+            <Route path="/industries/hotels"        element={<IndustryHotels />} />
+            <Route path="/industries/restaurants"   element={<IndustryRestaurants />} />
+            <Route path="/industries/retail"        element={<IndustryRetail />} />
+            <Route path="/industries/gyms"          element={<IndustryGyms />} />
+            <Route path="/industries/organizations" element={<IndustryOrganizations />} />
 
             {/* ── Client Dashboard ── */}
             <Route path="/dashboard" element={<ClientLayout />}>
