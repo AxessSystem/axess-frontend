@@ -61,16 +61,10 @@ export default function Login() {
   const navigate = useNavigate()
 
   useEffect(() => {
-    if (session && profile) {
-      if (profile.role === 'admin') {
-        navigate('/admin', { replace: true })
-      } else if (profile.role === 'producer') {
-        navigate('/producer', { replace: true })
-      } else {
-        navigate('/dashboard', { replace: true })
-      }
+    if (session) {
+      navigate('/dashboard', { replace: true })
     }
-  }, [session, profile, navigate])
+  }, [session, navigate])
 
   const handleSubmit = async (e) => {
     e.preventDefault()
