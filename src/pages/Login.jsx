@@ -2,14 +2,62 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '@/contexts/AuthContext'
 import toast from 'react-hot-toast'
-import { Eye, EyeOff, Zap, Shield, TrendingUp } from 'lucide-react'
+import { Eye, EyeOff, Shield, TrendingUp, Send } from 'lucide-react'
+
+/* ── QR Logo (same as Layout.jsx DashLogo) ── */
+function QRLogo() {
+  return (
+    <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', gap: 12 }}>
+      <div style={{ position: 'relative', width: 40, height: 40, flexShrink: 0 }}>
+        <svg width={40} height={40} viewBox="0 0 36 36" fill="none">
+          <rect x="1" y="1" width="34" height="34" rx="6" stroke="var(--v2-primary)" strokeWidth="1.5" fill="#161E2E" />
+          <rect x="5" y="5" width="10" height="10" rx="2" fill="var(--v2-primary)" />
+          <rect x="7" y="7" width="6" height="6" rx="1" fill="#161E2E" />
+          <rect x="9" y="9" width="2" height="2" fill="var(--v2-primary)" />
+          <rect x="21" y="5" width="10" height="10" rx="2" fill="var(--v2-primary)" />
+          <rect x="23" y="7" width="6" height="6" rx="1" fill="#161E2E" />
+          <rect x="25" y="9" width="2" height="2" fill="var(--v2-primary)" />
+          <rect x="5" y="21" width="10" height="10" rx="2" fill="var(--v2-primary)" />
+          <rect x="7" y="23" width="6" height="6" rx="1" fill="#161E2E" />
+          <rect x="9" y="25" width="2" height="2" fill="var(--v2-primary)" />
+          <rect x="17" y="5" width="2" height="2" fill="var(--v2-primary)" />
+          <rect x="17" y="9" width="2" height="2" fill="var(--v2-primary)" />
+          <rect x="21" y="17" width="2" height="2" fill="var(--v2-primary)" />
+          <rect x="25" y="17" width="2" height="2" fill="var(--v2-primary)" />
+          <rect x="17" y="21" width="2" height="2" fill="var(--v2-primary)" />
+          <rect x="25" y="25" width="2" height="2" fill="var(--v2-primary)" />
+        </svg>
+        {/* Green pulse dot */}
+        <div
+          className="animate-pulse-green"
+          style={{
+            position: 'absolute', top: -5, right: -5,
+            width: 12, height: 12,
+            background: 'var(--v2-primary)',
+            borderRadius: '50%',
+            border: '2px solid var(--v2-dark)',
+          }}
+        />
+      </div>
+      <span style={{
+        fontFamily: "'Bricolage Grotesque', 'Outfit', sans-serif",
+        fontWeight: 800,
+        fontSize: 26,
+        color: '#ffffff',
+        letterSpacing: '-0.5px',
+      }}>
+        AXESS
+      </span>
+    </div>
+  )
+}
 
 export default function Login() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
-  const { signIn, session, profile, isAdmin } = useAuth()
+  const { signIn, session, profile } = useAuth()
   const navigate = useNavigate()
 
   useEffect(() => {
@@ -18,6 +66,8 @@ export default function Login() {
         navigate('/admin', { replace: true })
       } else if (profile.role === 'producer') {
         navigate('/producer', { replace: true })
+      } else {
+        navigate('/dashboard', { replace: true })
       }
     }
   }, [session, profile, navigate])
@@ -43,42 +93,47 @@ export default function Login() {
   }
 
   const features = [
-    { icon: Zap, text: 'ניהול אירועים בזמן אמת' },
-    { icon: Shield, text: 'RLS — בידוד נתונים מלא' },
-    { icon: TrendingUp, text: 'דוחות ועמלות אוטומטיות' },
+    { icon: Send,       text: 'שליחת SMS קמפיינים בקליק' },
+    { icon: Shield,     text: 'אבטחה מלאה — RLS מובנה' },
+    { icon: TrendingUp, text: 'דוחות ביצועים בזמן אמת' },
   ]
 
   return (
-    <div className="min-h-screen bg-gradient-dark flex items-center justify-center p-4">
-      {/* Background glow */}
-      <div
-        className="absolute top-1/4 left-1/2 -translate-x-1/2 w-96 h-96 rounded-full opacity-5 blur-3xl pointer-events-none"
-        style={{ background: 'radial-gradient(circle, #25D366, transparent)' }}
-      />
+    <div dir="rtl" style={{ minHeight: '100vh', background: 'var(--v2-dark)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16, position: 'relative', overflow: 'hidden' }}>
 
-      <div className="w-full max-w-md animate-slide-up">
+      {/* Background glow */}
+      <div style={{
+        position: 'absolute', top: '20%', left: '50%', transform: 'translateX(-50%)',
+        width: 480, height: 480, borderRadius: '50%',
+        background: 'radial-gradient(circle, rgba(0,195,122,0.08), transparent 70%)',
+        pointerEvents: 'none',
+      }} />
+
+      <div style={{ width: '100%', maxWidth: 420, position: 'relative', zIndex: 1 }}>
+
         {/* Logo + Brand */}
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-wa mb-4 glow-wa">
-            <span className="text-3xl font-black text-white">A</span>
-          </div>
-          <h1 className="text-3xl font-black text-gradient-wa tracking-tight">AXESS</h1>
-          <p className="text-muted text-sm mt-1">Event OS & Marketing Engine</p>
+        <div style={{ textAlign: 'center', marginBottom: 32, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
+          <QRLogo />
+          <p style={{ color: 'var(--v2-gray-400)', fontSize: 14, marginTop: 4 }}>
+            SMS Marketing Platform
+          </p>
         </div>
 
         {/* Login Card */}
-        <div className="card border-border-light">
-          <h2 className="text-xl font-bold text-white mb-1">כניסה למערכת</h2>
-          <p className="text-muted text-sm mb-6">אנא הכנס את פרטי החשבון שלך</p>
+        <div style={{ background: 'var(--v2-dark-3)', border: '1px solid var(--glass-border)', borderRadius: 'var(--radius-lg)', padding: '28px 24px' }}>
+          <h2 style={{ fontFamily: "'Bricolage Grotesque','Outfit',sans-serif", fontWeight: 700, fontSize: 20, color: '#ffffff', marginBottom: 4 }}>
+            כניסה למערכת
+          </h2>
+          <p style={{ color: 'var(--v2-gray-400)', fontSize: 14, marginBottom: 24 }}>אנא הכנס את פרטי החשבון שלך</p>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             <div>
               <label className="label" htmlFor="email">אימייל</label>
               <input
                 id="email"
                 type="email"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={e => setEmail(e.target.value)}
                 placeholder="you@example.com"
                 className="input"
                 autoComplete="email"
@@ -89,14 +144,15 @@ export default function Login() {
 
             <div>
               <label className="label" htmlFor="password">סיסמה</label>
-              <div className="relative">
+              <div style={{ position: 'relative' }}>
                 <input
                   id="password"
                   type={showPassword ? 'text' : 'password'}
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  onChange={e => setPassword(e.target.value)}
                   placeholder="••••••••"
-                  className="input pl-10"
+                  className="input"
+                  style={{ paddingLeft: 40 }}
                   autoComplete="current-password"
                   dir="ltr"
                   disabled={loading}
@@ -104,7 +160,9 @@ export default function Login() {
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute left-3 top-1/2 -translate-y-1/2 text-muted hover:text-subtle transition-colors"
+                  style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--v2-gray-400)', display: 'flex', alignItems: 'center', transition: 'color 0.2s' }}
+                  onMouseEnter={e => (e.currentTarget.style.color = '#ffffff')}
+                  onMouseLeave={e => (e.currentTarget.style.color = 'var(--v2-gray-400)')}
                   tabIndex={-1}
                 >
                   {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
@@ -114,33 +172,32 @@ export default function Login() {
 
             <button
               type="submit"
-              className="btn-primary w-full mt-2"
+              className="btn-primary"
+              style={{ width: '100%', marginTop: 4, justifyContent: 'center' }}
               disabled={loading}
             >
               {loading ? (
                 <>
-                  <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  <div style={{ width: 16, height: 16, border: '2px solid rgba(0,0,0,0.3)', borderTopColor: 'var(--v2-dark)', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
                   מתחבר...
                 </>
-              ) : (
-                'כניסה'
-              )}
+              ) : 'כניסה'}
             </button>
           </form>
 
           {/* Divider */}
-          <div className="flex items-center gap-3 my-6">
-            <div className="flex-1 h-px bg-border" />
-            <span className="text-xs text-muted">מערכת מאובטחת</span>
-            <div className="flex-1 h-px bg-border" />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '24px 0' }}>
+            <div style={{ flex: 1, height: 1, background: 'var(--glass-border)' }} />
+            <span style={{ fontSize: 12, color: 'var(--v2-gray-400)' }}>מערכת מאובטחת</span>
+            <div style={{ flex: 1, height: 1, background: 'var(--glass-border)' }} />
           </div>
 
           {/* Features */}
-          <div className="space-y-2">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {features.map(({ icon: Icon, text }) => (
-              <div key={text} className="flex items-center gap-3 text-sm text-muted">
-                <div className="w-6 h-6 rounded-lg bg-wa/10 flex items-center justify-center flex-shrink-0">
-                  <Icon size={12} className="text-wa" />
+              <div key={text} style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 13, color: 'var(--v2-gray-400)' }}>
+                <div style={{ width: 28, height: 28, borderRadius: 8, background: 'rgba(0,195,122,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <Icon size={13} style={{ color: 'var(--v2-primary)' }} />
                 </div>
                 <span>{text}</span>
               </div>
@@ -149,8 +206,8 @@ export default function Login() {
         </div>
 
         {/* Footer */}
-        <p className="text-center text-xs text-muted mt-6">
-          © 2025 Axess — Event OS. כל הזכויות שמורות.
+        <p style={{ textAlign: 'center', fontSize: 12, color: 'var(--v2-gray-400)', marginTop: 24 }}>
+          © 2026 AXESS. כל הזכויות שמורות.
         </p>
       </div>
     </div>
