@@ -10,8 +10,8 @@ const NAV_ITEMS = [
   { icon: LayoutDashboard, label: 'סקירה כללית', path: '/dashboard' },
   { icon: Send,            label: 'קמפיין חדש',  path: '/dashboard/new-campaign' },
   { icon: Users,           label: 'קהלים',        path: '/dashboard/audiences' },
-  { icon: BarChart3,       label: 'דוחות',        path: '/dashboard/reports' },
   { icon: QrCode,          label: 'Validators',   path: '/dashboard/validators' },
+  { icon: BarChart3,       label: 'דוחות',        path: '/dashboard/reports' },
   { icon: Settings,        label: 'הגדרות',       path: '/dashboard/settings' },
 ]
 
@@ -437,7 +437,7 @@ export default function DashboardClientLayout() {
 
         {/* ── PAGE CONTENT ── */}
         <main
-          className="dash-main"
+          className="dash-main dash-main-mobile-pb"
           style={{
             flex: 1,
             overflowY: 'auto',
@@ -454,7 +454,7 @@ export default function DashboardClientLayout() {
           style={{
             background: 'var(--v2-dark-2)',
             borderTop: '1px solid var(--glass-border)',
-            padding: '8px',
+            padding: '8px 4px',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-around',
@@ -463,7 +463,7 @@ export default function DashboardClientLayout() {
             zIndex: 30,
           }}
         >
-          {NAV_ITEMS.slice(0, 5).map(item => (
+          {NAV_ITEMS.map(item => (
             <NavLink
               key={item.path}
               to={item.path}

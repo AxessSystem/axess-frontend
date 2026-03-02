@@ -374,6 +374,16 @@
     }
   }
 
+  /* Mobile bottom nav clearance */
+  .dash-main-mobile-pb {
+    padding-bottom: 80px;
+  }
+  @media (min-width: 1024px) {
+    .dash-main-mobile-pb {
+      padding-bottom: 24px;
+    }
+  }
+
   /* Dashboard styles — v2 */
   .btn-primary {
     display: inline-flex;
