@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
-import { Search, Download, Filter, Users, Phone, Tag, ChevronDown } from 'lucide-react'
+import { Search, Download, Users, Phone, Tag } from 'lucide-react'
 import EngagementScore from '@/components/ui/EngagementScore'
 import EmptyState from '@/components/ui/EmptyState'
 
@@ -45,76 +45,69 @@ export default function Audiences() {
     const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
-    a.href = url
-    a.download = 'קהל_axess.csv'
-    a.click()
+    a.href = url; a.download = 'קהל_axess.csv'; a.click()
     URL.revokeObjectURL(url)
   }
 
   return (
-    <div className="space-y-6" dir="rtl">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }} dir="rtl">
+
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <div>
-          <h1 className="text-2xl font-black text-white" style={{ fontFamily: 'Outfit, sans-serif' }}>
+          <h1 style={{ fontFamily: "'Bricolage Grotesque','Outfit',sans-serif", fontWeight: 800, fontSize: 26, color: '#ffffff' }}>
             קהלים
           </h1>
-          <p className="text-muted text-sm mt-0.5">{MOCK_RECIPIENTS.length} אנשי קשר</p>
+          <p style={{ color: 'var(--v2-gray-400)', fontSize: 14, marginTop: 4 }}>{MOCK_RECIPIENTS.length} אנשי קשר</p>
         </div>
-        <button onClick={handleExport} className="btn-secondary gap-2">
-          <Download size={16} />
-          ייצוא CSV
+        <button onClick={handleExport} className="btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <Download size={16} /> ייצוא CSV
         </button>
       </div>
 
       {/* Stats row */}
-      <div className="grid grid-cols-3 gap-4">
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14 }}>
         {[
-          { label: 'סה"כ אנשי קשר', value: MOCK_RECIPIENTS.length, icon: Users, color: 'text-primary' },
-          { label: 'VIP', value: MOCK_RECIPIENTS.filter(r => r.tags.includes('VIP')).length, icon: Tag, color: 'text-yellow-400' },
-          { label: 'ממוצע ציון', value: Math.round(MOCK_RECIPIENTS.reduce((s, r) => s + r.score, 0) / MOCK_RECIPIENTS.length), icon: Phone, color: 'text-accent' },
+          { label: 'סה"כ אנשי קשר', value: MOCK_RECIPIENTS.length, icon: Users, color: 'var(--v2-primary)' },
+          { label: 'VIP', value: MOCK_RECIPIENTS.filter(r => r.tags.includes('VIP')).length, icon: Tag, color: '#F59E0B' },
+          { label: 'ממוצע ציון', value: Math.round(MOCK_RECIPIENTS.reduce((s, r) => s + r.score, 0) / MOCK_RECIPIENTS.length), icon: Phone, color: 'var(--v2-accent)' },
         ].map(({ label, value, icon: Icon, color }) => (
-          <div key={label} className="card text-center">
-            <Icon size={20} className={`${color} mx-auto mb-2`} />
-            <div className="text-2xl font-black text-white" style={{ fontFamily: 'Outfit, sans-serif' }}>{value}</div>
-            <div className="text-xs text-muted mt-0.5">{label}</div>
+          <div key={label} style={{ background: 'var(--v2-dark-3)', border: '1px solid var(--glass-border)', borderRadius: 'var(--radius-lg)', padding: '20px', textAlign: 'center', transition: 'border-color 0.3s, box-shadow 0.3s' }}
+            onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--v2-primary)'; e.currentTarget.style.boxShadow = 'var(--shadow-glow-green)' }}
+            onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--glass-border)'; e.currentTarget.style.boxShadow = 'none' }}
+          >
+            <Icon size={20} style={{ color, margin: '0 auto 8px' }} />
+            <div style={{ fontFamily: "'Bricolage Grotesque',monospace", fontWeight: 800, fontSize: 28, color: '#ffffff', lineHeight: 1 }}>{value}</div>
+            <div style={{ fontSize: 12, color: 'var(--v2-gray-400)', marginTop: 6 }}>{label}</div>
           </div>
         ))}
       </div>
 
       {/* Filters */}
-      <div className="flex flex-wrap gap-3">
-        <div className="relative flex-1 min-w-48">
-          <Search size={16} className="absolute top-1/2 -translate-y-1/2 right-3 text-muted" />
-          <input
-            className="input pr-9"
-            placeholder="חפש לפי שם או טלפון..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-          />
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+        <div style={{ position: 'relative', flex: 1, minWidth: 200 }}>
+          <Search size={16} style={{ position: 'absolute', top: '50%', transform: 'translateY(-50%)', right: 12, color: 'var(--v2-gray-400)', pointerEvents: 'none' }} />
+          <input className="input" style={{ paddingRight: 36 }} placeholder="חפש לפי שם או טלפון..." value={search} onChange={e => setSearch(e.target.value)} />
         </div>
 
-        <div className="flex gap-2">
-          {ALL_TAGS.map(tag => (
-            <button
-              key={tag}
-              onClick={() => setActiveTag(tag)}
-              className={`px-3 py-2 rounded-xl text-sm font-medium transition-all ${
-                activeTag === tag
-                  ? 'bg-primary text-white'
-                  : 'bg-surface-50 text-subtle border border-border hover:border-border-light'
-              }`}
-            >
-              {tag}
-            </button>
-          ))}
+        <div style={{ display: 'flex', gap: 6 }}>
+          {ALL_TAGS.map(tag => {
+            const isActive = activeTag === tag
+            return (
+              <button key={tag} onClick={() => setActiveTag(tag)}
+                style={{
+                  padding: '8px 14px', borderRadius: 'var(--radius-full)', fontSize: 13, fontWeight: 500,
+                  background: isActive ? 'var(--v2-primary)' : 'rgba(255,255,255,0.04)',
+                  color: isActive ? 'var(--v2-dark)' : 'var(--v2-gray-400)',
+                  border: isActive ? 'none' : '1px solid var(--glass-border)',
+                  cursor: 'pointer', transition: 'all 0.15s',
+                }}
+              >{tag}</button>
+            )
+          })}
         </div>
 
-        <select
-          className="input w-auto"
-          value={sortBy}
-          onChange={e => setSortBy(e.target.value)}
-        >
+        <select className="input" style={{ width: 'auto' }} value={sortBy} onChange={e => setSortBy(e.target.value)}>
           <option value="score">מיין: ציון</option>
           <option value="campaigns">מיין: קמפיינים</option>
           <option value="name">מיין: שם</option>
@@ -123,61 +116,44 @@ export default function Audiences() {
 
       {/* Recipients grid */}
       {filtered.length === 0 ? (
-        <EmptyState
-          icon="🔍"
-          title="לא נמצאו אנשי קשר"
-          description="נסה לשנות את מונחי החיפוש או הסנן"
-        />
+        <EmptyState icon="🔍" title="לא נמצאו אנשי קשר" description="נסה לשנות את מונחי החיפוש או הסנן" />
       ) : (
-        <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-4">
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 14 }}>
           {filtered.map((r, i) => (
-            <motion.div
-              key={r.id}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * 0.04 }}
-              className="card hover:border-border-light transition-all cursor-pointer group"
+            <motion.div key={r.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.04 }}
+              style={{ background: 'var(--v2-dark-3)', border: '1px solid var(--glass-border)', borderRadius: 'var(--radius-lg)', padding: '18px', cursor: 'pointer', transition: 'border-color 0.25s, transform 0.25s' }}
+              onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--v2-primary)'; e.currentTarget.style.transform = 'translateY(-2px)' }}
+              onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--glass-border)'; e.currentTarget.style.transform = 'none' }}
             >
-              <div className="flex items-start gap-3">
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
                 {/* Avatar */}
-                <div className="w-11 h-11 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center flex-shrink-0">
-                  <span className="text-sm font-bold text-primary">{r.name.charAt(0)}</span>
+                <div style={{ width: 44, height: 44, borderRadius: 'var(--radius-md)', background: 'rgba(0,195,122,0.12)', border: '1px solid rgba(0,195,122,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--v2-primary)' }}>{r.name.charAt(0)}</span>
                 </div>
 
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="text-sm font-semibold text-white truncate">{r.name}</div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                    <div style={{ fontSize: 14, fontWeight: 600, color: '#ffffff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.name}</div>
                     <EngagementScore score={r.score} size={40} />
                   </div>
-                  <div className="text-xs text-muted mt-0.5 flex items-center gap-1">
-                    <Phone size={11} />
-                    {r.phone}
+                  <div style={{ fontSize: 12, color: 'var(--v2-gray-400)', marginTop: 2, display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <Phone size={11} /> {r.phone}
                   </div>
 
-                  <div className="flex flex-wrap gap-1.5 mt-2">
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
                     {r.tags.map(tag => (
-                      <span
-                        key={tag}
-                        className={`text-[11px] px-2 py-0.5 rounded-full font-medium ${
-                          tag === 'VIP'
-                            ? 'bg-yellow-500/10 text-yellow-400 border border-yellow-500/20'
-                            : tag === 'לקוח קבוע'
-                            ? 'bg-primary/10 text-primary border border-primary/20'
-                            : 'bg-surface-50 text-subtle border border-border'
-                        }`}
-                      >
-                        {tag}
-                      </span>
+                      <span key={tag} style={{
+                        fontSize: 11, padding: '2px 8px', borderRadius: 9999, fontWeight: 500,
+                        background: tag === 'VIP' ? 'rgba(245,158,11,0.12)' : tag === 'לקוח קבוע' ? 'rgba(0,195,122,0.1)' : 'rgba(255,255,255,0.06)',
+                        color: tag === 'VIP' ? '#F59E0B' : tag === 'לקוח קבוע' ? 'var(--v2-primary)' : 'var(--v2-gray-400)',
+                        border: `1px solid ${tag === 'VIP' ? 'rgba(245,158,11,0.25)' : tag === 'לקוח קבוע' ? 'rgba(0,195,122,0.25)' : 'var(--glass-border)'}`,
+                      }}>{tag}</span>
                     ))}
                   </div>
 
-                  <div className="flex items-center justify-between mt-3 pt-3 border-t border-border">
-                    <div className="text-xs text-muted">
-                      {r.campaigns} קמפיינים
-                    </div>
-                    <div className="text-xs text-muted">
-                      {r.lastSeen}
-                    </div>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 12, paddingTop: 12, borderTop: '1px solid var(--glass-border)' }}>
+                    <div style={{ fontSize: 12, color: 'var(--v2-gray-400)' }}>{r.campaigns} קמפיינים</div>
+                    <div style={{ fontSize: 12, color: 'var(--v2-gray-400)' }}>{r.lastSeen}</div>
                   </div>
                 </div>
               </div>
