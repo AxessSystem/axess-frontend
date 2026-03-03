@@ -455,28 +455,6 @@ export default function Header() {
                 </Link>
               )
             })}
-            <Link
-              to="/login"
-              style={{
-                color: 'var(--v2-gray-400)',
-                fontSize: 16,
-                fontWeight: 500,
-                textDecoration: 'none',
-                padding: '10px 0',
-                borderBottom: '1px solid rgba(255,255,255,0.05)',
-              }}
-            >
-              כניסה למערכת
-            </Link>
-            <a
-              href={WA_LINK}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="btn-v2-primary"
-              style={{ marginTop: 12, textAlign: 'center', justifyContent: 'center' }}
-            >
-              פתח חשבון — חינם
-            </a>
             <div style={{
               display: 'flex',
               gap: '8px',
@@ -503,7 +481,6 @@ export default function Header() {
               <a
                 href="https://wa.me/972586829494"
                 target="_blank"
-                rel="noopener noreferrer"
                 style={{
                   flex: 1,
                   textAlign: 'center',
