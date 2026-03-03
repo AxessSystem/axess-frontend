@@ -4,7 +4,7 @@ import { motion, useInView, useAnimation } from 'framer-motion'
 import {
   MessageCircle, BarChart3, Upload, CheckCircle, ArrowLeft,
   Menu, X, Star, Zap, Shield, Clock, TrendingUp, Users,
-  QrCode, ChevronDown, ExternalLink,
+  QrCode, ChevronDown, ExternalLink, Ticket,
   Utensils, Music, Hotel, ShoppingBag, Dumbbell, Building2
 } from 'lucide-react'
 import LivePreview from '@/components/LivePreview'
@@ -293,6 +293,46 @@ function Section({ children, className = '', id = '', style }) {
     >
       {children}
     </motion.section>
+  )
+}
+
+/* ── Event Page Mock (phone frame) ── */
+function EventPageMock() {
+  const [remaining, setRemaining] = useState(47)
+  useEffect(() => {
+    const t = setInterval(() => {
+      setRemaining(r => (r <= 44 ? 47 : r - 1))
+    }, 3000)
+    return () => clearInterval(t)
+  }, [])
+  return (
+    <div className="phone-frame w-[260px] mx-auto">
+      <div className="absolute top-4 left-1/2 -translate-x-1/2 w-20 h-5 bg-dark rounded-full z-10" />
+      <div style={{ background: '#0F0F1A', borderRadius: 24, overflow: 'hidden', minHeight: 480 }}>
+        <div style={{ background: 'linear-gradient(135deg, #4C1D95 0%, #1E3A8A 100%)', height: 120, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+          <span style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontWeight: 800, fontSize: 20, color: '#fff' }}>TECHNO TLV</span>
+        </div>
+        <div style={{ padding: 12, color: '#fff', fontSize: 11 }}>
+          <div style={{ marginBottom: 4 }}>15.03.2026 | 23:00</div>
+          <div style={{ color: 'var(--v2-gray-400)', marginBottom: 12 }}>The Hangar, Tel Aviv</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <div style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12, padding: 12 }}>
+              <div style={{ fontWeight: 700, marginBottom: 4 }}>כניסה רגילה</div>
+              <div style={{ fontSize: 18, fontWeight: 800, marginBottom: 4 }}>₪80</div>
+              <div style={{ color: '#F59E0B', fontSize: 10, marginBottom: 8 }}>נותרו {remaining} בלבד!</div>
+              <button style={{ background: 'var(--v2-primary)', color: 'var(--v2-dark)', border: 'none', borderRadius: 8, padding: '8px 16px', fontSize: 12, fontWeight: 700, width: '100%' }}>רכוש ←</button>
+            </div>
+            <div style={{ background: 'rgba(168,85,247,0.15)', border: '1px solid rgba(168,85,247,0.4)', borderRadius: 12, padding: 12, position: 'relative' }}>
+              <span style={{ position: 'absolute', top: 8, left: 8, background: 'rgba(168,85,247,0.5)', color: '#fff', fontSize: 9, fontWeight: 700, padding: '2px 6px', borderRadius: 4 }}>VIP</span>
+              <div style={{ fontWeight: 700, marginBottom: 4 }}>VIP + שולחן</div>
+              <div style={{ fontSize: 18, fontWeight: 800, marginBottom: 4 }}>₪350</div>
+              <div style={{ color: 'var(--v2-gray-400)', fontSize: 10, marginBottom: 8 }}>כולל בקבוק פרמיום 🍾</div>
+              <button style={{ background: 'var(--v2-primary)', color: 'var(--v2-dark)', border: 'none', borderRadius: 8, padding: '8px 16px', fontSize: 12, fontWeight: 700, width: '100%' }}>רכוש ←</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   )
 }
 
@@ -884,6 +924,23 @@ export default function Landing() {
               <p style={{ color: 'var(--v2-gray-400)', lineHeight: 1.7, fontSize: 15 }}>קבל דוח חי: נשלח / נמסר / הוקלק / מומש</p>
             </motion.div>
 
+            {/* Card 4 — מכור ישירות */}
+            <motion.div
+              initial={{ opacity: 0, y: 30 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: 0.4, duration: 0.5 }}
+              className="stat-card-v2"
+              style={{ position: 'relative' }}
+            >
+              <div style={{ position: 'absolute', top: -14, right: 20, width: 32, height: 32, borderRadius: '50%', background: 'var(--v2-primary)', color: 'var(--v2-dark)', fontSize: 13, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: 'var(--shadow-glow-green)' }}>04</div>
+              <div style={{ marginBottom: 16, marginTop: 8, display: 'flex', justifyContent: 'flex-start' }}>
+                <Ticket size={28} style={{ color: 'var(--v2-primary)', strokeWidth: 2 }} />
+              </div>
+              <h3 style={{ fontFamily: "'Bricolage Grotesque', 'Outfit', sans-serif", fontWeight: 700, fontSize: 20, color: '#ffffff', marginBottom: 8 }}>מכור ישירות</h3>
+              <p style={{ color: 'var(--v2-gray-400)', lineHeight: 1.7, fontSize: 15 }}>צור דף מכירה לאירוע או שירות — לקוחות רוכשים, מקבלים כרטיס דיגיטלי ב-SMS תוך שניות</p>
+            </motion.div>
+
           </div>
         </div>
       </Section>
@@ -966,6 +1023,33 @@ export default function Landing() {
         </div>
       </Section>
 
+      {/* ── Event Page Demo ── */}
+      <Section style={{ background: 'var(--v2-dark-2)', padding: 'var(--space-12) 0', marginTop: '120px' }}>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6">
+          <div className="text-center mb-12">
+            <h2 style={{ fontFamily: "'Bricolage Grotesque', 'Outfit', sans-serif", fontWeight: 800, fontSize: 'var(--text-h2)', color: '#ffffff', marginBottom: 12, letterSpacing: '-0.02em' }}>
+              דף מכירה — בדיוק כמו שהלקוח שלך יראה
+            </h2>
+          </div>
+          <div className="grid lg:grid-cols-2 gap-12 items-center">
+            <div>
+              <p style={{ color: 'var(--v2-gray-400)', fontSize: 18, marginBottom: 24, lineHeight: 1.7 }}>
+                כל אירוע מקבל דף מכירה ייחודי. לקוחות רוכשים ישירות — ללא עמלות, ללא אפליקציות, ללא סיבוכים.
+              </p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                {['URL ייחודי לכל אירוע', 'סוגי כרטיסים ומחירים שונים', 'תשלום מאובטח דרך Stripe', 'כרטיס דיגיטלי ב-SMS תוך שניות', 'דוח מכירות בזמן אמת'].map(item => (
+                  <div key={item} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <CheckCircle size={18} style={{ color: 'var(--v2-primary)', flexShrink: 0 }} />
+                    <span style={{ color: '#ffffff', fontWeight: 500, fontSize: 15 }}>{item}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <EventPageMock />
+          </div>
+        </div>
+      </Section>
+
       {/* ── USE CASES — v2 dark ── */}
       <section
         id="usecases"
@@ -1001,7 +1085,7 @@ export default function Landing() {
             }}
           >
             {[
-              { Icon: Music,       name: 'אירועים',    use: 'כרטיסי כניסה דיגיטליים',      bizKey: 'events' },
+              { Icon: Music,       name: 'אירועים',    use: 'כרטיסי כניסה דיגיטליים, דף מכירה ייחודי, ניהול יחצ"נים ומכירות בזמן אמת', bizKey: 'events' },
               { Icon: Hotel,       name: 'מלונות',     use: 'אישורי הזמנה + Upsell',        bizKey: 'hotels' },
               { Icon: Utensils,    name: 'מסעדות',     use: 'קופוני ארוחה ללקוחות חוזרים', bizKey: 'restaurants' },
               { Icon: ShoppingBag, name: 'חנויות',     use: 'מבצעים ממוקדים לפי רכישות',   bizKey: 'stores' },

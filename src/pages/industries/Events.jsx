@@ -1,4 +1,4 @@
-import { Music, BarChart3, Users, Zap, QrCode, MessageSquare, TrendingUp, ShoppingCart } from 'lucide-react'
+import { Music, BarChart3, Users, Zap, QrCode, MessageSquare, TrendingUp, ShoppingCart, Ticket, Smartphone } from 'lucide-react'
 import IndustryPage from './IndustryPage'
 
 export default function Events() {
@@ -16,6 +16,16 @@ export default function Events() {
           icon: ShoppingCart,
           title: 'דף מכירה ייחודי לכל אירוע',
           desc: 'לקוחות רוכשים ישירות — ללא עמלות חיצוניות.',
+        },
+        {
+          icon: Ticket,
+          title: 'דף מכירה ייחודי לכל אירוע',
+          desc: 'URL מותאם אישית. לקוחות רוכשים ישירות — ללא עמלות חיצוניות',
+        },
+        {
+          icon: Smartphone,
+          title: 'כרטיס דיגיטלי אוטומטי',
+          desc: 'אחרי רכישה — SMS עם כרטיס ייחודי מגיע תוך שניות. מימוש בסריקה',
         },
         {
           icon: QrCode,
@@ -49,7 +59,7 @@ export default function Events() {
         },
       ]}
       roiStats={[
-        { value: '₪85', label: 'הוצאה ממוצעת לכרטיס', sub: 'ממוצע רכישה ישירה' },
+        { value: '₪85', label: 'הוצאה ממוצע לכרטיס', sub: 'לקוחות שמגיעים דרך SMS קונים יותר' },
         { value: '+35%', label: 'הכנסה נוספת', sub: 'מ-Upsell בקבוקים ושולחנות' },
         { value: '18%', label: 'המרת נוטשים', sub: 'ממוצע לאחר SMS אוטומטי' },
         { value: '3 דק׳', label: 'זמן הקמה', sub: 'מרישום ועד קמפיין חי' },
