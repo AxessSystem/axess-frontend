@@ -111,6 +111,7 @@ export default function Header() {
   const [scrolled, setScrolled] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
   const [dropdownOpen, setDropdownOpen] = useState(false)
+  const [industriesOpen, setIndustriesOpen] = useState(false)
   const dropdownRef = useRef(null)
   const location = useLocation()
   const { ripples, addRipple } = useRipple()
@@ -121,7 +122,7 @@ export default function Header() {
     return () => window.removeEventListener('scroll', handler)
   }, [])
 
-  useEffect(() => { setMenuOpen(false); setDropdownOpen(false) }, [location])
+  useEffect(() => { setMenuOpen(false); setDropdownOpen(false); setIndustriesOpen(false) }, [location])
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -389,36 +390,42 @@ export default function Header() {
               if (dropdown) {
                 return (
                   <div key={label}>
-                    <div
+                    <button
+                      onClick={() => setIndustriesOpen(!industriesOpen)}
                       style={{
-                        color: 'var(--v2-gray-400)',
-                        fontSize: 14,
-                        fontWeight: 600,
-                        padding: '8px 0 4px',
-                        borderBottom: '1px solid rgba(255,255,255,0.05)',
-                        marginBottom: 4,
-                        letterSpacing: '0.02em',
-                        textTransform: 'uppercase',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        width: '100%',
+                        padding: '12px 0',
+                        background: 'none',
+                        border: 'none',
+                        color: 'var(--white)',
+                        fontSize: '16px',
+                        cursor: 'pointer',
                       }}
                     >
-                      {label}
+                      <span>סוגי עסקים</span>
+                      <span style={{
+                        transition: 'transform 300ms ease',
+                        transform: industriesOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+                        color: 'var(--v2-primary)',
+                      }}>▼</span>
+                    </button>
+
+                    <div style={{
+                      maxHeight: industriesOpen ? '400px' : '0',
+                      overflow: 'hidden',
+                      transition: 'max-height 300ms ease',
+                      paddingRight: '16px',
+                    }}>
+                      <a href="/industries/events" style={{ display: 'block', padding: '10px 0', color: 'var(--v2-gray-400)', fontSize: 15, textDecoration: 'none' }} onMouseEnter={e => { e.currentTarget.style.color = 'var(--white)' }} onMouseLeave={e => { e.currentTarget.style.color = 'var(--v2-gray-400)' }}>אירועים</a>
+                      <a href="/industries/hotels" style={{ display: 'block', padding: '10px 0', color: 'var(--v2-gray-400)', fontSize: 15, textDecoration: 'none' }} onMouseEnter={e => { e.currentTarget.style.color = 'var(--white)' }} onMouseLeave={e => { e.currentTarget.style.color = 'var(--v2-gray-400)' }}>מלונות</a>
+                      <a href="/industries/restaurants" style={{ display: 'block', padding: '10px 0', color: 'var(--v2-gray-400)', fontSize: 15, textDecoration: 'none' }} onMouseEnter={e => { e.currentTarget.style.color = 'var(--white)' }} onMouseLeave={e => { e.currentTarget.style.color = 'var(--v2-gray-400)' }}>מסעדות</a>
+                      <a href="/industries/retail" style={{ display: 'block', padding: '10px 0', color: 'var(--v2-gray-400)', fontSize: 15, textDecoration: 'none' }} onMouseEnter={e => { e.currentTarget.style.color = 'var(--white)' }} onMouseLeave={e => { e.currentTarget.style.color = 'var(--v2-gray-400)' }}>חנויות</a>
+                      <a href="/industries/gyms" style={{ display: 'block', padding: '10px 0', color: 'var(--v2-gray-400)', fontSize: 15, textDecoration: 'none' }} onMouseEnter={e => { e.currentTarget.style.color = 'var(--white)' }} onMouseLeave={e => { e.currentTarget.style.color = 'var(--v2-gray-400)' }}>חדרי כושר</a>
+                      <a href="/industries/organizations" style={{ display: 'block', padding: '10px 0', color: 'var(--v2-gray-400)', fontSize: 15, textDecoration: 'none' }} onMouseEnter={e => { e.currentTarget.style.color = 'var(--white)' }} onMouseLeave={e => { e.currentTarget.style.color = 'var(--v2-gray-400)' }}>ארגונים</a>
                     </div>
-                    {INDUSTRIES.map(({ label: iLabel, slug }) => (
-                      <Link
-                        key={slug}
-                        to={`/industries/${slug}`}
-                        style={{
-                          display: 'block',
-                          color: 'var(--v2-gray-400)',
-                          fontSize: 15,
-                          fontWeight: 500,
-                          textDecoration: 'none',
-                          padding: '8px 12px',
-                        }}
-                      >
-                        {iLabel}
-                      </Link>
-                    ))}
                   </div>
                 )
               }
