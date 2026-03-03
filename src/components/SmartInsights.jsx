@@ -37,6 +37,17 @@ const INSIGHTS = [
       { label: 'הפעל אוטומציה →', primary: true, color: '#F59E0B' },
     ],
   },
+  {
+    id: 4,
+    icon: '👤',
+    tag: 'פרופיל לקוח',
+    tagColor: '#10B981',
+    title: 'לקוח קנה כרטיס לאירוע לפני 3 חודשים',
+    body: 'המלצה: שלח לו הזמנה לאירוע הבא שלך',
+    actions: [
+      { label: 'צור קמפיין ממוקד →', primary: true, color: '#10B981' },
+    ],
+  },
 ]
 
 /* ── Single insight card ── */
@@ -144,7 +155,7 @@ export default function SmartInsights() {
         </motion.div>
 
         {/* Cards grid */}
-        <div className="grid md:grid-cols-3 gap-5 mb-10">
+        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-5 mb-10">
           {INSIGHTS.map((insight, i) => (
             <InsightCard key={insight.id} insight={insight} index={i} />
           ))}

@@ -1,8 +1,9 @@
-import { useState } from 'react'
-import { motion } from 'framer-motion'
-import { Search, Download, Users, Phone, Tag } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
+import { Search, Download, Users, Phone, Tag, X, ShoppingBag, Activity, Clock } from 'lucide-react'
 import EngagementScore from '@/components/ui/EngagementScore'
 import EmptyState from '@/components/ui/EmptyState'
+import { api } from '@/services/api'
 
 const MOCK_RECIPIENTS = [
   { id: 1,  name: 'דני כהן',      phone: '050-1234567', tags: ['לקוח קבוע', 'VIP'], score: 85, campaigns: 12, lastSeen: '28/02/2026' },
@@ -19,10 +20,146 @@ const MOCK_RECIPIENTS = [
 
 const ALL_TAGS = ['הכל', 'VIP', 'לקוח קבוע', 'חדש']
 
+const businessId = null // TODO: from AuthContext when available
+
+function CustomerProfileDrawer({ open, onClose, masterRecipientId }) {
+  const [profile, setProfile] = useState(null)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState(null)
+
+  useEffect(() => {
+    if (!open || !masterRecipientId) return
+    setLoading(true)
+    setError(null)
+    api.getCustomerProfile(masterRecipientId, businessId || undefined)
+      .then(setProfile)
+      .catch((err) => setError(err.message))
+      .finally(() => setLoading(false))
+  }, [open, masterRecipientId])
+
+  if (!open) return null
+  const fullName = profile?.first_name || profile?.last_name
+    ? [profile.first_name, profile.last_name].filter(Boolean).join(' ')
+    : 'ללא שם'
+  const initials = fullName ? fullName.split(/\s+/).map(n => n[0]).join('').slice(0, 2) : (profile?.phone?.[0] || '?')
+  const totalSpent = Number(profile?.total_spent) || 0
+  const totalPurchases = parseInt(profile?.total_purchases || 0, 10)
+  const lastActive = profile?.last_active ? new Date(profile.last_active) : null
+  const daysSinceActive = lastActive ? Math.floor((Date.now() - lastActive) / 86400000) : null
+  const engagementScore = profile?.engagement_score ?? (profile?.axess_data?.engagement_score ?? 0)
+  const completeness = parseInt(profile?.profile_completeness || 0, 10)
+  const tags = profile?.tags || []
+
+  return (
+    <AnimatePresence>
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        style={{
+          position: 'fixed', inset: 0, zIndex: 100, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)',
+          display: 'flex', justifyContent: 'flex-end', alignItems: 'stretch',
+        }}
+        onClick={onClose}
+      >
+        <motion.div
+          initial={{ x: '100%' }}
+          animate={{ x: 0 }}
+          exit={{ x: '100%' }}
+          transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+          onClick={e => e.stopPropagation()}
+          style={{
+            width: 'min(420px, 100vw)', maxWidth: '100%', background: 'var(--v2-dark-2)', borderRight: '1px solid var(--glass-border)',
+            overflowY: 'auto', boxShadow: '-8px 0 24px rgba(0,0,0,0.4)',
+          }}
+        >
+          <div style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 24 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+              <h2 style={{ fontFamily: "'Bricolage Grotesque','Outfit',sans-serif", fontWeight: 800, fontSize: 20, color: '#ffffff' }}>כרטיס לקוח</h2>
+              <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--v2-gray-400)', cursor: 'pointer', padding: 4 }}><X size={20} /></button>
+            </div>
+            {loading && <div style={{ textAlign: 'center', color: 'var(--v2-gray-400)', padding: 40 }}>טוען...</div>}
+            {error && <div style={{ textAlign: 'center', color: '#EF4444', padding: 40 }}>{error}</div>}
+            {profile && !loading && (
+              <>
+                {/* Avatar + Name + Phone */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+                  <div style={{
+                    width: 64, height: 64, borderRadius: 'var(--radius-lg)', background: 'rgba(0,195,122,0.15)', border: '1px solid rgba(0,195,122,0.3)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, fontWeight: 800, color: 'var(--v2-primary)', flexShrink: 0,
+                  }}>
+                    {profile.avatar_url ? <img src={profile.avatar_url} alt="" style={{ width: '100%', height: '100%', borderRadius: 'inherit', objectFit: 'cover' }} /> : initials}
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 18, fontWeight: 700, color: '#ffffff' }}>{fullName}</div>
+                    <div style={{ fontSize: 14, color: 'var(--v2-gray-400)', display: 'flex', alignItems: 'center', gap: 6, marginTop: 4 }}><Phone size={14} /> {profile.phone || '—'}</div>
+                  </div>
+                </div>
+                {/* Profile completeness bar */}
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6, fontSize: 12, color: 'var(--v2-gray-400)' }}>שלמות פרופיל <span>{completeness}%</span></div>
+                  <div style={{ height: 6, background: 'rgba(255,255,255,0.08)', borderRadius: 9999, overflow: 'hidden' }}>
+                    <div style={{ height: '100%', width: `${completeness}%`, background: 'var(--v2-primary)', borderRadius: 9999, transition: 'width 0.3s' }} />
+                  </div>
+                </div>
+                {/* 4 KPI cards */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                  {[
+                    { label: 'סה"כ רכישות', value: totalPurchases, icon: ShoppingBag },
+                    { label: 'סה"כ הוצאה', value: `₪${totalSpent.toLocaleString('he-IL')}`, icon: Activity },
+                    { label: 'Engagement', value: engagementScore, icon: Activity },
+                    { label: 'פעיל לאחרונה', value: daysSinceActive !== null ? (daysSinceActive < 1 ? 'היום' : `לפני ${daysSinceActive} ימים`) : '—', icon: Clock },
+                  ].map(({ label, value, icon: Icon }) => (
+                    <div key={label} style={{ background: 'var(--v2-dark-3)', border: '1px solid var(--glass-border)', borderRadius: 'var(--radius-md)', padding: 14 }}>
+                      <Icon size={16} style={{ color: 'var(--v2-primary)', marginBottom: 6 }} />
+                      <div style={{ fontSize: 18, fontWeight: 800, color: '#ffffff', fontFamily: 'monospace' }}>{value}</div>
+                      <div style={{ fontSize: 11, color: 'var(--v2-gray-400)', marginTop: 2 }}>{label}</div>
+                    </div>
+                  ))}
+                </div>
+                {/* Tags */}
+                {tags.length > 0 && (
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                    {tags.map(tag => (
+                      <span key={tag} style={{
+                        fontSize: 12, padding: '4px 10px', borderRadius: 9999, fontWeight: 500,
+                        background: tag === 'VIP' ? 'rgba(245,158,11,0.15)' : tag === 'פעיל' ? 'rgba(0,195,122,0.15)' : tag === 'נוטש' ? 'rgba(239,68,68,0.12)' : 'rgba(255,255,255,0.06)',
+                        color: tag === 'VIP' ? '#F59E0B' : tag === 'פעיל' ? 'var(--v2-primary)' : tag === 'נוטש' ? '#EF4444' : 'var(--v2-gray-400)',
+                        border: `1px solid ${tag === 'VIP' ? 'rgba(245,158,11,0.3)' : tag === 'פעיל' ? 'rgba(0,195,122,0.3)' : tag === 'נוטש' ? 'rgba(239,68,68,0.2)' : 'var(--glass-border)'}`,
+                      }}>{tag}</span>
+                    ))}
+                  </div>
+                )}
+                {/* Timeline */}
+                <div>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: '#ffffff', marginBottom: 12 }}>ציר זמן פעילות</div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 280, overflowY: 'auto' }}>
+                    {(profile.timeline || []).map((item, idx) => (
+                      <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', background: 'var(--v2-dark-3)', borderRadius: 'var(--radius-md)', fontSize: 13 }}>
+                        <span style={{ fontSize: 16 }}>{item.icon}</span>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ color: '#ffffff' }}>{item.label}</div>
+                          {item.amount != null && <div style={{ color: 'var(--v2-gray-400)', fontSize: 11 }}>₪{Number(item.amount).toLocaleString('he-IL')}</div>}
+                        </div>
+                        <div style={{ color: 'var(--v2-gray-400)', fontSize: 11 }}>{item.date ? new Date(item.date).toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' }) : ''}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+        </motion.div>
+      </motion.div>
+    </AnimatePresence>
+  )
+}
+
 export default function Audiences() {
   const [search, setSearch] = useState('')
   const [activeTag, setActiveTag] = useState('הכל')
   const [sortBy, setSortBy] = useState('score')
+  const [selectedCustomerId, setSelectedCustomerId] = useState(null)
 
   const filtered = MOCK_RECIPIENTS
     .filter(r => {
@@ -122,6 +259,7 @@ export default function Audiences() {
           {filtered.map((r, i) => (
             <motion.div key={r.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.04 }}
               style={{ background: 'var(--v2-dark-3)', border: '1px solid var(--glass-border)', borderRadius: 'var(--radius-lg)', padding: '18px', cursor: 'pointer', transition: 'border-color 0.25s, transform 0.25s' }}
+              onClick={() => setSelectedCustomerId(String(r.master_recipient_id || r.id))}
               onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--v2-primary)'; e.currentTarget.style.transform = 'translateY(-2px)' }}
               onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--glass-border)'; e.currentTarget.style.transform = 'none' }}
             >
@@ -161,6 +299,12 @@ export default function Audiences() {
           ))}
         </div>
       )}
+
+      <CustomerProfileDrawer
+        open={!!selectedCustomerId}
+        onClose={() => setSelectedCustomerId(null)}
+        masterRecipientId={selectedCustomerId}
+      />
     </div>
   )
 }

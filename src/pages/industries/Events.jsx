@@ -1,4 +1,4 @@
-import { Music, BarChart3, Users, Zap, QrCode, MessageSquare, TrendingUp } from 'lucide-react'
+import { Music, BarChart3, Users, Zap, QrCode, MessageSquare, TrendingUp, ShoppingCart } from 'lucide-react'
 import IndustryPage from './IndustryPage'
 
 export default function Events() {
@@ -12,6 +12,11 @@ export default function Events() {
       heroGradient="linear-gradient(135deg, #080C14 0%, #0F1020 50%, #0A0E18 100%)"
       accentColor="var(--v2-primary)"
       features={[
+        {
+          icon: ShoppingCart,
+          title: 'דף מכירה ייחודי לכל אירוע',
+          desc: 'לקוחות רוכשים ישירות — ללא עמלות חיצוניות.',
+        },
         {
           icon: QrCode,
           title: 'כרטיסי כניסה דיגיטליים עם QR',
@@ -44,6 +49,7 @@ export default function Events() {
         },
       ]}
       roiStats={[
+        { value: '₪85', label: 'הוצאה ממוצעת לכרטיס', sub: 'ממוצע רכישה ישירה' },
         { value: '+35%', label: 'הכנסה נוספת', sub: 'מ-Upsell בקבוקים ושולחנות' },
         { value: '18%', label: 'המרת נוטשים', sub: 'ממוצע לאחר SMS אוטומטי' },
         { value: '3 דק׳', label: 'זמן הקמה', sub: 'מרישום ועד קמפיין חי' },
