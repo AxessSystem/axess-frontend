@@ -349,7 +349,7 @@ function StepTextLead({ onNext, onPrev, data, setData }) {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
       <div>
         <h2 style={S.h2}>Text Lead — מספר וירטואלי</h2>
-        <p style={{ ...S.muted, fontSize: 14 }}>אפשר לקהל להשיב ישירות להודעה</p>
+        <p style={{ ...S.muted, fontSize: 14 }}>אפשר ללקוחות להשיב להודעה שלך</p>
       </div>
 
       {/* Toggle card */}
@@ -387,8 +387,8 @@ function StepTextLead({ onNext, onPrev, data, setData }) {
                 className="input"
                 style={{
                   paddingRight: 36,
-                  boxShadow: showError ? '0 0 0 2px rgba(239,68,68,0.3)' : number && isValid ? '0 0 0 2px rgba(99,102,241,0.2)' : 'none',
-                  borderColor: showError ? 'rgba(239,68,68,0.4)' : number && isValid ? 'rgba(99,102,241,0.4)' : undefined,
+                  boxShadow: showError ? '0 0 0 2px rgba(239,68,68,0.3)' : number && isValid ? '0 0 0 2px rgba(0,195,122,0.4)' : 'none',
+                  borderColor: showError ? 'rgba(239,68,68,0.4)' : number && isValid ? 'rgba(0,195,122,0.4)' : undefined,
                 }}
                 placeholder="05XXXXXXXX"
                 value={number}
@@ -396,15 +396,15 @@ function StepTextLead({ onNext, onPrev, data, setData }) {
                 onChange={e => { const val = e.target.value.replace(/[^\d]/g, ''); setData(d => ({ ...d, virtualNumber: val })) }}
                 dir="ltr"
               />
-              {number && isValid && <Check size={16} style={{ position: 'absolute', top: '50%', transform: 'translateY(-50%)', left: 12, color: 'var(--v2-accent)' }} />}
+              {number && isValid && <Check size={16} style={{ position: 'absolute', top: '50%', transform: 'translateY(-50%)', left: 12, color: 'var(--v2-primary)' }} />}
             </div>
             {showError && (
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#F87171', fontSize: 12, marginTop: 6 }}>
-                <AlertCircle size={12} /> פורמט לא תקין — נדרש 05XXXXXXXX (10 ספרות)
+                <AlertCircle size={12} /> מספר לא תקין
               </div>
             )}
             {number && isValid && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'var(--v2-accent)', fontSize: 12, marginTop: 6 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'var(--v2-primary)', fontSize: 12, marginTop: 6 }}>
                 <Check size={12} /> המספר תקין
               </div>
             )}
@@ -412,7 +412,7 @@ function StepTextLead({ onNext, onPrev, data, setData }) {
           <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, background: 'rgba(0,195,122,0.05)', border: '1px solid rgba(0,195,122,0.2)', borderRadius: 'var(--radius-md)', padding: '14px' }}>
             <span style={{ fontSize: 20, flexShrink: 0 }}>📞</span>
             <div style={{ fontSize: 14, color: 'var(--v2-gray-400)', lineHeight: 1.7 }}>
-              תשובות מהקהל יגיעו אליך ישירות ב-WhatsApp למספר שהזנת. המספר הוירטואלי יופיע כשולח ה-SMS.
+              תשובות מהקהל יגיעו אליך ישירות ב-WhatsApp
             </div>
           </div>
         </motion.div>
@@ -555,7 +555,7 @@ function StepSummary({ onPrev, data, onSubmit }) {
           { label: 'נמענים', value: `${data.recipientCount || 6} נמענים` },
           { label: 'הודעה', value: data.message ? `${data.message.length} תווים` : '—' },
           { label: 'תזמון', value: data.scheduleType === 'now' ? 'שליחה מיידית' : `${data.scheduleDate} ${data.scheduleTime || ''}` },
-          { label: 'Text Lead', value: data.textLeadEnabled ? `📞 ${data.virtualNumber}` : 'לא מופעל' },
+          { label: 'Text Lead', value: data.textLeadEnabled ? (data.virtualNumber || '') : 'לא מופעל' },
           { label: 'Validator', value: data.validatorEnabled ? `✅ ${data.validatorTitle || 'מופעל'}` : 'לא מופעל' },
         ].map(({ label, value }) => (
           <div key={label} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 0', borderBottom: '1px solid var(--glass-border)' }}>
