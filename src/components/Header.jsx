@@ -477,6 +477,48 @@ export default function Header() {
             >
               פתח חשבון — חינם
             </a>
+            <div style={{
+              display: 'flex',
+              gap: '8px',
+              padding: '16px 0',
+              borderTop: '1px solid var(--glass-border)',
+              marginTop: '8px'
+            }}>
+              <a
+                href="/dashboard"
+                style={{
+                  flex: 1,
+                  textAlign: 'center',
+                  fontSize: '14px',
+                  padding: '10px 16px',
+                  borderRadius: '999px',
+                  border: '1px solid var(--glass-border)',
+                  color: 'var(--white)',
+                  textDecoration: 'none',
+                  fontWeight: '500'
+                }}
+              >
+                כניסה למערכת
+              </a>
+              <a
+                href="https://wa.me/972586829494"
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  flex: 1,
+                  textAlign: 'center',
+                  fontSize: '14px',
+                  padding: '10px 16px',
+                  borderRadius: '999px',
+                  background: 'var(--v2-primary)',
+                  color: 'var(--v2-dark)',
+                  fontWeight: '700',
+                  textDecoration: 'none'
+                }}
+              >
+                פתח חשבון
+              </a>
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
