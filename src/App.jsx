@@ -28,6 +28,7 @@ const IndustryRestaurants   = lazy(() => import('@/pages/industries/Restaurants'
 const IndustryRetail        = lazy(() => import('@/pages/industries/Retail'))
 const IndustryGyms          = lazy(() => import('@/pages/industries/Gyms'))
 const IndustryOrganizations = lazy(() => import('@/pages/industries/Organizations'))
+const EventPage = lazy(() => import('@/pages/EventPage'))
 
 /* ── Client Dashboard (lazy bundle) ── */
 const ClientLayout   = lazy(() => import('@/pages/dashboard/Layout'))
@@ -36,6 +37,7 @@ const NewCampaign    = lazy(() => import('@/pages/dashboard/NewCampaign'))
 const Audiences      = lazy(() => import('@/pages/dashboard/Audiences'))
 const Reports        = lazy(() => import('@/pages/dashboard/Reports'))
 const ValidatorsPage = lazy(() => import('@/pages/dashboard/Validators'))
+const EventsPage     = lazy(() => import('@/pages/dashboard/Events'))
 const Settings       = lazy(() => import('@/pages/dashboard/Settings'))
 
 /* ── Existing admin/producer pages (lazy) ── */
@@ -104,6 +106,7 @@ export default function App() {
             <Route path="/terms" element={<Terms />} />
             <Route path="/privacy" element={<Privacy />} />
             <Route path="/v/:slug" element={<Validator />} />
+            <Route path="/e/:slug" element={<EventPage />} />
 
             {/* ── Industries ── */}
             <Route path="/industries" element={<Navigate to="/industries/events" replace />} />
@@ -119,6 +122,7 @@ export default function App() {
               <Route index element={<Overview />} />
               <Route path="new-campaign" element={<NewCampaign />} />
               <Route path="audiences" element={<Audiences />} />
+              <Route path="events" element={<EventsPage />} />
               <Route path="reports" element={<Reports />} />
               <Route path="validators" element={<ValidatorsPage />} />
               <Route path="settings" element={<Settings />} />
