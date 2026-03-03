@@ -279,12 +279,13 @@ function ValidatorAnimation() {
 }
 
 /* ── Section Wrapper ── */
-function Section({ children, className = '', id = '' }) {
+function Section({ children, className = '', id = '', style }) {
   const { ref, isInView } = useScrollReveal()
   return (
     <motion.section
       ref={ref}
       id={id}
+      style={style}
       initial={{ opacity: 0, y: 30 }}
       animate={isInView ? { opacity: 1, y: 0 } : {}}
       transition={{ duration: 0.6, ease: 'easeOut' }}
@@ -390,8 +391,8 @@ function HeroSlider() {
   return (
     <div>
       <div
+        className="min-h-[180px] md:min-h-[140px]"
         style={{
-          minHeight: 160,
           display: 'flex',
           alignItems: 'flex-start',
         }}
@@ -755,7 +756,7 @@ export default function Landing() {
       {/* ── HOW IT WORKS ── */}
       <Section
         id="how"
-        style={{ background: 'var(--v2-dark-2)', padding: 'var(--space-12) 0' }}
+        style={{ background: 'var(--v2-dark-2)', padding: 'var(--space-12) 0', marginTop: '120px' }}
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <div className="text-center mb-16">
@@ -888,7 +889,7 @@ export default function Landing() {
       </Section>
 
       {/* ── VALIDATOR (DIFFERENTIATOR) ── */}
-      <Section style={{ background: 'var(--v2-dark-3)', padding: 'var(--space-12) 0' }}>
+      <Section style={{ background: 'var(--v2-dark-3)', padding: 'var(--space-12) 0', marginTop: '120px' }}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <div className="grid lg:grid-cols-2 gap-12 items-center">
             {/* Text */}
@@ -1274,8 +1275,8 @@ export default function Landing() {
                 pointerEvents: 'none',
               }}
             />
-            {/* Content wrapper — max 640px centered */}
-            <div style={{ maxWidth: 640, margin: '0 auto', position: 'relative' }}>
+            {/* Content wrapper — max 480px centered, mobile-friendly */}
+            <div style={{ maxWidth: '480px', margin: '0 auto', textAlign: 'center', padding: '0 24px', position: 'relative' }}>
               <h2
                 style={{
                   fontFamily: "'Bricolage Grotesque', 'Outfit', sans-serif",
@@ -1284,6 +1285,8 @@ export default function Landing() {
                   color: '#ffffff',
                   marginBottom: 16,
                   letterSpacing: '-0.02em',
+                  wordBreak: 'keep-all',
+                  overflowWrap: 'break-word',
                 }}
               >
                 מוכן להכפיל את ההכנסות שלך?
@@ -1299,8 +1302,9 @@ export default function Landing() {
                 style={{
                   fontSize: 17,
                   padding: '16px 40px',
-                  display: 'inline-flex',
-                  width: 'auto',
+                  display: 'block',
+                  width: 'fit-content',
+                  margin: '24px auto 0',
                   whiteSpace: 'nowrap',
                 }}
               >
