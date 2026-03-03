@@ -256,6 +256,7 @@ function ValidatorAnimation() {
                 animate={{ scale: 1, rotate: 0 }}
                 transition={{ type: 'spring', stiffness: 300, damping: 15 }}
                 className="text-6xl"
+                style={{ fontFamily: "'Bricolage Grotesque', sans-serif" }}
               >
                 ✅
               </motion.div>
@@ -397,7 +398,7 @@ function HeroSlider() {
       >
         <h1
           style={{
-            fontFamily: "'Bricolage Grotesque', 'Outfit', sans-serif",
+            fontFamily: "'Bricolage Grotesque', sans-serif",
             fontWeight: 800,
             fontSize: 'var(--text-hero)',
             lineHeight: 'var(--line-height-tight)',
