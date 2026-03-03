@@ -45,8 +45,9 @@ export default {
         subtle: '#CBD5E1',
       },
       fontFamily: {
-        sans: ['DM Sans', 'Inter', 'ui-sans-serif', 'system-ui'],
-        heading: ['Outfit', 'DM Sans', 'ui-sans-serif', 'system-ui'],
+        sans: ['DM Sans', 'sans-serif'],
+        heading: ['Bricolage Grotesque', 'sans-serif'],
+        mono: ['JetBrains Mono', 'monospace'],
       },
       borderRadius: {
         DEFAULT: '0.5rem',
