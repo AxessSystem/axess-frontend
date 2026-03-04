@@ -86,6 +86,10 @@ export const api = {
       body: JSON.stringify(data),
     }),
 
+  /* Customer Profile (Audiences drawer) */
+  getCustomerProfile: (masterRecipientId, businessId) =>
+    apiFetch(`/api/admin/customer-profile/${masterRecipientId}${businessId ? `?business_id=${encodeURIComponent(businessId)}` : ''}`),
+
   /* Balance */
   getBalance: () =>
     apiFetch('/api/admin/balance'),

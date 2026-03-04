@@ -14,6 +14,7 @@ import NotFound from '@/pages/NotFound'
 import Terms from '@/pages/Terms'
 import Privacy from '@/pages/Privacy'
 import Validator from '@/pages/Validator'
+import ScanStation from '@/pages/ScanStation'
 
 /* ── New AXESS pages (lazy) ── */
 const Onboarding      = lazy(() => import('@/pages/Onboarding'))
@@ -107,6 +108,7 @@ export default function App() {
             <Route path="/privacy" element={<Privacy />} />
             <Route path="/v/:slug" element={<Validator />} />
             <Route path="/e/:slug" element={<EventPage />} />
+            <Route path="/scan/:eventSlug" element={<ScanStation />} />
 
             {/* ── Industries ── */}
             <Route path="/industries" element={<Navigate to="/industries/events" replace />} />

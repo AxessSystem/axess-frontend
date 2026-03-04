@@ -444,6 +444,7 @@ export default function DashboardClientLayout() {
             overflowY: 'auto',
             background: 'var(--v2-dark)',
             width: '100%',
+            paddingBottom: '80px',
           }}
         >
           <Outlet />
@@ -459,9 +460,11 @@ export default function DashboardClientLayout() {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-around',
-            position: 'sticky',
+            position: 'fixed',
             bottom: 0,
-            zIndex: 30,
+            left: 0,
+            right: 0,
+            zIndex: 50,
           }}
         >
           {NAV_ITEMS.map(item => (
