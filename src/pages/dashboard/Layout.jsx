@@ -228,86 +228,78 @@ export default function DashboardClientLayout() {
       </aside>
 
       {/* ── MOBILE SIDEBAR OVERLAY ── */}
-      <AnimatePresence>
-        {sidebarOpen && (
-          <>
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setSidebarOpen(false)}
+      {sidebarOpen && (
+        <>
+          <div
+            onClick={() => setSidebarOpen(false)}
+            style={{
+              position: 'fixed',
+              inset: 0,
+              background: 'rgba(0,0,0,0.7)',
+              zIndex: 45,
+            }}
+            className="lg:hidden"
+          />
+          <aside
+            className="lg:hidden"
+            style={{
+              position: 'fixed',
+              top: 0,
+              right: 0,
+              bottom: 0,
+              width: 260,
+              background: 'var(--v2-dark-2)',
+              borderLeft: '1px solid var(--glass-border)',
+              zIndex: 55,
+              display: 'flex',
+              flexDirection: 'column',
+              transition: 'transform 300ms ease',
+            }}
+          >
+            <div
               style={{
-                position: 'fixed',
-                inset: 0,
-                background: 'rgba(0,0,0,0.7)',
-                zIndex: 45,
-              }}
-              className="lg:hidden"
-            />
-            <motion.aside
-              initial={{ x: '100%' }}
-              animate={{ x: 0 }}
-              exit={{ x: '100%' }}
-              transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-              className="lg:hidden"
-              style={{
-                position: 'fixed',
-                top: 0,
-                right: 0,
-                bottom: 0,
-                width: 260,
-                background: 'var(--v2-dark-2)',
-                borderLeft: '1px solid var(--glass-border)',
-                zIndex: 55,
                 display: 'flex',
-                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '16px',
+                borderBottom: '1px solid var(--glass-border)',
               }}
             >
+              <DashLogo />
+              <button
+                onClick={() => setSidebarOpen(false)}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--v2-gray-400)' }}
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <nav style={{ flex: 1, padding: '12px 8px', display: 'flex', flexDirection: 'column', gap: 2 }}>
+              {NAV_ITEMS.map(item => (
+                <div key={item.path} onClick={() => setSidebarOpen(false)}>
+                  <SidebarLink item={item} collapsed={false} />
+                </div>
+              ))}
+            </nav>
+
+            <div style={{ padding: '12px', borderTop: '1px solid var(--glass-border)' }}>
               <div
                 style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  padding: '16px',
-                  borderBottom: '1px solid var(--glass-border)',
+                  background: 'var(--v2-primary-glow)',
+                  border: '1px solid var(--v2-primary)',
+                  borderRadius: 'var(--radius-md)',
+                  padding: '12px',
                 }}
               >
-                <DashLogo />
-                <button
-                  onClick={() => setSidebarOpen(false)}
-                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--v2-gray-400)' }}
-                >
-                  <X size={20} />
-                </button>
-              </div>
-
-              <nav style={{ flex: 1, padding: '12px 8px', display: 'flex', flexDirection: 'column', gap: 2 }}>
-                {NAV_ITEMS.map(item => (
-                  <div key={item.path} onClick={() => setSidebarOpen(false)}>
-                    <SidebarLink item={item} collapsed={false} />
-                  </div>
-                ))}
-              </nav>
-
-              <div style={{ padding: '12px', borderTop: '1px solid var(--glass-border)' }}>
-                <div
-                  style={{
-                    background: 'var(--v2-primary-glow)',
-                    border: '1px solid var(--v2-primary)',
-                    borderRadius: 'var(--radius-md)',
-                    padding: '12px',
-                  }}
-                >
-                  <div style={{ fontSize: 11, color: 'var(--v2-gray-400)', marginBottom: 4 }}>יתרת הודעות</div>
-                  <div style={{ fontFamily: "'Bricolage Grotesque', monospace", fontWeight: 800, fontSize: 22, color: '#ffffff' }}>
-                    {balance.toLocaleString('he-IL')}
-                  </div>
+                <div style={{ fontSize: 11, color: 'var(--v2-gray-400)', marginBottom: 4 }}>יתרת הודעות</div>
+                <div style={{ fontFamily: "'Bricolage Grotesque', monospace", fontWeight: 800, fontSize: 22, color: '#ffffff' }}>
+                  {balance.toLocaleString('he-IL')}
                 </div>
               </div>
-            </motion.aside>
-          </>
-        )}
-      </AnimatePresence>
+            </div>
+          </aside>
+        </>
+      )}
 
       {/* ── MAIN CONTENT ── */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
