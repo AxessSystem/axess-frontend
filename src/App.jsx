@@ -39,6 +39,7 @@ const Audiences      = lazy(() => import('@/pages/dashboard/Audiences'))
 const Reports        = lazy(() => import('@/pages/dashboard/Reports'))
 const ValidatorsPage = lazy(() => import('@/pages/dashboard/Validators'))
 const EventsPage     = lazy(() => import('@/pages/dashboard/Events'))
+const PromotersPage  = lazy(() => import('@/pages/dashboard/Promoters'))
 const Settings       = lazy(() => import('@/pages/dashboard/Settings'))
 
 /* ── Existing admin/producer pages (lazy) ── */
@@ -125,6 +126,7 @@ export default function App() {
               <Route path="new-campaign" element={<NewCampaign />} />
               <Route path="audiences" element={<Audiences />} />
               <Route path="events" element={<EventsPage />} />
+              <Route path="promoters" element={<PromotersPage />} />
               <Route path="reports" element={<Reports />} />
               <Route path="validators" element={<ValidatorsPage />} />
               <Route path="settings" element={<Settings />} />

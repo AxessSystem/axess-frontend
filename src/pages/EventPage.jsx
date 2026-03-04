@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { useParams, useSearchParams } from 'react-router-dom'
 import { MapPin, Calendar, Loader2 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import SeatingModal from '../components/SeatingModal'
@@ -8,6 +8,8 @@ const API_BASE = import.meta.env.VITE_API_URL || 'https://axess-backend.up.railw
 
 export default function EventPage() {
   const { slug } = useParams()
+  const [searchParams] = useSearchParams()
+  const ref = searchParams.get('ref') || null
   const [event, setEvent] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -20,7 +22,7 @@ export default function EventPage() {
 
   useEffect(() => {
     if (!slug) return
-    fetch(`${API_BASE}/e/${slug}`)
+    fetch(`${API_BASE}/e/${slug}${ref ? `?ref=${encodeURIComponent(ref)}` : ''}`)
       .then(r => r.ok ? r.json() : Promise.reject(new Error('לא נמצא')))
       .then(data => { setEvent(data); setError(null) })
       .catch(err => { setError(err.message); setEvent(null) })
@@ -42,6 +44,7 @@ export default function EventPage() {
           quantity: modalQty,
           buyer_name: modalName.trim(),
           buyer_phone: modalPhone.trim(),
+          ...(ref ? { ref } : {}),
         }),
       })
       const data = await res.json()

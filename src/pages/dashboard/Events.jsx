@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { Calendar, Plus, TrendingUp, ExternalLink, Key, Copy, Edit3, Copy as CopyIcon, Trash2 } from 'lucide-react'
+import { Calendar, Plus, TrendingUp, ExternalLink, Key, Copy, Edit3, Copy as CopyIcon, Trash2, Users, BarChart2 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import SeatingBuilder from '../../components/SeatingBuilder'
 import Tooltip from '../../components/ui/Tooltip'
@@ -64,6 +64,236 @@ function MenuBuilderModal({ businessId, onClose }) {
           <button onClick={() => handleSave(false)} disabled={saving || !name.trim()} style={{ flex: 1, padding: 14, borderRadius: 'var(--radius-full)', background: 'var(--v2-primary)', color: 'var(--v2-dark)', fontWeight: 700, border: 'none', cursor: saving ? 'wait' : 'pointer' }}>פרסם</button>
           <button onClick={onClose} style={{ padding: 14, borderRadius: 'var(--radius-full)', border: '1px solid var(--glass-border)', color: 'var(--v2-gray-400)', cursor: 'pointer', background: 'transparent' }}>ביטול</button>
         </div>
+      </div>
+    </div>
+  )
+}
+
+function PromotersModal({ event, businessId, onClose }) {
+  const [promoters, setPromoters] = useState([])
+  const [eventPromoters, setEventPromoters] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [addOpen, setAddOpen] = useState(false)
+  const [selPromoterId, setSelPromoterId] = useState('')
+  const [commissionType, setCommissionType] = useState('fixed')
+  const [commissionValue, setCommissionValue] = useState(0)
+  const [maxTickets, setMaxTickets] = useState('')
+  const [statsModal, setStatsModal] = useState(null)
+  const [statsData, setStatsData] = useState(null)
+  const [duplicateTarget, setDuplicateTarget] = useState(null)
+  const [events, setEvents] = useState([])
+  const [createPromoterOpen, setCreatePromoterOpen] = useState(false)
+  const [newPromoterName, setNewPromoterName] = useState('')
+  const [newPromoterPhone, setNewPromoterPhone] = useState('')
+  const [newPromoterEmail, setNewPromoterEmail] = useState('')
+  const [newPromoterInstagram, setNewPromoterInstagram] = useState('')
+
+  useEffect(() => {
+    Promise.all([
+      fetch(`${API_BASE}/api/admin/promoters?business_id=${businessId}`).then(r => r.ok ? r.json() : []),
+      fetch(`${API_BASE}/api/admin/events/${event.id}/promoters`).then(r => r.ok ? r.json() : []),
+      fetch(`${API_BASE}/api/admin/events?business_id=${businessId}`).then(r => r.ok ? r.json() : []),
+    ]).then(([p, ep, ev]) => { setPromoters(p); setEventPromoters(ep); setEvents(ev); setLoading(false) }).catch(() => setLoading(false))
+  }, [event.id, businessId])
+
+  const refreshPromoters = () => {
+    fetch(`${API_BASE}/api/admin/events/${event.id}/promoters`).then(r => r.ok ? r.json() : []).then(setEventPromoters)
+    fetch(`${API_BASE}/api/admin/promoters?business_id=${businessId}`).then(r => r.ok ? r.json() : []).then(setPromoters)
+  }
+
+  const copyLink = (ep) => {
+    const url = `${FRONTEND_URL}/e/${event.slug}?ref=${ep.promo_code}`
+    navigator.clipboard?.writeText(url).then(() => toast.success('הועתק')).catch(() => toast.error('העתקה נכשלה'))
+  }
+
+  const openStats = (ep) => {
+    setStatsModal(ep)
+    fetch(`${API_BASE}/api/admin/events/${event.id}/promoters/${ep.promoter_id}/stats`)
+      .then(r => r.ok ? r.json() : null)
+      .then(setStatsData)
+  }
+
+  const handleAddPromoter = async () => {
+    if (!selPromoterId) return
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/events/${event.id}/promoters`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ promoter_id: selPromoterId, commission_type: commissionType, commission_value: parseFloat(commissionValue) || 0, max_tickets: maxTickets ? parseInt(maxTickets, 10) : null }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'שגיאה')
+      toast.success('היחצ"ן נוסף לאירוע')
+      setAddOpen(false)
+      setSelPromoterId('')
+      refreshPromoters()
+    } catch (e) { toast.error(e.message || 'שגיאה') }
+  }
+
+  const handleRemove = async (ep) => {
+    if (!confirm('הסר את היחצ"ן מאירוע זה?')) return
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/events/${event.id}/promoters/${ep.id}`, { method: 'DELETE' })
+      if (!res.ok) throw new Error('שגיאה')
+      toast.success('הוסר')
+      refreshPromoters()
+    } catch (e) { toast.error(e.message || 'שגיאה') }
+  }
+
+  const handleDuplicate = async (ep, targetEventId) => {
+    if (!targetEventId) return
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/promoters/${ep.promoter_id}/duplicate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ target_event_id: targetEventId }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'שגיאה')
+      toast.success('שוכפל לאירוע')
+      refreshPromoters()
+    } catch (e) { toast.error(e.message || 'שגיאה') }
+  }
+
+  const handleMarkPaid = async () => {
+    if (!statsModal) return
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/promoters/mark-paid`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ event_promoter_id: statsModal.id }),
+      })
+      if (!res.ok) throw new Error('שגיאה')
+      toast.success('סומן כשולם')
+      setStatsModal(null)
+      refreshPromoters()
+    } catch (e) { toast.error(e.message || 'שגיאה') }
+  }
+
+  const handleCreatePromoter = async () => {
+    if (!newPromoterName.trim()) return
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/promoters`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ business_id: businessId, name: newPromoterName.trim(), phone: newPromoterPhone || null, email: newPromoterEmail || null, instagram: newPromoterInstagram || null }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'שגיאה')
+      toast.success('יחצ"ן נוצר')
+      setCreatePromoterOpen(false)
+      setNewPromoterName('')
+      setNewPromoterPhone('')
+      setNewPromoterEmail('')
+      setNewPromoterInstagram('')
+      refreshPromoters()
+    } catch (e) { toast.error(e.message || 'שגיאה') }
+  }
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 55 }} onClick={onClose}>
+      <div style={{ background: 'var(--v2-dark-2)', borderRadius: 'var(--radius-lg)', padding: 32, maxWidth: 560, width: '90%', maxHeight: '90vh', overflowY: 'auto' }} onClick={e => e.stopPropagation()} dir="rtl">
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+          <h2 style={{ fontSize: 20, fontWeight: 700 }}>יחצ"נים — {event.title}</h2>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--v2-gray-400)', cursor: 'pointer', fontSize: 18 }}>×</button>
+        </div>
+        {loading ? <div style={{ color: 'var(--v2-gray-400)' }}>טוען...</div> : (
+          <>
+            {eventPromoters.map(ep => (
+              <div key={ep.id} style={{ padding: 16, background: 'var(--v2-dark-3)', borderRadius: 12, marginBottom: 12, border: '1px solid var(--glass-border)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
+                  <div>
+                    <span style={{ fontWeight: 700 }}>{ep.promoter_name}</span>
+                    <span style={{ color: 'var(--v2-gray-400)', marginRight: 8, fontSize: 14 }}>— {ep.promo_code}</span>
+                  </div>
+                </div>
+                <div style={{ fontSize: 14, color: 'var(--v2-gray-400)', marginBottom: 8 }}>מכירות: {ep.tickets_sold || 0} כרטיסים | עמלה: ₪{(ep.commission_earned || 0).toFixed(0)}</div>
+                {ep.max_tickets && (
+                  <div style={{ marginBottom: 8 }}>
+                    <div style={{ height: 6, background: 'var(--v2-dark-2)', borderRadius: 3, overflow: 'hidden' }}>
+                      <div style={{ height: '100%', width: `${Math.min(100, ((ep.tickets_sold || 0) / ep.max_tickets) * 100)}%`, background: 'var(--v2-primary)' }} />
+                    </div>
+                    <div style={{ fontSize: 12, color: 'var(--v2-gray-400)', marginTop: 4 }}>{ep.tickets_sold || 0} מתוך {ep.max_tickets}</div>
+                  </div>
+                )}
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  <button onClick={() => copyLink(ep)} style={{ padding: '6px 12px', background: 'var(--v2-primary)', color: 'var(--v2-dark)', border: 'none', borderRadius: 8, cursor: 'pointer', fontSize: 13 }}>📋 העתק לינק</button>
+                  <button onClick={() => openStats(ep)} style={{ padding: '6px 12px', background: 'var(--v2-dark-2)', border: '1px solid var(--glass-border)', color: '#fff', borderRadius: 8, cursor: 'pointer', fontSize: 13 }}>📊 סטטיסטיקות</button>
+                  <div style={{ position: 'relative' }}>
+                    <button onClick={() => setDuplicateTarget(duplicateTarget === ep.id ? null : ep.id)} style={{ padding: '6px 12px', background: 'var(--v2-dark-2)', border: '1px solid var(--glass-border)', color: '#fff', borderRadius: 8, cursor: 'pointer', fontSize: 13 }}>🔄 שכפל לאירוע</button>
+                    {duplicateTarget === ep.id && (
+                      <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: 4, padding: 8, background: 'var(--v2-dark-3)', borderRadius: 8, border: '1px solid var(--glass-border)', minWidth: 180, zIndex: 10 }}>
+                        <select value="" onChange={e => { const v = e.target.value; if (v) { handleDuplicate(ep, v); setDuplicateTarget(null) } }} style={{ width: '100%', padding: 8, background: 'var(--v2-dark-2)', border: '1px solid var(--glass-border)', color: '#fff', borderRadius: 6 }}>
+                          <option value="">בחר אירוע</option>
+                          {events.filter(ev => ev.id !== event.id).map(ev => <option key={ev.id} value={ev.id}>{ev.title}</option>)}
+                        </select>
+                      </div>
+                    )}
+                  </div>
+                  <button onClick={() => handleRemove(ep)} style={{ padding: '6px 12px', background: 'transparent', border: '1px solid #ef4444', color: '#ef4444', borderRadius: 8, cursor: 'pointer', fontSize: 13 }}>🗑️ הסר מאירוע</button>
+                </div>
+              </div>
+            ))}
+            {!addOpen && !createPromoterOpen && (
+              <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
+                <button onClick={() => setAddOpen(true)} style={{ padding: '10px 20px', background: 'var(--v2-primary)', color: 'var(--v2-dark)', border: 'none', borderRadius: 'var(--radius-full)', cursor: 'pointer', fontWeight: 600 }}>הוסף יחצ"ן</button>
+                <button onClick={() => setCreatePromoterOpen(true)} style={{ padding: '10px 20px', background: 'var(--v2-dark-3)', border: '1px solid var(--glass-border)', color: '#fff', borderRadius: 'var(--radius-full)', cursor: 'pointer' }}>צור יחצ"ן חדש</button>
+              </div>
+            )}
+            {addOpen && (
+              <div style={{ marginTop: 20, padding: 20, background: 'var(--v2-dark-3)', borderRadius: 12, border: '1px solid var(--glass-border)' }}>
+                <h4 style={{ marginBottom: 12 }}>הוסף יחצ"ן לאירוע</h4>
+                <select value={selPromoterId} onChange={e => setSelPromoterId(e.target.value)} style={{ width: '100%', padding: 12, marginBottom: 12, borderRadius: 8, background: 'var(--v2-dark-2)', border: '1px solid var(--glass-border)', color: '#fff' }}>
+                  <option value="">בחר יחצ"ן</option>
+                  {promoters.filter(p => p.status !== 'inactive').map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                </select>
+                <div style={{ display: 'flex', gap: 12, marginBottom: 12 }}>
+                  <label><input type="radio" checked={commissionType === 'fixed'} onChange={() => setCommissionType('fixed')} /> עמלה קבועה ₪</label>
+                  <label><input type="radio" checked={commissionType === 'percent'} onChange={() => setCommissionType('percent')} /> אחוז %</label>
+                </div>
+                <input type="number" value={commissionValue} onChange={e => setCommissionValue(e.target.value)} placeholder={commissionType === 'fixed' ? '₪ לכרטיס' : '%'} style={{ width: '100%', padding: 12, marginBottom: 12, borderRadius: 8, background: 'var(--v2-dark-2)', border: '1px solid var(--glass-border)', color: '#fff' }} />
+                <input type="number" value={maxTickets} onChange={e => setMaxTickets(e.target.value)} placeholder="מכסה כרטיסים (אופציונלי)" style={{ width: '100%', padding: 12, marginBottom: 12, borderRadius: 8, background: 'var(--v2-dark-2)', border: '1px solid var(--glass-border)', color: '#fff' }} />
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <Tooltip text="עמלה תחושב אוטומטית לכל מכירה שנעשתה דרך הלינק של היחצ"ן" />
+                  <button onClick={handleAddPromoter} disabled={!selPromoterId} style={{ padding: '10px 20px', background: 'var(--v2-primary)', color: 'var(--v2-dark)', border: 'none', borderRadius: 8, cursor: selPromoterId ? 'pointer' : 'not-allowed', fontWeight: 600 }}>הוסף</button>
+                  <button onClick={() => setAddOpen(false)} style={{ padding: '10px 20px', background: 'transparent', border: '1px solid var(--glass-border)', color: 'var(--v2-gray-400)', borderRadius: 8, cursor: 'pointer' }}>ביטול</button>
+                </div>
+              </div>
+            )}
+            {createPromoterOpen && (
+              <div style={{ marginTop: 20, padding: 20, background: 'var(--v2-dark-3)', borderRadius: 12, border: '1px solid var(--glass-border)' }}>
+                <h4 style={{ marginBottom: 12 }}>צור יחצ"ן חדש</h4>
+                <input value={newPromoterName} onChange={e => setNewPromoterName(e.target.value)} placeholder="שם *" style={{ width: '100%', padding: 12, marginBottom: 8, borderRadius: 8, background: 'var(--v2-dark-2)', border: '1px solid var(--glass-border)', color: '#fff' }} />
+                <input value={newPromoterPhone} onChange={e => setNewPromoterPhone(e.target.value)} placeholder="טלפון" style={{ width: '100%', padding: 12, marginBottom: 8, borderRadius: 8, background: 'var(--v2-dark-2)', border: '1px solid var(--glass-border)', color: '#fff' }} />
+                <input value={newPromoterEmail} onChange={e => setNewPromoterEmail(e.target.value)} placeholder="מייל" style={{ width: '100%', padding: 12, marginBottom: 8, borderRadius: 8, background: 'var(--v2-dark-2)', border: '1px solid var(--glass-border)', color: '#fff' }} />
+                <input value={newPromoterInstagram} onChange={e => setNewPromoterInstagram(e.target.value)} placeholder="אינסטגרם" style={{ width: '100%', padding: 12, marginBottom: 12, borderRadius: 8, background: 'var(--v2-dark-2)', border: '1px solid var(--glass-border)', color: '#fff' }} />
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button onClick={handleCreatePromoter} disabled={!newPromoterName.trim()} style={{ padding: '10px 20px', background: 'var(--v2-primary)', color: 'var(--v2-dark)', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 600 }}>שמור</button>
+                  <button onClick={() => setCreatePromoterOpen(false)} style={{ padding: '10px 20px', background: 'transparent', border: '1px solid var(--glass-border)', color: 'var(--v2-gray-400)', borderRadius: 8, cursor: 'pointer' }}>ביטול</button>
+                </div>
+              </div>
+            )}
+          </>
+        )}
+
+        {/* Stats modal */}
+        {statsModal && (
+          <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 60 }} onClick={() => setStatsModal(null)}>
+            <div style={{ background: 'var(--v2-dark-2)', borderRadius: 'var(--radius-lg)', padding: 24, maxWidth: 400, width: '90%' }} onClick={e => e.stopPropagation()} dir="rtl">
+              <h3 style={{ marginBottom: 16 }}>סטטיסטיקות — {statsModal.promoter_name}</h3>
+              {statsData && (
+                <>
+                  <div style={{ marginBottom: 12 }}>סה"כ מכירות: ₪{statsData.total_sales?.toFixed(0)}</div>
+                  <div style={{ marginBottom: 12 }}>כרטיסים: {statsData.total_tickets}</div>
+                  <div style={{ marginBottom: 12 }}>עמלה לתשלום: ₪{statsData.commission_earned?.toFixed(0)}</div>
+                  {statsData.top_ticket_type && <div style={{ marginBottom: 12 }}>סוג כרטיס מוביל: {statsData.top_ticket_type}</div>}
+                </>
+              )}
+              <button onClick={handleMarkPaid} style={{ marginTop: 12, padding: '10px 20px', background: 'var(--v2-primary)', color: 'var(--v2-dark)', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 600 }}>סמן כשולם</button>
+              <button onClick={() => setStatsModal(null)} style={{ marginRight: 8, padding: '10px 20px', background: 'transparent', border: '1px solid var(--glass-border)', color: 'var(--v2-gray-400)', borderRadius: 8, cursor: 'pointer' }}>סגור</button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )
@@ -138,6 +368,7 @@ export default function Events() {
   const [deleteConfirm, setDeleteConfirm] = useState(null)
   const businessId = 'placeholder' // TODO: from AuthContext/profile
   const [staffModalEvent, setStaffModalEvent] = useState(null)
+  const [promotersModalEvent, setPromotersModalEvent] = useState(null)
   const [staffTokens, setStaffTokens] = useState([])
   const [newTokenLabel, setNewTokenLabel] = useState('')
   const [newTokenResult, setNewTokenResult] = useState(null)
@@ -455,6 +686,9 @@ export default function Events() {
                   </button>
                 </div>
                 <div style={{ display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
+                  <button onClick={() => setPromotersModalEvent(ev)} style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'var(--v2-primary)', fontSize: 13, background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
+                    <Users size={12} /> יחצ"נים
+                  </button>
                   <button onClick={() => openStaffModal(ev)} style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'var(--v2-primary)', fontSize: 13, background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
                     <Key size={12} /> עמדות סריקה
                   </button>
@@ -669,6 +903,15 @@ export default function Events() {
             <button onClick={() => setPublishSuccessEvent(null)} style={{ marginTop: 16, padding: '10px 24px', background: 'transparent', border: '1px solid var(--glass-border)', borderRadius: 12, color: 'var(--v2-gray-400)', cursor: 'pointer' }}>סגור</button>
           </div>
         </div>
+      )}
+
+      {/* Promoters Modal */}
+      {promotersModalEvent && (
+        <PromotersModal
+          event={promotersModalEvent}
+          businessId={businessId}
+          onClose={() => setPromotersModalEvent(null)}
+        />
       )}
 
       {/* Delete confirm */}

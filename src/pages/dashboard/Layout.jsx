@@ -3,7 +3,7 @@ import { Link, Outlet, NavLink } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   LayoutDashboard, Send, Users, BarChart3, QrCode, Settings,
-  Bell, Menu, X, ChevronDown, Wallet, LogOut, Calendar
+  Bell, Menu, X, ChevronDown, Wallet, LogOut, Calendar, Megaphone
 } from 'lucide-react'
 
 const NAV_ITEMS = [
@@ -11,6 +11,7 @@ const NAV_ITEMS = [
   { icon: Send,            label: 'קמפיין חדש',  path: '/dashboard/new-campaign' },
   { icon: Users,           label: 'קהלים',        path: '/dashboard/audiences' },
   { icon: Calendar,        label: 'אירועים',      path: '/dashboard/events' },
+  { icon: Megaphone,       label: 'יחצ"נים',      path: '/dashboard/promoters' },
   { icon: QrCode,          label: 'Validators',   path: '/dashboard/validators' },
   { icon: BarChart3,       label: 'דוחות',        path: '/dashboard/reports' },
   { icon: Settings,        label: 'הגדרות',       path: '/dashboard/settings' },
