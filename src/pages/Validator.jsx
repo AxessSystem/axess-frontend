@@ -199,6 +199,34 @@ function ScreenActive({ validator, onRedeem }) {
       {/* Card body */}
       <div className="flex-1 px-6 pb-6 space-y-4">
 
+        {/* Seat info — when metadata.seat_key exists */}
+        {meta.seat_key && (
+          <div className="bg-white/5 border border-white/10 rounded-2xl p-5">
+            {meta.row_number != null && meta.seat_number != null ? (
+              <>
+                <div className="text-lg font-bold flex items-center gap-2">
+                  <span>🎭</span> שורה {meta.row_number} כיסא {meta.seat_number}
+                </div>
+                {meta.zone_label && (
+                  <div className="text-white/50 text-sm mt-1">{meta.zone_label}</div>
+                )}
+              </>
+            ) : (
+              <>
+                <div className="text-lg font-bold flex items-center gap-2">
+                  <span>🪑</span> {meta.label || meta.seat_key}
+                </div>
+                {meta.zone_label && (
+                  <div className="text-white/50 text-sm mt-1">{meta.zone_label}</div>
+                )}
+                {meta.capacity != null && (
+                  <div className="text-white/40 text-sm mt-0.5">עד {meta.capacity} אנשים 🍾</div>
+                )}
+              </>
+            )}
+          </div>
+        )}
+
         {/* Display fields — agnostic config or legacy fallback */}
         {displayFields.length > 0 ? (
           <div className="bg-white/5 border border-white/10 rounded-2xl p-5 space-y-3">
@@ -214,9 +242,9 @@ function ScreenActive({ validator, onRedeem }) {
             )}
           </div>
         ) : (
-          Object.keys(meta).filter(k => k !== 'phone').length > 0 && (
+          Object.keys(meta).filter(k => !['phone', 'seat_key', 'row_number', 'seat_number', 'zone', 'zone_label', 'capacity', 'label', 'order_index', 'total'].includes(k)).length > 0 && (
             <div className="bg-white/5 border border-white/10 rounded-2xl p-5 space-y-3">
-              {Object.entries(meta).filter(([k]) => k !== 'phone').map(([k, v]) => (
+              {Object.entries(meta).filter(([k]) => !['phone', 'seat_key', 'row_number', 'seat_number', 'zone', 'zone_label', 'capacity', 'label', 'order_index', 'total'].includes(k)).map(([k, v]) => (
                 <div key={k} className="flex justify-between items-center">
                   <span className="text-white/50 text-sm">{k}</span>
                   <span className="font-medium">{String(v)}</span>

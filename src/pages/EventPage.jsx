@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { MapPin, Calendar, Loader2 } from 'lucide-react'
 import toast from 'react-hot-toast'
+import SeatingModal from '../components/SeatingModal'
 
 const API_BASE = import.meta.env.VITE_API_URL || 'https://axess-backend.up.railway.app'
 
@@ -199,8 +200,20 @@ export default function EventPage() {
         </div>
       </div>
 
-      {/* Modal */}
-      {modalTicket && (
+      {/* SeatingModal — when ticket type has seating_map */}
+      {modalTicket?.metadata?.seating_map_id && (
+        <SeatingModal
+          event={event}
+          ticketType={modalTicket}
+          slug={slug}
+          primaryColor={primaryColor}
+          onClose={() => setModalTicket(null)}
+          onSuccess={() => { setSuccess(true); setModalTicket(null); toast.success('הכרטיס בדרך!') }}
+        />
+      )}
+
+      {/* Regular Modal */}
+      {modalTicket && !modalTicket?.metadata?.seating_map_id && (
         <div
           style={{
             position: 'fixed',

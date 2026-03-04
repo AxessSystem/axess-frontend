@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { Calendar, Plus, TrendingUp, Users, ExternalLink, Key, Copy } from 'lucide-react'
 import toast from 'react-hot-toast'
+import SeatingBuilder from '../../components/SeatingBuilder'
 
 const API_BASE = import.meta.env.VITE_API_URL || 'https://axess-backend.up.railway.app'
 const FRONTEND_URL = import.meta.env.VITE_FRONTEND_URL || window.location.origin
@@ -21,6 +22,7 @@ export default function Events() {
     image_url: '',
     primary_color: 'var(--v2-primary)',
     ticket_types: [{ name: 'כניסה', price: 0, quantity_total: null }],
+    seating: null,
   })
   const businessId = 'placeholder' // TODO: from AuthContext/profile
   const [staffModalEvent, setStaffModalEvent] = useState(null)
@@ -45,7 +47,8 @@ export default function Events() {
     }))
   }
 
-  const handleCreate = async () => {
+  const handleCreate = async (seatingConfig) => {
+    const seating = seatingConfig ?? form.seating
     try {
       const res = await fetch(`${API_BASE}/api/admin/events`, {
         method: 'POST',
@@ -64,9 +67,17 @@ export default function Events() {
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'שגיאה')
+      if (seating?.enabled && data.id && seating.seats?.length > 0) {
+        const seatRes = await fetch(`${API_BASE}/api/admin/events/${data.id}/seating`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ template_type: seating.template_type, seats: seating.seats, zones: seating.zones || [] }),
+        })
+        if (!seatRes.ok) toast.error('מפת ישיבה לא נשמרה')
+      }
       setEvents(prev => [data, ...prev])
       setWizardOpen(false)
-      setForm({ title: '', date: '', location: '', description: '', image_url: '', primary_color: 'var(--v2-primary)', ticket_types: [{ name: 'כניסה', price: 0, quantity_total: null }] })
+      setForm({ title: '', date: '', location: '', description: '', image_url: '', primary_color: 'var(--v2-primary)', ticket_types: [{ name: 'כניסה', price: 0, quantity_total: null }], seating: null })
       setStep(1)
       toast.success(`האירוע נוצר! ${data.url}`)
     } catch (err) {
@@ -373,7 +384,7 @@ export default function Events() {
                     חזור
                   </button>
                   <button
-                    onClick={handleCreate}
+                    onClick={() => setStep(3)}
                     style={{
                       flex: 1,
                       padding: 14,
@@ -385,7 +396,53 @@ export default function Events() {
                       cursor: 'pointer',
                     }}
                   >
-                    פרסם
+                    המשך
+                  </button>
+                </div>
+              </>
+            )}
+
+            {step === 3 && (
+              <>
+                <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 16 }}>מפת ישיבה (אופציונלי)</h3>
+                <SeatingBuilder
+                  initialConfig={form.seating}
+                  onSave={(cfg) => {
+                    setForm(f => ({ ...f, seating: cfg }))
+                    handleCreate(cfg)
+                  }}
+                  onCancel={() => setStep(2)}
+                />
+                <div style={{ display: 'flex', gap: 12, marginTop: 24 }}>
+                  <button
+                    onClick={() => setStep(2)}
+                    style={{
+                      flex: 1,
+                      padding: 14,
+                      borderRadius: 'var(--radius-full)',
+                      background: 'var(--glass-bg)',
+                      border: '1px solid var(--glass-border)',
+                      color: '#fff',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    חזור
+                  </button>
+                  <button
+                    onClick={() => handleCreate()}
+                    style={{
+                      flex: 1,
+                      padding: 14,
+                      borderRadius: 'var(--radius-full)',
+                      background: 'var(--v2-primary)',
+                      color: 'var(--v2-dark)',
+                      fontWeight: 700,
+                      border: 'none',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    פרסם אירוע
                   </button>
                 </div>
               </>
