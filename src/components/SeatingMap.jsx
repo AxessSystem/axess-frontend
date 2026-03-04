@@ -176,7 +176,7 @@ export default function SeatingMap({ seats = [], templateType = 'theater', onSea
                 fill={zoneColor}
                 stroke={isSelected ? '#00C37A' : '#444'}
                 strokeWidth={isSelected ? 1 : 0.3}
-                style={{ cursor: s.status === 'available' ? 'pointer', ...style }}
+                style={{ cursor: s.status === 'available' ? 'pointer' : 'default', ...style }}
                 onClick={() => s.status === 'available' && onSeatSelect?.(s)}
               />
               <text x={s.position_x ?? 50} y={(s.position_y ?? 15) + 0.5} textAnchor="middle" fontSize="2" fill="#fff">
