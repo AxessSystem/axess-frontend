@@ -223,7 +223,7 @@ export default function DashboardClientLayout() {
                 position: 'fixed',
                 inset: 0,
                 background: 'rgba(0,0,0,0.7)',
-                zIndex: 40,
+                zIndex: 45,
               }}
               className="lg:hidden"
             />
@@ -241,7 +241,7 @@ export default function DashboardClientLayout() {
                 width: 260,
                 background: 'var(--v2-dark-2)',
                 borderLeft: '1px solid var(--glass-border)',
-                zIndex: 50,
+                zIndex: 55,
                 display: 'flex',
                 flexDirection: 'column',
               }}
@@ -316,7 +316,7 @@ export default function DashboardClientLayout() {
           <button
             className="lg:hidden"
             onClick={() => setSidebarOpen(true)}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--v2-gray-400)', padding: 4 }}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--v2-gray-400)', padding: 4, zIndex: 60, position: 'relative' }}
           >
             <Menu size={22} />
           </button>
