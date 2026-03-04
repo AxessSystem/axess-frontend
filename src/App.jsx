@@ -15,6 +15,7 @@ import Terms from '@/pages/Terms'
 import Privacy from '@/pages/Privacy'
 import Validator from '@/pages/Validator'
 import ScanStation from '@/pages/ScanStation'
+import Join from '@/pages/Join'
 
 /* ── New AXESS pages (lazy) ── */
 const Onboarding      = lazy(() => import('@/pages/Onboarding'))
@@ -40,6 +41,7 @@ const Reports        = lazy(() => import('@/pages/dashboard/Reports'))
 const ValidatorsPage = lazy(() => import('@/pages/dashboard/Validators'))
 const EventsPage     = lazy(() => import('@/pages/dashboard/Events'))
 const PromotersPage  = lazy(() => import('@/pages/dashboard/Promoters'))
+const Staff          = lazy(() => import('@/pages/dashboard/Staff'))
 const Settings       = lazy(() => import('@/pages/dashboard/Settings'))
 
 /* ── Existing admin/producer pages (lazy) ── */
@@ -101,6 +103,7 @@ export default function App() {
             {/* ── Public ── */}
             <Route path="/" element={<Landing />} />
             <Route path="/login" element={<Login />} />
+            <Route path="/join" element={<Join />} />
             <Route path="/onboarding" element={<Onboarding />} />
             <Route path="/about" element={<About />} />
             <Route path="/pricing" element={<Pricing />} />
@@ -129,6 +132,7 @@ export default function App() {
               <Route path="promoters" element={<PromotersPage />} />
               <Route path="reports" element={<Reports />} />
               <Route path="validators" element={<ValidatorsPage />} />
+              <Route path="staff" element={<Staff />} />
               <Route path="settings" element={<Settings />} />
             </Route>
 

@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { Save, Building2, MessageSquare, CreditCard, Bell, Wallet } from 'lucide-react'
+import { Save, Building2, MessageSquare, CreditCard, Bell, Wallet, User } from 'lucide-react'
+import { useAuth } from '@/contexts/AuthContext'
 import toast from 'react-hot-toast'
 
 const API_BASE = import.meta.env.VITE_API_URL || 'https://axess-backend.up.railway.app'
 
 const TABS = [
+  { id: 'account',       label: 'חשבון',      icon: User },
   { id: 'business',      label: 'פרטי עסק',   icon: Building2 },
   { id: 'sms',           label: 'הגדרות SMS', icon: MessageSquare },
   { id: 'payments',      label: 'תשלומים',    icon: Wallet },
@@ -16,8 +18,75 @@ const TABS = [
 const cardStyle = { background: 'var(--v2-dark-3)', border: '1px solid var(--glass-border)', borderRadius: 'var(--radius-lg)', padding: '24px' }
 const sectionH2 = { fontFamily: "'Bricolage Grotesque','Outfit',sans-serif", fontWeight: 700, fontSize: 17, color: '#ffffff', marginBottom: 16 }
 
+function formatPhone(p) {
+  if (!p) return '—'
+  const d = String(p).replace(/\D/g, '')
+  if (d.startsWith('972') && d.length >= 12) return `0${d.slice(3, 5)}-${d.slice(5, 8)}-${d.slice(8)}`
+  if (d.length >= 10) return `${d.slice(0, 3)}-${d.slice(3, 6)}-${d.slice(6)}`
+  return p
+}
+
+function toE164(phone) {
+  const digits = String(phone).replace(/\D/g, '')
+  if (digits.startsWith('972')) return `+${digits}`
+  if (digits.startsWith('0')) return `+972${digits.slice(1)}`
+  if (digits.length >= 9) return `+972${digits}`
+  return null
+}
+
+function AccountChangeModal({ type, onClose, updateUser, toE164 }) {
+  const [value, setValue] = useState('')
+  const [loading, setLoading] = useState(false)
+  const isPhone = type === 'phone'
+
+  const handleSubmit = async () => {
+    if (!value.trim()) return
+    setLoading(true)
+    try {
+      if (isPhone) {
+        const e164 = toE164(value)
+        if (!e164) throw new Error('מספר טלפון לא תקין')
+        await updateUser({ phone: e164 })
+        toast.success('קוד אימות נשלח — אמת בטלפון החדש')
+      } else {
+        await updateUser({ email: value.trim() })
+        toast.success('קישור אימות נשלח למייל')
+      }
+      onClose()
+    } catch (e) {
+      toast.error(e.message || 'שגיאה')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={onClose}>
+      <div dir="rtl" style={{ background: 'var(--v2-dark-3)', border: '1px solid var(--glass-border)', borderRadius: 'var(--radius-lg)', padding: 24, maxWidth: 360, width: '90%' }} onClick={e => e.stopPropagation()}>
+        <h3 style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontWeight: 700, fontSize: 18, marginBottom: 16 }}>שינוי {isPhone ? 'טלפון' : 'מייל'}</h3>
+        <input
+          className="input"
+          type={isPhone ? 'tel' : 'email'}
+          dir="ltr"
+          placeholder={isPhone ? '05XXXXXXXX' : 'email@example.com'}
+          value={value}
+          onChange={e => setValue(e.target.value)}
+          style={{ marginBottom: 16 }}
+        />
+        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+          <button onClick={onClose} style={{ padding: '10px 16px', background: 'var(--glass-bg)', border: '1px solid var(--glass-border)', borderRadius: 8, color: '#fff', cursor: 'pointer' }}>ביטול</button>
+          <button onClick={handleSubmit} disabled={loading} className="btn-primary" style={{ padding: '10px 20px' }}>
+            {loading ? '...' : isPhone ? 'שלח קוד אימות' : 'שלח קישור אימות'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function Settings() {
-  const [activeTab, setActiveTab] = useState('business')
+  const { user, updateUser } = useAuth()
+  const [activeTab, setActiveTab] = useState('account')
   const [saving, setSaving] = useState(false)
 
   const [businessForm, setBusinessForm] = useState({
@@ -36,6 +105,7 @@ export default function Settings() {
     campaignSent: true, lowBalance: true, redemption: false, weeklyReport: true,
   })
 
+  const [accountChange, setAccountChange] = useState(null)
   const [stripeStatus, setStripeStatus] = useState({ stripe_account_status: 'not_connected', service_fee_percent: 0 })
   const [stripeLoading, setStripeLoading] = useState(false)
   const [serviceFee, setServiceFee] = useState(0)
@@ -125,6 +195,37 @@ export default function Settings() {
           )
         })}
       </div>
+
+      {/* Account Tab */}
+      {activeTab === 'account' && (
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} style={{ ...cardStyle, display: 'flex', flexDirection: 'column', gap: 18 }}>
+          <h2 style={sectionH2}>שיתוף חשבון</h2>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 16px', background: 'rgba(255,255,255,0.04)', borderRadius: 'var(--radius-md)', border: '1px solid var(--glass-border)' }}>
+              <div>
+                <div style={{ fontSize: 12, color: 'var(--v2-gray-400)' }}>טלפון מקושר</div>
+                <div dir="ltr" style={{ fontWeight: 500, color: '#fff' }}>{user?.phone ? formatPhone(user.phone) : '—'}</div>
+              </div>
+              <button onClick={() => setAccountChange('phone')} style={{ padding: '8px 14px', background: 'var(--v2-primary)', color: 'var(--v2-dark)', borderRadius: 8, border: 'none', fontWeight: 600, cursor: 'pointer', fontSize: 13 }}>שנה</button>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 16px', background: 'rgba(255,255,255,0.04)', borderRadius: 'var(--radius-md)', border: '1px solid var(--glass-border)' }}>
+              <div>
+                <div style={{ fontSize: 12, color: 'var(--v2-gray-400)' }}>מייל מקושר</div>
+                <div dir="ltr" style={{ fontWeight: 500, color: '#fff' }}>{user?.email || '—'}</div>
+              </div>
+              <button onClick={() => setAccountChange('email')} style={{ padding: '8px 14px', background: 'var(--v2-primary)', color: 'var(--v2-dark)', borderRadius: 8, border: 'none', fontWeight: 600, cursor: 'pointer', fontSize: 13 }}>שנה</button>
+            </div>
+          </div>
+          {accountChange && (
+            <AccountChangeModal
+              type={accountChange}
+              onClose={() => setAccountChange(null)}
+              updateUser={updateUser}
+              toE164={toE164}
+            />
+          )}
+        </motion.div>
+      )}
 
       {/* Business Tab */}
       {activeTab === 'business' && (

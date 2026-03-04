@@ -3,19 +3,33 @@ import { Link, Outlet, NavLink } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   LayoutDashboard, Send, Users, BarChart3, QrCode, Settings,
-  Bell, Menu, X, ChevronDown, Wallet, LogOut, Calendar, Megaphone
+  Bell, Menu, X, ChevronDown, Wallet, LogOut, Calendar, Megaphone, UserCog
 } from 'lucide-react'
+import { useAuth } from '@/contexts/AuthContext'
 
-const NAV_ITEMS = [
-  { icon: LayoutDashboard, label: 'סקירה כללית', path: '/dashboard' },
-  { icon: Send,            label: 'קמפיין חדש',  path: '/dashboard/new-campaign' },
-  { icon: Users,           label: 'קהלים',        path: '/dashboard/audiences' },
-  { icon: Calendar,        label: 'אירועים',      path: '/dashboard/events' },
-  { icon: Megaphone,       label: 'יחצ"נים',      path: '/dashboard/promoters' },
-  { icon: QrCode,          label: 'Validators',   path: '/dashboard/validators' },
-  { icon: BarChart3,       label: 'דוחות',        path: '/dashboard/reports' },
-  { icon: Settings,        label: 'הגדרות',       path: '/dashboard/settings' },
+const ALL_NAV_ITEMS = [
+  { icon: LayoutDashboard, label: 'סקירה כללית', path: '/dashboard', permission: null, roles: null },
+  { icon: Send,            label: 'קמפיין חדש',  path: '/dashboard/new-campaign', permission: 'can_send_campaigns', roles: null },
+  { icon: Users,           label: 'קהלים',        path: '/dashboard/audiences', permission: null, roles: null },
+  { icon: Calendar,        label: 'אירועים',      path: '/dashboard/events', permission: 'can_edit_events', roles: null },
+  { icon: Megaphone,       label: 'יחצ"נים',      path: '/dashboard/promoters', permission: 'can_manage_promoters', roles: null },
+  { icon: QrCode,          label: 'Validators',   path: '/dashboard/validators', permission: null, roles: null },
+  { icon: BarChart3,       label: 'דוחות',        path: '/dashboard/reports', permission: 'can_view_reports', roles: null },
+  { icon: UserCog,         label: 'צוות',         path: '/dashboard/staff', permission: 'can_manage_staff', roles: null },
+  { icon: Settings,        label: 'הגדרות',       path: '/dashboard/settings', permission: null, roles: null },
 ]
+
+function getVisibleNavItems(role, permissions) {
+  if (!role && !permissions) return ALL_NAV_ITEMS
+  if (role === 'door_staff') return ALL_NAV_ITEMS.filter(i => i.path === '/dashboard' || i.label === 'Validators')
+  if (role === 'bar_staff') return ALL_NAV_ITEMS.filter(i => i.path === '/dashboard' || i.label === 'Validators' || i.path === '/dashboard/settings')
+  if (role === 'viewer') return ALL_NAV_ITEMS.filter(i => i.path === '/dashboard' || i.path === '/dashboard/reports')
+  if (role === 'promoter_manager') return ALL_NAV_ITEMS.filter(i => i.path === '/dashboard' || i.path === '/dashboard/promoters')
+  return ALL_NAV_ITEMS.filter(i => {
+    if (!i.permission) return true
+    return permissions?.[i.permission]
+  })
+}
 
 /* ── QR Logo (same as Header) ── */
 function DashLogo({ small = false }) {
@@ -101,6 +115,8 @@ function SidebarLink({ item, collapsed }) {
 export default function DashboardClientLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [collapsed, setCollapsed] = useState(false)
+  const { role, permissions } = useAuth()
+  const NAV_ITEMS = getVisibleNavItems(role, permissions)
 
   const businessName = 'קפה רוטשילד'
   const balance = 4_820
