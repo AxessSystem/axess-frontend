@@ -254,7 +254,7 @@ function PromotersModal({ event, businessId, onClose }) {
                 <input type="number" value={commissionValue} onChange={e => setCommissionValue(e.target.value)} placeholder={commissionType === 'fixed' ? '₪ לכרטיס' : '%'} style={{ width: '100%', padding: 12, marginBottom: 12, borderRadius: 8, background: 'var(--v2-dark-2)', border: '1px solid var(--glass-border)', color: '#fff' }} />
                 <input type="number" value={maxTickets} onChange={e => setMaxTickets(e.target.value)} placeholder="מכסה כרטיסים (אופציונלי)" style={{ width: '100%', padding: 12, marginBottom: 12, borderRadius: 8, background: 'var(--v2-dark-2)', border: '1px solid var(--glass-border)', color: '#fff' }} />
                 <div style={{ display: 'flex', gap: 8 }}>
-                  <Tooltip text="עמלה תחושב אוטומטית לכל מכירה שנעשתה דרך הלינק של היחצ"ן" />
+                  <Tooltip text="עמלה תחושב אוטומטית לכל מכירה שנעשתה דרך הלינק של היחצן" />
                   <button onClick={handleAddPromoter} disabled={!selPromoterId} style={{ padding: '10px 20px', background: 'var(--v2-primary)', color: 'var(--v2-dark)', border: 'none', borderRadius: 8, cursor: selPromoterId ? 'pointer' : 'not-allowed', fontWeight: 600 }}>הוסף</button>
                   <button onClick={() => setAddOpen(false)} style={{ padding: '10px 20px', background: 'transparent', border: '1px solid var(--glass-border)', color: 'var(--v2-gray-400)', borderRadius: 8, cursor: 'pointer' }}>ביטול</button>
                 </div>
