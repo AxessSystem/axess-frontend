@@ -17,8 +17,13 @@ const SEAT_STYLES = {
   blocked: { display: 'none' },
 }
 
-export default function SeatingMap({ seats = [], templateType = 'theater', onSeatSelect, selectedSeats = [], zones = [] }) {
+const rowArc = (rowIndex, totalRows, curve = 0.3) => rowIndex * curve
+
+export default function SeatingMap({ seats = [], templateType = 'theater', onSeatSelect, selectedSeats = [], zones = [], config = {} }) {
   const [hovered, setHovered] = useState(null)
+  const shape = config.shape || 'straight'
+  const hasWings = !!config.wings
+  const wingSeatsCount = config.wing_seats_count ?? 5
 
   const { rows, stageConfig } = useMemo(() => {
     if (templateType === 'theater') {
@@ -112,12 +117,16 @@ export default function SeatingMap({ seats = [], templateType = 'theater', onSea
           {stageConfig.text || 'במה'}
         </text>
 
-        {/* Theater rows */}
+        {/* Theater rows — shape: straight | curved | fan | u | square */}
         {rowNums.map((rn, ri) => {
           const rowSeats = rowsForRender[rn] || []
-          const rowY = startY - ri * rowSpacing
-          const totalW = Math.max(0, (rowSeats.length - 1) * seatSpacing)
-          const startX = 50 - totalW / 2
+          let rowY = startY - ri * rowSpacing
+          let seatCount = rowSeats.length
+          if (shape === 'fan') seatCount = Math.min(seatCount, 20 + ri * 2)
+          const totalW = Math.max(0, (seatCount - 1) * seatSpacing)
+          const arcOffset = shape === 'curved' ? rowArc(ri, rowNums.length) * 2 : 0
+          let startX = 50 - totalW / 2
+          if (shape === 'curved') startX += arcOffset
           return (
             <g key={`row-${rn}`}>
               <text x="3" y={rowY + 0.4} fontSize="2" fill="var(--v2-gray-400)">שורה {rn}</text>
@@ -132,7 +141,11 @@ export default function SeatingMap({ seats = [], templateType = 'theater', onSea
                 const rad = (effectiveStatus === 'available' && isHover) ? 1.3 : 1.0
                 const strokeW = (effectiveStatus === 'available' && isHover) ? 0.4 : (style?.strokeWidth ?? 0.3)
                 const label = `שורה ${s.row_number} כיסא ${s.seat_number}${s.price != null ? ` — ₪${Number(s.price).toFixed(0)}` : ''}`
-                const cx = startX + si * seatSpacing
+                let cx = startX + si * seatSpacing
+                if (shape === 'curved') {
+                  const curve = 0.3
+                  cx = 50 + (si - (rowSeats.length - 1) / 2) * (seatSpacing + curve * (ri + 1))
+                }
                 return (
                   <g key={s.id}>
                     <circle
@@ -157,6 +170,22 @@ export default function SeatingMap({ seats = [], templateType = 'theater', onSea
             </g>
           )
         })}
+
+        {/* Wings — אגף ימין ושמאל */}
+        {hasWings && shape === 'u' && (
+          <>
+            {[...Array(wingSeatsCount)].map((_, wi) => (
+              <g key={`wing-r-${wi}`}>
+                <circle cx={92} cy={40 - wi * 3} r={1} fill="#1a2e1a" stroke="#00C37A" strokeWidth="0.3" style={{ cursor: 'pointer' }} />
+              </g>
+            ))}
+            {[...Array(wingSeatsCount)].map((_, wi) => (
+              <g key={`wing-l-${wi}`}>
+                <circle cx={8} cy={40 - wi * 3} r={1} fill="#1a2e1a" stroke="#00C37A" strokeWidth="0.3" style={{ cursor: 'pointer' }} />
+              </g>
+            ))}
+          </>
+        )}
 
         {/* Mixed: club tables on top */}
         {templateType === 'mixed' && mixedClubPart.length > 0 && mixedClubPart.map(s => {

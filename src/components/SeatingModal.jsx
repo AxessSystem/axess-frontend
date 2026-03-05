@@ -255,6 +255,7 @@ export default function SeatingModal({ event, ticketType, slug, primaryColor, on
                       onSeatSelect={handleSeatSelect}
                       selectedSeats={selectedSeats}
                       zones={zones}
+                      config={map || {}}
                     />
                   </div>
                 )}
@@ -289,6 +290,7 @@ export default function SeatingModal({ event, ticketType, slug, primaryColor, on
                   onSeatSelect={handleSeatSelect}
                   selectedSeats={selectedSeats}
                   zones={zones}
+                  config={map || {}}
                 />
               </div>
               <div style={{ flex: '0 0 35%', borderRight: '1px solid var(--glass-border)', overflow: 'auto' }}>

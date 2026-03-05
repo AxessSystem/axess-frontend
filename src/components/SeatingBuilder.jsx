@@ -1,6 +1,17 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useRef, useEffect } from 'react'
 
-const ZONE_COLORS = { stage_front: '#A855F7', vip_area: '#B8860B', floor: '#2563EB', bar: '#E85D04' }
+const ZONE_COLORS = { stage_front: '#A855F7', vip_area: '#B8860B', floor: '#2563EB', bar: '#E85D04', custom: '#64748b' }
+const RECT_COLORS = ['#6d28d9', '#1e3a8a', '#991b1b', '#14532d']
+const ZONE_OPTIONS = ['stage_front', 'vip', 'floor', 'bar', 'custom']
+const ZONE_LABELS = { stage_front: 'קדמת במה', vip: 'VIP', floor: 'רחבת ריקודים', bar: 'בר', custom: 'מותאם' }
+const TABLE_COLORS = ['#A855F7', '#2563EB', '#E85D04', '#00C37A', '#B8860B', '#64748b']
+
+const getPos = (e) => {
+  if (e.touches) return { x: e.touches[0].clientX, y: e.touches[0].clientY }
+  return { x: e.clientX, y: e.clientY }
+}
+
+const randOffset = () => (Math.random() - 0.5) * 8
 
 export default function SeatingBuilder({ eventId, initialConfig, onSave, onCancel }) {
   const [enabled, setEnabled] = useState(!!initialConfig?.enabled)
@@ -16,42 +27,154 @@ export default function SeatingBuilder({ eventId, initialConfig, onSave, onCance
   const [vipSeats, setVipSeats] = useState(new Set(initialConfig?.vip_seats || []))
   const [zones, setZones] = useState(initialConfig?.zones || [])
   const [clubTables, setClubTables] = useState(initialConfig?.club_tables || [])
+  const [clubRects, setClubRects] = useState(initialConfig?.club_rects || [])
   const [saving, setSaving] = useState(false)
+  const [dragging, setDragging] = useState(null)
+  const [selectedElement, setSelectedElement] = useState(null)
+  const [zoom, setZoom] = useState(1)
+  const [snapToGrid, setSnapToGrid] = useState(false)
+  const [history, setHistory] = useState([])
+  const [historyIndex, setHistoryIndex] = useState(-1)
+  const canvasRef = useRef(null)
+
+  const [theaterShape, setTheaterShape] = useState(initialConfig?.shape || 'straight')
+  const [theaterWings, setTheaterWings] = useState(!!initialConfig?.wings)
+  const [wingSeatsCount, setWingSeatsCount] = useState(initialConfig?.wing_seats_count ?? 5)
+  const [wingPrice, setWingPrice] = useState(initialConfig?.wing_price ?? 100)
+  const [balcony, setBalcony] = useState(!!initialConfig?.balcony)
+  const [balconyRows, setBalconyRows] = useState(initialConfig?.balcony_rows ?? 2)
+  const [balconySeatsPerRow, setBalconySeatsPerRow] = useState(initialConfig?.balcony_seats_per_row ?? 10)
+  const [balconyPrice, setBalconyPrice] = useState(initialConfig?.balcony_price ?? 120)
+  const [rowOverrides, setRowOverrides] = useState(initialConfig?.row_overrides || {})
+  const [isMobile, setIsMobile] = useState(typeof window !== 'undefined' && window.innerWidth < 768)
+  const [editPanelOpen, setEditPanelOpen] = useState(false)
+
+  useEffect(() => {
+    const onResize = () => setIsMobile(window.innerWidth < 768)
+    window.addEventListener('resize', onResize)
+    return () => window.removeEventListener('resize', onResize)
+  }, [])
+
+  const pushHistory = (state) => {
+    const newHist = history.slice(0, historyIndex + 1)
+    newHist.push(JSON.parse(JSON.stringify(state)))
+    if (newHist.length > 20) newHist.shift()
+    setHistory(newHist)
+    setHistoryIndex(newHist.length - 1)
+  }
+
+  const undo = () => {
+    if (historyIndex <= 0) return
+    const idx = historyIndex - 1
+    setHistoryIndex(idx)
+    const s = history[idx]
+    if (templateType === 'club') {
+      setClubTables(s.clubTables || [])
+      setClubRects(s.clubRects || [])
+    } else {
+      setRows(s.rows ?? rows)
+      setSeatsPerRow(s.seatsPerRow ?? seatsPerRow)
+      setCustomRows(s.customRows || [])
+      setBlockedSeats(new Set(s.blockedSeats || []))
+      setVipSeats(new Set(s.vipSeats || []))
+    }
+  }
+
+  const redo = () => {
+    if (historyIndex >= history.length - 1) return
+    const idx = historyIndex + 1
+    setHistoryIndex(idx)
+    const s = history[idx]
+    if (templateType === 'club') {
+      setClubTables(s.clubTables || [])
+      setClubRects(s.clubRects || [])
+    } else {
+      setRows(s.rows ?? rows)
+      setSeatsPerRow(s.seatsPerRow ?? seatsPerRow)
+      setCustomRows(s.customRows || [])
+      setBlockedSeats(new Set(s.blockedSeats || []))
+      setVipSeats(new Set(s.vipSeats || []))
+    }
+  }
+
+  useEffect(() => {
+    const h = (e) => {
+      if (e.ctrlKey && e.key === 'z') { e.preventDefault(); undo() }
+      if (e.ctrlKey && e.key === 'y') { e.preventDefault(); redo() }
+    }
+    window.addEventListener('keydown', h)
+    return () => window.removeEventListener('keydown', h)
+  }, [historyIndex, history])
+
+  const updateElement = (type, id, upd) => {
+    if (type === 'table') {
+      setClubTables(prev => prev.map((t, i) => t.seat_key === id || i === id ? { ...t, ...upd } : t))
+    } else {
+      setClubRects(prev => prev.map((r, i) => r.id === id || i === id ? { ...r, ...upd } : r))
+    }
+  }
+
+  const handleDragStart = (e, type, id) => {
+    e.preventDefault()
+    const pos = getPos(e)
+    setDragging({ type, id, startX: pos.x, startY: pos.y })
+  }
+
+  const handleDragMove = (e) => {
+    if (!dragging) return
+    e.preventDefault()
+    const pos = getPos(e)
+    const canvas = canvasRef.current?.getBoundingClientRect()
+    if (!canvas) return
+    const x = ((pos.x - canvas.left) / canvas.width) * 100
+    const y = ((pos.y - canvas.top) / canvas.height) * 80
+    let nx = Math.max(0, Math.min(95, x))
+    let ny = Math.max(0, Math.min(75, y))
+    if (snapToGrid) {
+      nx = Math.round(nx / 5) * 5
+      ny = Math.round(ny / 5) * 5
+    }
+    if (dragging.type === 'table') {
+      setClubTables(prev => prev.map((t, i) => (t.seat_key === dragging.id || i === dragging.id) ? { ...t, position_x: nx, position_y: ny } : t))
+    } else {
+      setClubRects(prev => prev.map((r, i) => (r.id === dragging.id || i === dragging.id) ? { ...r, position_x: nx, position_y: ny } : r))
+    }
+  }
+
+  const handleDragEnd = () => setDragging(null)
 
   const theaterSeats = useMemo(() => {
+    const rowCounts = useCustomRows && customRows.length > 0 ? customRows : Array(rows).fill(seatsPerRow)
     const out = []
-    const rowCounts = useCustomRows && customRows.length > 0
-      ? customRows
-      : Array(rows).fill(seatsPerRow)
     rowCounts.forEach((count, ri) => {
-      for (let si = 0; si < count; si++) {
+      const actualCount = typeof count === 'number' ? count : (rowOverrides[ri + 1]?.seats ?? seatsPerRow)
+      for (let si = 0; si < actualCount; si++) {
         const seatKey = `r${ri + 1}s${si + 1}`
         const isBlocked = blockedSeats.has(seatKey)
         const isVip = vipSeats.has(seatKey)
+        const rowPrice = rowOverrides[ri + 1]?.price ?? (isVip ? priceVip : priceRegular)
+        const rowStatus = rowOverrides[ri + 1]?.status
         out.push({
           seat_key: seatKey,
           row_number: ri + 1,
           seat_number: si + 1,
           seat_type: isVip ? 'vip' : 'regular',
-          status: isBlocked ? 'blocked' : 'available',
-          price: isVip ? priceVip : priceRegular,
+          status: rowStatus === 'blocked' ? 'blocked' : rowStatus === 'vip' ? 'vip' : isBlocked ? 'blocked' : 'available',
+          price: rowStatus === 'vip' ? priceVip : rowPrice,
           metadata: { stage_label: stageLabel },
         })
       }
     })
     return out
-  }, [rows, seatsPerRow, useCustomRows, customRows, blockedSeats, vipSeats, priceRegular, priceVip, stageLabel])
+  }, [rows, seatsPerRow, useCustomRows, customRows, blockedSeats, vipSeats, priceRegular, priceVip, stageLabel, rowOverrides])
 
   const cycleSeatStatus = (seatKey) => {
     const st = getSeatStatus(seatKey)
-    if (st === 'available') {
-      setBlockedSeats(prev => new Set([...prev, seatKey]))
-    } else if (st === 'blocked') {
+    if (st === 'available') setBlockedSeats(prev => new Set([...prev, seatKey]))
+    else if (st === 'blocked') {
       setBlockedSeats(prev => { const n = new Set(prev); n.delete(seatKey); return n })
       setVipSeats(prev => new Set([...prev, seatKey]))
-    } else {
-      setVipSeats(prev => { const n = new Set(prev); n.delete(seatKey); return n })
-    }
+    } else setVipSeats(prev => { const n = new Set(prev); n.delete(seatKey); return n })
   }
 
   const getSeatStatus = (seatKey) => {
@@ -61,11 +184,7 @@ export default function SeatingBuilder({ eventId, initialConfig, onSave, onCance
   }
 
   const handleSave = async () => {
-    if (!eventId && onSave) {
-      const config = buildConfig()
-      onSave(config)
-      return
-    }
+    if (!eventId && onSave) { onSave(buildConfig()); return }
     if (!eventId) return
     setSaving(true)
     try {
@@ -79,25 +198,22 @@ export default function SeatingBuilder({ eventId, initialConfig, onSave, onCance
       })
       if (!res.ok) throw new Error('שגיאה בשמירה')
       onSave?.(await res.json())
-    } catch (e) {
-      throw e
-    } finally {
-      setSaving(false)
-    }
+    } catch (e) { throw e } finally { setSaving(false) }
   }
 
   const buildConfig = () => {
     if (templateType === 'theater' || templateType === 'mixed') {
       const seats = theaterSeats.filter(s => s.status !== 'blocked').map(s => ({
-        seat_key: s.seat_key,
-        row_number: s.row_number,
-        seat_number: s.seat_number,
-        seat_type: s.seat_type,
-        status: s.status,
-        price: s.price,
-        metadata: s.metadata,
+        seat_key: s.seat_key, row_number: s.row_number, seat_number: s.seat_number,
+        seat_type: s.seat_type, status: s.status, price: s.price, metadata: s.metadata,
       }))
-      return { enabled, template_type: templateType, seats, zones: [], stage_label: stageLabel }
+      return {
+        enabled, template_type: templateType, seats, zones: [],
+        stage_label: stageLabel, shape: theaterShape,
+        wings: theaterWings, wing_seats_count: wingSeatsCount, wing_price: wingPrice,
+        balcony, balcony_rows: balconyRows, balcony_seats_per_row: balconySeatsPerRow, balcony_price: balconyPrice,
+        row_overrides: rowOverrides,
+      }
     }
     if (templateType === 'club') {
       const seats = clubTables.map((t, i) => ({
@@ -109,10 +225,65 @@ export default function SeatingBuilder({ eventId, initialConfig, onSave, onCance
         position_x: t.position_x ?? 20 + (i % 5) * 15,
         position_y: t.position_y ?? 25 + Math.floor(i / 5) * 15,
         label: t.label || `שולחן ${i + 1}`,
+        color: t.color,
+        metadata: { included: t.included },
       }))
-      return { enabled, template_type: 'club', seats, zones }
+      return { enabled, template_type: 'club', seats, zones: clubRects, club_rects: clubRects }
     }
     return { enabled, template_type: templateType, seats: [], zones: [] }
+  }
+
+  const addTable = () => {
+    const cx = 50 + randOffset()
+    const cy = 40 + randOffset()
+    const newTables = [...clubTables, { seat_key: `table-${clubTables.length + clubRects.length + 1}`, zone: 'floor', capacity: 4, price: 0, position_x: cx, position_y: cy, label: `שולחן ${clubTables.length + 1}` }]
+    pushHistory({ clubTables: newTables, clubRects })
+    setClubTables(newTables)
+    setSelectedElement({ type: 'table', id: newTables.length - 1 })
+    setEditPanelOpen(true)
+  }
+
+  const addRect = (kind) => {
+    const cx = 50 + randOffset()
+    const cy = kind === 'stage' ? 8 : kind === 'bar' ? 70 : 30 + randOffset()
+    const labels = { stage: 'STAGE', dj: 'DJ BOOTH', vip: 'VIP', bar: 'BAR' }
+    const sizes = { stage: { w: 60, h: 12 }, dj: { w: 25, h: 10 }, vip: { w: 40, h: 20 }, bar: { w: 50, h: 8 } }
+    const s = sizes[kind]
+    const rect = {
+      id: `rect-${Date.now()}`,
+      kind,
+      text: labels[kind],
+      position_x: cx - s.w / 2,
+      position_y: cy,
+      width: s.w,
+      height: s.h,
+      color: RECT_COLORS[kind === 'stage' ? 0 : kind === 'dj' ? 1 : kind === 'vip' ? 2 : 3],
+    }
+    const newRects = [...clubRects, rect]
+    pushHistory({ clubTables, clubRects: newRects })
+    setClubRects(newRects)
+    setSelectedElement({ type: 'rect', id: rect.id })
+    setEditPanelOpen(true)
+  }
+
+  const deleteElement = () => {
+    if (!selectedElement) return
+    if (selectedElement.type === 'table') {
+      const newTables = clubTables.filter((_, i) => i !== selectedElement.id)
+      pushHistory({ clubTables: newTables, clubRects })
+      setClubTables(newTables)
+    } else {
+      const newRects = clubRects.filter(r => r.id !== selectedElement.id)
+      pushHistory({ clubTables, clubRects: newRects })
+      setClubRects(newRects)
+    }
+    setSelectedElement(null)
+    setEditPanelOpen(false)
+  }
+
+  const saveState = () => {
+    if (templateType === 'club') pushHistory({ clubTables: [...clubTables], clubRects: [...clubRects] })
+    else pushHistory({ rows, seatsPerRow, customRows, blockedSeats: [...blockedSeats], vipSeats: [...vipSeats] })
   }
 
   if (!enabled) {
@@ -126,6 +297,34 @@ export default function SeatingBuilder({ eventId, initialConfig, onSave, onCance
       </div>
     )
   }
+
+  const toolbar = (
+    <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap', alignItems: 'center' }}>
+      <button onClick={undo} disabled={historyIndex <= 0} style={{ padding: '8px 12px', background: 'var(--v2-dark-3)', border: '1px solid var(--glass-border)', borderRadius: 8, color: 'var(--v2-gray-400)', cursor: historyIndex <= 0 ? 'not-allowed' : 'pointer' }}>↩ Undo</button>
+      <button onClick={redo} disabled={historyIndex >= history.length - 1} style={{ padding: '8px 12px', background: 'var(--v2-dark-3)', border: '1px solid var(--glass-border)', borderRadius: 8, color: 'var(--v2-gray-400)', cursor: historyIndex >= history.length - 1 ? 'not-allowed' : 'pointer' }}>↪ Redo</button>
+      {!isMobile && (
+        <>
+          <button onClick={() => setZoom(z => Math.min(2, z + 0.2))} style={{ padding: '8px 12px', background: 'var(--v2-dark-3)', border: '1px solid var(--glass-border)', borderRadius: 8, color: '#fff', cursor: 'pointer' }}>🔍+</button>
+          <button onClick={() => setZoom(z => Math.max(0.5, z - 0.2))} style={{ padding: '8px 12px', background: 'var(--v2-dark-3)', border: '1px solid var(--glass-border)', borderRadius: 8, color: '#fff', cursor: 'pointer' }}>🔍−</button>
+          <button onClick={() => setZoom(1)} style={{ padding: '8px 12px', background: 'var(--v2-dark-3)', border: '1px solid var(--glass-border)', borderRadius: 8, color: '#fff', cursor: 'pointer' }}>📐 Fit</button>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', margin: 0 }}>
+            <input type="checkbox" checked={snapToGrid} onChange={e => setSnapToGrid(e.target.checked)} />
+            <span style={{ fontSize: 14 }}>נעץ לרשת</span>
+          </label>
+        </>
+      )}
+      <button onClick={saveState} style={{ padding: '8px 12px', background: 'var(--v2-dark-3)', border: '1px solid var(--glass-border)', borderRadius: 8, color: '#fff', cursor: 'pointer' }}>💾 שמור טיוטה</button>
+    </div>
+  )
+
+  const mobileToolbar = isMobile ? (
+    <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
+      <button onClick={addTable} style={{ padding: '8px 12px', background: 'var(--v2-primary)', color: 'var(--v2-dark)', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 600 }}>+ שולחן</button>
+      <button onClick={() => addRect('stage')} style={{ padding: '8px 12px', background: 'var(--v2-dark-3)', border: '1px solid var(--glass-border)', borderRadius: 8, color: '#fff', cursor: 'pointer' }}>+ במה</button>
+      <button onClick={undo} disabled={historyIndex <= 0} style={{ padding: '8px 12px', background: 'var(--v2-dark-3)', border: '1px solid var(--glass-border)', borderRadius: 8, color: 'var(--v2-gray-400)', cursor: 'pointer' }}>↩</button>
+      <button onClick={handleSave} disabled={saving} style={{ padding: '8px 12px', background: 'var(--v2-primary)', color: 'var(--v2-dark)', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 600 }}>שמור</button>
+    </div>
+  ) : null
 
   return (
     <div dir="rtl" style={{ padding: 24 }}>
@@ -141,19 +340,7 @@ export default function SeatingBuilder({ eventId, initialConfig, onSave, onCance
             { key: 'club', icon: '🎵', title: 'מועדון/מסיבה', desc: 'שולחנות ואזורים' },
             { key: 'mixed', icon: '🎪', title: 'מעורב', desc: 'תיאטרון + שולחנות VIP' },
           ].map(t => (
-            <button
-              key={t.key}
-              onClick={() => setTemplateType(t.key)}
-              style={{
-                padding: 24,
-                background: 'var(--v2-dark-3)',
-                border: '2px solid var(--glass-border)',
-                borderRadius: 16,
-                color: '#fff',
-                textAlign: 'center',
-                cursor: 'pointer',
-              }}
-            >
+            <button key={t.key} onClick={() => setTemplateType(t.key)} style={{ padding: 24, background: 'var(--v2-dark-3)', border: '2px solid var(--glass-border)', borderRadius: 16, color: '#fff', textAlign: 'center', cursor: 'pointer' }}>
               <div style={{ fontSize: 40, marginBottom: 8 }}>{t.icon}</div>
               <div style={{ fontWeight: 700, marginBottom: 4 }}>{t.title}</div>
               <div style={{ fontSize: 13, color: 'var(--v2-gray-400)' }}>{t.desc}</div>
@@ -164,16 +351,25 @@ export default function SeatingBuilder({ eventId, initialConfig, onSave, onCance
 
       {templateType && (
         <>
-          <button
-            onClick={() => setTemplateType(null)}
-            style={{ marginBottom: 16, padding: '8px 16px', background: 'transparent', border: '1px solid var(--glass-border)', borderRadius: 8, color: 'var(--v2-gray-400)', cursor: 'pointer' }}
-          >
-            ← בחר תבנית אחרת
-          </button>
+          <button onClick={() => setTemplateType(null)} style={{ marginBottom: 16, padding: '8px 16px', background: 'transparent', border: '1px solid var(--glass-border)', borderRadius: 8, color: 'var(--v2-gray-400)', cursor: 'pointer' }}>← בחר תבנית אחרת</button>
+
+          {isMobile && templateType === 'club' && mobileToolbar}
+
+          {!isMobile && toolbar}
 
           {(templateType === 'theater' || templateType === 'mixed') && (
             <div style={{ marginBottom: 24 }}>
               <div style={{ display: 'flex', gap: 16, marginBottom: 16, flexWrap: 'wrap' }}>
+                <div>
+                  <label style={{ display: 'block', marginBottom: 4, fontSize: 14, color: 'var(--v2-gray-400)' }}>צורת אולם</label>
+                  <select value={theaterShape} onChange={e => setTheaterShape(e.target.value)} style={{ padding: 8, borderRadius: 8, border: '1px solid var(--glass-border)', background: 'var(--v2-dark-3)', color: '#fff' }}>
+                    <option value="straight">ישר</option>
+                    <option value="curved">קמור</option>
+                    <option value="fan">מניפה</option>
+                    <option value="u">U-shape</option>
+                    <option value="square">מרובע</option>
+                  </select>
+                </div>
                 <div>
                   <label style={{ display: 'block', marginBottom: 4, fontSize: 14, color: 'var(--v2-gray-400)' }}>כמה שורות?</label>
                   <input type="number" min={1} max={50} value={rows} onChange={e => setRows(Math.max(1, parseInt(e.target.value) || 1))} style={{ width: 80, padding: 8, borderRadius: 8, border: '1px solid var(--glass-border)', background: 'var(--v2-dark-3)', color: '#fff' }} />
@@ -187,9 +383,48 @@ export default function SeatingBuilder({ eventId, initialConfig, onSave, onCance
                   שורות בגדלים שונים?
                 </label>
               </div>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', marginBottom: 8 }}>
+                <input type="checkbox" checked={theaterWings} onChange={e => setTheaterWings(e.target.checked)} />
+                הוסף אגפים
+              </label>
+              {theaterWings && (
+                <div style={{ display: 'flex', gap: 16, marginBottom: 16, flexWrap: 'wrap' }}>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: 4, fontSize: 14 }}>כיסאות באגף</label>
+                    <input type="range" min={1} max={20} value={wingSeatsCount} onChange={e => setWingSeatsCount(parseInt(e.target.value))} style={{ width: 100 }} />
+                    <span style={{ marginRight: 8 }}>{wingSeatsCount}</span>
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: 4, fontSize: 14 }}>מחיר אגף ₪</label>
+                    <input type="number" min={0} value={wingPrice} onChange={e => setWingPrice(parseFloat(e.target.value) || 0)} style={{ width: 80, padding: 8, borderRadius: 8, border: '1px solid var(--glass-border)', background: 'var(--v2-dark-3)', color: '#fff' }} />
+                  </div>
+                </div>
+              )}
+              <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', marginBottom: 8 }}>
+                <input type="checkbox" checked={balcony} onChange={e => setBalcony(e.target.checked)} />
+                הוסף יציע
+              </label>
+              {balcony && (
+                <div style={{ display: 'flex', gap: 16, marginBottom: 16, flexWrap: 'wrap' }}>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: 4, fontSize: 14 }}>שורות יציע</label>
+                    <input type="range" min={1} max={5} value={balconyRows} onChange={e => setBalconyRows(parseInt(e.target.value))} style={{ width: 80 }} />
+                    <span>{balconyRows}</span>
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: 4, fontSize: 14 }}>כיסאות בשורה</label>
+                    <input type="range" min={5} max={30} value={balconySeatsPerRow} onChange={e => setBalconySeatsPerRow(parseInt(e.target.value))} style={{ width: 80 }} />
+                    <span>{balconySeatsPerRow}</span>
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: 4, fontSize: 14 }}>מחיר יציע ₪</label>
+                    <input type="number" min={0} value={balconyPrice} onChange={e => setBalconyPrice(parseFloat(e.target.value) || 0)} style={{ width: 80, padding: 8, borderRadius: 8, border: '1px solid var(--glass-border)', background: 'var(--v2-dark-3)', color: '#fff' }} />
+                  </div>
+                </div>
+              )}
               <div style={{ marginBottom: 16 }}>
-                <label style={{ display: 'block', marginBottom: 4, fontSize: 14, color: 'var(--v2-gray-400)' }}>טקסט במה</label>
-                <input value={stageLabel} onChange={e => setStageLabel(e.target.value)} placeholder="במה / STAGE / DJ BOOTH" style={{ width: 200, padding: 8, borderRadius: 8, border: '1px solid var(--glass-border)', background: 'var(--v2-dark-3)', color: '#fff' }} />
+                <label style={{ display: 'block', marginBottom: 4, fontSize: 14 }}>טקסט במה</label>
+                <input value={stageLabel} onChange={e => setStageLabel(e.target.value)} placeholder="במה / STAGE" style={{ width: 200, padding: 8, borderRadius: 8, border: '1px solid var(--glass-border)', background: 'var(--v2-dark-3)', color: '#fff' }} />
               </div>
               <div style={{ display: 'flex', gap: 16, marginBottom: 16 }}>
                 <div>
@@ -202,67 +437,162 @@ export default function SeatingBuilder({ eventId, initialConfig, onSave, onCance
                 </div>
               </div>
               <p style={{ fontSize: 13, color: 'var(--v2-gray-400)', marginBottom: 12 }}>לחץ על כיסא: חסום ↔ VIP ↔ רגיל</p>
-              <div style={{ background: '#0a0a0a', borderRadius: 12, padding: 16, overflow: 'auto', maxHeight: 300 }}>
-                <svg viewBox="0 0 100 80" width="100%" height="auto" style={{ maxHeight: 280 }} preserveAspectRatio="xMidYMid meet">
+              <div style={{ background: '#0a0a0a', borderRadius: 12, padding: 16, overflow: 'auto', maxHeight: 300, border: '1px solid rgba(0,195,122,0.3)' }}>
+                <svg viewBox="0 0 100 80" width="100%" height="auto" style={{ maxHeight: 280, transform: `scale(${zoom})` }} preserveAspectRatio="xMidYMid meet">
                   <rect x="5" y="68" width="90" height="10" rx="4" fill="#1a1a2e" />
                   <text x="50" y="74" textAnchor="middle" fontSize="3" fill="#888">{stageLabel}</text>
                   {theaterSeats.reduce((acc, s) => {
                     const rn = s.row_number, sn = s.seat_number
                     const rowCounts = useCustomRows && customRows.length > 0 ? customRows : Array(rows).fill(seatsPerRow)
                     const count = rowCounts[rn - 1] ?? seatsPerRow
-                    const totalW = (count - 1) * 2.5
+                    const actualCount = rowOverrides[rn]?.seats ?? count
+                    const totalW = (actualCount - 1) * 2.5
                     const x = 50 - totalW / 2 + (sn - 1) * 2.5
                     const y = 60 - (rn - 1) * 3.5
                     const st = getSeatStatus(s.seat_key)
                     const fill = st === 'blocked' ? '#333' : st === 'vip' ? '#2a1a3a' : '#1a2e1a'
                     const stroke = st === 'blocked' ? '#333' : st === 'vip' ? '#A855F7' : '#00C37A'
-                    return [...acc, (
-                      <circle key={s.seat_key} cx={x} cy={y} r={1} fill={fill} stroke={stroke} strokeWidth="0.3" style={{ cursor: 'pointer' }} onClick={() => cycleSeatStatus(s.seat_key)} />
-                    )]
+                    return [...acc, (<circle key={s.seat_key} cx={x} cy={y} r={1} fill={fill} stroke={stroke} strokeWidth="0.3" style={{ cursor: 'pointer' }} onClick={() => cycleSeatStatus(s.seat_key)} />)]
                   }, [])}
                 </svg>
+              </div>
+              <div style={{ display: 'flex', gap: 12, marginTop: 8, fontSize: 12, color: 'var(--v2-gray-400)' }}>
+                <span>● זמין</span>
+                <span>● VIP</span>
+                <span>● חסום</span>
               </div>
             </div>
           )}
 
           {templateType === 'club' && (
             <div style={{ marginBottom: 24 }}>
-              <p style={{ color: 'var(--v2-gray-400)', marginBottom: 12 }}>הוסף שולחנות (גרירה למקום)</p>
-              <button
-                onClick={() => setClubTables([...clubTables, { seat_key: `table-${clubTables.length + 1}`, zone: 'floor', capacity: 4, price: 0, position_x: 50, position_y: 40, label: `שולחן ${clubTables.length + 1}` }])}
-                style={{ padding: '10px 16px', background: 'var(--v2-primary)', color: 'var(--v2-dark)', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 600 }}
+              {!isMobile && (
+                <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
+                  <button onClick={addTable} style={{ padding: '10px 16px', background: 'var(--v2-primary)', color: 'var(--v2-dark)', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 600 }}>+ שולחן</button>
+                  <button onClick={() => addRect('stage')} style={{ padding: '10px 16px', background: 'var(--v2-dark-3)', border: '1px solid var(--glass-border)', borderRadius: 8, color: '#fff', cursor: 'pointer' }}>+ במה</button>
+                  <button onClick={() => addRect('dj')} style={{ padding: '10px 16px', background: 'var(--v2-dark-3)', border: '1px solid var(--glass-border)', borderRadius: 8, color: '#fff', cursor: 'pointer' }}>+ DJ Booth</button>
+                  <button onClick={() => addRect('vip')} style={{ padding: '10px 16px', background: 'var(--v2-dark-3)', border: '1px solid var(--glass-border)', borderRadius: 8, color: '#fff', cursor: 'pointer' }}>+ אזור VIP</button>
+                  <button onClick={() => addRect('bar')} style={{ padding: '10px 16px', background: 'var(--v2-dark-3)', border: '1px solid var(--glass-border)', borderRadius: 8, color: '#fff', cursor: 'pointer' }}>+ בר</button>
+                </div>
+              )}
+              <div
+                ref={canvasRef}
+                style={{ marginTop: 16, height: 400, background: snapToGrid ? 'radial-gradient(circle, var(--glass-border) 1px, transparent 1px)' : '#0a0a0a', backgroundSize: snapToGrid ? '5% 5%' : undefined, borderRadius: 12, position: 'relative', touchAction: 'none' }}
+                onMouseMove={handleDragMove}
+                onMouseUp={handleDragEnd}
+                onMouseLeave={handleDragEnd}
+                onTouchMove={handleDragMove}
+                onTouchEnd={handleDragEnd}
               >
-                + הוסף שולחן
-              </button>
-              <div style={{ marginTop: 16, display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 12 }}>
-                {clubTables.map((t, i) => (
-                  <div key={i} style={{ padding: 12, background: 'var(--v2-dark-3)', borderRadius: 12 }}>
-                    <input value={t.label} onChange={e => setClubTables(prev => prev.map((x, j) => j === i ? { ...x, label: e.target.value } : x))} placeholder="שולחן" style={{ width: '100%', marginBottom: 8, padding: 6, borderRadius: 6, border: '1px solid var(--glass-border)', background: 'var(--v2-dark-2)', color: '#fff' }} />
-                    <input type="number" min={1} max={30} value={t.capacity ?? 4} onChange={e => setClubTables(prev => prev.map((x, j) => j === i ? { ...x, capacity: parseInt(e.target.value) || 4 } : x))} placeholder="קיבולת" style={{ width: '100%', marginBottom: 8, padding: 6, borderRadius: 6, border: '1px solid var(--glass-border)', background: 'var(--v2-dark-2)', color: '#fff' }} />
-                    <input type="number" min={0} value={t.price ?? 0} onChange={e => setClubTables(prev => prev.map((x, j) => j === i ? { ...x, price: parseFloat(e.target.value) || 0 } : x))} placeholder="מחיר" style={{ width: '100%', marginBottom: 8, padding: 6, borderRadius: 6, border: '1px solid var(--glass-border)', background: 'var(--v2-dark-2)', color: '#fff' }} />
-                    <button onClick={() => setClubTables(prev => prev.filter((_, j) => j !== i))} style={{ padding: '4px 12px', background: '#ef4444', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 12 }}>מחק</button>
-                  </div>
-                ))}
-              </div>
-              <div style={{ marginTop: 16, height: 400, background: '#0a0a0a', borderRadius: 12, position: 'relative' }}>
                 <svg viewBox="0 0 100 80" width="100%" height="100%" preserveAspectRatio="xMidYMid meet">
-                  <rect x="10" y="2" width="80" height="12" rx="4" fill="url(#clubStage)" />
-                  <defs><linearGradient id="clubStage" x1="0" y1="0" x2="0" y2="1"><stop stopColor="#6d28d9" /><stop offset="1" stopColor="#1e3a8a" /></linearGradient></defs>
-                  <text x="50" y="10" textAnchor="middle" fontSize="3" fill="#fff">STAGE</text>
+                  {clubRects.map((r, i) => (
+                    <g key={r.id}>
+                      <rect
+                        x={r.position_x ?? 10}
+                        y={r.position_y ?? 2}
+                        width={r.width ?? 80}
+                        height={r.height ?? 12}
+                        rx="4"
+                        fill={r.color || RECT_COLORS[0]}
+                        stroke={selectedElement?.type === 'rect' && selectedElement?.id === r.id ? '#00C37A' : 'transparent'}
+                        strokeWidth="1"
+                        style={{ cursor: 'move' }}
+                        onMouseDown={e => { handleDragStart(e, 'rect', r.id); setSelectedElement({ type: 'rect', id: r.id }) }}
+                        onTouchStart={e => { handleDragStart(e, 'rect', r.id); setSelectedElement({ type: 'rect', id: r.id }) }}
+                        onClick={() => { setSelectedElement({ type: 'rect', id: r.id }); setEditPanelOpen(true) }}
+                      />
+                      <text x={(r.position_x ?? 10) + (r.width ?? 80) / 2} y={(r.position_y ?? 2) + (r.height ?? 12) / 2 + 1} textAnchor="middle" fontSize="2.5" fill="#fff">{r.text || 'STAGE'}</text>
+                    </g>
+                  ))}
                   {clubTables.map((t, i) => (
-                    <circle key={i} cx={t.position_x ?? 50} cy={t.position_y ?? 40} r="4" fill={ZONE_COLORS[t.zone] || '#2563EB'} stroke="#444" strokeWidth="0.5">
+                    <circle
+                      key={i}
+                      cx={t.position_x ?? 50}
+                      cy={t.position_y ?? 40}
+                      r="4"
+                      fill={t.color || ZONE_COLORS[t.zone] || '#2563EB'}
+                      stroke={selectedElement?.type === 'table' && selectedElement?.id === i ? '#00C37A' : '#444'}
+                      strokeWidth="1"
+                      style={{ cursor: 'move' }}
+                      onMouseDown={e => { handleDragStart(e, 'table', i); setSelectedElement({ type: 'table', id: i }) }}
+                      onTouchStart={e => { handleDragStart(e, 'table', i); setSelectedElement({ type: 'table', id: i }) }}
+                      onClick={() => { setSelectedElement({ type: 'table', id: i }); setEditPanelOpen(true) }}
+                    >
                       <title>{t.label} — עד {t.capacity}</title>
                     </circle>
                   ))}
                 </svg>
               </div>
+
+              {editPanelOpen && selectedElement && (
+                <div style={{
+                  position: isMobile ? 'fixed' : 'relative',
+                  bottom: isMobile ? 0 : undefined,
+                  left: 0, right: 0,
+                  maxHeight: isMobile ? '50vh' : 400,
+                  background: 'var(--v2-dark-2)',
+                  border: '1px solid var(--glass-border)',
+                  borderRadius: 16,
+                  padding: 20,
+                  marginTop: isMobile ? 0 : 16,
+                  zIndex: isMobile ? 100 : 1,
+                  overflowY: 'auto',
+                  touchAction: isMobile ? 'pan-y' : undefined,
+                }}>
+                  {selectedElement.type === 'table' && (() => {
+                    const t = clubTables[selectedElement.id]
+                    if (!t) return null
+                    return (
+                      <>
+                        <h4 style={{ marginBottom: 12 }}>עריכת שולחן</h4>
+                        <input value={t.label} onChange={e => setClubTables(prev => prev.map((x, j) => j === selectedElement.id ? { ...x, label: e.target.value } : x))} placeholder="שם/מספר" style={{ width: '100%', marginBottom: 8, padding: 10, borderRadius: 8, border: '1px solid var(--glass-border)', background: 'var(--v2-dark-3)', color: '#fff' }} />
+                        <label style={{ display: 'block', marginBottom: 4, fontSize: 14 }}>קיבולת (1-30)</label>
+                        <input type="range" min={1} max={30} value={t.capacity ?? 4} onChange={e => setClubTables(prev => prev.map((x, j) => j === selectedElement.id ? { ...x, capacity: parseInt(e.target.value) || 4 } : x))} style={{ width: '100%', marginBottom: 8 }} />
+                        <span style={{ marginBottom: 12, display: 'block' }}>{t.capacity ?? 4}</span>
+                        <input type="number" min={0} value={t.price ?? 0} onChange={e => setClubTables(prev => prev.map((x, j) => j === selectedElement.id ? { ...x, price: parseFloat(e.target.value) || 0 } : x))} placeholder="מחיר ₪" style={{ width: '100%', marginBottom: 8, padding: 10, borderRadius: 8, border: '1px solid var(--glass-border)', background: 'var(--v2-dark-3)', color: '#fff' }} />
+                        <select value={t.zone || 'floor'} onChange={e => setClubTables(prev => prev.map((x, j) => j === selectedElement.id ? { ...x, zone: e.target.value } : x))} style={{ width: '100%', marginBottom: 8, padding: 10, borderRadius: 8, border: '1px solid var(--glass-border)', background: 'var(--v2-dark-3)', color: '#fff' }}>
+                          {ZONE_OPTIONS.map(z => <option key={z} value={z}>{ZONE_LABELS[z]}</option>)}
+                        </select>
+                        <label style={{ display: 'block', marginBottom: 4, fontSize: 14 }}>צבע אזור</label>
+                        <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+                          {TABLE_COLORS.map(c => (
+                            <button key={c} onClick={() => setClubTables(prev => prev.map((x, j) => j === selectedElement.id ? { ...x, color: c } : x))} style={{ width: 28, height: 28, borderRadius: '50%', background: c, border: (t.color || ZONE_COLORS[t.zone]) === c ? '2px solid #fff' : 'none', cursor: 'pointer' }} />
+                          ))}
+                        </div>
+                        <textarea value={t.included || ''} onChange={e => setClubTables(prev => prev.map((x, j) => j === selectedElement.id ? { ...x, included: e.target.value } : x))} placeholder="מה כלול" rows={2} style={{ width: '100%', marginBottom: 12, padding: 10, borderRadius: 8, border: '1px solid var(--glass-border)', background: 'var(--v2-dark-3)', color: '#fff' }} />
+                        <button onClick={deleteElement} style={{ padding: '10px 20px', background: '#ef4444', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer' }}>מחק</button>
+                      </>
+                    )
+                  })()}
+                  {selectedElement.type === 'rect' && (() => {
+                    const r = clubRects.find(x => x.id === selectedElement.id)
+                    if (!r) return null
+                    return (
+                      <>
+                        <h4 style={{ marginBottom: 12 }}>עריכת אזור</h4>
+                        <input value={r.text} onChange={e => setClubRects(prev => prev.map(x => x.id === r.id ? { ...x, text: e.target.value } : x))} placeholder="טקסט (STAGE/DJ/BAR)" style={{ width: '100%', marginBottom: 8, padding: 10, borderRadius: 8, border: '1px solid var(--glass-border)', background: 'var(--v2-dark-3)', color: '#fff' }} />
+                        <label style={{ display: 'block', marginBottom: 4, fontSize: 14 }}>רוחב 5-40%</label>
+                        <input type="range" min={5} max={40} value={r.width ?? 60} onChange={e => setClubRects(prev => prev.map(x => x.id === r.id ? { ...x, width: parseInt(e.target.value) } : x))} style={{ width: '100%', marginBottom: 8 }} />
+                        <label style={{ display: 'block', marginBottom: 4, fontSize: 14 }}>גובה 5-40%</label>
+                        <input type="range" min={5} max={40} value={r.height ?? 12} onChange={e => setClubRects(prev => prev.map(x => x.id === r.id ? { ...x, height: parseInt(e.target.value) } : x))} style={{ width: '100%', marginBottom: 8 }} />
+                        <label style={{ display: 'block', marginBottom: 4, fontSize: 14 }}>צבע רקע</label>
+                        <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+                          {RECT_COLORS.map(c => (
+                            <button key={c} onClick={() => setClubRects(prev => prev.map(x => x.id === r.id ? { ...x, color: c } : x))} style={{ width: 32, height: 32, borderRadius: 8, background: c, border: (r.color || RECT_COLORS[0]) === c ? '2px solid #fff' : 'none', cursor: 'pointer' }} />
+                          ))}
+                        </div>
+                        <button onClick={deleteElement} style={{ padding: '10px 20px', background: '#ef4444', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer' }}>מחק</button>
+                      </>
+                    )
+                  })()}
+                  {isMobile && <button onClick={() => setEditPanelOpen(false)} style={{ marginTop: 12, width: '100%', padding: 12, background: 'transparent', border: '1px solid var(--glass-border)', borderRadius: 8, color: 'var(--v2-gray-400)', cursor: 'pointer' }}>סגור (swipe למטה)</button>}
+                </div>
+              )}
             </div>
           )}
 
           <div style={{ display: 'flex', gap: 12, marginTop: 24 }}>
-            <button onClick={handleSave} disabled={saving} style={{ padding: '14px 24px', background: 'var(--v2-primary)', color: 'var(--v2-dark)', border: 'none', borderRadius: 'var(--radius-full)', fontWeight: 700, cursor: saving ? 'wait' : 'pointer' }}>
-              {saving ? 'שומר...' : 'שמור מפת ישיבה'}
-            </button>
+            <button onClick={handleSave} disabled={saving} style={{ padding: '14px 24px', background: 'var(--v2-primary)', color: 'var(--v2-dark)', border: 'none', borderRadius: 'var(--radius-full)', fontWeight: 700, cursor: saving ? 'wait' : 'pointer' }}>{saving ? 'שומר...' : 'שמור מפת ישיבה'}</button>
             {onCancel && <button onClick={onCancel} style={{ padding: '14px 24px', background: 'transparent', border: '1px solid var(--glass-border)', color: 'var(--v2-gray-400)', borderRadius: 'var(--radius-full)', cursor: 'pointer' }}>ביטול</button>}
           </div>
         </>
