@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { Calendar, Plus, TrendingUp, ExternalLink, Key, Copy, Edit3, Copy as CopyIcon, Trash2, Users, BarChart2, Armchair, LayoutGrid, MapPin } from 'lucide-react'
+import { Calendar, Plus, TrendingUp, ExternalLink, Key, Copy, Edit3, Copy as CopyIcon, Trash2, Users, BarChart2, Armchair, LayoutGrid, MapPin, Check, X } from 'lucide-react'
 import toast from 'react-hot-toast'
 import SeatingBuilder from '../../components/SeatingBuilder'
 import Tooltip from '../../components/ui/Tooltip'
@@ -486,6 +486,29 @@ export default function Events() {
   const [staffTokens, setStaffTokens] = useState([])
   const [newTokenLabel, setNewTokenLabel] = useState('')
   const [newTokenResult, setNewTokenResult] = useState(null)
+  const [draftSaved, setDraftSaved] = useState(false)
+  const [drafts, setDrafts] = useState([])
+  const [closeWizardModalOpen, setCloseWizardModalOpen] = useState(false)
+  const [draftDeleteConfirm, setDraftDeleteConfirm] = useState(null)
+
+  const saveDraft = () => {
+    const draftsArr = JSON.parse(localStorage.getItem('axess_event_drafts') || '[]')
+    const draftId = form.draftId || Date.now()
+    const existing = draftsArr.findIndex(d => d.draftId === draftId)
+    const draft = {
+      ...form,
+      draftId,
+      savedAt: new Date().toISOString(),
+      status: 'draft'
+    }
+    if (existing >= 0) draftsArr[existing] = draft
+    else draftsArr.unshift(draft)
+    localStorage.setItem('axess_event_drafts', JSON.stringify(draftsArr.slice(0, 10)))
+    if (!form.draftId) setForm(f => ({ ...f, draftId }))
+    setDraftSaved(true)
+    setTimeout(() => setDraftSaved(false), 2000)
+    setDrafts(JSON.parse(localStorage.getItem('axess_event_drafts') || '[]'))
+  }
 
   useEffect(() => {
     fetch(`${API_BASE}/api/admin/events?business_id=${businessId}`)
@@ -502,6 +525,17 @@ export default function Events() {
     ]).then(([m, l]) => { setMenus(m); setLayouts(l) }).catch(() => {})
   }, [businessId])
 
+  useEffect(() => {
+    const saved = JSON.parse(localStorage.getItem('axess_event_drafts') || '[]')
+    setDrafts(saved)
+  }, [])
+
+  useEffect(() => {
+    if (!form.title) return
+    const timer = setTimeout(() => { saveDraft() }, 2000)
+    return () => clearTimeout(timer)
+  }, [form])
+
   const openWizard = (template = 'regular') => {
     setWizardTemplate(template)
     setForm(defaultForm())
@@ -509,7 +543,17 @@ export default function Events() {
     if (template === 'tables') setForm(f => ({ ...f, seating: { enabled: true, template_type: 'club' } }))
     setStep(1)
     setEditEventId(null)
+    setCloseWizardModalOpen(false)
     setWizardOpen(true)
+  }
+
+  const requestCloseWizard = () => setCloseWizardModalOpen(true)
+  const doCloseWizard = () => {
+    saveDraft()
+    setWizardOpen(false)
+    setCloseWizardModalOpen(false)
+    setForm(defaultForm())
+    setStep(1)
   }
 
   const statusLabel = s => ({ draft: 'טיוטה', published: 'פעיל', active: 'פעיל', cancelled: 'בוטל', archived: 'הסתיים' }[s] || s)
@@ -724,6 +768,31 @@ export default function Events() {
         ))}
       </div>
 
+      {/* טיוטות שמורות */}
+      {drafts.length > 0 && (
+        <div style={{ marginBottom: 24 }}>
+          <h3 style={{ fontSize: 16, fontWeight: 600, marginBottom: 12 }}>טיוטות שמורות ({drafts.length})</h3>
+          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+            {drafts.map(d => {
+              const savedAt = d.savedAt ? new Date(d.savedAt).getTime() : 0
+              const mins = Math.floor((Date.now() - savedAt) / 60000)
+              const hours = Math.floor(mins / 60)
+              const timeStr = hours > 0 ? `לפני ${hours} שעות` : mins > 0 ? `לפני ${mins} דקות` : 'עכשיו'
+              return (
+                <div key={d.draftId} style={{ background: 'var(--v2-dark-3)', border: '1px solid var(--glass-border)', borderRadius: 'var(--radius-md)', padding: 12, minWidth: 200 }}>
+                  <div style={{ fontWeight: 600, marginBottom: 4 }}>{d.title || 'ללא שם'}</div>
+                  <div style={{ fontSize: 12, color: 'var(--v2-gray-400)', marginBottom: 8 }}>נשמר: {timeStr}</div>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button onClick={() => { setForm(d); setStep(1); setWizardOpen(true); setCloseWizardModalOpen(false) }} style={{ padding: '6px 12px', background: 'var(--v2-primary)', color: 'var(--v2-dark)', border: 'none', borderRadius: 8, cursor: 'pointer', fontSize: 13 }}>✏️ ערוך</button>
+                    <button onClick={() => setDraftDeleteConfirm(d)} style={{ padding: '6px 12px', background: 'var(--v2-dark-2)', border: '1px solid var(--glass-border)', color: 'var(--v2-gray-400)', borderRadius: 8, cursor: 'pointer', fontSize: 13 }}>🗑️ מחק</button>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
       {loading ? (
         <div style={{ color: 'var(--v2-gray-400)' }}>טוען...</div>
       ) : filteredEvents.length === 0 ? (
@@ -825,9 +894,19 @@ export default function Events() {
 
       {/* Wizard Modal — 7 steps */}
       {wizardOpen && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 199 }} onClick={() => setWizardOpen(false)}>
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 199 }} onClick={requestCloseWizard}>
           <div style={{ position: 'fixed', inset: 0, zIndex: 200, display: 'flex', flexDirection: 'column', background: 'var(--v2-dark)', overflow: 'hidden' }} onClick={e => e.stopPropagation()}>
-            <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 20, padding: '0 16px' }}>צור אירוע חדש</h2>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 16px 0', marginBottom: 8 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <h2 style={{ fontSize: 20, fontWeight: 700, margin: 0 }}>צור אירוע חדש</h2>
+                {draftSaved && (
+                  <span style={{ fontSize: 12, color: 'var(--v2-primary)', display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <Check size={12} /> נשמר אוטומטית
+                  </span>
+                )}
+              </div>
+              <button onClick={requestCloseWizard} style={{ background: 'transparent', border: 'none', color: 'var(--v2-gray-400)', cursor: 'pointer', padding: 8 }} aria-label="סגור"><X size={24} /></button>
+            </div>
             <div style={{ display: 'flex', gap: 8, marginBottom: 24, flexWrap: 'wrap', fontSize: 12, padding: '0 16px' }}>
               {wizardSteps.map((s, i) => (
                 <span key={i} style={{ padding: '4px 8px', borderRadius: 8, background: step === i + 1 ? 'var(--v2-primary)' : 'var(--v2-dark-3)', color: step === i + 1 ? 'var(--v2-dark)' : 'var(--v2-gray-400)' }}>{i + 1}. {s}</span>
@@ -1074,6 +1153,36 @@ export default function Events() {
                 <button onClick={() => handlePublish()} style={{ flex: 1, padding: 14, borderRadius: 'var(--radius-full)', background: 'var(--v2-primary)', color: 'var(--v2-dark)', fontWeight: 700, border: 'none', cursor: 'pointer' }}>פרסם עכשיו</button>
               </>
             )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Close wizard confirmation modal */}
+      {closeWizardModalOpen && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 250 }} onClick={e => e.target === e.currentTarget && setCloseWizardModalOpen(false)}>
+          <div style={{ background: 'var(--v2-dark-2)', borderRadius: 'var(--radius-lg)', padding: 32, maxWidth: 360, textAlign: 'center' }} onClick={e => e.stopPropagation()} dir="rtl">
+            <div style={{ fontSize: 36, marginBottom: 12 }}>💾</div>
+            <h3 style={{ marginBottom: 8 }}>האירוע נשמר כטיוטה</h3>
+            <p style={{ color: 'var(--v2-gray-400)', fontSize: 14, marginBottom: 20 }}>תמצא אותו בקטע הטיוטות</p>
+            <button onClick={doCloseWizard} style={{ padding: '12px 24px', background: 'var(--v2-primary)', color: 'var(--v2-dark)', border: 'none', borderRadius: 'var(--radius-full)', fontWeight: 700, cursor: 'pointer' }}>סגור</button>
+          </div>
+        </div>
+      )}
+
+      {/* Draft delete confirm */}
+      {draftDeleteConfirm && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 60 }} onClick={() => setDraftDeleteConfirm(null)}>
+          <div style={{ background: 'var(--v2-dark-2)', borderRadius: 'var(--radius-lg)', padding: 32, maxWidth: 360 }} onClick={e => e.stopPropagation()} dir="rtl">
+            <h3 style={{ marginBottom: 12 }}>למחוק טיוטה זו?</h3>
+            <div style={{ display: 'flex', gap: 12 }}>
+              <button onClick={() => setDraftDeleteConfirm(null)} style={{ flex: 1, padding: 14, background: 'var(--v2-dark-3)', border: '1px solid var(--glass-border)', borderRadius: 12, color: '#fff', cursor: 'pointer' }}>ביטול</button>
+              <button onClick={() => {
+                const updated = drafts.filter(d => d.draftId !== draftDeleteConfirm.draftId)
+                localStorage.setItem('axess_event_drafts', JSON.stringify(updated))
+                setDrafts(updated)
+                setDraftDeleteConfirm(null)
+              }} style={{ flex: 1, padding: 14, background: '#ef4444', border: 'none', borderRadius: 12, color: '#fff', cursor: 'pointer', fontWeight: 600 }}>מחק</button>
             </div>
           </div>
         </div>
