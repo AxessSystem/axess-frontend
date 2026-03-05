@@ -53,7 +53,7 @@ export default function GuestPaymentPage() {
 
   useEffect(() => {
     if (!token) return
-    fetch(`${API_BASE}/g/${token}`)
+    fetch(`${API_BASE}/g/token/${token}`)
       .then(r => r.ok ? r.json() : null)
       .then(d => {
         setData(d)

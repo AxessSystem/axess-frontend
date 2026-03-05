@@ -25,7 +25,7 @@ export default function TableBookingPage() {
 
   useEffect(() => {
     if (!slug) return
-    fetch(`${API_BASE}/t/${slug}`)
+    fetch(`${API_BASE}/t/slug/${slug}`)
       .then(r => r.ok ? r.json() : Promise.reject(new Error('לא נמצא')))
       .then(d => setData(d))
       .catch(() => setData(null))
@@ -44,7 +44,7 @@ export default function TableBookingPage() {
     if (!selectedTicket) return
     setSubmitting(true)
     try {
-      const res = await fetch(`${API_BASE}/t/${slug}/book`, {
+      const res = await fetch(`${API_BASE}/t/slug/${slug}/book`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

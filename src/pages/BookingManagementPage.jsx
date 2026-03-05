@@ -26,7 +26,7 @@ export default function BookingManagementPage() {
     if (!newPhone.trim()) { toast.error('הזן נייד'); return }
     setAddingGuest(true)
     try {
-      const res = await fetch(`${API_BASE}/t/${booking.event_slug || 'event'}/book/${id}/add-guest`, {
+      const res = await fetch(`${API_BASE}/t/slug/${booking.event_slug || 'event'}/book/${id}/add-guest`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ phone: newPhone.trim(), name: newName.trim() }),
@@ -43,7 +43,7 @@ export default function BookingManagementPage() {
   const removeGuest = async (guestId) => {
     if (!confirm('להסיר את האורח?')) return
     try {
-      const res = await fetch(`${API_BASE}/t/${booking.event_slug || 'event'}/book/${id}/guests/${guestId}`, { method: 'DELETE' })
+      const res = await fetch(`${API_BASE}/t/slug/${booking.event_slug || 'event'}/book/${id}/guests/${guestId}`, { method: 'DELETE' })
       if (!res.ok) throw new Error('שגיאה')
       toast.success('האורח הוסר')
       setBooking(prev => prev ? { ...prev, guests: (prev.guests || []).filter(g => g.id !== guestId) } : null)

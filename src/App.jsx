@@ -115,9 +115,9 @@ export default function App() {
             <Route path="/privacy" element={<Privacy />} />
             <Route path="/v/:slug" element={<Validator />} />
             <Route path="/e/:slug" element={<EventPage />} />
-            <Route path="/t/:slug" element={<TableBookingPage />} />
+            <Route path="/t/slug/:slug" element={<TableBookingPage />} />
             <Route path="/booking/:id" element={<BookingManagementPage />} />
-            <Route path="/g/:token" element={<GuestPaymentPage />} />
+            <Route path="/g/token/:token" element={<GuestPaymentPage />} />
             <Route path="/scan/:eventSlug" element={<ScanStation />} />
 
             {/* ── Industries ── */}
