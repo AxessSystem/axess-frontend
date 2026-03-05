@@ -152,7 +152,7 @@ export default function TableBookingPage() {
             <div style={{ marginBottom: 20 }}>
               <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
                 <button onClick={() => setPaymentType('full')} style={{ flex: 1, padding: 12, borderRadius: 12, background: paymentType === 'full' ? primary : 'rgba(255,255,255,0.1)', color: paymentType === 'full' ? '#0a0a0a' : '#fff', border: 'none', cursor: 'pointer', fontWeight: 600 }}>תשלום מלא ₪{basePrice}</button>
-                {depositAmount > 0 && <button onClick={() => setPaymentType('deposit')} style={{ flex: 1, padding: 12, borderRadius: 12, background: paymentType === 'deposit' ? primary : 'rgba(255,255,255,0.1)', color: paymentType === 'deposit' ? '#0a0a0a' : '#fff', border: 'none', cursor: 'pointer', fontWeight: 600 }}>פיקדון ₪{depositAmount}</button>
+                {depositAmount > 0 && (<button onClick={() => setPaymentType('deposit')} style={{ flex: 1, padding: 12, borderRadius: 12, background: paymentType === 'deposit' ? primary : 'rgba(255,255,255,0.1)', color: paymentType === 'deposit' ? '#0a0a0a' : '#fff', border: 'none', cursor: 'pointer', fontWeight: 600 }}>פיקדון ₪{depositAmount}</button>)}
               </div>
               <p style={{ fontSize: 13, color: 'var(--v2-gray-400)' }}>{paymentType === 'full' ? 'תשלום מלא מראש' : 'פיקדון — יתרת התשלום במקום'}</p>
             </div>
