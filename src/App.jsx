@@ -31,6 +31,9 @@ const IndustryRetail        = lazy(() => import('@/pages/industries/Retail'))
 const IndustryGyms          = lazy(() => import('@/pages/industries/Gyms'))
 const IndustryOrganizations = lazy(() => import('@/pages/industries/Organizations'))
 const EventPage = lazy(() => import('@/pages/EventPage'))
+const TableBookingPage = lazy(() => import('@/pages/TableBookingPage'))
+const BookingManagementPage = lazy(() => import('@/pages/BookingManagementPage'))
+const GuestPaymentPage = lazy(() => import('@/pages/GuestPaymentPage'))
 
 /* ── Client Dashboard (lazy bundle) ── */
 const ClientLayout   = lazy(() => import('@/pages/dashboard/Layout'))
@@ -112,6 +115,9 @@ export default function App() {
             <Route path="/privacy" element={<Privacy />} />
             <Route path="/v/:slug" element={<Validator />} />
             <Route path="/e/:slug" element={<EventPage />} />
+            <Route path="/t/:slug" element={<TableBookingPage />} />
+            <Route path="/booking/:id" element={<BookingManagementPage />} />
+            <Route path="/g/:token" element={<GuestPaymentPage />} />
             <Route path="/scan/:eventSlug" element={<ScanStation />} />
 
             {/* ── Industries ── */}

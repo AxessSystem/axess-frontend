@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { Calendar, Plus, TrendingUp, ExternalLink, Key, Copy, Edit3, Copy as CopyIcon, Trash2, Users, BarChart2, Armchair, LayoutGrid } from 'lucide-react'
+import { Calendar, Plus, TrendingUp, ExternalLink, Key, Copy, Edit3, Copy as CopyIcon, Trash2, Users, BarChart2, Armchair, LayoutGrid, MapPin } from 'lucide-react'
 import toast from 'react-hot-toast'
 import SeatingBuilder from '../../components/SeatingBuilder'
 import Tooltip from '../../components/ui/Tooltip'
@@ -64,6 +64,103 @@ function MenuBuilderModal({ businessId, onClose }) {
           <button onClick={() => handleSave(false)} disabled={saving || !name.trim()} style={{ flex: 1, padding: 14, borderRadius: 'var(--radius-full)', background: 'var(--v2-primary)', color: 'var(--v2-dark)', fontWeight: 700, border: 'none', cursor: saving ? 'wait' : 'pointer' }}>פרסם</button>
           <button onClick={onClose} style={{ padding: 14, borderRadius: 'var(--radius-full)', border: '1px solid var(--glass-border)', color: 'var(--v2-gray-400)', cursor: 'pointer', background: 'transparent' }}>ביטול</button>
         </div>
+      </div>
+    </div>
+  )
+}
+
+const FLOOR_STATUS_COLORS = { arrived: '#22c55e', confirmed: '#2563EB', pending: '#eab308', no_show: '#ef4444', available: '#64748b', reserved: '#64748b' }
+
+function FloorStatusModal({ event, onClose }) {
+  const [data, setData] = useState({ seats: [], bookings: [] })
+  const [loading, setLoading] = useState(true)
+  const [selectedSeat, setSelectedSeat] = useState(null)
+  const [updating, setUpdating] = useState(false)
+
+  useEffect(() => {
+    fetch(`${API_BASE}/api/admin/events/${event.id}/floor-status`)
+      .then(r => r.ok ? r.json() : { seats: [], bookings: [] })
+      .then(d => { setData(d); setLoading(false) })
+      .catch(() => setLoading(false))
+  }, [event.id])
+
+  const updateStatus = async (bookingId, status) => {
+    setUpdating(true)
+    try {
+      const r = await fetch(`${API_BASE}/api/admin/table-bookings/${bookingId}/status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status }),
+      })
+      if (!r.ok) throw new Error('שגיאה')
+      const d = await fetch(`${API_BASE}/api/admin/events/${event.id}/floor-status`).then(res => res.json())
+      setData(d)
+      setSelectedSeat(null)
+      toast.success('עודכן')
+    } catch (e) { toast.error(e.message) }
+    finally { setUpdating(false) }
+  }
+
+  const counters = { arrived: 0, confirmed: 0, pending: 0, no_show: 0 }
+  data.seats.forEach(s => {
+    const st = (s.booking?.status || s.status || 'available')
+    if (counters[st] !== undefined) counters[st]++
+  })
+
+  const seatsForMap = data.seats.map(s => ({
+    ...s,
+    status: s.booking?.status || s.status || 'available',
+    cx: (s.position_x != null ? Number(s.position_x) : 50),
+    cy: (s.position_y != null ? Number(s.position_y) : 40),
+    r: Math.max(3, (s.capacity || 4) * 0.8),
+  }))
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 55 }} onClick={onClose}>
+      <div style={{ background: 'var(--v2-dark-2)', borderRadius: 'var(--radius-lg)', padding: 24, maxWidth: 700, width: '95%', maxHeight: '90vh', overflowY: 'auto' }} onClick={e => e.stopPropagation()} dir="rtl">
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+          <h2 style={{ fontSize: 20, fontWeight: 700 }}>ניהול ערב — {event.title}</h2>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--v2-gray-400)', cursor: 'pointer', fontSize: 18 }}>×</button>
+        </div>
+        <div style={{ display: 'flex', gap: 16, marginBottom: 20, flexWrap: 'wrap', fontSize: 14 }}>
+          <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><span style={{ width: 10, height: 10, borderRadius: '50%', background: FLOOR_STATUS_COLORS.arrived }} /> הגיעו: {counters.arrived}</span>
+          <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><span style={{ width: 10, height: 10, borderRadius: '50%', background: FLOOR_STATUS_COLORS.confirmed }} /> מאושרים: {counters.confirmed}</span>
+          <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><span style={{ width: 10, height: 10, borderRadius: '50%', background: FLOOR_STATUS_COLORS.pending }} /> ממתינים: {counters.pending}</span>
+          <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><span style={{ width: 10, height: 10, borderRadius: '50%', background: FLOOR_STATUS_COLORS.no_show }} /> no_show: {counters.no_show}</span>
+        </div>
+        {loading ? (
+          <div style={{ color: 'var(--v2-gray-400)' }}>טוען...</div>
+        ) : seatsForMap.length === 0 ? (
+          <div style={{ color: 'var(--v2-gray-400)', padding: 24, textAlign: 'center' }}>אין שולחנות מוגדרים לאירוע זה</div>
+        ) : (
+          <div style={{ position: 'relative', width: '100%', aspectRatio: '1.2', maxHeight: 400, background: 'var(--v2-dark-3)', borderRadius: 12, overflow: 'hidden' }}>
+            <svg viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet" style={{ width: '100%', height: '100%' }}>
+              {seatsForMap.map(s => (
+                <g key={s.seat_key} onClick={() => setSelectedSeat(selectedSeat?.seat_key === s.seat_key ? null : s)} style={{ cursor: 'pointer' }}>
+                  <circle cx={s.cx} cy={s.cy} r={s.r} fill={FLOOR_STATUS_COLORS[s.status] || FLOOR_STATUS_COLORS.available} stroke="#fff" strokeWidth="0.5" />
+                  <text x={s.cx} y={s.cy} textAnchor="middle" dominantBaseline="middle" fill="#fff" fontSize="3" fontWeight="700">{s.label || s.seat_key}</text>
+                </g>
+              ))}
+            </svg>
+            {selectedSeat && selectedSeat.booking && (
+              <div style={{ position: 'absolute', bottom: 12, left: 12, right: 12, padding: 16, background: 'var(--v2-dark-2)', borderRadius: 12, border: '1px solid var(--glass-border)', zIndex: 10 }}>
+                <div style={{ fontWeight: 700, marginBottom: 8 }}>שולחן {selectedSeat.label || selectedSeat.seat_key}</div>
+                <div style={{ fontSize: 14, color: 'var(--v2-gray-400)', marginBottom: 8 }}>Host: {(selectedSeat.booking.buyer_info?.first_name || '') + ' ' + (selectedSeat.booking.buyer_info?.last_name || '') || selectedSeat.booking.phone || '-'}</div>
+                {selectedSeat.booking.guests?.length > 0 && (
+                  <div style={{ fontSize: 13, marginBottom: 12 }}>
+                    {selectedSeat.booking.guests.map(g => (
+                      <div key={g.id}>👤 {g.name || '-'} — {g.payment_status === 'paid' ? '✅ שולם' : g.payment_status === 'waived' ? '🎟️ נכנס' : '⏳ ממתין'}</div>
+                    ))}
+                  </div>
+                )}
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  <button onClick={() => updateStatus(selectedSeat.booking.id, 'arrived')} disabled={updating} style={{ padding: '8px 16px', background: 'var(--v2-primary)', color: 'var(--v2-dark)', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 600 }}>סמן הגיע</button>
+                  <button onClick={() => updateStatus(selectedSeat.booking.id, 'no_show')} disabled={updating} style={{ padding: '8px 16px', background: '#ef4444', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 600 }}>no_show</button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   )
@@ -349,7 +446,23 @@ const defaultForm = () => ({
   linked_layout_ids: [],
   seating: null,
   primary_color: 'var(--v2-primary)',
+  branding: {
+    logo_url: '',
+    primary_color: '#00C37A',
+    secondary_color: '#64748b',
+    bg_color: '#0a0a0a',
+    font_style: 'modern',
+  },
 })
+
+const BRANDING_PRESETS = [
+  '#00C37A', '#2563EB', '#A855F7', '#E85D04', '#EC4899', '#64748b',
+]
+const FONT_STYLES = [
+  { id: 'modern', label: 'מודרני' },
+  { id: 'classic', label: 'קלאסי' },
+  { id: 'minimal', label: 'מינימל' },
+]
 
 export default function Events() {
   const [events, setEvents] = useState([])
@@ -369,6 +482,7 @@ export default function Events() {
   const businessId = 'placeholder' // TODO: from AuthContext/profile
   const [staffModalEvent, setStaffModalEvent] = useState(null)
   const [promotersModalEvent, setPromotersModalEvent] = useState(null)
+  const [floorStatusEvent, setFloorStatusEvent] = useState(null)
   const [staffTokens, setStaffTokens] = useState([])
   const [newTokenLabel, setNewTokenLabel] = useState('')
   const [newTokenResult, setNewTokenResult] = useState(null)
@@ -444,6 +558,7 @@ export default function Events() {
     },
     settings: { show_remaining: form.show_remaining, auto_waitlist: form.allow_waitlist },
     ticket_types: form.ticket_types.filter(t => t.name),
+    branding: form.branding || {},
   })
 
   const handleCreate = async (asDraft = true, seatingConfig) => {
@@ -564,7 +679,7 @@ export default function Events() {
     navigator.clipboard?.writeText(str).then(() => toast.success('הועתק')).catch(() => toast.error('העתקה נכשלה'))
   }
 
-  const wizardSteps = ['פרטים בסיסיים', 'מיקום', 'תיאור', 'תמונות', 'כרטיסים', 'תפריט וסקיצה', 'סיכום']
+  const wizardSteps = ['פרטים בסיסיים', 'מיקום', 'תיאור', 'תמונות', 'כרטיסים', 'תפריט וסקיצה', 'עיצוב', 'סיכום']
 
   return (
     <div dir="rtl" style={{ padding: 'var(--space-3)' }}>
@@ -691,6 +806,9 @@ export default function Events() {
                   </button>
                   <button onClick={() => openStaffModal(ev)} style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'var(--v2-primary)', fontSize: 13, background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
                     <Key size={12} /> עמדות סריקה
+                  </button>
+                  <button onClick={() => setFloorStatusEvent(ev)} style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'var(--v2-primary)', fontSize: 13, background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
+                    <MapPin size={12} /> ניהול ערב
                   </button>
                   <a href={`${FRONTEND_URL}/e/${ev.slug}`} target="_blank" rel="noopener noreferrer" style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'var(--v2-primary)', fontSize: 13, textDecoration: 'none' }}>
                     <ExternalLink size={12} /> פתח דף
@@ -835,8 +953,55 @@ export default function Events() {
               </>
             )}
 
-            {/* Step 7 — סיכום ופרסום */}
+            {/* Step 7 — עיצוב */}
             {step === 7 && (
+              <>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, alignItems: 'start' }}>
+                  <div>
+                    <div style={{ marginBottom: 16 }}>
+                      <label style={{ display: 'block', marginBottom: 6, color: 'var(--v2-gray-400)' }}>לוגו (URL)</label>
+                      <input type="url" value={form.branding?.logo_url || ''} onChange={e => setForm(f => ({ ...f, branding: { ...f.branding, logo_url: e.target.value } }))} placeholder="https://..." style={{ width: '100%', padding: 12, borderRadius: 12, border: '1px solid var(--glass-border)', background: 'var(--v2-dark-3)', color: '#fff' }} />
+                    </div>
+                    <div style={{ marginBottom: 16 }}>
+                      <label style={{ display: 'block', marginBottom: 6, color: 'var(--v2-gray-400)' }}>צבע ראשי</label>
+                      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
+                        {BRANDING_PRESETS.map(c => (
+                          <button key={c} onClick={() => setForm(f => ({ ...f, branding: { ...f.branding, primary_color: c } }))} style={{ width: 36, height: 36, borderRadius: 8, background: c, border: form.branding?.primary_color === c ? '3px solid #fff' : 'none', cursor: 'pointer' }} />
+                        ))}
+                        <input type="color" value={form.branding?.primary_color || '#00C37A'} onChange={e => setForm(f => ({ ...f, branding: { ...f.branding, primary_color: e.target.value } }))} style={{ width: 36, height: 36, padding: 0, border: 'none', cursor: 'pointer', background: 'transparent' }} title="בחר צבע" />
+                      </div>
+                    </div>
+                    <div style={{ marginBottom: 16 }}>
+                      <label style={{ display: 'block', marginBottom: 6, color: 'var(--v2-gray-400)' }}>צבע משני</label>
+                      <input type="color" value={form.branding?.secondary_color || '#64748b'} onChange={e => setForm(f => ({ ...f, branding: { ...f.branding, secondary_color: e.target.value } }))} style={{ width: 48, height: 36, padding: 0, border: 'none', cursor: 'pointer', background: 'transparent' }} />
+                    </div>
+                    <div style={{ marginBottom: 16 }}>
+                      <label style={{ display: 'block', marginBottom: 6, color: 'var(--v2-gray-400)' }}>רקע</label>
+                      <input type="color" value={form.branding?.bg_color || '#0a0a0a'} onChange={e => setForm(f => ({ ...f, branding: { ...f.branding, bg_color: e.target.value } }))} style={{ width: 48, height: 36, padding: 0, border: 'none', cursor: 'pointer', background: 'transparent' }} />
+                    </div>
+                    <div style={{ marginBottom: 24 }}>
+                      <label style={{ display: 'block', marginBottom: 8, color: 'var(--v2-gray-400)' }}>סגנון פונט</label>
+                      <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+                        {FONT_STYLES.map(fs => (
+                          <button key={fs.id} onClick={() => setForm(f => ({ ...f, branding: { ...f.branding, font_style: fs.id } }))} style={{ padding: '12px 20px', borderRadius: 12, background: form.branding?.font_style === fs.id ? 'var(--v2-primary)' : 'var(--v2-dark-3)', color: form.branding?.font_style === fs.id ? 'var(--v2-dark)' : '#fff', border: '1px solid var(--glass-border)', cursor: 'pointer', fontWeight: 600 }}>{fs.label}</button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                  <div style={{ padding: 20, background: form.branding?.bg_color || '#0a0a0a', borderRadius: 16, border: '1px solid var(--glass-border)', minHeight: 200 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+                      {form.branding?.logo_url && <img src={form.branding.logo_url} alt="" style={{ height: 40, width: 'auto', objectFit: 'contain' }} onError={e => { e.target.style.display = 'none' }} />}
+                      <span style={{ fontSize: 18, fontWeight: 700, color: form.branding?.primary_color || '#00C37A' }}>{form.title || 'שם האירוע'}</span>
+                    </div>
+                    <div style={{ fontSize: 14, color: form.branding?.secondary_color || '#64748b', marginBottom: 12 }}>{form.venue_name || 'מיקום'}</div>
+                    <div style={{ padding: 12, background: 'rgba(255,255,255,0.08)', borderRadius: 12, color: form.branding?.primary_color || '#00C37A', fontWeight: 600 }}>תצוגה מקדימה — דף הזמנה</div>
+                  </div>
+                </div>
+              </>
+            )}
+
+            {/* Step 8 — סיכום ופרסום */}
+            {step === 8 && (
               <>
                 <div style={{ marginBottom: 24, padding: 20, background: 'var(--v2-dark-3)', borderRadius: 12, border: '1px solid var(--glass-border)' }}>
                   <h3 style={{ marginBottom: 12 }}>תצוגה מקדימה</h3>
@@ -899,6 +1064,12 @@ export default function Events() {
             {step === 7 && (
               <>
                 <button onClick={() => setStep(6)} style={{ flex: 1, padding: 14, borderRadius: 'var(--radius-full)', background: 'var(--glass-bg)', border: '1px solid var(--glass-border)', color: '#fff', fontWeight: 600, cursor: 'pointer' }}>חזור</button>
+                <button onClick={() => setStep(8)} style={{ flex: 1, padding: 14, borderRadius: 'var(--radius-full)', background: 'var(--v2-primary)', color: 'var(--v2-dark)', fontWeight: 700, border: 'none', cursor: 'pointer' }}>המשך</button>
+              </>
+            )}
+            {step === 8 && (
+              <>
+                <button onClick={() => setStep(7)} style={{ flex: 1, padding: 14, borderRadius: 'var(--radius-full)', background: 'var(--glass-bg)', border: '1px solid var(--glass-border)', color: '#fff', fontWeight: 600, cursor: 'pointer' }}>חזור</button>
                 <button onClick={() => handleCreate(true)} style={{ flex: 1, padding: 14, borderRadius: 'var(--radius-full)', background: 'var(--v2-dark-3)', border: '1px solid var(--glass-border)', color: '#fff', fontWeight: 600, cursor: 'pointer' }}>שמור כטיוטה</button>
                 <button onClick={() => handlePublish()} style={{ flex: 1, padding: 14, borderRadius: 'var(--radius-full)', background: 'var(--v2-primary)', color: 'var(--v2-dark)', fontWeight: 700, border: 'none', cursor: 'pointer' }}>פרסם עכשיו</button>
               </>
@@ -934,6 +1105,11 @@ export default function Events() {
             <button onClick={() => setPublishSuccessEvent(null)} style={{ marginTop: 16, padding: '10px 24px', background: 'transparent', border: '1px solid var(--glass-border)', borderRadius: 12, color: 'var(--v2-gray-400)', cursor: 'pointer' }}>סגור</button>
           </div>
         </div>
+      )}
+
+      {/* Floor Status Modal */}
+      {floorStatusEvent && (
+        <FloorStatusModal event={floorStatusEvent} onClose={() => setFloorStatusEvent(null)} />
       )}
 
       {/* Promoters Modal */}
