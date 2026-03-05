@@ -1,15 +1,57 @@
 import { useState, useEffect } from 'react'
 import toast from 'react-hot-toast'
 import { motion } from 'framer-motion'
-import { Save, Building2, MessageSquare, CreditCard, Bell, Wallet, User, Link2 } from 'lucide-react'
+import { Save, Building, Building2, MessageSquare, CreditCard, Bell, Wallet, User, Link2, Store, Calendar, LayoutGrid, Grid3X3, Megaphone, QrCode, Send, Users, UsersRound, ClipboardList, MessageCircle } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 
 const API_BASE = import.meta.env.VITE_API_URL || 'https://axess-backend.up.railway.app'
 const SMS_LINK_BASE = import.meta.env.VITE_SMS_LINK_BASE || 'https://axss.me'
 
+const FEATURE_ICONS = {
+  events: Calendar,
+  tables: LayoutGrid,
+  theater: Grid3X3,
+  promoters: Megaphone,
+  validators: QrCode,
+  campaigns: Send,
+  staff: Users,
+  group_registration: UsersRound,
+  sub_accounts: Building,
+  attendance_report: ClipboardList,
+  parent_sms: MessageCircle,
+}
+
+const TYPE_DESCRIPTIONS = {
+  club: 'אירועים, שולחנות VIP, יחצ"נים',
+  festival: 'כרטוס, ישיבה, ניהול אמנים',
+  venue: 'כנסים, חתונות, השקות',
+  restaurant: 'קמפיינים, קופונים, לקוחות חוזרים',
+  gym: 'מנויים, שיעורים, תזכורות',
+  hotel: 'אורחים, הטבות, חוויה',
+  retail: 'מבצעים, נאמנות, SMS',
+  municipal: 'אירועים קהילתיים, הרשמות, דיווח',
+  organization: 'ניהול חברים, אירועים, תרומות',
+  general: 'כל הכלים לפי הצורך',
+}
+
+const FEATURE_LABELS = {
+  events: 'אירועים',
+  tables: 'שולחנות VIP',
+  theater: 'ישיבת תיאטרון',
+  promoters: 'יחצ"נים',
+  validators: 'Validators',
+  campaigns: 'קמפיינים',
+  staff: 'צוות',
+  group_registration: 'הרשמת קבוצות',
+  sub_accounts: 'Sub-accounts',
+  attendance_report: 'דוח נוכחות',
+  parent_sms: 'SMS להורים',
+}
+
 const TABS = [
   { id: 'account',       label: 'חשבון',      icon: User },
   { id: 'business',      label: 'פרטי עסק',   icon: Building2 },
+  { id: 'businesstype',  label: 'סוג עסק',    icon: Store },
   { id: 'sms',           label: 'הגדרות SMS', icon: MessageSquare },
   { id: 'links',         label: 'לינקים',     icon: Link2 },
   { id: 'payments',      label: 'תשלומים',    icon: Wallet },
@@ -215,8 +257,172 @@ function AccountChangeModal({ type, onClose, updateUser, toE164 }) {
   )
 }
 
+function BusinessTypeTab({ businessId, config, onConfigChange }) {
+  const [businessTypes, setBusinessTypes] = useState([])
+  const [changeModalOpen, setChangeModalOpen] = useState(false)
+  const [selectedType, setSelectedType] = useState(null)
+  const [selectedSubType, setSelectedSubType] = useState(null)
+  const [savingType, setSavingType] = useState(false)
+  const [featuresOverride, setFeaturesOverride] = useState({})
+  const [savingFeatures, setSavingFeatures] = useState(false)
+
+  useEffect(() => {
+    fetch(`${API_BASE}/api/business-types`).then(r => r.ok ? r.json() : []).then(setBusinessTypes).catch(() => [])
+  }, [])
+
+  useEffect(() => {
+    if (config?.features) setFeaturesOverride(config.features)
+  }, [config?.features])
+
+  const handleChangeType = async () => {
+    if (!businessId || !selectedType) return
+    setSavingType(true)
+    try {
+      const r = await fetch(`${API_BASE}/api/admin/businesses/${businessId}/type`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ business_type: selectedType.type_key, business_sub_type: selectedSubType || null }),
+      })
+      if (!r.ok) throw new Error()
+      const data = await r.json()
+      onConfigChange?.(data)
+      setChangeModalOpen(false)
+      setSelectedType(null)
+      setSelectedSubType(null)
+      toast.success('סוג העסק עודכן')
+    } catch {
+      toast.error('שגיאה בעדכון סוג העסק')
+    } finally {
+      setSavingType(false)
+    }
+  }
+
+  const handleSaveFeatures = async () => {
+    if (!businessId) return
+    setSavingFeatures(true)
+    try {
+      const r = await fetch(`${API_BASE}/api/admin/businesses/${businessId}/features`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ features_config: featuresOverride }),
+      })
+      if (!r.ok) throw new Error()
+      const data = await r.json()
+      onConfigChange?.({ ...config, features: data.features })
+      toast.success('הפיצ\'רים עודכנו')
+    } catch {
+      toast.error('שגיאה בשמירת פיצ\'רים')
+    } finally {
+      setSavingFeatures(false)
+    }
+  }
+
+  const toggleFeature = (key) => {
+    setFeaturesOverride(prev => ({ ...prev, [key]: !prev[key] }))
+  }
+
+  const featureKeys = Object.keys(FEATURE_LABELS)
+
+  return (
+    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} style={{ ...cardStyle, display: 'flex', flexDirection: 'column', gap: 20 }}>
+      <h2 style={sectionH2}>סוג עסק</h2>
+      <p style={{ color: 'var(--v2-gray-400)', fontSize: 14 }}>
+        סוג העסק קובע אילו כלים יופיעו בדשבורד שלך. תמיד ניתן לשנות.
+      </p>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <div style={{ padding: 16, background: 'rgba(255,255,255,0.04)', borderRadius: 'var(--radius-md)', border: '1px solid var(--glass-border)' }}>
+          <div style={{ fontSize: 12, color: 'var(--v2-gray-400)', marginBottom: 4 }}>סוג נוכחי</div>
+          <div style={{ fontSize: 18, fontWeight: 700, color: '#fff' }}>
+            {config?.emoji || '🏬'} {config?.type_label || 'עסק כללי'}
+          </div>
+          {config?.sub_type_label && (
+            <div style={{ fontSize: 13, color: 'var(--v2-gray-400)', marginTop: 4 }}>תת-סוג: {config.sub_type_label}</div>
+          )}
+        </div>
+        <button onClick={() => { setChangeModalOpen(true); setSelectedType(null); setSelectedSubType(null) }} className="btn-primary" style={{ alignSelf: 'flex-start' }}>
+          שנה סוג עסק
+        </button>
+      </div>
+
+      <h2 style={{ ...sectionH2, marginTop: 8 }}>פיצ\'רים פעילים</h2>
+      <p style={{ color: 'var(--v2-gray-400)', fontSize: 14 }}>התאם אישית את הכלים שלך</p>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        {featureKeys.map(key => {
+          const Icon = FEATURE_ICONS[key]
+          const label = FEATURE_LABELS[key]
+          const checked = !!featuresOverride[key]
+          return (
+            <label key={key} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: 12, background: 'rgba(255,255,255,0.02)', borderRadius: 8, cursor: 'pointer', border: '1px solid var(--glass-border)' }}>
+              <input type="checkbox" checked={checked} onChange={() => toggleFeature(key)} />
+              {Icon && <Icon size={18} style={{ color: 'var(--v2-gray-400)' }} />}
+              <span style={{ color: '#fff', fontWeight: 500 }}>{label}</span>
+            </label>
+          )
+        })}
+      </div>
+      <SaveButton saving={savingFeatures} onClick={handleSaveFeatures} label="שמור פיצ\'רים" />
+
+      {changeModalOpen && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', overflowY: 'auto', padding: 24 }} onClick={() => setChangeModalOpen(false)}>
+          <div dir="rtl" style={{ background: 'var(--v2-dark-2)', border: '1px solid var(--glass-border)', borderRadius: 'var(--radius-lg)', padding: 24, maxWidth: 560, width: '100%', maxHeight: '90vh', overflowY: 'auto' }} onClick={e => e.stopPropagation()}>
+            <h3 style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontWeight: 700, fontSize: 20, marginBottom: 8 }}>שנה סוג עסק</h3>
+            <p style={{ color: 'var(--v2-gray-400)', fontSize: 14, marginBottom: 16 }}>
+              שינוי סוג העסק ישנה את הלשוניות הזמינות בדשבורד.
+            </p>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12, marginBottom: 20 }}>
+              {businessTypes.map(t => {
+                const isSelected = selectedType?.type_key === t.type_key
+                const desc = TYPE_DESCRIPTIONS[t.type_key] || ''
+                return (
+                  <button
+                    key={t.type_key}
+                    type="button"
+                    onClick={() => { setSelectedType(t); setSelectedSubType(null) }}
+                    style={{
+                      padding: 16,
+                      borderRadius: 12,
+                      border: isSelected ? '2px solid var(--v2-primary)' : '1px solid var(--glass-border)',
+                      background: isSelected ? 'rgba(0,195,122,0.08)' : 'transparent',
+                      textAlign: 'right',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s',
+                    }}
+                  >
+                    <span style={{ fontSize: 28, display: 'block', marginBottom: 8 }}>{t.emoji || '🏬'}</span>
+                    <div style={{ fontWeight: 600, color: '#fff' }}>{t.label}</div>
+                    <div style={{ fontSize: 12, color: 'var(--v2-gray-400)' }}>{desc}</div>
+                  </button>
+                )
+              })}
+            </div>
+            {selectedType && Array.isArray(selectedType.sub_types) && selectedType.sub_types.length > 0 && (
+              <div style={{ marginBottom: 20 }}>
+                <div style={{ fontWeight: 600, color: '#fff', marginBottom: 8 }}>ספר לנו יותר:</div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                  {selectedType.sub_types.map(s => (
+                    <label key={s.key} style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
+                      <input type="radio" name="sub_type" checked={selectedSubType === s.key} onChange={() => setSelectedSubType(s.key)} />
+                      <span style={{ color: '#fff' }}>{s.label}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+              <button onClick={() => setChangeModalOpen(false)} style={{ padding: '10px 16px', background: 'transparent', border: '1px solid var(--glass-border)', color: 'var(--v2-gray-400)', borderRadius: 8, cursor: 'pointer' }}>ביטול</button>
+              <button onClick={handleChangeType} disabled={savingType || !selectedType} className="btn-primary" style={{ padding: '10px 20px' }}>
+                {savingType ? '...' : 'שמור'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </motion.div>
+  )
+}
+
 export default function Settings() {
-  const { user, updateUser } = useAuth()
+  const { user, updateUser, businessId } = useAuth()
   const [activeTab, setActiveTab] = useState('account')
   const [saving, setSaving] = useState(false)
 
@@ -240,7 +446,16 @@ export default function Settings() {
   const [stripeStatus, setStripeStatus] = useState({ stripe_account_status: 'not_connected', service_fee_percent: 0 })
   const [stripeLoading, setStripeLoading] = useState(false)
   const [serviceFee, setServiceFee] = useState(0)
-  const businessId = 'placeholder'
+  const [businessConfig, setBusinessConfig] = useState(null)
+
+  useEffect(() => {
+    if (activeTab === 'businesstype' && businessId) {
+      fetch(`${API_BASE}/api/admin/business-config?business_id=${businessId}`)
+        .then(r => r.ok ? r.json() : null)
+        .then(setBusinessConfig)
+        .catch(() => setBusinessConfig(null))
+    }
+  }, [activeTab, businessId])
 
   useEffect(() => {
     if (activeTab === 'payments' && businessId) {
@@ -356,6 +571,11 @@ export default function Settings() {
             />
           )}
         </motion.div>
+      )}
+
+      {/* Business Type Tab */}
+      {activeTab === 'businesstype' && (
+        <BusinessTypeTab businessId={businessId} config={businessConfig} onConfigChange={setBusinessConfig} />
       )}
 
       {/* Business Tab */}

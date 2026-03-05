@@ -27,7 +27,7 @@ export function AuthProvider({ children }) {
     try {
       const { data: members, error } = await supabase
         .from('business_members')
-        .select('role, permissions')
+        .select('role, permissions, business_id')
         .eq('user_id', userId)
         .eq('status', 'active')
         .limit(1)
@@ -36,7 +36,7 @@ export function AuthProvider({ children }) {
       const { data: rp } = await supabase.from('role_permissions').select('permissions').eq('role', m.role).single()
       const rolePerms = rp?.permissions || {}
       const merged = { ...rolePerms, ...(m.permissions || {}) }
-      return { role: m.role, permissions: merged }
+      return { role: m.role, permissions: merged, businessId: m.business_id }
     } catch {
       return null
     }
@@ -114,6 +114,7 @@ export function AuthProvider({ children }) {
 
   const role = businessMember?.role ?? null
   const permissions = businessMember?.permissions ?? {}
+  const businessId = businessMember?.businessId ?? null
   const isAdmin = profile?.role === 'admin'
   const isProducer = profile?.role === 'producer'
   const producerId = profile?.producer_id
@@ -125,6 +126,7 @@ export function AuthProvider({ children }) {
       loading,
       role,
       permissions,
+      businessId,
       isAdmin,
       isProducer,
       producerId,

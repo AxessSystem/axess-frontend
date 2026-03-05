@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Link, Outlet, NavLink } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
@@ -6,6 +6,8 @@ import {
   Bell, Menu, X, ChevronDown, Wallet, LogOut, Calendar, Megaphone, UserCheck
 } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
+
+const API_BASE = import.meta.env.VITE_API_URL || 'https://axess-backend.up.railway.app'
 
 const ALL_NAV_ITEMS = [
   { icon: LayoutDashboard, label: 'סקירה כללית', path: '/dashboard', permission: null, roles: null },
@@ -19,29 +21,45 @@ const ALL_NAV_ITEMS = [
   { icon: Settings,        label: 'הגדרות',       path: '/dashboard/settings', permission: null, roles: null },
 ]
 
-function getVisibleNavItems(role, permissions) {
-  if (role === 'door_staff') 
-    return ALL_NAV_ITEMS.filter(i => 
-      i.path === '/dashboard' || i.label === 'Validators')
-  if (role === 'bar_staff') 
-    return ALL_NAV_ITEMS.filter(i => 
-      i.path === '/dashboard' || i.label === 'Validators' || 
-      i.path === '/dashboard/settings')
-  if (role === 'viewer') 
-    return ALL_NAV_ITEMS.filter(i => 
-      i.path === '/dashboard' || i.path === '/dashboard/reports')
-  if (role === 'promoter_manager') 
-    return ALL_NAV_ITEMS.filter(i => 
-      i.path === '/dashboard' || i.path === '/dashboard/promoters')
-  
-  // owner/manager/admin או אין role — הצג הכל
-  if (!permissions || Object.keys(permissions).length === 0) 
-    return ALL_NAV_ITEMS
-  
-  return ALL_NAV_ITEMS.filter(i => {
+function getVisibleNavItems(role, permissions, businessConfig) {
+  if (role === 'door_staff')
+    return ALL_NAV_ITEMS.filter(i => i.path === '/dashboard' || i.label === 'Validators')
+  if (role === 'bar_staff')
+    return ALL_NAV_ITEMS.filter(i => i.path === '/dashboard' || i.label === 'Validators' || i.path === '/dashboard/settings')
+  if (role === 'viewer')
+    return ALL_NAV_ITEMS.filter(i => i.path === '/dashboard' || i.path === '/dashboard/reports')
+  if (role === 'promoter_manager')
+    return ALL_NAV_ITEMS.filter(i => i.path === '/dashboard' || i.path === '/dashboard/promoters')
+
+  const pathToNavKey = {
+    '/dashboard': 'overview',
+    '/dashboard/new-campaign': 'campaigns',
+    '/dashboard/audiences': 'audiences',
+    '/dashboard/events': 'events',
+    '/dashboard/promoters': 'promoters',
+    '/dashboard/staff': 'staff',
+    '/dashboard/validators': 'validators',
+    '/dashboard/reports': 'reports',
+    '/dashboard/settings': 'settings',
+  }
+  const byConfig = (items) => {
+    if (!businessConfig) return items
+    const allowedPaths = businessConfig.nav_items || []
+    return items.filter(item => {
+      if (item.path === '/dashboard') return true
+      if (item.path === '/dashboard/settings') return true
+      const key = pathToNavKey[item.path]
+      return key ? allowedPaths.includes(key) : allowedPaths.some(p => item.path.includes(p))
+    })
+  }
+
+  if (!permissions || Object.keys(permissions).length === 0)
+    return byConfig(ALL_NAV_ITEMS)
+  const permFiltered = ALL_NAV_ITEMS.filter(i => {
     if (!i.permission) return true
     return permissions[i.permission] === true
   })
+  return byConfig(permFiltered)
 }
 
 /* ── QR Logo (same as Header) ── */
@@ -128,11 +146,20 @@ function SidebarLink({ item, collapsed }) {
 export default function DashboardClientLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [collapsed, setCollapsed] = useState(false)
-  const { role, permissions } = useAuth()
-  const NAV_ITEMS = getVisibleNavItems(role, permissions)
-
+  const [businessConfig, setBusinessConfig] = useState(null)
+  const { role, permissions, businessId } = useAuth()
   const businessName = 'קפה רוטשילד'
   const balance = 4_820
+
+  useEffect(() => {
+    if (!businessId) return
+    fetch(`${API_BASE}/api/admin/business-config?business_id=${businessId}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(setBusinessConfig)
+      .catch(() => setBusinessConfig(null))
+  }, [businessId])
+
+  const NAV_ITEMS = getVisibleNavItems(role, permissions, businessConfig)
 
   return (
     <div
@@ -373,7 +400,17 @@ export default function DashboardClientLayout() {
               >
                 {businessName}
               </div>
-              <div style={{ fontSize: 11, color: 'var(--v2-gray-400)' }}>לוח בקרה</div>
+              <div
+                style={{
+                  fontSize: 11,
+                  color: 'var(--v2-gray-400)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 4,
+                }}
+              >
+                {businessConfig?.emoji} {businessConfig?.type_label || 'לוח בקרה'}
+              </div>
             </div>
           </div>
 
