@@ -707,8 +707,8 @@ export default function Events() {
 
       {/* Wizard Modal — 7 steps */}
       {wizardOpen && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50 }} onClick={() => setWizardOpen(false)}>
-          <div style={{ position: 'fixed', inset: 0, zIndex: 100, display: 'flex', flexDirection: 'column', background: 'var(--v2-dark)', overflow: 'hidden' }} onClick={e => e.stopPropagation()}>
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 199 }} onClick={() => setWizardOpen(false)}>
+          <div style={{ position: 'fixed', inset: 0, zIndex: 200, display: 'flex', flexDirection: 'column', background: 'var(--v2-dark)', overflow: 'hidden' }} onClick={e => e.stopPropagation()}>
             <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 20, padding: '0 16px' }}>צור אירוע חדש</h2>
             <div style={{ display: 'flex', gap: 8, marginBottom: 24, flexWrap: 'wrap', fontSize: 12, padding: '0 16px' }}>
               {wizardSteps.map((s, i) => (
@@ -850,7 +850,17 @@ export default function Events() {
             </div>
 
             {/* Buttons area — sticky */}
-            <div style={{ position: 'sticky', bottom: 0, background: 'var(--v2-dark)', borderTop: '1px solid var(--glass-border)', padding: '16px', display: 'flex', gap: '12px', zIndex: 10 }}>
+            <div style={{ 
+              position: 'sticky', 
+              bottom: 0, 
+              background: 'var(--v2-dark)', 
+              borderTop: '1px solid var(--glass-border)', 
+              padding: '16px',
+              paddingBottom: 'calc(16px + env(safe-area-inset-bottom))',
+              display: 'flex', 
+              gap: '12px', 
+              zIndex: 110
+            }}>
             {step === 1 && (
               <button onClick={() => setStep(2)} disabled={!form.title} style={{ flex: 1, padding: 14, borderRadius: 'var(--radius-full)', background: form.title ? 'var(--v2-primary)' : 'var(--v2-gray-600)', color: 'var(--v2-dark)', fontWeight: 700, border: 'none', cursor: form.title ? 'pointer' : 'not-allowed' }}>המשך</button>
             )}
