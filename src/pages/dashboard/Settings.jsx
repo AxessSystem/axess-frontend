@@ -3,9 +3,9 @@ import toast from 'react-hot-toast'
 import { motion } from 'framer-motion'
 import { Save, Building2, MessageSquare, CreditCard, Bell, Wallet, User, Link2 } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
-import toast from 'react-hot-toast'
 
 const API_BASE = import.meta.env.VITE_API_URL || 'https://axess-backend.up.railway.app'
+const SMS_LINK_BASE = import.meta.env.VITE_SMS_LINK_BASE || 'https://axss.me'
 
 const TABS = [
   { id: 'account',       label: 'חשבון',      icon: User },
@@ -16,9 +16,6 @@ const TABS = [
   { id: 'billing',       label: 'חיוב',       icon: CreditCard },
   { id: 'notifications', label: 'התראות',     icon: Bell },
 ]
-
-const API_BASE = import.meta.env.VITE_API_URL || 'https://axess-backend.up.railway.app'
-const SMS_LINK_BASE = import.meta.env.VITE_SMS_LINK_BASE || 'https://axss.me'
 
 const cardStyle = { background: 'var(--v2-dark-3)', border: '1px solid var(--glass-border)', borderRadius: 'var(--radius-lg)', padding: '24px' }
 const sectionH2 = { fontFamily: "'Bricolage Grotesque','Outfit',sans-serif", fontWeight: 700, fontSize: 17, color: '#ffffff', marginBottom: 16 }
