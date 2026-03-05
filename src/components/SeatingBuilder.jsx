@@ -1,4 +1,6 @@
 import { useState, useMemo, useRef, useEffect } from 'react'
+import { Grid3X3, LayoutGrid, Layers } from 'lucide-react'
+import Tooltip from './ui/Tooltip'
 
 const ZONE_COLORS = { stage_front: '#A855F7', vip_area: '#B8860B', floor: '#2563EB', bar: '#E85D04', custom: '#64748b' }
 const RECT_COLORS = ['#6d28d9', '#1e3a8a', '#991b1b', '#14532d']
@@ -48,6 +50,7 @@ export default function SeatingBuilder({ eventId, initialConfig, onSave, onCance
   const [rowOverrides, setRowOverrides] = useState(initialConfig?.row_overrides || {})
   const [isMobile, setIsMobile] = useState(typeof window !== 'undefined' && window.innerWidth < 768)
   const [editPanelOpen, setEditPanelOpen] = useState(false)
+  const [tableShape, setTableShape] = useState('circle')
 
   useEffect(() => {
     const onResize = () => setIsMobile(window.innerWidth < 768)
@@ -226,7 +229,7 @@ export default function SeatingBuilder({ eventId, initialConfig, onSave, onCance
         position_y: t.position_y ?? 25 + Math.floor(i / 5) * 15,
         label: t.label || `שולחן ${i + 1}`,
         color: t.color,
-        metadata: { included: t.included },
+        metadata: { included: t.included, shape: t.shape || 'circle' },
       }))
       return { enabled, template_type: 'club', seats, zones: clubRects, club_rects: clubRects }
     }
@@ -236,7 +239,8 @@ export default function SeatingBuilder({ eventId, initialConfig, onSave, onCance
   const addTable = () => {
     const cx = 50 + randOffset()
     const cy = 40 + randOffset()
-    const newTables = [...clubTables, { seat_key: `table-${clubTables.length + clubRects.length + 1}`, zone: 'floor', capacity: 4, price: 0, position_x: cx, position_y: cy, label: `שולחן ${clubTables.length + 1}` }]
+    const newTable = { seat_key: `table-${clubTables.length + clubRects.length + 1}`, zone: 'floor', capacity: 4, price: 0, position_x: cx, position_y: cy, label: `שולחן ${clubTables.length + 1}`, shape: tableShape }
+    const newTables = [...clubTables, newTable]
     pushHistory({ clubTables: newTables, clubRects })
     setClubTables(newTables)
     setSelectedElement({ type: 'table', id: newTables.length - 1 })
@@ -336,12 +340,12 @@ export default function SeatingBuilder({ eventId, initialConfig, onSave, onCance
       {templateType === null && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginBottom: 24 }}>
           {[
-            { key: 'theater', icon: '🎭', title: 'תיאטרון', desc: 'שורות וכיסאות ממוספרים' },
-            { key: 'club', icon: '🎵', title: 'מועדון/מסיבה', desc: 'שולחנות ואזורים' },
-            { key: 'mixed', icon: '🎪', title: 'מעורב', desc: 'תיאטרון + שולחנות VIP' },
+            { key: 'theater', Icon: Grid3X3, title: 'תיאטרון', desc: 'שורות וכיסאות ממוספרים' },
+            { key: 'club', Icon: LayoutGrid, title: 'מועדון/מסיבה', desc: 'שולחנות ואזורים' },
+            { key: 'mixed', Icon: Layers, title: 'מעורב', desc: 'תיאטרון + שולחנות VIP' },
           ].map(t => (
             <button key={t.key} onClick={() => setTemplateType(t.key)} style={{ padding: 24, background: 'var(--v2-dark-3)', border: '2px solid var(--glass-border)', borderRadius: 16, color: '#fff', textAlign: 'center', cursor: 'pointer' }}>
-              <div style={{ fontSize: 40, marginBottom: 8 }}>{t.icon}</div>
+              <div style={{ marginBottom: 8 }}><t.Icon size={32} /></div>
               <div style={{ fontWeight: 700, marginBottom: 4 }}>{t.title}</div>
               <div style={{ fontSize: 13, color: 'var(--v2-gray-400)' }}>{t.desc}</div>
             </button>
@@ -456,10 +460,23 @@ export default function SeatingBuilder({ eventId, initialConfig, onSave, onCance
                   }, [])}
                 </svg>
               </div>
-              <div style={{ display: 'flex', gap: 12, marginTop: 8, fontSize: 12, color: 'var(--v2-gray-400)' }}>
-                <span>● זמין</span>
-                <span>● VIP</span>
-                <span>● חסום</span>
+              <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', marginTop: 12, fontSize: 12, color: 'var(--v2-gray-400)' }}>
+                <span>
+                  <span style={{ display: 'inline-block', width: 12, height: 12, borderRadius: '50%', background: '#00C37A', marginLeft: 4 }} />
+                  פנוי
+                </span>
+                <span>
+                  <span style={{ display: 'inline-block', width: 12, height: 12, borderRadius: '50%', background: '#A855F7', marginLeft: 4 }} />
+                  VIP
+                </span>
+                <span>
+                  <span style={{ display: 'inline-block', width: 12, height: 12, borderRadius: '50%', background: '#444', marginLeft: 4 }} />
+                  חסום
+                </span>
+                <span>
+                  <span style={{ display: 'inline-block', width: 12, height: 12, borderRadius: '50%', background: '#2563EB', marginLeft: 4 }} />
+                  נמכר
+                </span>
               </div>
             </div>
           )}
@@ -467,7 +484,15 @@ export default function SeatingBuilder({ eventId, initialConfig, onSave, onCance
           {templateType === 'club' && (
             <div style={{ marginBottom: 24 }}>
               {!isMobile && (
-                <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap', alignItems: 'center' }}>
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                    <span style={{ fontSize: 14, color: 'var(--v2-gray-400)' }}>צורת שולחן:</span>
+                    {['circle', 'square', 'rectangle'].map(sh => (
+                      <button key={sh} onClick={() => setTableShape(sh)} style={{ padding: '8px 16px', borderRadius: 8, border: tableShape === sh ? '2px solid var(--v2-primary)' : '1px solid var(--glass-border)', background: tableShape === sh ? 'rgba(0,195,122,0.1)' : 'var(--v2-dark-3)', color: '#fff', cursor: 'pointer', fontSize: 14 }}>
+                        {sh === 'circle' ? '⭕ עיגול' : sh === 'square' ? '⬜ ריבוע' : '▬ מלבן'}
+                      </button>
+                    ))}
+                  </div>
                   <button onClick={addTable} style={{ padding: '10px 16px', background: 'var(--v2-primary)', color: 'var(--v2-dark)', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 600 }}>+ שולחן</button>
                   <button onClick={() => addRect('stage')} style={{ padding: '10px 16px', background: 'var(--v2-dark-3)', border: '1px solid var(--glass-border)', borderRadius: 8, color: '#fff', cursor: 'pointer' }}>+ במה</button>
                   <button onClick={() => addRect('dj')} style={{ padding: '10px 16px', background: 'var(--v2-dark-3)', border: '1px solid var(--glass-border)', borderRadius: 8, color: '#fff', cursor: 'pointer' }}>+ DJ Booth</button>
@@ -504,23 +529,34 @@ export default function SeatingBuilder({ eventId, initialConfig, onSave, onCance
                       <text x={(r.position_x ?? 10) + (r.width ?? 80) / 2} y={(r.position_y ?? 2) + (r.height ?? 12) / 2 + 1} textAnchor="middle" fontSize="2.5" fill="#fff">{r.text || 'STAGE'}</text>
                     </g>
                   ))}
-                  {clubTables.map((t, i) => (
-                    <circle
-                      key={i}
-                      cx={t.position_x ?? 50}
-                      cy={t.position_y ?? 40}
-                      r="4"
-                      fill={t.color || ZONE_COLORS[t.zone] || '#2563EB'}
-                      stroke={selectedElement?.type === 'table' && selectedElement?.id === i ? '#00C37A' : '#444'}
-                      strokeWidth="1"
-                      style={{ cursor: 'move' }}
-                      onMouseDown={e => { handleDragStart(e, 'table', i); setSelectedElement({ type: 'table', id: i }) }}
-                      onTouchStart={e => { handleDragStart(e, 'table', i); setSelectedElement({ type: 'table', id: i }) }}
-                      onClick={() => { setSelectedElement({ type: 'table', id: i }); setEditPanelOpen(true) }}
-                    >
-                      <title>{t.label} — עד {t.capacity}</title>
-                    </circle>
-                  ))}
+                  {clubTables.map((t, i) => {
+                    const shape = t.shape || 'circle'
+                    const cx = t.position_x ?? 50
+                    const cy = t.position_y ?? 40
+                    const r = 4
+                    const fill = t.color || ZONE_COLORS[t.zone] || '#2563EB'
+                    const stroke = selectedElement?.type === 'table' && selectedElement?.id === i ? '#00C37A' : '#444'
+                    const dragProps = {
+                      style: { cursor: 'move' },
+                      onMouseDown: e => { handleDragStart(e, 'table', i); setSelectedElement({ type: 'table', id: i }) },
+                      onTouchStart: e => { handleDragStart(e, 'table', i); setSelectedElement({ type: 'table', id: i }) },
+                      onClick: () => { setSelectedElement({ type: 'table', id: i }); setEditPanelOpen(true) },
+                    }
+                    if (shape === 'circle') {
+                      return (
+                        <circle key={i} cx={cx} cy={cy} r={r} fill={fill} stroke={stroke} strokeWidth="1" {...dragProps}>
+                          <title>{t.label} — עד {t.capacity ?? 4}</title>
+                        </circle>
+                      )
+                    }
+                    const w = shape === 'square' ? r * 2 : r * 2 * 1.8
+                    const h = r * 2
+                    return (
+                      <rect key={i} x={cx - w / 2} y={cy - h / 2} width={w} height={h} rx="1" fill={fill} stroke={stroke} strokeWidth="1" {...dragProps}>
+                        <title>{t.label} — עד {t.capacity ?? 4}</title>
+                      </rect>
+                    )
+                  })}
                 </svg>
               </div>
 
@@ -545,10 +581,15 @@ export default function SeatingBuilder({ eventId, initialConfig, onSave, onCance
                     return (
                       <>
                         <h4 style={{ marginBottom: 12 }}>עריכת שולחן</h4>
-                        <input value={t.label} onChange={e => setClubTables(prev => prev.map((x, j) => j === selectedElement.id ? { ...x, label: e.target.value } : x))} placeholder="שם/מספר" style={{ width: '100%', marginBottom: 8, padding: 10, borderRadius: 8, border: '1px solid var(--glass-border)', background: 'var(--v2-dark-3)', color: '#fff' }} />
-                        <label style={{ display: 'block', marginBottom: 4, fontSize: 14 }}>קיבולת (1-30)</label>
-                        <input type="range" min={1} max={30} value={t.capacity ?? 4} onChange={e => setClubTables(prev => prev.map((x, j) => j === selectedElement.id ? { ...x, capacity: parseInt(e.target.value) || 4 } : x))} style={{ width: '100%', marginBottom: 8 }} />
-                        <span style={{ marginBottom: 12, display: 'block' }}>{t.capacity ?? 4}</span>
+                        <div style={{ marginBottom: 8 }}>
+                          <label style={{ display: 'block', marginBottom: 4, fontSize: 14, color: 'var(--v2-gray-400)' }}>מספר שולחן <Tooltip text="המספר שיוצג על השולחן במפה" /></label>
+                          <input value={t.label} onChange={e => setClubTables(prev => prev.map((x, j) => j === selectedElement.id ? { ...x, label: e.target.value } : x))} placeholder="מספר שולחן (למשל: 12)" style={{ width: '100%', padding: 10, borderRadius: 8, border: '1px solid var(--glass-border)', background: 'var(--v2-dark-3)', color: '#fff' }} />
+                        </div>
+                        <div style={{ marginBottom: 8 }}>
+                          <label style={{ display: 'block', marginBottom: 4, fontSize: 14, color: 'var(--v2-gray-400)' }}>כמות אנשים מקסימלית <Tooltip text="כמה אנשים יכולים לשבת בשולחן זה" /></label>
+                          <input type="range" min={1} max={30} value={t.capacity ?? 4} onChange={e => setClubTables(prev => prev.map((x, j) => j === selectedElement.id ? { ...x, capacity: parseInt(e.target.value) || 4 } : x))} style={{ width: '100%', marginBottom: 4 }} />
+                          <span style={{ display: 'block', fontSize: 13, color: 'var(--v2-gray-400)' }}>עד {t.capacity ?? 4} אנשים</span>
+                        </div>
                         <input type="number" min={0} value={t.price ?? 0} onChange={e => setClubTables(prev => prev.map((x, j) => j === selectedElement.id ? { ...x, price: parseFloat(e.target.value) || 0 } : x))} placeholder="מחיר ₪" style={{ width: '100%', marginBottom: 8, padding: 10, borderRadius: 8, border: '1px solid var(--glass-border)', background: 'var(--v2-dark-3)', color: '#fff' }} />
                         <select value={t.zone || 'floor'} onChange={e => setClubTables(prev => prev.map((x, j) => j === selectedElement.id ? { ...x, zone: e.target.value } : x))} style={{ width: '100%', marginBottom: 8, padding: 10, borderRadius: 8, border: '1px solid var(--glass-border)', background: 'var(--v2-dark-3)', color: '#fff' }}>
                           {ZONE_OPTIONS.map(z => <option key={z} value={z}>{ZONE_LABELS[z]}</option>)}
