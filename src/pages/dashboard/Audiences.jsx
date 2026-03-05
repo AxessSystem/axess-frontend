@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Search, Download, Users, Phone, Tag, X, ShoppingBag, Activity, Clock } from 'lucide-react'
+import { Search, Download, Users, Phone, Tag, X, ShoppingBag, Activity, Clock, Upload } from 'lucide-react'
 import EngagementScore from '@/components/ui/EngagementScore'
 import EmptyState from '@/components/ui/EmptyState'
+import ImportModal from '@/components/ui/ImportModal'
+import ExportButton from '@/components/ui/ExportButton'
 import { api } from '@/services/api'
 
 const MOCK_RECIPIENTS = [
@@ -160,6 +162,7 @@ export default function Audiences() {
   const [activeTag, setActiveTag] = useState('הכל')
   const [sortBy, setSortBy] = useState('score')
   const [selectedCustomerId, setSelectedCustomerId] = useState(null)
+  const [importOpen, setImportOpen] = useState(false)
 
   const filtered = MOCK_RECIPIENTS
     .filter(r => {
@@ -174,18 +177,6 @@ export default function Audiences() {
       return 0
     })
 
-  const handleExport = () => {
-    const csv = [
-      'שם,טלפון,תגיות,ציון,קמפיינים',
-      ...filtered.map(r => `${r.name},${r.phone},"${r.tags.join(', ')}",${r.score},${r.campaigns}`)
-    ].join('\n')
-    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url; a.download = 'קהל_axess.csv'; a.click()
-    URL.revokeObjectURL(url)
-  }
-
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }} dir="rtl">
 
@@ -197,9 +188,15 @@ export default function Audiences() {
           </h1>
           <p style={{ color: 'var(--v2-gray-400)', fontSize: 14, marginTop: 4 }}>{MOCK_RECIPIENTS.length} אנשי קשר</p>
         </div>
-        <button onClick={handleExport} className="btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <Download size={16} /> ייצוא CSV
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <button
+            onClick={() => setImportOpen(true)}
+            style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 16px', background: 'var(--v2-primary)', color: 'var(--v2-dark)', border: 'none', borderRadius: 'var(--radius-full)', fontWeight: 600, cursor: 'pointer' }}
+          >
+            <Upload size={16} /> ייבוא קהל
+          </button>
+          <ExportButton businessId={businessId} segment="all" label="ייצוא" />
+        </div>
       </div>
 
       {/* Stats row */}
@@ -304,6 +301,13 @@ export default function Audiences() {
         open={!!selectedCustomerId}
         onClose={() => setSelectedCustomerId(null)}
         masterRecipientId={selectedCustomerId}
+      />
+
+      <ImportModal
+        isOpen={importOpen}
+        onClose={() => setImportOpen(false)}
+        businessId={businessId}
+        onImportDone={() => setImportOpen(false)}
       />
     </div>
   )

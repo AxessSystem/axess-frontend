@@ -1,13 +1,17 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { MessageCircle, Monitor, CheckCircle, ArrowLeft, Clock } from 'lucide-react'
+import { MessageCircle, Monitor, CheckCircle, ArrowLeft, Clock, Upload } from 'lucide-react'
+import ImportModal from '@/components/ui/ImportModal'
 
 const AXESS_PHONE = import.meta.env.VITE_AXESS_PHONE || '972500000000'
 const WA_LINK = `https://wa.me/${AXESS_PHONE}?text=${encodeURIComponent('שלום AXESS אני רוצה להצטרף')}`
 
 export default function Onboarding() {
   const [step, setStep] = useState(1)
+  const [importOpen, setImportOpen] = useState(false)
+  const [showImportBlock, setShowImportBlock] = useState(true)
+  const businessId = null // from auth/params when user returns from WhatsApp
 
   return (
     <div className="min-h-screen bg-gray-100 flex flex-col items-center justify-center p-4" dir="rtl">
@@ -163,6 +167,27 @@ export default function Onboarding() {
                 ))}
               </div>
 
+              {/* Optional: Upload customers */}
+              {showImportBlock && (
+                <div className="mb-6 p-4 rounded-xl border-2 border-gray-100 bg-gray-50">
+                  <div className="font-semibold text-dark mb-2">העלה את הלקוחות שלך (אופציונלי)</div>
+                  <p className="text-gray-500 text-sm mb-3">ייבוא רשימת אנשי קשר מ-CSV או Excel — תוכל לשלוח קמפיין מהר יותר</p>
+                  <button
+                    onClick={() => setImportOpen(true)}
+                    className="flex items-center gap-2 w-full justify-center py-3 rounded-xl border-2 border-primary/30 bg-primary/5 text-primary font-semibold hover:bg-primary/10 transition-colors"
+                  >
+                    <Upload size={20} />
+                    העלה לקוחות
+                  </button>
+                  <button
+                    onClick={() => setShowImportBlock(false)}
+                    className="w-full mt-2 text-gray-400 hover:text-gray-600 text-sm py-2"
+                  >
+                    דלג — אוסיף מאוחר יותר
+                  </button>
+                </div>
+              )}
+
               {/* CTA */}
               <motion.a
                 href={WA_LINK}
@@ -173,19 +198,27 @@ export default function Onboarding() {
                 className="flex items-center justify-center gap-3 w-full bg-primary text-white font-bold text-lg py-4 rounded-xl hover:bg-primary-dark transition-all duration-200 shadow-glow-primary"
               >
                 <MessageCircle size={22} />
-                בואו נתחיל ←
+                בואו נתחיל
+                <ArrowLeft size={20} />
               </motion.a>
 
               <button
                 onClick={() => setStep(1)}
                 className="w-full mt-3 text-gray-400 hover:text-gray-600 text-sm py-2 transition-colors"
               >
-                ← חזור
+                חזור
               </button>
             </div>
           </motion.div>
         )}
       </AnimatePresence>
+
+      <ImportModal
+        isOpen={importOpen}
+        onClose={() => setImportOpen(false)}
+        businessId={businessId}
+        onImportDone={() => { setImportOpen(false); setShowImportBlock(false) }}
+      />
     </div>
   )
 }
