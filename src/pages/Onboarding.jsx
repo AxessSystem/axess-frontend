@@ -1,17 +1,35 @@
-import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { useState, useEffect } from 'react'
+import { Link, useSearchParams } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { MessageCircle, Monitor, CheckCircle, ArrowLeft, Clock, Upload } from 'lucide-react'
 import ImportModal from '@/components/ui/ImportModal'
 
 const AXESS_PHONE = import.meta.env.VITE_AXESS_PHONE || '972500000000'
 const WA_LINK = `https://wa.me/${AXESS_PHONE}?text=${encodeURIComponent('שלום AXESS אני רוצה להצטרף')}`
+const API_BASE = import.meta.env.VITE_API_URL || 'https://axess-backend.up.railway.app'
+
+const DEFAULT_TEMPLATES = [
+  { name: 'הזמנה לאירוע', template_key: 'event_invite', campaign_type: 'event_invite', message_template: 'היי {{first_name}} 👋 מזמינים אותך ל{{event_name}} בתאריך {{event_date}}. לרכישת כרטיס: {{link}}', is_default: true },
+  { name: 'תזכורת לאירוע', template_key: 'event_reminder', campaign_type: 'event_reminder', message_template: 'מחר! {{event_name}} 🎉 הכרטיס שלך מחכה: {{link}}', is_default: true },
+  { name: 'Follow-up אחרי אירוע', template_key: 'event_followup', campaign_type: 'event_followup', message_template: 'תודה שהגעת ל{{event_name}} 🙏 הנה הטבה לאירוע הבא שלנו: {{link}}', is_default: true },
+  { name: 'קמפיין כללי', template_key: 'general', campaign_type: 'general', message_template: 'היי {{first_name}}, {{message}} {{link}}', is_default: true },
+]
 
 export default function Onboarding() {
+  const [searchParams] = useSearchParams()
   const [step, setStep] = useState(1)
   const [importOpen, setImportOpen] = useState(false)
   const [showImportBlock, setShowImportBlock] = useState(true)
-  const businessId = null // from auth/params when user returns from WhatsApp
+  const businessId = searchParams.get('business_id') || null
+
+  useEffect(() => {
+    if (!businessId) return
+    fetch(`${API_BASE}/api/admin/campaigns/templates/bulk`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ business_id: businessId, templates: DEFAULT_TEMPLATES }),
+    }).then(r => { if (r.ok) return; throw new Error() }).catch(() => {})
+  }, [businessId])
 
   return (
     <div className="min-h-screen bg-gray-100 flex flex-col items-center justify-center p-4" dir="rtl">

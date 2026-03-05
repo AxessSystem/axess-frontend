@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
@@ -8,6 +8,8 @@ import {
 } from 'lucide-react'
 import StepIndicator from '@/components/ui/StepIndicator'
 
+const API_BASE = import.meta.env.VITE_API_URL || 'https://axess-backend.up.railway.app'
+const FRONTEND_URL = import.meta.env.VITE_FRONTEND_URL || window.location.origin
 const STEPS = ['העלאה', 'נמענים', 'הודעה', 'תזמון', 'Text Lead', 'Validator', 'שליחה']
 const MAX_CHARS = 201
 
@@ -33,9 +35,14 @@ const MOCK_RECIPIENTS = [
 ]
 
 /* ── Step 1: Upload ── */
-function StepUpload({ onNext, data, setData }) {
+function StepUpload({ onNext, data, setData, businessId }) {
   const [dragging, setDragging] = useState(false)
+  const [events, setEvents] = useState([])
   const fileRef = useRef(null)
+
+  useEffect(() => {
+    if (businessId) fetch(`${API_BASE}/api/admin/events?business_id=${businessId}`).then(r => r.ok ? r.json() : []).then(setEvents).catch(() => [])
+  }, [businessId])
 
   const handleFile = (file) => {
     if (!file) return
@@ -88,6 +95,22 @@ function StepUpload({ onNext, data, setData }) {
             <div style={{ ...S.muted, fontSize: 14 }}>או לחץ לבחירת קובץ</div>
             <div style={{ ...S.muted, fontSize: 12 }}>CSV, XLS, XLSX</div>
           </div>
+        )}
+      </div>
+
+      {/* Link to event */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 16 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <span style={{ fontSize: 14, fontWeight: 600, color: '#ffffff' }}>קשר לאירוע קיים</span>
+          <div onClick={() => setData(d => ({ ...d, linkToEvent: !d.linkToEvent, selectedEventId: d.linkToEvent ? null : d.selectedEventId }))} style={{ width: 48, height: 24, borderRadius: 9999, background: data.linkToEvent ? 'var(--v2-primary)' : 'rgba(255,255,255,0.08)', border: data.linkToEvent ? 'none' : '1px solid var(--glass-border)', display: 'flex', alignItems: 'center', padding: '0 4px', cursor: 'pointer' }}>
+            <div style={{ width: 16, height: 16, borderRadius: '50%', background: '#fff', boxShadow: '0 1px 3px rgba(0,0,0,0.3)', transform: data.linkToEvent ? 'translateX(24px)' : 'translateX(0)', transition: 'transform 0.2s' }} />
+          </div>
+        </div>
+        {data.linkToEvent && (
+          <select value={data.selectedEventId || ''} onChange={e => setData(d => ({ ...d, selectedEventId: e.target.value || null }))} className="input" style={{ width: '100%' }}>
+            <option value="">בחר אירוע</option>
+            {events.filter(e => e.status === 'published' || e.status === 'active').map(ev => <option key={ev.id} value={ev.id}>{ev.title} — {ev.slug}</option>)}
+          </select>
         )}
       </div>
 
@@ -517,7 +540,7 @@ function StepValidator({ onNext, onPrev, data, setData }) {
 }
 
 /* ── Step 7: Summary ── */
-function StepSummary({ onPrev, data, onSubmit }) {
+function StepSummary({ onPrev, data, onSubmit, selectedEvent }) {
   const [sending, setSending] = useState(false)
   const [done, setDone] = useState(false)
 
@@ -548,6 +571,13 @@ function StepSummary({ onPrev, data, onSubmit }) {
         <h2 style={S.h2}>סיכום וסיום</h2>
         <p style={{ ...S.muted, fontSize: 14 }}>בדוק את פרטי הקמפיין לפני השליחה</p>
       </div>
+
+      {data.linkToEvent && selectedEvent && (
+        <div style={{ background: 'rgba(0,195,122,0.08)', border: '1px solid rgba(0,195,122,0.2)', borderRadius: 'var(--radius-md)', padding: 14, marginBottom: 18 }}>
+          <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>קמפיין מקושר לאירוע</div>
+          <div style={{ fontSize: 13, color: 'var(--v2-gray-400)' }}>קמפיין זה יישלח ל-{data.recipientCount || 0} נמענים ויכלול לינק לאירוע: {FRONTEND_URL}/e/{selectedEvent.slug}</div>
+        </div>
+      )}
 
       <div style={{ display: 'flex', flexDirection: 'column' }}>
         {[
@@ -596,6 +626,10 @@ export default function NewCampaign() {
   const navigate = useNavigate()
   const [step, setStep] = useState(1)
   const [data, setData] = useState({ scheduleType: 'now', validatorEnabled: false })
+  const businessId = 'placeholder'
+  const [events, setEvents] = useState([])
+  useEffect(() => { if (businessId) fetch(`${API_BASE}/api/admin/events?business_id=${businessId}`).then(r => r.ok ? r.json() : []).then(setEvents).catch(() => []) }, [businessId])
+  const selectedEvent = data.selectedEventId ? events.find(e => e.id === data.selectedEventId) : null
 
   const next = () => setStep(s => Math.min(s + 1, 7))
   const prev = () => setStep(s => Math.max(s - 1, 1))
@@ -614,13 +648,13 @@ export default function NewCampaign() {
       <div style={{ background: 'var(--v2-dark-3)', border: '1px solid var(--glass-border)', borderRadius: 'var(--radius-lg)', padding: '24px' }}>
         <AnimatePresence mode="wait">
           <motion.div key={step} initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} transition={{ duration: 0.25 }}>
-            {step === 1 && <StepUpload onNext={next} data={data} setData={setData} />}
+            {step === 1 && <StepUpload onNext={next} data={data} setData={setData} businessId={businessId} />}
             {step === 2 && <StepRecipients onNext={next} onPrev={prev} data={data} setData={setData} />}
             {step === 3 && <StepMessage onNext={next} onPrev={prev} data={data} setData={setData} />}
             {step === 4 && <StepSchedule onNext={next} onPrev={prev} data={data} setData={setData} />}
             {step === 5 && <StepTextLead onNext={next} onPrev={prev} data={data} setData={setData} />}
             {step === 6 && <StepValidator onNext={next} onPrev={prev} data={data} setData={setData} />}
-            {step === 7 && <StepSummary onPrev={prev} data={data} onSubmit={() => navigate('/dashboard')} />}
+            {step === 7 && <StepSummary onPrev={prev} data={data} onSubmit={() => navigate('/dashboard')} selectedEvent={selectedEvent} />}
           </motion.div>
         </AnimatePresence>
       </div>

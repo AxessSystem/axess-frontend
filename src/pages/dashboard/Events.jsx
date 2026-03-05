@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { Calendar, Plus, TrendingUp, ExternalLink, Key, Copy, Edit3, Copy as CopyIcon, Trash2, Users, BarChart2, Armchair, LayoutGrid, MapPin, Check, X } from 'lucide-react'
+import { Calendar, Plus, TrendingUp, ExternalLink, Key, Copy, Edit3, Copy as CopyIcon, Trash2, Users, BarChart2, Armchair, LayoutGrid, MapPin, Check, X, Send, Link2 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import SeatingBuilder from '../../components/SeatingBuilder'
 import Tooltip from '../../components/ui/Tooltip'
@@ -166,7 +166,7 @@ function FloorStatusModal({ event, onClose }) {
   )
 }
 
-function PromotersModal({ event, businessId, onClose }) {
+function PromotersModal({ event, businessId, onClose, embedded }) {
   const [promoters, setPromoters] = useState([])
   const [eventPromoters, setEventPromoters] = useState([])
   const [loading, setLoading] = useState(true)
@@ -287,13 +287,14 @@ function PromotersModal({ event, businessId, onClose }) {
     } catch (e) { toast.error(e.message || 'שגיאה') }
   }
 
-  return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 55 }} onClick={onClose}>
-      <div style={{ background: 'var(--v2-dark-2)', borderRadius: 'var(--radius-lg)', padding: 32, maxWidth: 560, width: '90%', maxHeight: '90vh', overflowY: 'auto' }} onClick={e => e.stopPropagation()} dir="rtl">
+  const content = (
+    <div style={{ background: embedded ? 'transparent' : 'var(--v2-dark-2)', borderRadius: 'var(--radius-lg)', padding: embedded ? 0 : 32, maxWidth: embedded ? '100%' : 560, width: embedded ? '100%' : '90%', maxHeight: embedded ? 'none' : '90vh', overflowY: 'auto' }} dir="rtl">
+        {!embedded && (
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
           <h2 style={{ fontSize: 20, fontWeight: 700 }}>יחצ"נים — {event.title}</h2>
           <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--v2-gray-400)', cursor: 'pointer', fontSize: 18 }}>×</button>
         </div>
+        )}
         {loading ? <div style={{ color: 'var(--v2-gray-400)' }}>טוען...</div> : (
           <>
             {eventPromoters.map(ep => (
@@ -392,6 +393,232 @@ function PromotersModal({ event, businessId, onClose }) {
           </div>
         )}
       </div>
+  )
+
+  if (embedded) return content
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 55 }} onClick={onClose}>
+      <div onClick={e => e.stopPropagation()}>{content}</div>
+    </div>
+  )
+}
+
+const STAFF_ROLES = [
+  { id: 'door_staff', label: '🚪 צוות כניסות' },
+  { id: 'table_manager', label: '🪑 מנהל שולחנות' },
+  { id: 'bar_staff', label: '🍹 צוות בר' },
+  { id: 'promoter_manager', label: '📢 מנהל יחצ"נים' },
+]
+
+function EventDetailDrawer({ event, businessId, onClose, onEdit, onRefresh, initialTab = 'overview' }) {
+  const [drawerTab, setDrawerTab] = useState(initialTab)
+  useEffect(() => { setDrawerTab(initialTab) }, [initialTab])
+  const [analytics, setAnalytics] = useState(null)
+  const [campaigns, setCampaigns] = useState([])
+  const [eventStaff, setEventStaff] = useState([])
+  const [eventPromoters, setEventPromoters] = useState([])
+  const [addStaffOpen, setAddStaffOpen] = useState(false)
+  const [staffList, setStaffList] = useState([])
+  const [selStaffId, setSelStaffId] = useState('')
+  const [selRoleId, setSelRoleId] = useState('')
+  const [createCampaignTemplate, setCreateCampaignTemplate] = useState(null)
+  const isMobile = typeof window !== 'undefined' && window.innerWidth < 768
+
+  useEffect(() => {
+    if (!event?.id) return
+    Promise.all([
+      fetch(`${API_BASE}/api/admin/events/${event.id}/analytics`).then(r => r.ok ? r.json() : null),
+      fetch(`${API_BASE}/api/admin/events/${event.id}/campaigns`).then(r => r.ok ? r.json() : []),
+      fetch(`${API_BASE}/api/admin/events/${event.id}/staff`).then(r => r.ok ? r.json() : []),
+      fetch(`${API_BASE}/api/admin/events/${event.id}/promoters`).then(r => r.ok ? r.json() : []),
+    ]).then(([a, c, s, p]) => { setAnalytics(a); setCampaigns(Array.isArray(c) ? c : []); setEventStaff(Array.isArray(s) ? s : []); setEventPromoters(Array.isArray(p) ? p : []); }).catch(() => {})
+  }, [event?.id])
+
+  useEffect(() => {
+    if (addStaffOpen && businessId) {
+      fetch(`${API_BASE}/api/staff?business_id=${businessId}`).then(r => r.ok ? r.json() : []).then(setStaffList).catch(() => setStaffList([]))
+    }
+  }, [addStaffOpen, businessId])
+
+  const addStaff = async () => {
+    if (!selStaffId) return
+    try {
+      const r = await fetch(`${API_BASE}/api/admin/events/${event.id}/staff`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ business_member_id: selStaffId, role_override: STAFF_ROLES.find(r => r.id === selRoleId)?.label || selRoleId }),
+      })
+      if (!r.ok) throw new Error((await r.json()).error || 'שגיאה')
+      toast.success('חבר צוות נוסף')
+      setAddStaffOpen(false)
+      setSelStaffId('')
+      setSelRoleId('')
+      fetch(`${API_BASE}/api/admin/events/${event.id}/staff`).then(r => r.ok ? r.json() : []).then(setEventStaff)
+    } catch (e) { toast.error(e.message) }
+  }
+
+  const removeStaff = async (memberId) => {
+    try {
+      const r = await fetch(`${API_BASE}/api/admin/events/${event.id}/staff/${memberId}`, { method: 'DELETE' })
+      if (!r.ok) throw new Error('שגיאה')
+      toast.success('הוסר מאירוע')
+      fetch(`${API_BASE}/api/admin/events/${event.id}/staff`).then(r => r.ok ? r.json() : []).then(setEventStaff)
+    } catch (e) { toast.error(e.message) }
+  }
+
+  const statusLabel = s => ({ draft: 'טיוטה', published: 'פעיל', active: 'פעיל', cancelled: 'בוטל', archived: 'הסתיים' }[s] || s)
+  const statusColor = s => ({ draft: 'var(--v2-gray-400)', published: 'var(--v2-primary)', active: 'var(--v2-primary)', cancelled: '#ef4444', archived: '#3b82f6' }[s] || 'var(--v2-gray-400)')
+  const eventLink = `${FRONTEND_URL}/e/${event?.slug}`
+  const eventDate = event?.doors_open || event?.date || event?.event_end
+
+  const drawerTabs = [
+    { id: 'overview', label: 'סקירה' },
+    { id: 'campaigns', label: 'קמפיינים' },
+    { id: 'promoters', label: 'יחצ"נים' },
+    { id: 'staff', label: 'צוות' },
+    { id: 'stats', label: 'סטטיסטיקות' },
+  ]
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, zIndex: 200, display: 'flex', justifyContent: 'flex-end' }}>
+      <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 201 }} onClick={onClose} />
+      <div dir="rtl" style={{
+        position: 'relative', zIndex: 202, width: isMobile ? '100%' : 600, maxWidth: '100%',
+        background: 'var(--v2-dark-2)', boxShadow: '-4px 0 24px rgba(0,0,0,0.4)', overflowY: 'auto', display: 'flex', flexDirection: 'column',
+      }}>
+        {/* Header */}
+        <div style={{ padding: 20, borderBottom: '1px solid var(--glass-border)', flexShrink: 0 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
+            <div>
+              <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 4 }}>{event?.title}</h2>
+              {eventDate && <div style={{ color: 'var(--v2-gray-400)', fontSize: 14 }}>{new Date(eventDate).toLocaleDateString('he-IL', { dateStyle: 'medium', timeStyle: 'short' })}</div>}
+            </div>
+            <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--v2-gray-400)', cursor: 'pointer', padding: 4, fontSize: 20 }}>×</button>
+          </div>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+            <span style={{ fontSize: 12, padding: '4px 10px', borderRadius: 'var(--radius-full)', background: statusColor(event?.status || 'draft'), color: (event?.status === 'published' || event?.status === 'active') ? 'var(--v2-dark)' : '#fff' }}>
+              {statusLabel(event?.status || 'draft')}
+            </span>
+            <button onClick={() => { onClose(); onEdit(event) }} style={{ padding: '8px 16px', background: 'var(--v2-primary)', color: 'var(--v2-dark)', border: 'none', borderRadius: 8, fontWeight: 600, cursor: 'pointer' }}>ערוך אירוע</button>
+          </div>
+        </div>
+
+        {/* Tabs */}
+        <div style={{ display: 'flex', gap: 4, padding: '12px 20px', borderBottom: '1px solid var(--glass-border)', overflowX: 'auto' }}>
+          {drawerTabs.map(t => (
+            <button key={t.id} onClick={() => setDrawerTab(t.id)} style={{ padding: '8px 14px', borderRadius: 8, background: drawerTab === t.id ? 'var(--v2-primary)' : 'transparent', color: drawerTab === t.id ? 'var(--v2-dark)' : 'var(--v2-gray-400)', border: 'none', fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}>{t.label}</button>
+          ))}
+        </div>
+
+        <div style={{ flex: 1, overflowY: 'auto', padding: 20 }}>
+          {drawerTab === 'overview' && (
+            <>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12, marginBottom: 24 }}>
+                <div style={{ padding: 16, background: 'var(--v2-dark-3)', borderRadius: 12 }}>
+                  <div style={{ fontSize: 12, color: 'var(--v2-gray-400)', marginBottom: 4 }}>כרטיסים שנמכרו</div>
+                  <div style={{ fontSize: 24, fontWeight: 800 }}>{analytics?.total_sold ?? 0}</div>
+                </div>
+                <div style={{ padding: 16, background: 'var(--v2-dark-3)', borderRadius: 12 }}>
+                  <div style={{ fontSize: 12, color: 'var(--v2-gray-400)', marginBottom: 4 }}>הכנסה</div>
+                  <div style={{ fontSize: 24, fontWeight: 800 }}>₪{analytics?.revenue ?? 0}</div>
+                </div>
+                <div style={{ padding: 16, background: 'var(--v2-dark-3)', borderRadius: 12 }}>
+                  <div style={{ fontSize: 12, color: 'var(--v2-gray-400)', marginBottom: 4 }}>יחצ"נים</div>
+                  <div style={{ fontSize: 24, fontWeight: 800 }}>{eventPromoters?.length ?? 0}</div>
+                </div>
+                <div style={{ padding: 16, background: 'var(--v2-dark-3)', borderRadius: 12 }}>
+                  <div style={{ fontSize: 12, color: 'var(--v2-gray-400)', marginBottom: 4 }}>צוות</div>
+                  <div style={{ fontSize: 24, fontWeight: 800 }}>{eventStaff?.length ?? 0}</div>
+                </div>
+              </div>
+              <div style={{ marginBottom: 16 }}>
+                <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 8 }}>לינק ציבורי</div>
+                <div style={{ padding: 12, background: 'var(--v2-dark-3)', borderRadius: 8, marginBottom: 8, wordBreak: 'break-all' }}>{eventLink}</div>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button onClick={() => navigator.clipboard?.writeText(eventLink).then(() => toast.success('הועתק'))} style={{ padding: '8px 14px', background: 'var(--v2-primary)', color: 'var(--v2-dark)', border: 'none', borderRadius: 8, fontWeight: 600, cursor: 'pointer' }}>העתק</button>
+                  <a href={`https://wa.me/?text=${encodeURIComponent(eventLink)}`} target="_blank" rel="noopener noreferrer" style={{ padding: '8px 14px', background: '#25D366', color: '#fff', borderRadius: 8, fontWeight: 600, textDecoration: 'none' }}>WhatsApp</a>
+                  <a href={eventLink} target="_blank" rel="noopener noreferrer" style={{ padding: '8px 14px', background: 'var(--v2-dark-3)', border: '1px solid var(--glass-border)', color: '#fff', borderRadius: 8, fontWeight: 600, textDecoration: 'none' }}>פתח</a>
+                </div>
+              </div>
+            </>
+          )}
+
+          {drawerTab === 'campaigns' && (
+            <>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginBottom: 24 }}>
+                {[
+                  { key: 'event_invite', icon: '📨', title: 'הזמנה לאירוע', desc: 'שלח שבוע לפני האירוע', preview: 'היי {{שם}}, מזמינים אותך ל...' },
+                  { key: 'event_reminder', icon: '⏰', title: 'תזכורת', desc: 'שלח יום לפני האירוע', preview: 'מחר! {{שם_אירוע}} — הכרטיס שלך:' },
+                  { key: 'event_followup', icon: '🎉', title: 'Follow-up', desc: 'שלח יום אחרי האירוע', preview: 'תודה שהגעת! הנה הטבה לאירוע הבא:' },
+                ].map(tpl => (
+                  <div key={tpl.key} style={{ padding: 16, background: 'var(--v2-dark-3)', borderRadius: 12, border: '1px solid var(--glass-border)' }}>
+                    <div style={{ fontSize: 18, marginBottom: 4 }}>{tpl.icon} {tpl.title}</div>
+                    <div style={{ fontSize: 12, color: 'var(--v2-gray-400)', marginBottom: 8 }}>{tpl.desc}</div>
+                    <div style={{ fontSize: 13, color: 'var(--v2-gray-400)', marginBottom: 12, fontStyle: 'italic' }}>{tpl.preview}</div>
+                    <button onClick={() => setCreateCampaignTemplate(tpl.key)} style={{ padding: '8px 16px', background: 'var(--v2-primary)', color: 'var(--v2-dark)', border: 'none', borderRadius: 8, fontWeight: 600, cursor: 'pointer' }}>צור קמפיין</button>
+                  </div>
+                ))}
+              </div>
+              <div style={{ marginBottom: 16 }}>
+                <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>קמפיינים קיימים</div>
+                {campaigns.map(c => (
+                  <div key={c.id} style={{ padding: 12, background: 'var(--v2-dark-3)', borderRadius: 8, marginBottom: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span>{c.name || 'קמפיין'} — {c.status} (נשלח: {c.sent_count ?? 0})</span>
+                  </div>
+                ))}
+                <Link to="/dashboard/campaigns" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 8, color: 'var(--v2-primary)', textDecoration: 'none', fontSize: 14 }}>צור קמפיין מותאם אישית →</Link>
+              </div>
+            </>
+          )}
+
+          {drawerTab === 'promoters' && (
+            <PromotersModal event={event} businessId={businessId} onClose={() => {}} embedded />
+          )}
+
+          {drawerTab === 'staff' && (
+            <>
+              {eventStaff.map(s => (
+                <div key={s.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: 12, background: 'var(--v2-dark-3)', borderRadius: 12, marginBottom: 8 }}>
+                  <div>
+                    <span style={{ fontWeight: 600 }}>חבר צוות #{s.business_member_id?.slice(0, 8)}</span>
+                    <span style={{ color: 'var(--v2-gray-400)', marginRight: 8 }}> — {s.role_override || s.role}</span>
+                  </div>
+                  <button onClick={() => removeStaff(s.business_member_id)} style={{ padding: '6px 12px', background: 'transparent', border: '1px solid #ef4444', color: '#ef4444', borderRadius: 8, cursor: 'pointer', fontSize: 13 }}>הסר מאירוע</button>
+                </div>
+              ))}
+              {!addStaffOpen ? (
+                <button onClick={() => setAddStaffOpen(true)} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '12px 20px', background: 'var(--v2-primary)', color: 'var(--v2-dark)', border: 'none', borderRadius: 'var(--radius-full)', fontWeight: 600, cursor: 'pointer', marginTop: 12 }}>+ הוסף מהצוות</button>
+              ) : (
+                <div style={{ marginTop: 16, padding: 20, background: 'var(--v2-dark-3)', borderRadius: 12, border: '1px solid var(--glass-border)' }}>
+                  <h4 style={{ marginBottom: 12 }}>הוסף צוות לאירוע</h4>
+                  <select value={selStaffId} onChange={e => setSelStaffId(e.target.value)} style={{ width: '100%', padding: 12, marginBottom: 12, borderRadius: 8, background: 'var(--v2-dark-2)', border: '1px solid var(--glass-border)', color: '#fff' }}>
+                    <option value="">בחר חבר צוות</option>
+                    {staffList.filter(m => !eventStaff.some(es => es.business_member_id === m.id)).map(m => <option key={m.id} value={m.id}>חבר #{m.id?.slice(0, 8)}</option>)}
+                  </select>
+                  <select value={selRoleId} onChange={e => setSelRoleId(e.target.value)} style={{ width: '100%', padding: 12, marginBottom: 12, borderRadius: 8, background: 'var(--v2-dark-2)', border: '1px solid var(--glass-border)', color: '#fff' }}>
+                    <option value="">תפקיד באירוע</option>
+                    {STAFF_ROLES.map(r => <option key={r.id} value={r.id}>{r.label}</option>)}
+                  </select>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button onClick={addStaff} disabled={!selStaffId} style={{ padding: '10px 20px', background: 'var(--v2-primary)', color: 'var(--v2-dark)', border: 'none', borderRadius: 8, fontWeight: 600, cursor: selStaffId ? 'pointer' : 'not-allowed' }}>שלח SMS עם פרטי האירוע</button>
+                    <button onClick={() => setAddStaffOpen(false)} style={{ padding: '10px 20px', background: 'transparent', border: '1px solid var(--glass-border)', color: 'var(--v2-gray-400)', borderRadius: 8, cursor: 'pointer' }}>ביטול</button>
+                  </div>
+                  <Tooltip text="חברי צוות שתוסיף כאן יקבלו SMS עם לינק הסריקה ופרטי האירוע שלהם" />
+                </div>
+              )}
+            </>
+          )}
+
+          {drawerTab === 'stats' && (
+            <div>
+              <div style={{ marginBottom: 16 }}>מכירות לפי יום — (גרף יתווסף)</div>
+              <div style={{ marginBottom: 16 }}>מכירות לפי יחצ"ן — (גרף יתווסף)</div>
+              <div style={{ marginBottom: 16 }}>כניסות לפי שעה — (גרף יתווסף)</div>
+              <div style={{ fontSize: 14, color: 'var(--v2-gray-400)' }}>top 3 יחצ"נים • top 3 סוגי כרטיסים</div>
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   )
 }
@@ -482,6 +709,8 @@ export default function Events() {
   const businessId = 'placeholder' // TODO: from AuthContext/profile
   const [staffModalEvent, setStaffModalEvent] = useState(null)
   const [promotersModalEvent, setPromotersModalEvent] = useState(null)
+  const [detailEvent, setDetailEvent] = useState(null)
+  const [detailEventTab, setDetailEventTab] = useState('overview')
   const [floorStatusEvent, setFloorStatusEvent] = useState(null)
   const [staffTokens, setStaffTokens] = useState([])
   const [newTokenLabel, setNewTokenLabel] = useState('')
@@ -828,12 +1057,14 @@ export default function Events() {
           {filteredEvents.map(ev => (
             <div
               key={ev.id}
+              onClick={() => { setDetailEvent(ev); setDetailEventTab('overview') }}
               style={{
                 background: 'var(--v2-dark-3)',
                 border: '1px solid var(--glass-border)',
                 borderRadius: 'var(--radius-lg)',
                 overflow: 'hidden',
                 transition: 'border-color 0.2s, box-shadow 0.2s',
+                cursor: 'pointer',
               }}
               onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--v2-primary)'; e.currentTarget.style.boxShadow = 'var(--shadow-glow-green)' }}
               onMouseLeave={e => { e.currentTarget.style.borderColor = ''; e.currentTarget.style.boxShadow = '' }}
@@ -858,7 +1089,7 @@ export default function Events() {
                   </div>
                 )}
                 {ev.venue_name && <div style={{ color: 'var(--v2-gray-400)', fontSize: 14, marginBottom: 12 }}>{ev.venue_name}</div>}
-                <div style={{ display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap' }} onClick={e => e.stopPropagation()}>
                   <button onClick={() => { setEditEventId(ev.id); openWizard() }} style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '6px 12px', background: 'var(--v2-dark-2)', border: '1px solid var(--glass-border)', borderRadius: 8, color: '#fff', cursor: 'pointer', fontSize: 13 }}>
                     <Edit3 size={14} /> ערוך
                   </button>
@@ -870,7 +1101,7 @@ export default function Events() {
                   </button>
                 </div>
                 <div style={{ display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
-                  <button onClick={() => setPromotersModalEvent(ev)} style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'var(--v2-primary)', fontSize: 13, background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
+                  <button onClick={e => { e.stopPropagation(); setDetailEvent(ev); setDetailEventTab('promoters') }} style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'var(--v2-primary)', fontSize: 13, background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
                     <Users size={12} /> יחצ"נים
                   </button>
                   <button onClick={() => openStaffModal(ev)} style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'var(--v2-primary)', fontSize: 13, background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
@@ -1219,6 +1450,18 @@ export default function Events() {
       {/* Floor Status Modal */}
       {floorStatusEvent && (
         <FloorStatusModal event={floorStatusEvent} onClose={() => setFloorStatusEvent(null)} />
+      )}
+
+      {/* Event Detail Drawer */}
+      {detailEvent && (
+        <EventDetailDrawer
+          event={detailEvent}
+          businessId={businessId}
+          initialTab={detailEventTab}
+          onClose={() => { setDetailEvent(null); setDetailEventTab('overview') }}
+          onEdit={(ev) => { setDetailEvent(null); setDetailEventTab('overview'); setEditEventId(ev?.id); openWizard() }}
+          onRefresh={() => fetch(`${API_BASE}/api/admin/events?business_id=${businessId}`).then(r => r.ok ? r.json() : []).then(setEvents)}
+        />
       )}
 
       {/* Promoters Modal */}

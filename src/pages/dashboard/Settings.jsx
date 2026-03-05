@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
+import toast from 'react-hot-toast'
 import { motion } from 'framer-motion'
-import { Save, Building2, MessageSquare, CreditCard, Bell, Wallet, User } from 'lucide-react'
+import { Save, Building2, MessageSquare, CreditCard, Bell, Wallet, User, Link2 } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import toast from 'react-hot-toast'
 
@@ -10,13 +11,146 @@ const TABS = [
   { id: 'account',       label: 'חשבון',      icon: User },
   { id: 'business',      label: 'פרטי עסק',   icon: Building2 },
   { id: 'sms',           label: 'הגדרות SMS', icon: MessageSquare },
+  { id: 'links',         label: 'לינקים',     icon: Link2 },
   { id: 'payments',      label: 'תשלומים',    icon: Wallet },
   { id: 'billing',       label: 'חיוב',       icon: CreditCard },
   { id: 'notifications', label: 'התראות',     icon: Bell },
 ]
 
+const API_BASE = import.meta.env.VITE_API_URL || 'https://axess-backend.up.railway.app'
+const SMS_LINK_BASE = import.meta.env.VITE_SMS_LINK_BASE || 'https://axss.me'
+
 const cardStyle = { background: 'var(--v2-dark-3)', border: '1px solid var(--glass-border)', borderRadius: 'var(--radius-lg)', padding: '24px' }
 const sectionH2 = { fontFamily: "'Bricolage Grotesque','Outfit',sans-serif", fontWeight: 700, fontSize: 17, color: '#ffffff', marginBottom: 16 }
+
+function LinksTab({ businessId }) {
+  const [links, setLinks] = useState([])
+  const [modalOpen, setModalOpen] = useState(false)
+  const [label, setLabel] = useState('')
+  const [destType, setDestType] = useState('external_url')
+  const [destId, setDestId] = useState('')
+  const [externalUrl, setExternalUrl] = useState('')
+  const [events, setEvents] = useState([])
+  const [creating, setCreating] = useState(false)
+  const [createdLink, setCreatedLink] = useState(null)
+
+  useEffect(() => {
+    if (businessId) {
+      fetch(`${API_BASE}/api/admin/business-links?business_id=${businessId}`).then(r => r.ok ? r.json() : []).then(setLinks).catch(() => [])
+    }
+  }, [businessId])
+
+  useEffect(() => {
+    if (modalOpen && businessId) {
+      fetch(`${API_BASE}/api/admin/events?business_id=${businessId}`).then(r => r.ok ? r.json() : []).then(e => setEvents(Array.isArray(e) ? e : [])).catch(() => [])
+    }
+  }, [modalOpen, businessId])
+
+  const handleCreate = async () => {
+    if (!label.trim() || !businessId) return
+    setCreating(true)
+    try {
+      const body = { business_id: businessId, label: label.trim(), destination_type: destType }
+      if (destType === 'event_page' && destId) body.destination_id = destId
+      if (destType === 'external_url') body.metadata = { url: externalUrl }
+      const r = await fetch(`${API_BASE}/api/admin/business-links`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+      const data = await r.json()
+      if (!r.ok) throw new Error(data.error || 'שגיאה')
+      setCreatedLink(data)
+      setLinks(prev => [{ ...data, label: label.trim(), destination_type: destType, clicks: 0 }, ...prev])
+      setLabel('')
+      setDestId('')
+      setExternalUrl('')
+    } catch (e) {
+      toast.error(e.message)
+    } finally {
+      setCreating(false)
+    }
+  }
+
+  const shortUrl = createdLink ? `${SMS_LINK_BASE}/s/${createdLink.slug}` : ''
+
+  return (
+    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} style={{ ...cardStyle, display: 'flex', flexDirection: 'column', gap: 18 }}>
+      <h2 style={sectionH2}>Smart Links</h2>
+      <p style={{ color: 'var(--v2-gray-400)', fontSize: 14 }}>לינקים קצרים לשיתוף ברשתות חברתיות, WhatsApp או בפרופיל</p>
+      <div style={{ overflowX: 'auto' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
+          <thead>
+            <tr style={{ borderBottom: '1px solid var(--glass-border)' }}>
+              <th style={{ textAlign: 'right', padding: 12 }}>שם</th>
+              <th style={{ textAlign: 'right', padding: 12 }}>slug</th>
+              <th style={{ textAlign: 'right', padding: 12 }}>יעד</th>
+              <th style={{ textAlign: 'right', padding: 12 }}>קליקים</th>
+              <th style={{ textAlign: 'right', padding: 12 }}>תאריך</th>
+            </tr>
+          </thead>
+          <tbody>
+            {links.map(l => (
+              <tr key={l.id} style={{ borderBottom: '1px solid var(--glass-border)' }}>
+                <td style={{ padding: 12 }}>{l.label || '—'}</td>
+                <td style={{ padding: 12 }}>{l.slug}</td>
+                <td style={{ padding: 12 }}>{l.destination_type}</td>
+                <td style={{ padding: 12 }}>{l.clicks ?? 0}</td>
+                <td style={{ padding: 12 }}>{l.created_at ? new Date(l.created_at).toLocaleDateString('he-IL') : '—'}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <button onClick={() => { setModalOpen(true); setCreatedLink(null) }} className="btn-primary" style={{ alignSelf: 'flex-start' }}>+ צור לינק חדש</button>
+
+      {modalOpen && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={() => setModalOpen(false)}>
+          <div dir="rtl" style={{ background: 'var(--v2-dark-2)', borderRadius: 'var(--radius-lg)', padding: 24, maxWidth: 420, width: '90%' }} onClick={e => e.stopPropagation()}>
+            <h3 style={{ marginBottom: 16 }}>צור לינק חדש</h3>
+            {!createdLink ? (
+              <>
+                <div style={{ marginBottom: 12 }}>
+                  <label className="label">שם הלינק (לשימוש פנימי)</label>
+                  <input className="input" value={label} onChange={e => setLabel(e.target.value)} placeholder="למשל: פרופיל אינסטגרם" />
+                </div>
+                <div style={{ marginBottom: 12 }}>
+                  <label className="label">סוג</label>
+                  <select className="input" value={destType} onChange={e => setDestType(e.target.value)}>
+                    <option value="event_page">אירוע</option>
+                    <option value="external_url">URL חיצוני</option>
+                  </select>
+                </div>
+                {destType === 'event_page' && (
+                  <div style={{ marginBottom: 12 }}>
+                    <select className="input" value={destId} onChange={e => setDestId(e.target.value)}>
+                      <option value="">בחר אירוע</option>
+                      {events.map(ev => <option key={ev.id} value={ev.id}>{ev.title}</option>)}
+                    </select>
+                  </div>
+                )}
+                {destType === 'external_url' && (
+                  <div style={{ marginBottom: 12 }}>
+                    <input className="input" value={externalUrl} onChange={e => setExternalUrl(e.target.value)} placeholder="https://..." dir="ltr" />
+                  </div>
+                )}
+                <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
+                  <button onClick={handleCreate} disabled={creating || !label.trim()} className="btn-primary">צור לינק</button>
+                  <button onClick={() => setModalOpen(false)} style={{ padding: '10px 16px', background: 'transparent', border: '1px solid var(--glass-border)', color: 'var(--v2-gray-400)', borderRadius: 8, cursor: 'pointer' }}>ביטול</button>
+                </div>
+              </>
+            ) : (
+              <>
+                <div style={{ padding: 12, background: 'var(--v2-dark-3)', borderRadius: 8, marginBottom: 12, wordBreak: 'break-all' }}>{shortUrl}</div>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button onClick={() => navigator.clipboard?.writeText(shortUrl).then(() => toast.success('הועתק'))} className="btn-primary">העתק</button>
+                  <a href={`https://wa.me/?text=${encodeURIComponent(shortUrl)}`} target="_blank" rel="noopener noreferrer" style={{ padding: '10px 16px', background: '#25D366', color: '#fff', borderRadius: 8, fontWeight: 600, textDecoration: 'none' }}>WhatsApp</a>
+                </div>
+                <button onClick={() => { setCreatedLink(null); setModalOpen(false) }} style={{ marginTop: 12, padding: '8px 16px', background: 'transparent', border: '1px solid var(--glass-border)', color: 'var(--v2-gray-400)', borderRadius: 8, cursor: 'pointer' }}>סגור</button>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+    </motion.div>
+  )
+}
 
 function formatPhone(p) {
   if (!p) return '—'
@@ -250,6 +384,11 @@ export default function Settings() {
           </div>
           <SaveButton saving={saving} onClick={handleSave} label="שמור שינויים" />
         </motion.div>
+      )}
+
+      {/* Links Tab */}
+      {activeTab === 'links' && (
+        <LinksTab businessId={businessId} />
       )}
 
       {/* Payments Tab */}
