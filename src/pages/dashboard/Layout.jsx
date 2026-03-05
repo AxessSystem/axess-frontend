@@ -20,14 +20,27 @@ const ALL_NAV_ITEMS = [
 ]
 
 function getVisibleNavItems(role, permissions) {
-  if (!role && !permissions) return ALL_NAV_ITEMS
-  if (role === 'door_staff') return ALL_NAV_ITEMS.filter(i => i.path === '/dashboard' || i.label === 'Validators')
-  if (role === 'bar_staff') return ALL_NAV_ITEMS.filter(i => i.path === '/dashboard' || i.label === 'Validators' || i.path === '/dashboard/settings')
-  if (role === 'viewer') return ALL_NAV_ITEMS.filter(i => i.path === '/dashboard' || i.path === '/dashboard/reports')
-  if (role === 'promoter_manager') return ALL_NAV_ITEMS.filter(i => i.path === '/dashboard' || i.path === '/dashboard/promoters')
+  if (role === 'door_staff') 
+    return ALL_NAV_ITEMS.filter(i => 
+      i.path === '/dashboard' || i.label === 'Validators')
+  if (role === 'bar_staff') 
+    return ALL_NAV_ITEMS.filter(i => 
+      i.path === '/dashboard' || i.label === 'Validators' || 
+      i.path === '/dashboard/settings')
+  if (role === 'viewer') 
+    return ALL_NAV_ITEMS.filter(i => 
+      i.path === '/dashboard' || i.path === '/dashboard/reports')
+  if (role === 'promoter_manager') 
+    return ALL_NAV_ITEMS.filter(i => 
+      i.path === '/dashboard' || i.path === '/dashboard/promoters')
+  
+  // owner/manager/admin או אין role — הצג הכל
+  if (!permissions || Object.keys(permissions).length === 0) 
+    return ALL_NAV_ITEMS
+  
   return ALL_NAV_ITEMS.filter(i => {
     if (!i.permission) return true
-    return permissions?.[i.permission]
+    return permissions[i.permission] === true
   })
 }
 
