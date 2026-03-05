@@ -325,15 +325,16 @@ export default function DashboardClientLayout() {
             backdropFilter: 'blur(20px)',
             WebkitBackdropFilter: 'blur(20px)',
             padding: '0 24px',
-            height: 64,
+            minHeight: 64,
             display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
+            flexDirection: 'column',
+            justifyContent: 'center',
             position: 'sticky',
             top: 0,
             zIndex: 30,
           }}
         >
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: 64 }}>
           {/* Mobile menu button */}
           <button
             className="lg:hidden"
@@ -455,6 +456,15 @@ export default function DashboardClientLayout() {
                 {businessName.charAt(0)}
               </span>
             </div>
+          </div>
+          </div>
+          <div className="lg:hidden" style={{
+            textAlign: 'center',
+            fontSize: 12,
+            color: 'var(--v2-gray-400)',
+            paddingBottom: 4
+          }}>
+            {businessName || 'לוח בקרה'}
           </div>
         </header>
 

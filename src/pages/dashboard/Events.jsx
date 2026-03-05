@@ -717,7 +717,7 @@ export default function Events() {
             </div>
 
             {/* Content area — scrollable */}
-            <div style={{ flex: 1, overflowY: 'auto', padding: '24px 16px', paddingBottom: '100px' }}>
+            <div style={{ flex: 1, overflowY: 'auto', padding: '24px 16px', paddingBottom: '20px' }}>
             {/* Step 1 — פרטים בסיסיים */}
             {step === 1 && (
               <>
