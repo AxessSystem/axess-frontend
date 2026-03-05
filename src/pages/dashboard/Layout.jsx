@@ -2,8 +2,8 @@ import { useState } from 'react'
 import { Link, Outlet, NavLink } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
-  LayoutDashboard, Send, Users, BarChart3, QrCode, Settings,
-  Bell, Menu, X, ChevronDown, Wallet, LogOut, Calendar, Megaphone, UserCog
+  LayoutDashboard, Send, Users, BarChart2, QrCode, Settings,
+  Bell, Menu, X, ChevronDown, Wallet, LogOut, Calendar, Megaphone, UserCheck
 } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 
@@ -13,9 +13,9 @@ const ALL_NAV_ITEMS = [
   { icon: Users,           label: 'קהלים',        path: '/dashboard/audiences', permission: null, roles: null },
   { icon: Calendar,        label: 'אירועים',      path: '/dashboard/events', permission: 'can_edit_events', roles: null },
   { icon: Megaphone,       label: 'יחצ"נים',      path: '/dashboard/promoters', permission: 'can_manage_promoters', roles: null },
+  { icon: UserCheck,       label: 'צוות',         path: '/dashboard/staff', permission: 'can_manage_staff', roles: null },
   { icon: QrCode,          label: 'Validators',   path: '/dashboard/validators', permission: null, roles: null },
-  { icon: BarChart3,       label: 'דוחות',        path: '/dashboard/reports', permission: 'can_view_reports', roles: null },
-  { icon: UserCog,         label: 'צוות',         path: '/dashboard/staff', permission: 'can_manage_staff', roles: null },
+  { icon: BarChart2,       label: 'דוחות',        path: '/dashboard/reports', permission: 'can_view_reports', roles: null },
   { icon: Settings,        label: 'הגדרות',       path: '/dashboard/settings', permission: null, roles: null },
 ]
 

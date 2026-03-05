@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { Calendar, Plus, TrendingUp, ExternalLink, Key, Copy, Edit3, Copy as CopyIcon, Trash2, Users, BarChart2 } from 'lucide-react'
+import { Calendar, Plus, TrendingUp, ExternalLink, Key, Copy, Edit3, Copy as CopyIcon, Trash2, Users, BarChart2, Armchair, LayoutGrid } from 'lucide-react'
 import toast from 'react-hot-toast'
 import SeatingBuilder from '../../components/SeatingBuilder'
 import Tooltip from '../../components/ui/Tooltip'
@@ -572,13 +572,13 @@ export default function Events() {
         <h1 style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 24, fontWeight: 800 }}>אירועים</h1>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           <button onClick={() => openWizard('regular')} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '12px 20px', borderRadius: 'var(--radius-full)', background: 'var(--v2-primary)', color: 'var(--v2-dark)', fontWeight: 700, border: 'none', cursor: 'pointer' }}>
-            <Plus size={18} /> ＋ צור אירוע
+            <Calendar size={18} /> צור אירוע
           </button>
           <button onClick={() => openWizard('theater')} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '12px 20px', borderRadius: 'var(--radius-full)', background: 'var(--v2-dark-3)', border: '1px solid var(--glass-border)', color: '#fff', fontWeight: 600, cursor: 'pointer' }}>
-            🪑 צור ישיבת תיאטרון
+            <Armchair size={18} /> צור ישיבת תיאטרון
           </button>
           <button onClick={() => openWizard('tables')} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '12px 20px', borderRadius: 'var(--radius-full)', background: 'var(--v2-dark-3)', border: '1px solid var(--glass-border)', color: '#fff', fontWeight: 600, cursor: 'pointer' }}>
-            🍾 צור כרטיס שולחנות
+            <LayoutGrid size={18} /> צור כרטיס שולחנות
           </button>
         </div>
       </div>
@@ -708,14 +708,16 @@ export default function Events() {
       {/* Wizard Modal — 7 steps */}
       {wizardOpen && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50 }} onClick={() => setWizardOpen(false)}>
-          <div style={{ background: 'var(--v2-dark-2)', borderRadius: 'var(--radius-lg)', padding: 32, maxWidth: 520, width: '90%', maxHeight: '90vh', overflowY: 'auto' }} onClick={e => e.stopPropagation()}>
-            <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 20 }}>צור אירוע חדש</h2>
-            <div style={{ display: 'flex', gap: 8, marginBottom: 24, flexWrap: 'wrap', fontSize: 12 }}>
+          <div style={{ position: 'fixed', inset: 0, zIndex: 100, display: 'flex', flexDirection: 'column', background: 'var(--v2-dark)', overflow: 'hidden' }} onClick={e => e.stopPropagation()}>
+            <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 20, padding: '0 16px' }}>צור אירוע חדש</h2>
+            <div style={{ display: 'flex', gap: 8, marginBottom: 24, flexWrap: 'wrap', fontSize: 12, padding: '0 16px' }}>
               {wizardSteps.map((s, i) => (
                 <span key={i} style={{ padding: '4px 8px', borderRadius: 8, background: step === i + 1 ? 'var(--v2-primary)' : 'var(--v2-dark-3)', color: step === i + 1 ? 'var(--v2-dark)' : 'var(--v2-gray-400)' }}>{i + 1}. {s}</span>
               ))}
             </div>
 
+            {/* Content area — scrollable */}
+            <div style={{ flex: 1, overflowY: 'auto', padding: '24px 16px', paddingBottom: '100px' }}>
             {/* Step 1 — פרטים בסיסיים */}
             {step === 1 && (
               <>
@@ -730,9 +732,6 @@ export default function Events() {
                 <div style={{ marginBottom: 24 }}>
                   <label style={{ display: 'block', marginBottom: 6, color: 'var(--v2-gray-400)' }}>סיום אירוע</label>
                   <DateTimePicker value={form.event_end} onChange={v => setForm(f => ({ ...f, event_end: v }))} placeholder="בחר תאריך ושעה" />
-                </div>
-                <div style={{ display: 'flex', gap: 12 }}>
-                  <button onClick={() => setStep(2)} disabled={!form.title} style={{ flex: 1, padding: 14, borderRadius: 'var(--radius-full)', background: form.title ? 'var(--v2-primary)' : 'var(--v2-gray-600)', color: 'var(--v2-dark)', fontWeight: 700, border: 'none', cursor: form.title ? 'pointer' : 'not-allowed' }}>המשך</button>
                 </div>
               </>
             )}
@@ -751,10 +750,6 @@ export default function Events() {
                 <div style={{ marginBottom: 24 }}>
                   <label style={{ display: 'block', marginBottom: 6, color: 'var(--v2-gray-400)' }}>לינק Google Maps</label>
                   <input value={form.venue_maps_url} onChange={e => setForm(f => ({ ...f, venue_maps_url: e.target.value }))} placeholder="https://maps.google.com/..." style={{ width: '100%', padding: 12, borderRadius: 12, border: '1px solid var(--glass-border)', background: 'var(--v2-dark-3)', color: '#fff' }} />
-                </div>
-                <div style={{ display: 'flex', gap: 12 }}>
-                  <button onClick={() => setStep(1)} style={{ flex: 1, padding: 14, borderRadius: 'var(--radius-full)', background: 'var(--glass-bg)', border: '1px solid var(--glass-border)', color: '#fff', fontWeight: 600, cursor: 'pointer' }}>חזור</button>
-                  <button onClick={() => setStep(3)} style={{ flex: 1, padding: 14, borderRadius: 'var(--radius-full)', background: 'var(--v2-primary)', color: 'var(--v2-dark)', fontWeight: 700, border: 'none', cursor: 'pointer' }}>המשך</button>
                 </div>
               </>
             )}
@@ -778,10 +773,6 @@ export default function Events() {
                   <label style={{ display: 'block', marginBottom: 6, color: 'var(--v2-gray-400)' }}>קוד לבוש (אופציונלי)</label>
                   <input value={form.dress_code} onChange={e => setForm(f => ({ ...f, dress_code: e.target.value }))} placeholder="חגיגי / קז׳ואל" style={{ width: '100%', padding: 12, borderRadius: 12, border: '1px solid var(--glass-border)', background: 'var(--v2-dark-3)', color: '#fff' }} />
                 </div>
-                <div style={{ display: 'flex', gap: 12 }}>
-                  <button onClick={() => setStep(2)} style={{ flex: 1, padding: 14, borderRadius: 'var(--radius-full)', background: 'var(--glass-bg)', border: '1px solid var(--glass-border)', color: '#fff', fontWeight: 600, cursor: 'pointer' }}>חזור</button>
-                  <button onClick={() => setStep(4)} style={{ flex: 1, padding: 14, borderRadius: 'var(--radius-full)', background: 'var(--v2-primary)', color: 'var(--v2-dark)', fontWeight: 700, border: 'none', cursor: 'pointer' }}>המשך</button>
-                </div>
               </>
             )}
 
@@ -797,10 +788,6 @@ export default function Events() {
                   <label style={{ display: 'block', marginBottom: 6, color: 'var(--v2-gray-400)' }}>גלריה (עד 6 תמונות) <Tooltip text="תמונות נוספות בדף האירוע" /></label>
                   <p style={{ fontSize: 13, color: 'var(--v2-gray-400)', marginBottom: 8 }}>הוסף קישורי תמונות מופרדים בפסיק</p>
                   <input value={(form.gallery_urls || []).join(', ')} onChange={e => setForm(f => ({ ...f, gallery_urls: e.target.value.split(',').map(s => s.trim()).filter(Boolean).slice(0, 6) }))} placeholder="https://... , https://..." style={{ width: '100%', padding: 12, borderRadius: 12, border: '1px solid var(--glass-border)', background: 'var(--v2-dark-3)', color: '#fff' }} />
-                </div>
-                <div style={{ display: 'flex', gap: 12 }}>
-                  <button onClick={() => setStep(3)} style={{ flex: 1, padding: 14, borderRadius: 'var(--radius-full)', background: 'var(--glass-bg)', border: '1px solid var(--glass-border)', color: '#fff', fontWeight: 600, cursor: 'pointer' }}>חזור</button>
-                  <button onClick={() => setStep(5)} style={{ flex: 1, padding: 14, borderRadius: 'var(--radius-full)', background: 'var(--v2-primary)', color: 'var(--v2-dark)', fontWeight: 700, border: 'none', cursor: 'pointer' }}>המשך</button>
                 </div>
               </>
             )}
@@ -825,10 +812,6 @@ export default function Events() {
                   <input type="checkbox" id="allowWait" checked={form.allow_waitlist} onChange={e => setForm(f => ({ ...f, allow_waitlist: e.target.checked }))} />
                   <label htmlFor="allowWait" style={{ color: 'var(--v2-gray-400)', cursor: 'pointer' }}>אפשר רשימת המתנה</label>
                 </div>
-                <div style={{ display: 'flex', gap: 12 }}>
-                  <button onClick={() => setStep(4)} style={{ flex: 1, padding: 14, borderRadius: 'var(--radius-full)', background: 'var(--glass-bg)', border: '1px solid var(--glass-border)', color: '#fff', fontWeight: 600, cursor: 'pointer' }}>חזור</button>
-                  <button onClick={() => setStep(6)} style={{ flex: 1, padding: 14, borderRadius: 'var(--radius-full)', background: 'var(--v2-primary)', color: 'var(--v2-dark)', fontWeight: 700, border: 'none', cursor: 'pointer' }}>המשך</button>
-                </div>
               </>
             )}
 
@@ -849,10 +832,6 @@ export default function Events() {
                   </select>
                   <button onClick={() => setLayoutBuilderOpen(true)} style={{ marginTop: 8, padding: '8px 16px', background: 'var(--v2-dark-3)', border: '1px solid var(--glass-border)', borderRadius: 8, color: '#fff', cursor: 'pointer' }}>צור סקיצה חדשה</button>
                 </div>
-                <div style={{ display: 'flex', gap: 12 }}>
-                  <button onClick={() => setStep(5)} style={{ flex: 1, padding: 14, borderRadius: 'var(--radius-full)', background: 'var(--glass-bg)', border: '1px solid var(--glass-border)', color: '#fff', fontWeight: 600, cursor: 'pointer' }}>חזור</button>
-                  <button onClick={() => setStep(7)} style={{ flex: 1, padding: 14, borderRadius: 'var(--radius-full)', background: 'var(--v2-primary)', color: 'var(--v2-dark)', fontWeight: 700, border: 'none', cursor: 'pointer' }}>המשך</button>
-                </div>
               </>
             )}
 
@@ -866,13 +845,53 @@ export default function Events() {
                   {form.venue_name && <div style={{ color: 'var(--v2-gray-400)', fontSize: 14 }}>{form.venue_name}</div>}
                   {form.cover_image_url && <img src={form.cover_image_url} alt="" style={{ marginTop: 12, width: '100%', maxHeight: 120, objectFit: 'cover', borderRadius: 8 }} />}
                 </div>
-                <div style={{ display: 'flex', gap: 12 }}>
-                  <button onClick={() => setStep(6)} style={{ flex: 1, padding: 14, borderRadius: 'var(--radius-full)', background: 'var(--glass-bg)', border: '1px solid var(--glass-border)', color: '#fff', fontWeight: 600, cursor: 'pointer' }}>חזור</button>
-                  <button onClick={() => handleCreate(true)} style={{ flex: 1, padding: 14, borderRadius: 'var(--radius-full)', background: 'var(--v2-dark-3)', border: '1px solid var(--glass-border)', color: '#fff', fontWeight: 600, cursor: 'pointer' }}>שמור כטיוטה</button>
-                  <button onClick={() => handlePublish()} style={{ flex: 1, padding: 14, borderRadius: 'var(--radius-full)', background: 'var(--v2-primary)', color: 'var(--v2-dark)', fontWeight: 700, border: 'none', cursor: 'pointer' }}>פרסם עכשיו</button>
-                </div>
               </>
             )}
+            </div>
+
+            {/* Buttons area — sticky */}
+            <div style={{ position: 'sticky', bottom: 0, background: 'var(--v2-dark)', borderTop: '1px solid var(--glass-border)', padding: '16px', display: 'flex', gap: '12px', zIndex: 10 }}>
+            {step === 1 && (
+              <button onClick={() => setStep(2)} disabled={!form.title} style={{ flex: 1, padding: 14, borderRadius: 'var(--radius-full)', background: form.title ? 'var(--v2-primary)' : 'var(--v2-gray-600)', color: 'var(--v2-dark)', fontWeight: 700, border: 'none', cursor: form.title ? 'pointer' : 'not-allowed' }}>המשך</button>
+            )}
+            {step === 2 && (
+              <>
+                <button onClick={() => setStep(1)} style={{ flex: 1, padding: 14, borderRadius: 'var(--radius-full)', background: 'var(--glass-bg)', border: '1px solid var(--glass-border)', color: '#fff', fontWeight: 600, cursor: 'pointer' }}>חזור</button>
+                <button onClick={() => setStep(3)} style={{ flex: 1, padding: 14, borderRadius: 'var(--radius-full)', background: 'var(--v2-primary)', color: 'var(--v2-dark)', fontWeight: 700, border: 'none', cursor: 'pointer' }}>המשך</button>
+              </>
+            )}
+            {step === 3 && (
+              <>
+                <button onClick={() => setStep(2)} style={{ flex: 1, padding: 14, borderRadius: 'var(--radius-full)', background: 'var(--glass-bg)', border: '1px solid var(--glass-border)', color: '#fff', fontWeight: 600, cursor: 'pointer' }}>חזור</button>
+                <button onClick={() => setStep(4)} style={{ flex: 1, padding: 14, borderRadius: 'var(--radius-full)', background: 'var(--v2-primary)', color: 'var(--v2-dark)', fontWeight: 700, border: 'none', cursor: 'pointer' }}>המשך</button>
+              </>
+            )}
+            {step === 4 && (
+              <>
+                <button onClick={() => setStep(3)} style={{ flex: 1, padding: 14, borderRadius: 'var(--radius-full)', background: 'var(--glass-bg)', border: '1px solid var(--glass-border)', color: '#fff', fontWeight: 600, cursor: 'pointer' }}>חזור</button>
+                <button onClick={() => setStep(5)} style={{ flex: 1, padding: 14, borderRadius: 'var(--radius-full)', background: 'var(--v2-primary)', color: 'var(--v2-dark)', fontWeight: 700, border: 'none', cursor: 'pointer' }}>המשך</button>
+              </>
+            )}
+            {step === 5 && (
+              <>
+                <button onClick={() => setStep(4)} style={{ flex: 1, padding: 14, borderRadius: 'var(--radius-full)', background: 'var(--glass-bg)', border: '1px solid var(--glass-border)', color: '#fff', fontWeight: 600, cursor: 'pointer' }}>חזור</button>
+                <button onClick={() => setStep(6)} style={{ flex: 1, padding: 14, borderRadius: 'var(--radius-full)', background: 'var(--v2-primary)', color: 'var(--v2-dark)', fontWeight: 700, border: 'none', cursor: 'pointer' }}>המשך</button>
+              </>
+            )}
+            {step === 6 && (
+              <>
+                <button onClick={() => setStep(5)} style={{ flex: 1, padding: 14, borderRadius: 'var(--radius-full)', background: 'var(--glass-bg)', border: '1px solid var(--glass-border)', color: '#fff', fontWeight: 600, cursor: 'pointer' }}>חזור</button>
+                <button onClick={() => setStep(7)} style={{ flex: 1, padding: 14, borderRadius: 'var(--radius-full)', background: 'var(--v2-primary)', color: 'var(--v2-dark)', fontWeight: 700, border: 'none', cursor: 'pointer' }}>המשך</button>
+              </>
+            )}
+            {step === 7 && (
+              <>
+                <button onClick={() => setStep(6)} style={{ flex: 1, padding: 14, borderRadius: 'var(--radius-full)', background: 'var(--glass-bg)', border: '1px solid var(--glass-border)', color: '#fff', fontWeight: 600, cursor: 'pointer' }}>חזור</button>
+                <button onClick={() => handleCreate(true)} style={{ flex: 1, padding: 14, borderRadius: 'var(--radius-full)', background: 'var(--v2-dark-3)', border: '1px solid var(--glass-border)', color: '#fff', fontWeight: 600, cursor: 'pointer' }}>שמור כטיוטה</button>
+                <button onClick={() => handlePublish()} style={{ flex: 1, padding: 14, borderRadius: 'var(--radius-full)', background: 'var(--v2-primary)', color: 'var(--v2-dark)', fontWeight: 700, border: 'none', cursor: 'pointer' }}>פרסם עכשיו</button>
+              </>
+            )}
+            </div>
           </div>
         </div>
       )}
