@@ -51,6 +51,8 @@ export default function SeatingBuilder({ eventId, initialConfig, onSave, onCance
   const [isMobile, setIsMobile] = useState(typeof window !== 'undefined' && window.innerWidth < 768)
   const [editPanelOpen, setEditPanelOpen] = useState(false)
   const [tableShape, setTableShape] = useState('circle')
+  const [resizing, setResizing] = useState(null)
+  const [rotating, setRotating] = useState(null)
 
   useEffect(() => {
     const onResize = () => setIsMobile(window.innerWidth < 768)
@@ -124,6 +126,7 @@ export default function SeatingBuilder({ eventId, initialConfig, onSave, onCance
   }
 
   const handleDragMove = (e) => {
+    if (resizing || rotating) { handleResizeRotateMove(e); return }
     if (!dragging) return
     e.preventDefault()
     const pos = getPos(e)
@@ -144,7 +147,91 @@ export default function SeatingBuilder({ eventId, initialConfig, onSave, onCance
     }
   }
 
-  const handleDragEnd = () => setDragging(null)
+  const handleDragEnd = () => { setDragging(null); setResizing(null); setRotating(null) }
+
+  const getElementBounds = (type, id) => {
+    if (type === 'rect') {
+      const r = clubRects.find(x => x.id === id)
+      if (!r) return null
+      const x = r.position_x ?? 10
+      const y = r.position_y ?? 2
+      const w = r.width ?? 80
+      const h = r.height ?? 12
+      return { x, y, w, h, cx: x + w / 2, cy: y + h / 2 }
+    }
+    const t = clubTables[id]
+    if (!t) return null
+    const shape = t.shape || 'circle'
+    const cx = t.position_x ?? 50
+    const cy = t.position_y ?? 40
+    const baseSize = 4
+    const w = t.width ?? (shape === 'rectangle' ? baseSize * 2 * 1.8 : baseSize * 2)
+    const h = t.height ?? baseSize * 2
+    if (shape === 'circle') {
+      const r = Math.min(w, h) / 2
+      return { x: cx - r, y: cy - r, w: r * 2, h: r * 2, cx, cy }
+    }
+    return { x: cx - w / 2, y: cy - h / 2, w, h, cx, cy }
+  }
+
+  const handleResizeStart = (e, type, id, handle) => {
+    e.stopPropagation()
+    const pos = getPos(e)
+    const b = getElementBounds(type, id)
+    if (!b) return
+    if (type === 'rect') {
+      setResizing({ type, id, handle, startX: pos.x, startY: pos.y, startW: b.w, startH: b.h, startX0: b.x, startY0: b.y })
+    } else {
+      setResizing({ type, id, handle, startX: pos.x, startY: pos.y, startW: b.w, startH: b.h })
+    }
+  }
+
+  const handleRotateStart = (e, type, id) => {
+    e.stopPropagation()
+    const b = getElementBounds(type, id)
+    if (!b) return
+    setRotating({ type, id, centerX: b.cx, centerY: b.cy })
+  }
+
+  const handleResizeRotateMove = (e) => {
+    if (resizing) {
+      e.preventDefault()
+      const pos = getPos(e)
+      const canvas = canvasRef.current?.getBoundingClientRect()
+      if (!canvas) return
+      const scaleX = 100 / canvas.width
+      const scaleY = 80 / canvas.height
+      const dx = (pos.x - resizing.startX) * scaleX
+      const dy = (pos.y - resizing.startY) * scaleY
+      const { handle, startW, startH, startX0, startY0 } = resizing
+      let nw = startW, nh = startH, nx = resizing.startX0, ny = resizing.startY0
+      if (handle.includes('e')) nw = Math.max(5, startW + dx)
+      if (handle.includes('w')) { nw = Math.max(5, startW - dx); nx = startX0 + (startW - nw) }
+      if (handle.includes('s')) nh = Math.max(5, startH + dy)
+      if (handle.includes('n')) { nh = Math.max(5, startH - dy); ny = startY0 + (startH - nh) }
+      if (resizing.type === 'rect') {
+        setClubRects(prev => prev.map(r => r.id === resizing.id ? { ...r, position_x: nx, position_y: ny, width: nw, height: nh } : r))
+      } else {
+        setClubTables(prev => prev.map((t, i) => i === resizing.id ? { ...t, width: nw, height: nh } : t))
+      }
+    }
+    if (rotating) {
+      e.preventDefault()
+      const pos = getPos(e)
+      const canvas = canvasRef.current?.getBoundingClientRect()
+      if (!canvas) return
+      const scaleY = 80 / canvas.height
+      const cyScreen = canvas.top + (rotating.centerY / 80) * canvas.height
+      const cxScreen = canvas.left + (rotating.centerX / 100) * canvas.width
+      const angle = Math.atan2(pos.y - cyScreen, pos.x - cxScreen)
+      const deg = angle * 180 / Math.PI
+      if (rotating.type === 'rect') {
+        setClubRects(prev => prev.map(r => r.id === rotating.id ? { ...r, rotation: deg } : r))
+      } else {
+        setClubTables(prev => prev.map((t, i) => i === rotating.id ? { ...t, rotation: deg } : t))
+      }
+    }
+  }
 
   const theaterSeats = useMemo(() => {
     const rowCounts = useCustomRows && customRows.length > 0 ? customRows : Array(rows).fill(seatsPerRow)
@@ -239,7 +326,10 @@ export default function SeatingBuilder({ eventId, initialConfig, onSave, onCance
   const addTable = () => {
     const cx = 50 + randOffset()
     const cy = 40 + randOffset()
-    const newTable = { seat_key: `table-${clubTables.length + clubRects.length + 1}`, zone: 'floor', capacity: 4, price: 0, position_x: cx, position_y: cy, label: `שולחן ${clubTables.length + 1}`, shape: tableShape }
+    const baseSize = 4
+    const w = tableShape === 'rectangle' ? baseSize * 2 * 1.8 : baseSize * 2
+    const h = baseSize * 2
+    const newTable = { seat_key: `table-${clubTables.length + clubRects.length + 1}`, zone: 'floor', capacity: 4, price: 0, position_x: cx, position_y: cy, label: `שולחן ${clubTables.length + 1}`, shape: tableShape, width: w, height: h }
     const newTables = [...clubTables, newTable]
     pushHistory({ clubTables: newTables, clubRects })
     setClubTables(newTables)
@@ -268,6 +358,27 @@ export default function SeatingBuilder({ eventId, initialConfig, onSave, onCance
     setClubRects(newRects)
     setSelectedElement({ type: 'rect', id: rect.id })
     setEditPanelOpen(true)
+  }
+
+  const duplicateElement = () => {
+    if (!selectedElement) return
+    if (selectedElement.type === 'table') {
+      const t = clubTables[selectedElement.id]
+      if (!t) return
+      const clone = { ...t, seat_key: `table-${Date.now()}`, label: `${t.label} (עותק)`, position_x: (t.position_x ?? 50) + 5, position_y: (t.position_y ?? 40) + 5 }
+      const newTables = [...clubTables, clone]
+      pushHistory({ clubTables: newTables, clubRects })
+      setClubTables(newTables)
+      setSelectedElement({ type: 'table', id: newTables.length - 1 })
+    } else {
+      const r = clubRects.find(x => x.id === selectedElement.id)
+      if (!r) return
+      const clone = { ...r, id: `rect-${Date.now()}`, text: `${r.text || ''} (עותק)`, position_x: (r.position_x ?? 10) + 5, position_y: (r.position_y ?? 2) + 5 }
+      const newRects = [...clubRects, clone]
+      pushHistory({ clubTables, clubRects: newRects })
+      setClubRects(newRects)
+      setSelectedElement({ type: 'rect', id: clone.id })
+    }
   }
 
   const deleteElement = () => {
@@ -376,11 +487,11 @@ export default function SeatingBuilder({ eventId, initialConfig, onSave, onCance
                 </div>
                 <div>
                   <label style={{ display: 'block', marginBottom: 4, fontSize: 14, color: 'var(--v2-gray-400)' }}>כמה שורות?</label>
-                  <input type="number" min={1} max={50} value={rows} onChange={e => setRows(Math.max(1, parseInt(e.target.value) || 1))} style={{ width: 80, padding: 8, borderRadius: 8, border: '1px solid var(--glass-border)', background: 'var(--v2-dark-3)', color: '#fff' }} />
+                  <input type="number" min={1} value={rows} onChange={e => setRows(Math.max(1, parseInt(e.target.value) || 1))} placeholder="מספר שורות" style={{ width: '100%', padding: 10, borderRadius: 8, border: '1px solid var(--glass-border)', background: 'var(--v2-dark-3)', color: '#fff' }} />
                 </div>
                 <div>
                   <label style={{ display: 'block', marginBottom: 4, fontSize: 14, color: 'var(--v2-gray-400)' }}>כיסאות בשורה?</label>
-                  <input type="number" min={1} max={100} value={seatsPerRow} onChange={e => setSeatsPerRow(Math.max(1, parseInt(e.target.value) || 1))} style={{ width: 80, padding: 8, borderRadius: 8, border: '1px solid var(--glass-border)', background: 'var(--v2-dark-3)', color: '#fff' }} />
+                  <input type="number" min={1} value={seatsPerRow} onChange={e => setSeatsPerRow(Math.max(1, parseInt(e.target.value) || 1))} placeholder="כיסאות בשורה" style={{ width: '100%', padding: 10, borderRadius: 8, border: '1px solid var(--glass-border)', background: 'var(--v2-dark-3)', color: '#fff' }} />
                 </div>
                 <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
                   <input type="checkbox" checked={useCustomRows} onChange={e => setUseCustomRows(e.target.checked)} />
@@ -395,8 +506,7 @@ export default function SeatingBuilder({ eventId, initialConfig, onSave, onCance
                 <div style={{ display: 'flex', gap: 16, marginBottom: 16, flexWrap: 'wrap' }}>
                   <div>
                     <label style={{ display: 'block', marginBottom: 4, fontSize: 14 }}>כיסאות באגף</label>
-                    <input type="range" min={1} max={20} value={wingSeatsCount} onChange={e => setWingSeatsCount(parseInt(e.target.value))} style={{ width: 100 }} />
-                    <span style={{ marginRight: 8 }}>{wingSeatsCount}</span>
+                    <input type="number" min={1} value={wingSeatsCount} onChange={e => setWingSeatsCount(Math.max(1, parseInt(e.target.value) || 1))} placeholder="כיסאות באגף" style={{ width: '100%', padding: 10, borderRadius: 8, border: '1px solid var(--glass-border)', background: 'var(--v2-dark-3)', color: '#fff' }} />
                   </div>
                   <div>
                     <label style={{ display: 'block', marginBottom: 4, fontSize: 14 }}>מחיר אגף ₪</label>
@@ -412,13 +522,11 @@ export default function SeatingBuilder({ eventId, initialConfig, onSave, onCance
                 <div style={{ display: 'flex', gap: 16, marginBottom: 16, flexWrap: 'wrap' }}>
                   <div>
                     <label style={{ display: 'block', marginBottom: 4, fontSize: 14 }}>שורות יציע</label>
-                    <input type="range" min={1} max={5} value={balconyRows} onChange={e => setBalconyRows(parseInt(e.target.value))} style={{ width: 80 }} />
-                    <span>{balconyRows}</span>
+                    <input type="number" min={1} value={balconyRows} onChange={e => setBalconyRows(Math.max(1, parseInt(e.target.value) || 1))} placeholder="שורות יציע" style={{ width: '100%', padding: 10, borderRadius: 8, border: '1px solid var(--glass-border)', background: 'var(--v2-dark-3)', color: '#fff' }} />
                   </div>
                   <div>
                     <label style={{ display: 'block', marginBottom: 4, fontSize: 14 }}>כיסאות בשורה</label>
-                    <input type="range" min={5} max={30} value={balconySeatsPerRow} onChange={e => setBalconySeatsPerRow(parseInt(e.target.value))} style={{ width: 80 }} />
-                    <span>{balconySeatsPerRow}</span>
+                    <input type="number" min={1} value={balconySeatsPerRow} onChange={e => setBalconySeatsPerRow(Math.max(1, parseInt(e.target.value) || 1))} placeholder="כיסאות בשורה" style={{ width: '100%', padding: 10, borderRadius: 8, border: '1px solid var(--glass-border)', background: 'var(--v2-dark-3)', color: '#fff' }} />
                   </div>
                   <div>
                     <label style={{ display: 'block', marginBottom: 4, fontSize: 14 }}>מחיר יציע ₪</label>
@@ -443,8 +551,28 @@ export default function SeatingBuilder({ eventId, initialConfig, onSave, onCance
               <p style={{ fontSize: 13, color: 'var(--v2-gray-400)', marginBottom: 12 }}>לחץ על כיסא: חסום ↔ VIP ↔ רגיל</p>
               <div style={{ background: '#0a0a0a', borderRadius: 12, padding: 16, overflow: 'auto', maxHeight: 300, border: '1px solid rgba(0,195,122,0.3)' }}>
                 <svg viewBox="0 0 100 80" width="100%" height="auto" style={{ maxHeight: 280, transform: `scale(${zoom})` }} preserveAspectRatio="xMidYMid meet">
-                  <rect x="5" y="68" width="90" height="10" rx="4" fill="#1a1a2e" />
-                  <text x="50" y="74" textAnchor="middle" fontSize="3" fill="#888">{stageLabel}</text>
+                  {balcony && (() => {
+                    const rowSpacing = 3.5
+                    const mainTop = 60 - (rows - 1) * rowSpacing
+                    const balcY = Math.max(2, mainTop - balconyRows * rowSpacing - 3)
+                    const balcH = balconyRows * rowSpacing + 2
+                    return (
+                      <>
+                        <rect x={28} y={balcY} width={44} height={balcH} rx="2" fill="#B8860B" opacity={0.8} />
+                        <text x={50} y={balcY + balcH / 2 + 0.5} textAnchor="middle" fontSize="2" fill="#333">יציע</text>
+                      </>
+                    )
+                  })()}
+                  {theaterWings && (
+                    <>
+                      <rect x={2} y={12} width={12} height={50} rx="2" fill="var(--v2-primary)" opacity={0.7} transform="rotate(-15 8 37)" />
+                      <text x={6} y={40} textAnchor="middle" fontSize="1.8" fill="#fff" transform="rotate(-15 6 40)">אגף שמאל</text>
+                      <rect x={86} y={12} width={12} height={50} rx="2" fill="var(--v2-primary)" opacity={0.7} transform="rotate(15 92 37)" />
+                      <text x={94} y={40} textAnchor="middle" fontSize="1.8" fill="#fff" transform="rotate(15 94 40)">אגף ימין</text>
+                    </>
+                  )}
+                  <rect x="5" y={balcony ? 70 : 68} width="90" height="8" rx="4" fill="#1a1a2e" />
+                  <text x="50" y={(balcony ? 70 : 68) + 5} textAnchor="middle" fontSize="3" fill="#888">{stageLabel}</text>
                   {theaterSeats.reduce((acc, s) => {
                     const rn = s.row_number, sn = s.seat_number
                     const rowCounts = useCustomRows && customRows.length > 0 ? customRows : Array(rows).fill(seatsPerRow)
@@ -510,13 +638,20 @@ export default function SeatingBuilder({ eventId, initialConfig, onSave, onCance
                 onTouchEnd={handleDragEnd}
               >
                 <svg viewBox="0 0 100 80" width="100%" height="100%" preserveAspectRatio="xMidYMid meet">
-                  {clubRects.map((r, i) => (
-                    <g key={r.id}>
+                  {clubRects.map((r, i) => {
+                    const rx = r.position_x ?? 10
+                    const ry = r.position_y ?? 2
+                    const rw = r.width ?? 80
+                    const rh = r.height ?? 12
+                    const rcx = rx + rw / 2
+                    const rcy = ry + rh / 2
+                    return (
+                    <g key={r.id} transform={`translate(${rcx},${rcy}) rotate(${r.rotation || 0}) translate(${-rcx},${-rcy})`}>
                       <rect
-                        x={r.position_x ?? 10}
-                        y={r.position_y ?? 2}
-                        width={r.width ?? 80}
-                        height={r.height ?? 12}
+                        x={rx}
+                        y={ry}
+                        width={rw}
+                        height={rh}
                         rx="4"
                         fill={r.color || RECT_COLORS[0]}
                         stroke={selectedElement?.type === 'rect' && selectedElement?.id === r.id ? '#00C37A' : 'transparent'}
@@ -526,9 +661,30 @@ export default function SeatingBuilder({ eventId, initialConfig, onSave, onCance
                         onTouchStart={e => { handleDragStart(e, 'rect', r.id); setSelectedElement({ type: 'rect', id: r.id }) }}
                         onClick={() => { setSelectedElement({ type: 'rect', id: r.id }); setEditPanelOpen(true) }}
                       />
-                      <text x={(r.position_x ?? 10) + (r.width ?? 80) / 2} y={(r.position_y ?? 2) + (r.height ?? 12) / 2 + 1} textAnchor="middle" fontSize="2.5" fill="#fff">{r.text || 'STAGE'}</text>
+                      <text x={rcx} y={rcy + 1} textAnchor="middle" fontSize="2.5" fill="#fff">{r.text || 'STAGE'}</text>
                     </g>
-                  ))}
+                    )
+                  })}
+                  {selectedElement && (() => {
+                    const type = selectedElement.type
+                    const id = selectedElement.id
+                    const b = getElementBounds(type, id)
+                    if (!b) return null
+                    const handles = ['n', 's', 'e', 'w', 'ne', 'nw', 'se', 'sw']
+                    const hp = (h) => {
+                      const cx = h.includes('e') ? b.x + b.w : h.includes('w') ? b.x : b.x + b.w / 2
+                      const cy = h.includes('s') ? b.y + b.h : h.includes('n') ? b.y : b.y + b.h / 2
+                      return { cx, cy }
+                    }
+                    return (
+                      <g key="handles">
+                        {handles.map(h => (
+                          <circle key={h} cx={hp(h).cx} cy={hp(h).cy} r={1.5} fill="white" stroke="var(--v2-primary)" strokeWidth="0.5" style={{ cursor: 'nwse-resize', pointerEvents: 'all' }} onMouseDown={e => handleResizeStart(e, type, id, h)} onTouchStart={e => handleResizeStart(e, type, id, h)} />
+                        ))}
+                        <circle cx={b.cx} cy={b.y - 4} r={1.5} fill="white" stroke="var(--v2-primary)" strokeWidth="0.5" style={{ cursor: 'grab', pointerEvents: 'all' }} onMouseDown={e => handleRotateStart(e, type, id)} onTouchStart={e => handleRotateStart(e, type, id)} />
+                      </g>
+                    )
+                  })()}
                   {clubTables.map((t, i) => {
                     const shape = t.shape || 'circle'
                     const cx = t.position_x ?? 50
@@ -542,19 +698,24 @@ export default function SeatingBuilder({ eventId, initialConfig, onSave, onCance
                       onTouchStart: e => { handleDragStart(e, 'table', i); setSelectedElement({ type: 'table', id: i }) },
                       onClick: () => { setSelectedElement({ type: 'table', id: i }); setEditPanelOpen(true) },
                     }
+                    const rCircle = shape === 'circle' ? (Math.min(t.width ?? 8, t.height ?? 8) / 2) : 4
                     if (shape === 'circle') {
                       return (
-                        <circle key={i} cx={cx} cy={cy} r={r} fill={fill} stroke={stroke} strokeWidth="1" {...dragProps}>
-                          <title>{t.label} — עד {t.capacity ?? 4}</title>
-                        </circle>
+                        <g key={i} transform={`rotate(${t.rotation || 0} ${cx} ${cy})`}>
+                          <circle cx={cx} cy={cy} r={rCircle} fill={fill} stroke={stroke} strokeWidth="1" {...dragProps}>
+                            <title>{t.label} — עד {t.capacity ?? 4}</title>
+                          </circle>
+                        </g>
                       )
                     }
-                    const w = shape === 'square' ? r * 2 : r * 2 * 1.8
-                    const h = r * 2
+                    const w = t.width ?? (shape === 'square' ? 8 : 14.4)
+                    const h = t.height ?? 8
                     return (
-                      <rect key={i} x={cx - w / 2} y={cy - h / 2} width={w} height={h} rx="1" fill={fill} stroke={stroke} strokeWidth="1" {...dragProps}>
-                        <title>{t.label} — עד {t.capacity ?? 4}</title>
-                      </rect>
+                      <g key={i} transform={`rotate(${t.rotation || 0} ${cx} ${cy})`}>
+                        <rect x={cx - w / 2} y={cy - h / 2} width={w} height={h} rx="1" fill={fill} stroke={stroke} strokeWidth="1" {...dragProps}>
+                          <title>{t.label} — עד {t.capacity ?? 4}</title>
+                        </rect>
+                      </g>
                     )
                   })}
                 </svg>
@@ -601,7 +762,10 @@ export default function SeatingBuilder({ eventId, initialConfig, onSave, onCance
                           ))}
                         </div>
                         <textarea value={t.included || ''} onChange={e => setClubTables(prev => prev.map((x, j) => j === selectedElement.id ? { ...x, included: e.target.value } : x))} placeholder="מה כלול" rows={2} style={{ width: '100%', marginBottom: 12, padding: 10, borderRadius: 8, border: '1px solid var(--glass-border)', background: 'var(--v2-dark-3)', color: '#fff' }} />
-                        <button onClick={deleteElement} style={{ padding: '10px 20px', background: '#ef4444', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer' }}>מחק</button>
+                        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                          <button onClick={duplicateElement} style={{ padding: '10px 20px', background: 'var(--v2-dark-3)', border: '1px solid var(--glass-border)', color: '#fff', borderRadius: 8, cursor: 'pointer' }}>📋 שכפל</button>
+                          <button onClick={deleteElement} style={{ padding: '10px 20px', background: '#ef4444', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer' }}>מחק</button>
+                        </div>
                       </>
                     )
                   })()}
@@ -622,7 +786,10 @@ export default function SeatingBuilder({ eventId, initialConfig, onSave, onCance
                             <button key={c} onClick={() => setClubRects(prev => prev.map(x => x.id === r.id ? { ...x, color: c } : x))} style={{ width: 32, height: 32, borderRadius: 8, background: c, border: (r.color || RECT_COLORS[0]) === c ? '2px solid #fff' : 'none', cursor: 'pointer' }} />
                           ))}
                         </div>
-                        <button onClick={deleteElement} style={{ padding: '10px 20px', background: '#ef4444', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer' }}>מחק</button>
+                        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                          <button onClick={duplicateElement} style={{ padding: '10px 20px', background: 'var(--v2-dark-3)', border: '1px solid var(--glass-border)', color: '#fff', borderRadius: 8, cursor: 'pointer' }}>📋 שכפל</button>
+                          <button onClick={deleteElement} style={{ padding: '10px 20px', background: '#ef4444', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer' }}>מחק</button>
+                        </div>
                       </>
                     )
                   })()}
