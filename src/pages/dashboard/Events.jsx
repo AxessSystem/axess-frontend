@@ -717,7 +717,7 @@ export default function Events() {
             </div>
 
             {/* Content area — scrollable */}
-            <div style={{ flex: 1, overflowY: 'auto', padding: '24px 16px', paddingBottom: '20px' }}>
+            <div style={{ flex: 1, overflowY: 'auto', padding: '24px 16px', paddingBottom: '100px' }}>
             {/* Step 1 — פרטים בסיסיים */}
             {step === 1 && (
               <>
@@ -849,10 +849,12 @@ export default function Events() {
             )}
             </div>
 
-            {/* Buttons area — sticky */}
+            {/* Buttons area — fixed */}
             <div style={{ 
-              position: 'sticky', 
+              position: 'fixed', 
               bottom: 0, 
+              left: 0,
+              right: 0,
               background: 'var(--v2-dark)', 
               borderTop: '1px solid var(--glass-border)', 
               padding: '16px',
