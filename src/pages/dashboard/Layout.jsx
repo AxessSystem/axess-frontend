@@ -3,7 +3,7 @@ import { Link, Outlet, NavLink } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   LayoutDashboard, Send, Users, BarChart2, QrCode, Settings,
-  Bell, Menu, X, ChevronDown, Wallet, LogOut, Calendar, Megaphone, UserCheck
+  Bell, Menu, X, ChevronDown, Wallet, LogOut, Calendar, Megaphone, UserCheck, Building
 } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 
@@ -19,6 +19,7 @@ const ALL_NAV_ITEMS = [
   { icon: QrCode,          label: 'Validators',   path: '/dashboard/validators', permission: null, roles: null },
   { icon: BarChart2,       label: 'דוחות',        path: '/dashboard/reports', permission: 'can_view_reports', roles: null },
   { icon: Settings,        label: 'הגדרות',       path: '/dashboard/settings', permission: null, roles: null },
+  { icon: Building,        label: 'מחלקות',       path: '/dashboard/sub-accounts', permission: 'can_manage_sub_accounts', roles: null },
 ]
 
 function getVisibleNavItems(role, permissions, businessConfig) {
@@ -41,6 +42,7 @@ function getVisibleNavItems(role, permissions, businessConfig) {
     '/dashboard/validators': 'validators',
     '/dashboard/reports': 'reports',
     '/dashboard/settings': 'settings',
+    '/dashboard/sub-accounts': 'sub_accounts',
   }
   const byConfig = (items) => {
     if (!businessConfig) return items

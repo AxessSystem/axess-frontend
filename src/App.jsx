@@ -31,6 +31,8 @@ const IndustryRetail        = lazy(() => import('@/pages/industries/Retail'))
 const IndustryGyms          = lazy(() => import('@/pages/industries/Gyms'))
 const IndustryOrganizations = lazy(() => import('@/pages/industries/Organizations'))
 const EventPage = lazy(() => import('@/pages/EventPage'))
+const GroupRegistrationPage = lazy(() => import('@/pages/GroupRegistrationPage'))
+const GroupManagementPage = lazy(() => import('@/pages/GroupManagementPage'))
 const TableBookingPage = lazy(() => import('@/pages/TableBookingPage'))
 const BookingManagementPage = lazy(() => import('@/pages/BookingManagementPage'))
 const GuestPaymentPage = lazy(() => import('@/pages/GuestPaymentPage'))
@@ -46,6 +48,7 @@ const EventsPage     = lazy(() => import('@/pages/dashboard/Events'))
 const PromotersPage  = lazy(() => import('@/pages/dashboard/Promoters'))
 const Staff          = lazy(() => import('@/pages/dashboard/Staff'))
 const Settings       = lazy(() => import('@/pages/dashboard/Settings'))
+const SubAccounts    = lazy(() => import('@/pages/dashboard/SubAccounts'))
 
 /* ── Existing admin/producer pages (lazy) ── */
 const AdminDashboard    = lazy(() => import('@/pages/admin/Dashboard'))
@@ -107,6 +110,7 @@ export default function App() {
             <Route path="/" element={<Landing />} />
             <Route path="/login" element={<Login />} />
             <Route path="/join" element={<Join />} />
+            <Route path="/join/:token" element={<Join />} />
             <Route path="/onboarding" element={<Onboarding />} />
             <Route path="/about" element={<About />} />
             <Route path="/pricing" element={<Pricing />} />
@@ -115,6 +119,8 @@ export default function App() {
             <Route path="/privacy" element={<Privacy />} />
             <Route path="/v/:slug" element={<Validator />} />
             <Route path="/e/:slug" element={<EventPage />} />
+            <Route path="/e/:slug/group-register" element={<GroupRegistrationPage />} />
+            <Route path="/group/:code" element={<GroupManagementPage />} />
             <Route path="/t/slug/:slug" element={<TableBookingPage />} />
             <Route path="/booking/:id" element={<BookingManagementPage />} />
             <Route path="/g/token/:token" element={<GuestPaymentPage />} />
@@ -140,6 +146,7 @@ export default function App() {
               <Route path="validators" element={<ValidatorsPage />} />
               <Route path="staff" element={<Staff />} />
               <Route path="settings" element={<Settings />} />
+              <Route path="sub-accounts" element={<SubAccounts />} />
             </Route>
 
             {/* ── Admin ── */}

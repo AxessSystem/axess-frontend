@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react'
-import { useParams, useSearchParams } from 'react-router-dom'
-import { MapPin, Calendar, Loader2 } from 'lucide-react'
+import { useParams, useSearchParams, Link } from 'react-router-dom'
+import { MapPin, Calendar, Loader2, Clock, Users } from 'lucide-react'
 import toast from 'react-hot-toast'
 import SeatingModal from '../components/SeatingModal'
+import Tooltip from '../components/ui/Tooltip'
 
 const API_BASE = import.meta.env.VITE_API_URL || 'https://axess-backend.up.railway.app'
 
@@ -17,8 +18,12 @@ export default function EventPage() {
   const [modalQty, setModalQty] = useState(1)
   const [modalName, setModalName] = useState('')
   const [modalPhone, setModalPhone] = useState('')
+  const [idNumber, setIdNumber] = useState('')
+  const [residentCity, setResidentCity] = useState('')
+  const [customFields, setCustomFields] = useState({})
   const [paying, setPaying] = useState(false)
   const [success, setSuccess] = useState(false)
+  const [pendingApproval, setPendingApproval] = useState(false)
 
   useEffect(() => {
     if (!slug) return
@@ -34,21 +39,46 @@ export default function EventPage() {
       toast.error('מלא שם וטלפון')
       return
     }
+    if (event?.requires_id && idNumber.replace(/\D/g, '').length !== 9) {
+      toast.error('נא להזין תעודת זהות תקינה (9 ספרות)')
+      return
+    }
+    const regFields = event?.registration_fields || []
+    for (const f of regFields) {
+      if (f.required && !customFields[f.id]) {
+        toast.error(`נא למלא: ${f.label}`)
+        return
+      }
+    }
     setPaying(true)
     try {
+      const payload = {
+        ticket_type_id: modalTicket.id,
+        quantity: modalQty,
+        buyer_name: modalName.trim(),
+        buyer_phone: modalPhone.trim(),
+        ...(ref ? { ref } : {}),
+        ...(event?.requires_id && idNumber ? { id_number: idNumber.replace(/\D/g, '') } : {}),
+        ...(event?.city_code && residentCity ? { resident_city: residentCity.trim() } : {}),
+        ...(Object.keys(customFields).length ? { custom_fields: customFields } : {}),
+      }
       const res = await fetch(`${API_BASE}/e/${slug}/reserve`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ticket_type_id: modalTicket.id,
-          quantity: modalQty,
-          buyer_name: modalName.trim(),
-          buyer_phone: modalPhone.trim(),
-          ...(ref ? { ref } : {}),
-        }),
+        body: JSON.stringify(payload),
       })
       const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'שגיאה')
+      if (!res.ok) {
+        if (data.error === 'id_number_required') throw new Error(data.message || 'נדרש מספר תעודת זהות')
+        if (data.error === 'missing_required_field') throw new Error(`נא למלא: ${data.field_label}`)
+        throw new Error(data.error || data.message || 'שגיאה')
+      }
+
+      if (data.status === 'pending_approval') {
+        setPendingApproval(true)
+        setModalTicket(null)
+        return
+      }
 
       if (data.total_amount === 0 || data.client_secret === 'free_order') {
         const conf = await fetch(`${API_BASE}/e/${slug}/confirm`, {
@@ -139,7 +169,35 @@ export default function EventPage() {
           <p style={{ color: 'var(--v2-gray-400)', lineHeight: 1.8, marginBottom: 32 }}>{event.description}</p>
         )}
 
-        {success && (
+        {pendingApproval && (
+          <div
+            style={{
+              textAlign: 'center',
+              padding: 32,
+              marginBottom: 32,
+              background: 'var(--v2-dark-3)',
+              borderRadius: 'var(--radius-lg)',
+              border: '1px solid var(--glass-border)',
+            }}
+          >
+            <Clock size={48} style={{ color: 'var(--v2-primary)', marginBottom: 16 }} />
+            <h2 style={{ fontSize: 20, fontWeight: 700 }}>בקשתך התקבלה! ⏳</h2>
+            <p style={{ color: 'var(--v2-gray-400)', marginTop: 8 }}>ההרשמה שלך לאירוע ממתינה לאישור.</p>
+            <p style={{ color: 'var(--v2-gray-400)', marginTop: 4 }}>תקבל SMS עם הכרטיס שלך בקרוב.</p>
+            {event?.approval_instagram && (
+              <a
+                href={event.approval_instagram}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ display: 'inline-block', marginTop: 16, color: 'var(--v2-primary)', textDecoration: 'none' }}
+              >
+                שאלות? צור קשר באינסטגרם
+              </a>
+            )}
+          </div>
+        )}
+
+        {success && !pendingApproval && (
           <div
             style={{
               background: 'rgba(0,195,122,0.15)',
@@ -173,17 +231,23 @@ export default function EventPage() {
                   <div style={{ fontWeight: 700, fontSize: 18 }}>{tt.name}</div>
                   {tt.description && <div style={{ color: 'var(--v2-gray-400)', fontSize: 14, marginTop: 4 }}>{tt.description}</div>}
                   <div style={{ marginTop: 8 }}>
-                    <span style={{ fontWeight: 800, color: primaryColor }}>
-                      ₪{Number(tt.price).toFixed(0)}
-                    </span>
-                    {tt.service_fee > 0 && <span style={{ color: 'var(--v2-gray-400)', fontSize: 13 }}> + עמלת שירות ₪{Number(tt.service_fee).toFixed(0)}</span>}
+                    {event?.city_code ? (
+                      <span style={{ color: 'var(--v2-gray-400)', fontSize: 13 }}>
+                        מחיר מ-₪{(event.resident_only_price ?? tt.price) ?? 0} לתושבי {event.city_name || 'העיר'}
+                      </span>
+                    ) : (
+                      <>
+                        <span style={{ fontWeight: 800, color: primaryColor }}>₪{Number(tt.price).toFixed(0)}</span>
+                        {tt.service_fee > 0 && <span style={{ color: 'var(--v2-gray-400)', fontSize: 13 }}> + עמלת שירות ₪{Number(tt.service_fee).toFixed(0)}</span>}
+                      </>
+                    )}
                   </div>
                   {tt.quantity_available < 20 && tt.quantity_available > 0 && (
                     <div style={{ color: '#fbbf24', fontSize: 13, marginTop: 6 }}>נותרו {tt.quantity_available} בלבד!</div>
                   )}
                 </div>
                 <button
-                  onClick={() => { setModalTicket(tt); setModalQty(1); setSuccess(false) }}
+                  onClick={() => { setModalTicket(tt); setModalQty(1); setSuccess(false); setPendingApproval(false); setIdNumber(''); setResidentCity(''); setCustomFields({}) }}
                   disabled={tt.quantity_available <= 0}
                   style={{
                     padding: '12px 24px',
@@ -201,6 +265,27 @@ export default function EventPage() {
             </div>
           ))}
         </div>
+        {event?.features?.group_registration && (
+          <div style={{ marginTop: 32, textAlign: 'center' }}>
+            <Link
+              to={`/e/${slug}/group-register`}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 8,
+                padding: '12px 24px',
+                borderRadius: 'var(--radius-full)',
+                background: 'var(--v2-dark-3)',
+                border: '1px solid var(--glass-border)',
+                color: '#fff',
+                textDecoration: 'none',
+                fontWeight: 600,
+              }}
+            >
+              <Users size={16} /> הרשמת קבוצה / כיתה
+            </Link>
+          </div>
+        )}
       </div>
 
       {/* SeatingModal — when ticket type has seating_map */}
@@ -278,6 +363,82 @@ export default function EventPage() {
                 }}
               />
             </div>
+            {event?.requires_id && (
+              <div style={{ marginBottom: 16 }}>
+                <label style={{ display: 'block', fontSize: 14, color: 'var(--v2-gray-400)', marginBottom: 6 }}>
+                  תעודת זהות * <Tooltip text="נדרש לאימות גיל באירוע זה (18+)" />
+                </label>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  maxLength={9}
+                  placeholder="000000000"
+                  value={idNumber}
+                  onChange={e => setIdNumber(e.target.value.replace(/\D/g, ''))}
+                  dir="ltr"
+                  style={{
+                    width: '100%',
+                    padding: 12,
+                    borderRadius: 12,
+                    border: '1px solid var(--glass-border)',
+                    background: 'var(--v2-dark-3)',
+                    color: '#fff',
+                  }}
+                />
+              </div>
+            )}
+            {event?.city_code && (
+              <div style={{ marginBottom: 16 }}>
+                <label style={{ display: 'block', fontSize: 14, color: 'var(--v2-gray-400)', marginBottom: 6 }}>
+                  עיר מגורים <Tooltip text={`תושבי ${event.city_name || 'העיר'} נהנים ממחיר מיוחד`} />
+                </label>
+                <input
+                  type="text"
+                  placeholder="הקלד את שם עירך"
+                  value={residentCity}
+                  onChange={e => setResidentCity(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: 12,
+                    borderRadius: 12,
+                    border: '1px solid var(--glass-border)',
+                    background: 'var(--v2-dark-3)',
+                    color: '#fff',
+                  }}
+                />
+              </div>
+            )}
+            {(event?.registration_fields || []).map(field => (
+              <div key={field.id} style={{ marginBottom: 16 }}>
+                <label style={{ display: 'block', fontSize: 14, color: 'var(--v2-gray-400)', marginBottom: 6 }}>
+                  {field.label}{field.required ? ' *' : ''}
+                </label>
+                {field.type === 'text' && (
+                  <input type="text" value={customFields[field.id] || ''} onChange={e => setCustomFields(f => ({ ...f, [field.id]: e.target.value }))} placeholder={field.placeholder} style={{ width: '100%', padding: 12, borderRadius: 12, border: '1px solid var(--glass-border)', background: 'var(--v2-dark-3)', color: '#fff' }} />
+                )}
+                {field.type === 'number' && (
+                  <input type="number" value={customFields[field.id] ?? ''} onChange={e => setCustomFields(f => ({ ...f, [field.id]: e.target.value }))} placeholder={field.placeholder} style={{ width: '100%', padding: 12, borderRadius: 12, border: '1px solid var(--glass-border)', background: 'var(--v2-dark-3)', color: '#fff' }} />
+                )}
+                {field.type === 'select' && (
+                  <select value={customFields[field.id] || ''} onChange={e => setCustomFields(f => ({ ...f, [field.id]: e.target.value }))} style={{ width: '100%', padding: 12, borderRadius: 12, border: '1px solid var(--glass-border)', background: 'var(--v2-dark-3)', color: '#fff' }}>
+                    <option value="">בחר...</option>
+                    {(field.options || []).map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                  </select>
+                )}
+                {field.type === 'checkbox' && (
+                  <input type="checkbox" checked={!!customFields[field.id]} onChange={e => setCustomFields(f => ({ ...f, [field.id]: e.target.checked }))} style={{ marginLeft: 8 }} />
+                )}
+                {field.type === 'phone' && (
+                  <input type="tel" inputMode="numeric" value={customFields[field.id] || ''} onChange={e => setCustomFields(f => ({ ...f, [field.id]: e.target.value }))} placeholder={field.placeholder} dir="ltr" style={{ width: '100%', padding: 12, borderRadius: 12, border: '1px solid var(--glass-border)', background: 'var(--v2-dark-3)', color: '#fff' }} />
+                )}
+                {field.type === 'email' && (
+                  <input type="email" value={customFields[field.id] || ''} onChange={e => setCustomFields(f => ({ ...f, [field.id]: e.target.value }))} placeholder={field.placeholder} style={{ width: '100%', padding: 12, borderRadius: 12, border: '1px solid var(--glass-border)', background: 'var(--v2-dark-3)', color: '#fff' }} />
+                )}
+                {field.type === 'date' && (
+                  <input type="date" value={customFields[field.id] || ''} onChange={e => setCustomFields(f => ({ ...f, [field.id]: e.target.value }))} style={{ width: '100%', padding: 12, borderRadius: 12, border: '1px solid var(--glass-border)', background: 'var(--v2-dark-3)', color: '#fff' }} />
+                )}
+              </div>
+            ))}
             <div style={{ marginBottom: 16 }}>
               <label style={{ display: 'block', fontSize: 14, color: 'var(--v2-gray-400)', marginBottom: 6 }}>כמות</label>
               <select
@@ -297,11 +458,24 @@ export default function EventPage() {
                 ))}
               </select>
             </div>
+            {event?.city_code && (
+              <div style={{ marginBottom: 12, fontSize: 14 }}>
+                {residentCity.trim().toLowerCase() === (event.city_name || event.city_code || '').toLowerCase() ? (
+                  <span style={{ color: 'var(--v2-primary)', fontWeight: 600 }}>מחיר תושב: ₪{Number(event.resident_only_price ?? modalTicket.price).toFixed(0)} ✅</span>
+                ) : (
+                  <span style={{ color: 'var(--v2-gray-400)' }}>מחיר רגיל: ₪{Number(event.non_resident_price ?? modalTicket.price).toFixed(0)}</span>
+                )}
+              </div>
+            )}
             <div style={{ marginBottom: 20 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--v2-gray-400)' }}>
                 <span>סה״כ</span>
                 <span style={{ fontWeight: 700, color: '#fff' }}>
-                  ₪{(Number(modalTicket.price) * modalQty + Number(modalTicket.service_fee || 0) * modalQty).toFixed(0)}
+                  ₪{(() => {
+                    const isRes = event?.city_code && residentCity.trim().toLowerCase() === (event.city_name || event.city_code || '').toLowerCase()
+                    const unitPrice = event?.city_code ? (isRes ? (event.resident_only_price ?? modalTicket.price) : (event.non_resident_price ?? modalTicket.price)) : modalTicket.price
+                    return (Number(unitPrice) * modalQty + Number(modalTicket.service_fee || 0) * modalQty).toFixed(0)
+                  })()}
                 </span>
               </div>
             </div>

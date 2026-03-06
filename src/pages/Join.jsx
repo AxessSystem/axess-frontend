@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useSearchParams, useNavigate } from 'react-router-dom'
+import { useSearchParams, useParams, useNavigate } from 'react-router-dom'
 import { useAuth } from '@/contexts/AuthContext'
 import toast from 'react-hot-toast'
 
@@ -18,7 +18,8 @@ const ROLE_LABELS = {
 
 export default function Join() {
   const [searchParams] = useSearchParams()
-  const token = searchParams.get('token')
+  const { token: tokenParam } = useParams()
+  const token = tokenParam || searchParams.get('token')
   const navigate = useNavigate()
   const { session } = useAuth()
   const [invitation, setInvitation] = useState(null)

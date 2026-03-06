@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { Calendar, Plus, TrendingUp, ExternalLink, Key, Copy, Edit3, Copy as CopyIcon, Trash2, Users, BarChart2, Armchair, LayoutGrid, MapPin, Check, X, Send, Link2 } from 'lucide-react'
+import { Calendar, Plus, TrendingUp, ExternalLink, Key, Copy, Edit3, Copy as CopyIcon, Trash2, Users, BarChart2, Armchair, LayoutGrid, MapPin, Check, X, Send, Link2, CheckCircle, XCircle } from 'lucide-react'
 import toast from 'react-hot-toast'
 import SeatingBuilder from '../../components/SeatingBuilder'
 import Tooltip from '../../components/ui/Tooltip'
@@ -422,6 +422,7 @@ function EventDetailDrawer({ event, businessId, onClose, onEdit, onRefresh, init
   const [selStaffId, setSelStaffId] = useState('')
   const [selRoleId, setSelRoleId] = useState('')
   const [createCampaignTemplate, setCreateCampaignTemplate] = useState(null)
+  const [pendingApprovals, setPendingApprovals] = useState([])
   const isMobile = typeof window !== 'undefined' && window.innerWidth < 768
 
   useEffect(() => {
@@ -431,7 +432,11 @@ function EventDetailDrawer({ event, businessId, onClose, onEdit, onRefresh, init
       fetch(`${API_BASE}/api/admin/events/${event.id}/campaigns`).then(r => r.ok ? r.json() : []),
       fetch(`${API_BASE}/api/admin/events/${event.id}/staff`).then(r => r.ok ? r.json() : []),
       fetch(`${API_BASE}/api/admin/events/${event.id}/promoters`).then(r => r.ok ? r.json() : []),
-    ]).then(([a, c, s, p]) => { setAnalytics(a); setCampaigns(Array.isArray(c) ? c : []); setEventStaff(Array.isArray(s) ? s : []); setEventPromoters(Array.isArray(p) ? p : []); }).catch(() => {})
+      fetch(`${API_BASE}/api/admin/events/${event.id}/pending-approvals`).then(r => r.ok ? r.json() : []),
+    ]).then(([a, c, s, p, pend]) => {
+      setAnalytics(a); setCampaigns(Array.isArray(c) ? c : []); setEventStaff(Array.isArray(s) ? s : []); setEventPromoters(Array.isArray(p) ? p : []);
+      setPendingApprovals(Array.isArray(pend) ? pend : []);
+    }).catch(() => {})
   }, [event?.id])
 
   useEffect(() => {
@@ -472,7 +477,7 @@ function EventDetailDrawer({ event, businessId, onClose, onEdit, onRefresh, init
   const eventDate = event?.doors_open || event?.date || event?.event_end
 
   const drawerTabs = [
-    { id: 'overview', label: 'סקירה' },
+    { id: 'overview', label: 'סקירה', badge: pendingApprovals.length > 0 ? `${pendingApprovals.length} ממתינים` : null },
     { id: 'campaigns', label: 'קמפיינים' },
     { id: 'promoters', label: 'יחצ"נים' },
     { id: 'staff', label: 'צוות' },
@@ -506,7 +511,7 @@ function EventDetailDrawer({ event, businessId, onClose, onEdit, onRefresh, init
         {/* Tabs */}
         <div style={{ display: 'flex', gap: 4, padding: '12px 20px', borderBottom: '1px solid var(--glass-border)', overflowX: 'auto' }}>
           {drawerTabs.map(t => (
-            <button key={t.id} onClick={() => setDrawerTab(t.id)} style={{ padding: '8px 14px', borderRadius: 8, background: drawerTab === t.id ? 'var(--v2-primary)' : 'transparent', color: drawerTab === t.id ? 'var(--v2-dark)' : 'var(--v2-gray-400)', border: 'none', fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}>{t.label}</button>
+            <button key={t.id} onClick={() => setDrawerTab(t.id)} style={{ padding: '8px 14px', borderRadius: 8, background: drawerTab === t.id ? 'var(--v2-primary)' : 'transparent', color: drawerTab === t.id ? 'var(--v2-dark)' : 'var(--v2-gray-400)', border: 'none', fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 6 }}>{t.label}{t.badge && <span style={{ background: '#ef4444', color: '#fff', fontSize: 11, padding: '2px 6px', borderRadius: 10 }}>{t.badge}</span>}</button>
           ))}
         </div>
 
@@ -531,6 +536,24 @@ function EventDetailDrawer({ event, businessId, onClose, onEdit, onRefresh, init
                   <div style={{ fontSize: 24, fontWeight: 800 }}>{eventStaff?.length ?? 0}</div>
                 </div>
               </div>
+              {pendingApprovals.length > 0 && (
+                <div style={{ marginBottom: 24, padding: 16, background: 'rgba(239,68,68,0.1)', borderRadius: 12, border: '1px solid rgba(239,68,68,0.3)' }}>
+                  <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>ממתינים לאישור</div>
+                  {pendingApprovals.map(o => (
+                    <div key={o.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 0', borderBottom: '1px solid var(--glass-border)', gap: 12 }}>
+                      <div>
+                        <span style={{ fontWeight: 600 }}>👤 {(o.first_name || '') + ' ' + (o.last_name || '') || 'לקוח'}</span>
+                        <span style={{ color: 'var(--v2-gray-400)', marginRight: 8 }}> — {o.phone}</span>
+                        <div style={{ fontSize: 12, color: 'var(--v2-gray-400)' }}>{o.created_at ? new Date(o.created_at).toLocaleString('he-IL') : ''}</div>
+                      </div>
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        <button onClick={async () => { try { const r = await fetch(`${API_BASE}/api/admin/orders/${o.id}/approve`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ approved_by: 'dashboard' }) }); if (!r.ok) throw new Error(); const pend = await fetch(`${API_BASE}/api/admin/events/${event.id}/pending-approvals`).then(res => res.json()); setPendingApprovals(pend); toast.success('אושר'); onRefresh?.(); } catch (e) { toast.error('שגיאה') } }} style={{ padding: '6px 12px', background: 'var(--v2-primary)', color: 'var(--v2-dark)', border: 'none', borderRadius: 8, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}>✅ אשר</button>
+                        <button onClick={async () => { try { const r = await fetch(`${API_BASE}/api/admin/orders/${o.id}/reject`, { method: 'POST' }); if (!r.ok) throw new Error(); const pend = await fetch(`${API_BASE}/api/admin/events/${event.id}/pending-approvals`).then(res => res.json()); setPendingApprovals(pend); toast.success('נדחה'); onRefresh?.(); } catch (e) { toast.error('שגיאה') } }} style={{ padding: '6px 12px', background: 'transparent', border: '1px solid #ef4444', color: '#ef4444', borderRadius: 8, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}>❌ דחה</button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
               <div style={{ marginBottom: 16 }}>
                 <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 8 }}>לינק ציבורי</div>
                 <div style={{ padding: 12, background: 'var(--v2-dark-3)', borderRadius: 8, marginBottom: 8, wordBreak: 'break-all' }}>{eventLink}</div>
@@ -673,6 +696,13 @@ const defaultForm = () => ({
   linked_layout_ids: [],
   seating: null,
   primary_color: 'var(--v2-primary)',
+  approval_required: false,
+  approval_instagram: '',
+  requires_id: false,
+  resident_only_price: null,
+  non_resident_price: null,
+  city_code: '',
+  city_name: '',
   branding: {
     logo_url: '',
     primary_color: '#00C37A',
@@ -830,6 +860,13 @@ export default function Events() {
       allow_waitlist: form.allow_waitlist,
     },
     settings: { show_remaining: form.show_remaining, auto_waitlist: form.allow_waitlist },
+    approval_required: form.approval_required || false,
+    approval_instagram: form.approval_instagram || null,
+    requires_id: form.requires_id || false,
+    resident_only_price: form.resident_only_price ?? null,
+    non_resident_price: form.non_resident_price ?? null,
+    city_code: form.city_code || null,
+    city_name: form.city_name || null,
     ticket_types: form.ticket_types.filter(t => t.name),
     branding: form.branding || {},
   })
@@ -1161,6 +1198,17 @@ export default function Events() {
                   <label style={{ display: 'block', marginBottom: 6, color: 'var(--v2-gray-400)' }}>סיום אירוע</label>
                   <DateTimePicker value={form.event_end} onChange={v => setForm(f => ({ ...f, event_end: v }))} placeholder="בחר תאריך ושעה" />
                 </div>
+                <div style={{ marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <input type="checkbox" id="approvalReq" checked={form.approval_required} onChange={e => setForm(f => ({ ...f, approval_required: e.target.checked }))} />
+                  <label htmlFor="approvalReq" style={{ color: 'var(--v2-gray-400)', cursor: 'pointer' }}>דרוש אישור ידני להרשמה</label>
+                  <Tooltip text="לאחר כל הרשמה תקבל SMS עם לינק לאישור ידני. הלקוח יקבל כרטיס רק לאחר אישורך." />
+                </div>
+                {form.approval_required && (
+                  <div style={{ marginBottom: 24 }}>
+                    <label style={{ display: 'block', marginBottom: 6, color: 'var(--v2-gray-400)' }}>לינק Instagram לאישור (אופציונלי)</label>
+                    <input value={form.approval_instagram} onChange={e => setForm(f => ({ ...f, approval_instagram: e.target.value }))} placeholder="https://instagram.com/[username]" style={{ width: '100%', padding: 12, borderRadius: 12, border: '1px solid var(--glass-border)', background: 'var(--v2-dark-3)', color: '#fff' }} />
+                  </div>
+                )}
               </>
             )}
 
@@ -1240,6 +1288,35 @@ export default function Events() {
                   <input type="checkbox" id="allowWait" checked={form.allow_waitlist} onChange={e => setForm(f => ({ ...f, allow_waitlist: e.target.checked }))} />
                   <label htmlFor="allowWait" style={{ color: 'var(--v2-gray-400)', cursor: 'pointer' }}>אפשר רשימת המתנה</label>
                 </div>
+                <div style={{ marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <input type="checkbox" id="reqId" checked={form.requires_id} onChange={e => setForm(f => ({ ...f, requires_id: e.target.checked }))} />
+                  <label htmlFor="reqId" style={{ color: 'var(--v2-gray-400)', cursor: 'pointer' }}>חובת תעודת זהות (18+)</label>
+                  <Tooltip text="לקוחות יידרשו להזין ת\"ז בעת ההרשמה" />
+                </div>
+                {form.requires_id && (
+                  <div style={{ marginBottom: 16, padding: 12, background: 'var(--v2-dark-2)', borderRadius: 8, fontSize: 13, color: 'var(--v2-gray-400)' }}>לקוחות יידרשו להזין תעודת זהות בעת ההרשמה</div>
+                )}
+                <div style={{ marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <input type="checkbox" id="residentPricing" checked={!!(form.city_code || form.city_name || form.resident_pricing_enabled)} onChange={e => { if (!e.target.checked) setForm(f => ({ ...f, resident_pricing_enabled: false, city_code: '', city_name: '', resident_only_price: null, non_resident_price: null })); else setForm(f => ({ ...f, resident_pricing_enabled: true })) }} />
+                  <label htmlFor="residentPricing" style={{ color: 'var(--v2-gray-400)', cursor: 'pointer' }}>מחיר שונה לתושב עיר</label>
+                  <Tooltip text="הלקוח יוכנס שם עירו ויקבל מחיר מותאם אוטומטית" />
+                </div>
+                {(form.resident_pricing_enabled || form.city_code || form.city_name || form.resident_only_price != null || form.non_resident_price != null) && (
+                  <div style={{ marginBottom: 24, padding: 16, background: 'var(--v2-dark-3)', borderRadius: 12 }}>
+                    <div style={{ marginBottom: 12 }}>
+                      <label style={{ display: 'block', marginBottom: 4, color: 'var(--v2-gray-400)' }}>קוד עיר / שם עיר</label>
+                      <input value={form.city_code || form.city_name || ''} onChange={e => { const v = e.target.value; setForm(f => ({ ...f, city_code: v, city_name: v })) }} placeholder="תל אביב" style={{ width: '100%', padding: 10, borderRadius: 8, border: '1px solid var(--glass-border)', background: 'var(--v2-dark-2)', color: '#fff' }} />
+                    </div>
+                    <div style={{ marginBottom: 12 }}>
+                      <label style={{ display: 'block', marginBottom: 4, color: 'var(--v2-gray-400)' }}>מחיר לתושב ₪</label>
+                      <input type="number" value={form.resident_only_price ?? ''} onChange={e => setForm(f => ({ ...f, resident_only_price: e.target.value ? parseFloat(e.target.value) : null }))} placeholder="0" style={{ width: '100%', padding: 10, borderRadius: 8, border: '1px solid var(--glass-border)', background: 'var(--v2-dark-2)', color: '#fff' }} />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', marginBottom: 4, color: 'var(--v2-gray-400)' }}>מחיר לתושב חוץ ₪</label>
+                      <input type="number" value={form.non_resident_price ?? ''} onChange={e => setForm(f => ({ ...f, non_resident_price: e.target.value ? parseFloat(e.target.value) : null }))} placeholder="0" style={{ width: '100%', padding: 10, borderRadius: 8, border: '1px solid var(--glass-border)', background: 'var(--v2-dark-2)', color: '#fff' }} />
+                    </div>
+                  </div>
+                )}
               </>
             )}
 

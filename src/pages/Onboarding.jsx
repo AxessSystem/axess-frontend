@@ -15,6 +15,19 @@ const DEFAULT_TEMPLATES = [
   { name: 'קמפיין כללי', template_key: 'general', campaign_type: 'general', message_template: 'היי {{first_name}}, {{message}} {{link}}', is_default: true },
 ]
 
+const TYPE_DESCRIPTIONS = {
+  club: 'אירועים, שולחנות VIP, יחצ"נים',
+  festival: 'כרטוס, ישיבה, ניהול אמנים',
+  venue: 'כנסים, חתונות, השקות',
+  restaurant: 'קמפיינים, קופונים, לקוחות חוזרים',
+  gym: 'מנויים, שיעורים, תזכורות',
+  hotel: 'אורחים, הטבות, חוויה',
+  retail: 'מבצעים, נאמנות, SMS',
+  municipal: 'אירועים קהילתיים, הרשמות, דיווח',
+  organization: 'ניהול חברים, אירועים, תרומות',
+  general: 'כל הכלים לפי הצורך',
+}
+
 export default function Onboarding() {
   const [searchParams] = useSearchParams()
   const [step, setStep] = useState(1)
@@ -22,14 +35,50 @@ export default function Onboarding() {
   const [showImportBlock, setShowImportBlock] = useState(true)
   const businessId = searchParams.get('business_id') || null
 
+  const [businessTypes, setBusinessTypes] = useState([])
+  const [selectedType, setSelectedType] = useState(null)
+  const [selectedSubType, setSelectedSubType] = useState(null)
+  const [savingType, setSavingType] = useState(false)
+
+  const hasBusinessTypeStep = !!businessId
+  const totalSteps = hasBusinessTypeStep ? 3 : 2
+  const stepForExpect = hasBusinessTypeStep ? 3 : 2
+
   useEffect(() => {
-    if (!businessId) return
+    fetch(`${API_BASE}/api/business-types`).then(r => r.ok ? r.json() : []).then(setBusinessTypes).catch(() => [])
+  }, [])
+
+  const saveBusinessTypeAndNext = async () => {
+    if (!businessId || !selectedType) return
+    setSavingType(true)
+    try {
+      const r = await fetch(`${API_BASE}/api/admin/businesses/${businessId}/type`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ business_type: selectedType.type_key, business_sub_type: selectedSubType || null }),
+      })
+      if (!r.ok) throw new Error()
+      await fetch(`${API_BASE}/api/admin/campaigns/templates/bulk`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ business_id: businessId, templates: DEFAULT_TEMPLATES }),
+      }).then(res => { if (res.ok) return; throw new Error() }).catch(() => {})
+      setStep(stepForExpect)
+    } catch {
+      setSavingType(false)
+      return
+    }
+    setSavingType(false)
+  }
+
+  useEffect(() => {
+    if (!businessId || step !== stepForExpect) return
     fetch(`${API_BASE}/api/admin/campaigns/templates/bulk`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ business_id: businessId, templates: DEFAULT_TEMPLATES }),
     }).then(r => { if (r.ok) return; throw new Error() }).catch(() => {})
-  }, [businessId])
+  }, [businessId, step])
 
   return (
     <div className="min-h-screen bg-gray-100 flex flex-col items-center justify-center p-4" dir="rtl">
@@ -56,9 +105,10 @@ export default function Onboarding() {
               <div className="flex items-center gap-2 mb-8">
                 <div className="flex gap-1.5">
                   <div className="w-8 h-1.5 rounded-full bg-primary" />
-                  <div className="w-8 h-1.5 rounded-full bg-gray-200" />
+                  <div className={`w-8 h-1.5 rounded-full ${hasBusinessTypeStep ? 'bg-gray-200' : 'bg-primary'}`} />
+                  {hasBusinessTypeStep && <div className="w-8 h-1.5 rounded-full bg-gray-200" />}
                 </div>
-                <span className="text-gray-500 text-sm">שלב 1 מתוך 2</span>
+                <span className="text-gray-500 text-sm">שלב 1 מתוך {totalSteps}</span>
               </div>
 
               <h1 className="text-3xl lg:text-4xl font-black text-dark mb-3" style={{ fontFamily: 'Outfit, sans-serif' }}>
@@ -73,7 +123,7 @@ export default function Onboarding() {
                 <motion.button
                   whileHover={{ scale: 1.02, y: -2 }}
                   whileTap={{ scale: 0.98 }}
-                  onClick={() => setStep(2)}
+                  onClick={() => setStep(hasBusinessTypeStep ? 2 : stepForExpect)}
                   className="relative border-2 border-primary bg-primary/5 rounded-2xl p-6 text-right hover:shadow-glow-primary transition-all duration-200 cursor-pointer"
                 >
                   {/* Recommended badge */}
@@ -125,9 +175,97 @@ export default function Onboarding() {
           </motion.div>
         )}
 
-        {step === 2 && (
+        {hasBusinessTypeStep && step === 2 && (
           <motion.div
-            key="step2"
+            key="step2-type"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            transition={{ duration: 0.4 }}
+            className="w-full max-w-4xl"
+          >
+            <div className="bg-white rounded-3xl shadow-card-hover p-8 lg:p-12">
+              <div className="flex items-center gap-2 mb-8">
+                <div className="flex gap-1.5">
+                  <div className="w-8 h-1.5 rounded-full bg-primary" />
+                  <div className="w-8 h-1.5 rounded-full bg-primary" />
+                  <div className="w-8 h-1.5 rounded-full bg-gray-200" />
+                </div>
+                <span className="text-gray-500 text-sm">שלב 2 מתוך 3</span>
+              </div>
+              <h1 className="text-3xl lg:text-4xl font-black text-dark mb-2" style={{ fontFamily: 'Outfit, sans-serif' }}>
+                מה סוג העסק שלך?
+              </h1>
+              <p className="text-gray-500 mb-8 text-lg">נתאים את המערכת בדיוק עבורך</p>
+
+              <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
+                {businessTypes.map(t => {
+                  const isSelected = selectedType?.type_key === t.type_key
+                  const desc = TYPE_DESCRIPTIONS[t.type_key] || ''
+                  return (
+                    <motion.button
+                      key={t.type_key}
+                      type="button"
+                      whileHover={{ scale: 1.02, y: -2 }}
+                      whileTap={{ scale: 0.98 }}
+                      onClick={() => { setSelectedType(t); setSelectedSubType(null) }}
+                      className="text-right rounded-2xl p-5 transition-all duration-200"
+                      style={{
+                        border: isSelected ? '2px solid var(--primary, #00C37A)' : '1px solid var(--glass-border, #e5e7eb)',
+                        background: isSelected ? 'rgba(0,195,122,0.05)' : 'transparent',
+                      }}
+                    >
+                      <span className="text-4xl block mb-3" style={{ lineHeight: 1 }}>{t.emoji || '🏬'}</span>
+                      <div className="font-bold text-dark mb-1" style={{ fontFamily: 'Outfit, sans-serif' }}>{t.label}</div>
+                      <div className="text-gray-500 text-sm">{desc}</div>
+                    </motion.button>
+                  )
+                })}
+              </div>
+
+              {selectedType && Array.isArray(selectedType.sub_types) && selectedType.sub_types.length > 0 && (
+                <div className="mb-8 p-5 rounded-2xl border-2 border-gray-100 bg-gray-50">
+                  <div className="font-semibold text-dark mb-4">ספר לנו יותר:</div>
+                  <div className="flex flex-wrap gap-3">
+                    {selectedType.sub_types.map(s => (
+                      <label key={s.key} className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="radio"
+                          name="sub_type"
+                          checked={selectedSubType === s.key}
+                          onChange={() => setSelectedSubType(s.key)}
+                          className="w-4 h-4 text-primary"
+                        />
+                        <span className="text-dark">{s.label}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setStep(1)}
+                  className="px-6 py-3 rounded-xl border-2 border-gray-200 text-gray-600 font-semibold hover:bg-gray-50 transition-colors"
+                >
+                  חזור
+                </button>
+                <button
+                  onClick={saveBusinessTypeAndNext}
+                  disabled={savingType || !selectedType}
+                  className="flex items-center gap-2 px-6 py-3 rounded-xl bg-primary text-white font-bold hover:bg-primary-dark transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  {savingType ? '...' : 'המשך'}
+                  <ArrowLeft size={18} />
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+
+        {step === stepForExpect && (
+          <motion.div
+            key="step-expect"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
@@ -135,13 +273,13 @@ export default function Onboarding() {
             className="w-full max-w-lg"
           >
             <div className="bg-white rounded-3xl shadow-card-hover p-8 lg:p-12">
-              {/* Step indicator */}
               <div className="flex items-center gap-2 mb-8">
                 <div className="flex gap-1.5">
                   <div className="w-8 h-1.5 rounded-full bg-primary" />
                   <div className="w-8 h-1.5 rounded-full bg-primary" />
+                  {hasBusinessTypeStep && <div className="w-8 h-1.5 rounded-full bg-primary" />}
                 </div>
-                <span className="text-gray-500 text-sm">שלב 2 מתוך 2</span>
+                <span className="text-gray-500 text-sm">שלב {stepForExpect} מתוך {totalSteps}</span>
               </div>
 
               <div className="text-center mb-8">
@@ -221,7 +359,7 @@ export default function Onboarding() {
               </motion.a>
 
               <button
-                onClick={() => setStep(1)}
+                onClick={() => setStep(hasBusinessTypeStep ? 2 : 1)}
                 className="w-full mt-3 text-gray-400 hover:text-gray-600 text-sm py-2 transition-colors"
               >
                 חזור
