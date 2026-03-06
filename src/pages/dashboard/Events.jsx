@@ -1291,7 +1291,7 @@ export default function Events() {
                 <div style={{ marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
                   <input type="checkbox" id="reqId" checked={form.requires_id} onChange={e => setForm(f => ({ ...f, requires_id: e.target.checked }))} />
                   <label htmlFor="reqId" style={{ color: 'var(--v2-gray-400)', cursor: 'pointer' }}>חובת תעודת זהות (18+)</label>
-                  <Tooltip text="לקוחות יידרשו להזין תז בעת ההרשמה" />
+                  <Tooltip text="נדרשת תעודת זהות בעת ההרשמה" />
                 </div>
                 {form.requires_id && (
                   <div style={{ marginBottom: 16, padding: 12, background: 'var(--v2-dark-2)', borderRadius: 8, fontSize: 13, color: 'var(--v2-gray-400)' }}>לקוחות יידרשו להזין תעודת זהות בעת ההרשמה</div>
