@@ -120,7 +120,7 @@ export default function Login() {
   const [forgotOpen, setForgotOpen] = useState(false)
   const [forgotEmail, setForgotEmail] = useState('')
   const [forgotLoading, setForgotLoading] = useState(false)
-  const { signIn, signInWithOtp, verifyOtp, resetPasswordForEmail, session, isAxessAdmin, loading } = useAuth()
+  const { signIn, signInWithOtp, verifyOtp, resetPasswordForEmail, session, isAxessAdmin, loading: authLoading } = useAuth()
   const navigate = useNavigate()
 
   useEffect(() => {
@@ -132,7 +132,7 @@ export default function Login() {
   }, [])
 
   useEffect(() => {
-    if (session && !loading) {
+    if (session && !authLoading) {
       const params = new URLSearchParams(window.location.search)
       const joinToken = params.get('join_token')
       if (joinToken) {
@@ -143,7 +143,7 @@ export default function Login() {
         navigate('/dashboard', { replace: true })
       }
     }
-  }, [session, loading, isAxessAdmin, navigate])
+  }, [session, authLoading, isAxessAdmin, navigate])
 
   const handleSendCode = async () => {
     const e164 = toE164(phone)
