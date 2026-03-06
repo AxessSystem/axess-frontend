@@ -446,7 +446,6 @@ export default function DashboardClientLayout() {
               display: 'flex',
               flexDirection: 'column',
               transition: 'transform 300ms ease',
-              paddingBottom: 80,
             }}
           >
             {/* א. header: לוגו AXESS + X */}
@@ -505,33 +504,27 @@ export default function DashboardClientLayout() {
             {/* ה. קו מפריד */}
             <div style={{ height: 1, background: 'var(--glass-border)', margin: '8px 0' }} />
 
-            {/* ו. שם העסק + לוח בקרה */}
-            <div style={{ padding: '12px 16px' }}>
-              <div style={{ fontWeight: 700, fontSize: 14, color: '#fff' }}>{businessName}</div>
-              <div style={{ fontSize: 12, color: isAxessAdmin ? 'var(--v2-primary)' : 'var(--v2-gray-400)', marginTop: 2 }}>
-                {isAxessAdmin ? 'AXESS Admin' : 'לוח בקרה'}
-              </div>
+            {/* ו. התנתק/י — חובה שיהיה גלוי */}
+            <div style={{ paddingBottom: 32 }}>
+              <button
+                onClick={async () => { setSidebarOpen(false); await signOut(); navigate('/login'); }}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  width: '100%',
+                  padding: '12px 16px',
+                  background: 'transparent',
+                  border: 'none',
+                  color: 'var(--v2-gray-400)',
+                  cursor: 'pointer',
+                  borderRadius: 8,
+                }}
+              >
+                <LogOut size={18} />
+                התנתק/י
+              </button>
             </div>
-
-            {/* ז. התנתק/י */}
-            <button
-              onClick={async () => { setSidebarOpen(false); await signOut(); navigate('/login'); }}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8,
-                width: '100%',
-                padding: '12px 16px',
-                background: 'transparent',
-                border: 'none',
-                color: 'var(--v2-gray-400)',
-                cursor: 'pointer',
-                borderRadius: 8,
-              }}
-            >
-              <LogOut size={18} />
-              התנתק/י
-            </button>
           </aside>
         </>
       )}
@@ -644,9 +637,9 @@ export default function DashboardClientLayout() {
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: 64 }}>
-          {/* Right (RTL): mobile = המבורגר only | desktop = circle + שם עסק + לוח בקרה */}
+          {/* Right (RTL): mobile = המבורגר + עיגול + שם עסק | desktop = circle + שם עסק + לוח בקרה */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            {/* המבורגר — mobile only, צד ימין */}
+            {/* המבורגר — mobile only */}
             <button
               className="lg:hidden"
               onClick={() => setSidebarOpen(true)}
@@ -654,54 +647,8 @@ export default function DashboardClientLayout() {
             >
               <Menu size={22} />
             </button>
-            {/* Desktop: circle + text */}
+            {/* circle + text — both mobile (name only) and desktop (full) */}
             <div
-              className="hidden lg:flex"
-              style={{
-                width: 36,
-                height: 36,
-                borderRadius: 'var(--radius-md)',
-                background: 'rgba(0,195,122,0.12)',
-                border: '1px solid rgba(0,195,122,0.25)',
-                alignItems: 'center',
-                justifyContent: 'center',
-                flexShrink: 0,
-              }}
-            >
-              <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--v2-primary)' }}>
-                {businessName.charAt(0)}
-              </span>
-            </div>
-            <div className="hidden lg:flex" style={{ flexDirection: 'column', gap: 0 }}>
-              <div
-                style={{
-                  fontFamily: "'Bricolage Grotesque', 'Outfit', sans-serif",
-                  fontWeight: 700,
-                  fontSize: 15,
-                  color: '#ffffff',
-                }}
-              >
-                {businessName}
-              </div>
-              <div
-                style={{
-                  fontSize: 11,
-                  color: 'var(--v2-gray-400)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 4,
-                }}
-              >
-                {businessConfig?.emoji || ''} {isAxessAdmin ? 'AXESS Admin' : (businessConfig?.type_label || 'לוח בקרה')}
-              </div>
-            </div>
-          </div>
-
-          {/* Left (RTL end): עיגול (mobile) | Balance + Notifications + Avatar (desktop) | פעמון */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            {/* עיגול לוגו — mobile only, צד שמאל */}
-            <div
-              className="lg:hidden"
               style={{
                 width: 36,
                 height: 36,
@@ -718,6 +665,33 @@ export default function DashboardClientLayout() {
                 {businessName.charAt(0)}
               </span>
             </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+              <div
+                style={{
+                  fontFamily: "'Bricolage Grotesque', 'Outfit', sans-serif",
+                  fontWeight: 700,
+                  fontSize: 15,
+                  color: '#ffffff',
+                }}
+              >
+                {businessName}
+              </div>
+              <div
+                className="hidden lg:flex"
+                style={{
+                  fontSize: 11,
+                  color: 'var(--v2-gray-400)',
+                  alignItems: 'center',
+                  gap: 4,
+                }}
+              >
+                {businessConfig?.emoji || ''} {isAxessAdmin ? 'AXESS Admin' : (businessConfig?.type_label || 'לוח בקרה')}
+              </div>
+            </div>
+          </div>
+
+          {/* Left (RTL end): Balance + Notifications + Avatar (desktop) | פעמון */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             {/* Balance badge — desktop only */}
             <div
               className="hidden sm:flex"
