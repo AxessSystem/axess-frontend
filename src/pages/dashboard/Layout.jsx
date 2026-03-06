@@ -271,6 +271,9 @@ export default function DashboardClientLayout() {
   const activeNotices = systemNotices.filter(n => !dismissedNotices.includes(n.id))
 
   const NAV_ITEMS = getVisibleNavItems(role, permissions, businessConfig)
+  const SETTINGS_PATH = '/dashboard/settings'
+  const MAIN_NAV = NAV_ITEMS.filter(i => i.path !== SETTINGS_PATH)
+  const SETTINGS_ITEM = NAV_ITEMS.find(i => i.path === SETTINGS_PATH)
 
   return (
     <div
@@ -314,12 +317,12 @@ export default function DashboardClientLayout() {
 
         {/* Nav */}
         <nav style={{ flex: 1, padding: '12px 8px', display: 'flex', flexDirection: 'column', gap: 2 }}>
-          {NAV_ITEMS.map(item => (
+          {MAIN_NAV.map(item => (
             <SidebarLink key={item.path} item={item} collapsed={collapsed} onHover={setHoveredNav} hovered={hoveredNav} navigate={navigate} />
           ))}
         </nav>
 
-        {/* Balance */}
+        {/* Balance — above הגדרות */}
         {!collapsed && (
           <div style={{ padding: '12px', borderTop: '1px solid var(--glass-border)' }}>
             <div
@@ -350,7 +353,14 @@ export default function DashboardClientLayout() {
           </div>
         )}
 
-        {/* Business name + subtitle above sign out */}
+        {/* הגדרות */}
+        {SETTINGS_ITEM && (
+          <div style={{ padding: '0 8px 4px' }}>
+            <SidebarLink item={SETTINGS_ITEM} collapsed={collapsed} onHover={setHoveredNav} hovered={hoveredNav} navigate={navigate} />
+          </div>
+        )}
+
+        {/* Business name + subtitle */}
         {!collapsed && (
           <div style={{ padding: '12px 16px', borderTop: '1px solid var(--glass-border)' }}>
             <div style={{ fontWeight: 700, fontSize: 14, color: '#fff' }}>{businessName}</div>
@@ -360,6 +370,8 @@ export default function DashboardClientLayout() {
           </div>
         )}
 
+        {/* Divider + התנתק/י */}
+        <div style={{ borderTop: '1px solid var(--glass-border)', marginTop: 'auto' }} />
         <button
           onClick={async () => {
             await signOut()
@@ -376,7 +388,6 @@ export default function DashboardClientLayout() {
             color: 'var(--v2-gray-400)',
             cursor: 'pointer',
             borderRadius: 8,
-            marginTop: 8,
           }}
         >
           <LogOut size={18} />
@@ -459,7 +470,7 @@ export default function DashboardClientLayout() {
             </div>
 
             <nav style={{ flex: 1, padding: '12px 8px', display: 'flex', flexDirection: 'column', gap: 2 }}>
-              {NAV_ITEMS.map(item => (
+              {MAIN_NAV.map(item => (
                 <div key={item.path} onClick={() => setSidebarOpen(false)}>
                   <SidebarLink item={item} collapsed={false} onHover={() => {}} hovered={null} navigate={navigate} />
                 </div>
@@ -482,6 +493,13 @@ export default function DashboardClientLayout() {
               </div>
             </div>
 
+            {SETTINGS_ITEM && (
+              <div onClick={() => setSidebarOpen(false)} style={{ padding: '0 8px 4px' }}>
+                <SidebarLink item={SETTINGS_ITEM} collapsed={false} onHover={() => {}} hovered={null} navigate={navigate} />
+              </div>
+            )}
+
+            <div style={{ height: 1, background: 'var(--glass-border)', margin: '8px 0' }} />
             <button
               onClick={async () => { setSidebarOpen(false); await signOut(); navigate('/login'); }}
               style={{
@@ -495,8 +513,6 @@ export default function DashboardClientLayout() {
                 color: 'var(--v2-gray-400)',
                 cursor: 'pointer',
                 borderRadius: 8,
-                marginTop: 8,
-                borderTop: '1px solid var(--glass-border)',
               }}
             >
               <LogOut size={18} />
