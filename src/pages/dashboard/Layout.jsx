@@ -315,14 +315,14 @@ export default function DashboardClientLayout() {
           </Link>
         </div>
 
-        {/* Nav */}
-        <nav style={{ flex: 1, padding: '12px 8px', display: 'flex', flexDirection: 'column', gap: 2 }}>
-          {MAIN_NAV.map(item => (
+        {/* Nav items (כולל מחלקות) */}
+        <nav style={{ padding: '12px 8px', display: 'flex', flexDirection: 'column', gap: 2 }}>
+          {NAV_ITEMS.map(item => (
             <SidebarLink key={item.path} item={item} collapsed={collapsed} onHover={setHoveredNav} hovered={hoveredNav} navigate={navigate} />
           ))}
         </nav>
 
-        {/* Balance — above הגדרות */}
+        {/* Balance — מעל הspacer (בין nav לשם העסק) */}
         {!collapsed && (
           <div style={{ padding: '12px', borderTop: '1px solid var(--glass-border)' }}>
             <div
@@ -353,16 +353,12 @@ export default function DashboardClientLayout() {
           </div>
         )}
 
-        {/* הגדרות */}
-        {SETTINGS_ITEM && (
-          <div style={{ padding: '0 8px 4px' }}>
-            <SidebarLink item={SETTINGS_ITEM} collapsed={collapsed} onHover={setHoveredNav} hovered={hoveredNav} navigate={navigate} />
-          </div>
-        )}
+        {/* flex spacer */}
+        <div style={{ marginTop: 'auto' }} />
 
-        {/* Business name + subtitle */}
+        {/* שם העסק + subtitle */}
         {!collapsed && (
-          <div style={{ padding: '12px 16px', borderTop: '1px solid var(--glass-border)' }}>
+          <div style={{ padding: '12px 16px' }}>
             <div style={{ fontWeight: 700, fontSize: 14, color: '#fff' }}>{businessName}</div>
             <div style={{ fontSize: 12, color: isAxessAdmin ? 'var(--v2-primary)' : 'var(--v2-gray-400)', marginTop: 2 }}>
               {isAxessAdmin ? 'AXESS Admin' : 'לוח בקרה'}
@@ -370,8 +366,8 @@ export default function DashboardClientLayout() {
           </div>
         )}
 
-        {/* Divider + התנתק/י */}
-        <div style={{ borderTop: '1px solid var(--glass-border)', marginTop: 'auto' }} />
+        {/* קו מפריד + התנתק/י */}
+        <div style={{ borderTop: '1px solid var(--glass-border)' }} />
         <button
           onClick={async () => {
             await signOut()
@@ -451,6 +447,7 @@ export default function DashboardClientLayout() {
               transition: 'transform 300ms ease',
             }}
           >
+            {/* header: לוגו + שם עסק + לוח בקרה + X */}
             <div
               style={{
                 display: 'flex',
@@ -458,17 +455,27 @@ export default function DashboardClientLayout() {
                 justifyContent: 'space-between',
                 padding: '16px',
                 borderBottom: '1px solid var(--glass-border)',
+                gap: 12,
               }}
             >
-              <DashLogo />
+              <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 10 }}>
+                <DashLogo />
+                <div>
+                  <div style={{ fontWeight: 700, fontSize: 14, color: '#fff' }}>{businessName}</div>
+                  <div style={{ fontSize: 12, color: isAxessAdmin ? 'var(--v2-primary)' : 'var(--v2-gray-400)' }}>
+                    {isAxessAdmin ? 'AXESS Admin' : 'לוח בקרה'}
+                  </div>
+                </div>
+              </div>
               <button
                 onClick={() => setSidebarOpen(false)}
-                style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--v2-gray-400)' }}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--v2-gray-400)', flexShrink: 0 }}
               >
                 <X size={20} />
               </button>
             </div>
 
+            {/* nav items (כולל מחלקות) */}
             <nav style={{ flex: 1, padding: '12px 8px', display: 'flex', flexDirection: 'column', gap: 2 }}>
               {MAIN_NAV.map(item => (
                 <div key={item.path} onClick={() => setSidebarOpen(false)}>
@@ -477,6 +484,7 @@ export default function DashboardClientLayout() {
               ))}
             </nav>
 
+            {/* Balance — מעל הגדרות */}
             <div style={{ padding: '12px', borderTop: '1px solid var(--glass-border)' }}>
               <div
                 style={{
@@ -493,13 +501,17 @@ export default function DashboardClientLayout() {
               </div>
             </div>
 
+            {/* הגדרות */}
             {SETTINGS_ITEM && (
               <div onClick={() => setSidebarOpen(false)} style={{ padding: '0 8px 4px' }}>
                 <SidebarLink item={SETTINGS_ITEM} collapsed={false} onHover={() => {}} hovered={null} navigate={navigate} />
               </div>
             )}
 
+            {/* קו מפריד */}
             <div style={{ height: 1, background: 'var(--glass-border)', margin: '8px 0' }} />
+
+            {/* התנתק/י */}
             <button
               onClick={async () => { setSidebarOpen(false); await signOut(); navigate('/login'); }}
               style={{
@@ -630,34 +642,29 @@ export default function DashboardClientLayout() {
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: 64 }}>
-          {/* Mobile menu button */}
-          <button
-            className="lg:hidden"
-            onClick={() => setSidebarOpen(true)}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--v2-gray-400)', padding: 4, zIndex: 60, position: 'relative' }}
-          >
-            <Menu size={22} />
-          </button>
-
-          {/* Business name */}
+          {/* Right (RTL): לוגו + שם עסק (bold) + לוח בקרה (gray) */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div className="lg:hidden">
+              <DashLogo />
+            </div>
             <div
+              className="hidden lg:flex"
               style={{
                 width: 36,
                 height: 36,
                 borderRadius: 'var(--radius-md)',
                 background: 'rgba(0,195,122,0.12)',
                 border: '1px solid rgba(0,195,122,0.25)',
-                display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
+                flexShrink: 0,
               }}
             >
               <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--v2-primary)' }}>
                 {businessName.charAt(0)}
               </span>
             </div>
-            <div className="hidden sm:block">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
               <div
                 style={{
                   fontFamily: "'Bricolage Grotesque', 'Outfit', sans-serif",
@@ -677,14 +684,14 @@ export default function DashboardClientLayout() {
                   gap: 4,
                 }}
               >
-                {businessConfig?.emoji} {businessConfig?.type_label || 'לוח בקרה'}
+                {businessConfig?.emoji || ''} {isAxessAdmin ? 'AXESS Admin' : (businessConfig?.type_label || 'לוח בקרה')}
               </div>
             </div>
           </div>
 
-          {/* Right side */}
+          {/* Left (RTL end): פעמון + המבורגר (mobile) | Balance + Notifications + Avatar (desktop) */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            {/* Balance badge */}
+            {/* Balance badge — desktop only */}
             <div
               className="hidden sm:flex"
               style={{
@@ -744,8 +751,18 @@ export default function DashboardClientLayout() {
               </span>
             </button>
 
-            {/* Avatar */}
+            {/* המבורגר — mobile only */}
+            <button
+              className="lg:hidden"
+              onClick={() => setSidebarOpen(true)}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--v2-gray-400)', padding: 4, zIndex: 60 }}
+            >
+              <Menu size={22} />
+            </button>
+
+            {/* Avatar — desktop only */}
             <div
+              className="hidden lg:block"
               style={{
                 width: 36,
                 height: 36,
@@ -762,26 +779,6 @@ export default function DashboardClientLayout() {
               </span>
             </div>
           </div>
-          </div>
-          <div className="lg:hidden" style={{
-            textAlign: 'center',
-            paddingBottom: 4,
-          }}>
-            <div style={{ fontWeight: 700, fontSize: 15, color: '#fff' }}>
-              {impersonation?.business ? impersonation.business?.name || businessName : businessName}
-            </div>
-            <div style={{ fontSize: 12, color: impersonation?.business ? 'var(--v2-gray-400)' : isAxessAdmin ? 'var(--v2-primary)' : 'var(--v2-gray-400)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: 2 }}>
-              {impersonation?.business ? (
-                <>
-                  לוח בקרה
-                  <span style={{ background: '#DC2626', color: '#fff', fontSize: 10, padding: '2px 6px', borderRadius: 4 }}>Admin</span>
-                </>
-              ) : isAxessAdmin ? (
-                'AXESS Admin'
-              ) : (
-                'לוח בקרה'
-              )}
-            </div>
           </div>
         </header>
 
