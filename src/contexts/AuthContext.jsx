@@ -118,6 +118,7 @@ export function AuthProvider({ children }) {
   const isAdmin = profile?.role === 'admin'
   const isProducer = profile?.role === 'producer'
   const producerId = profile?.producer_id
+  const isAxessAdmin = profile?.is_axess_admin === true
 
   return (
     <AuthContext.Provider value={{
@@ -129,6 +130,7 @@ export function AuthProvider({ children }) {
       businessId,
       isAdmin,
       isProducer,
+      isAxessAdmin,
       producerId,
       user: session?.user,
       signIn,

@@ -66,6 +66,14 @@ const ProducerTables    = lazy(() => import('@/pages/producer/Tables'))
 const ProducerMarketing = lazy(() => import('@/pages/producer/Marketing'))
 const ProducerReports   = lazy(() => import('@/pages/producer/Reports'))
 
+/* ── AXESS Admin (platform) ── */
+const AxessAdminLayout   = lazy(() => import('@/pages/axessAdmin/AdminLayout'))
+const AdminOverviewPage  = lazy(() => import('@/pages/axessAdmin/AdminOverview'))
+const AdminBusinessesPage = lazy(() => import('@/pages/axessAdmin/AdminBusinesses'))
+const AdminSMSPage       = lazy(() => import('@/pages/axessAdmin/AdminSMS'))
+const AdminNoticesPage   = lazy(() => import('@/pages/axessAdmin/AdminNotices'))
+const AdminAuditLogPage  = lazy(() => import('@/pages/axessAdmin/AdminAuditLog'))
+
 /* ── Loading fallback ── */
 function PageLoader() {
   return (
@@ -161,6 +169,15 @@ export default function App() {
                 <Route path="/admin/marketing" element={<AdminMarketing />} />
                 <Route path="/admin/activity" element={<AdminActivity />} />
               </Route>
+            </Route>
+
+            {/* ── AXESS Admin (platform) ── */}
+            <Route path="/axess-admin" element={<AxessAdminLayout />}>
+              <Route index element={<AdminOverviewPage />} />
+              <Route path="businesses" element={<AdminBusinessesPage />} />
+              <Route path="sms" element={<AdminSMSPage />} />
+              <Route path="notices" element={<AdminNoticesPage />} />
+              <Route path="audit" element={<AdminAuditLogPage />} />
             </Route>
 
             {/* ── Producer ── */}

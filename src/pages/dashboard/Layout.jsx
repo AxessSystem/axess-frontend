@@ -1,13 +1,41 @@
 import { useState, useEffect } from 'react'
-import { Link, Outlet, NavLink } from 'react-router-dom'
+import { Link, Outlet, NavLink, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   LayoutDashboard, Send, Users, BarChart2, QrCode, Settings,
-  Bell, Menu, X, ChevronDown, Wallet, LogOut, Calendar, Megaphone, UserCheck, Building
+  Bell, Menu, X, ChevronDown, Wallet, LogOut, Calendar, Megaphone, UserCheck, Building,
+  Info, AlertTriangle, Wrench
 } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
+import { supabase } from '@/lib/supabase'
 
 const API_BASE = import.meta.env.VITE_API_URL || 'https://axess-backend.up.railway.app'
+
+const NAV_SHORTCUTS = {
+  '/dashboard': [],
+  '/dashboard/new-campaign': [
+    { label: 'SMS לקהל', action: (n) => n('/dashboard/new-campaign?type=general') },
+    { label: 'קמפיין לאירוע', action: (n) => n('/dashboard/new-campaign?type=event') },
+  ],
+  '/dashboard/audiences': [
+    { label: 'ייבוא קהל', action: (n) => n('/dashboard/audiences?import=1') },
+    { label: 'ייצוא קהל', action: (n) => n('/dashboard/audiences?export=1') },
+  ],
+  '/dashboard/events': [
+    { label: 'צור אירוע', action: (n) => n('/dashboard/events?create=event') },
+    { label: 'צור תיאטרון', action: (n) => n('/dashboard/events?create=theater') },
+    { label: 'צור שולחנות', action: (n) => n('/dashboard/events?create=tables') },
+  ],
+  '/dashboard/promoters': [
+    { label: 'הוסף יחצ"ן', action: (n) => n('/dashboard/promoters?add=true') },
+  ],
+  '/dashboard/staff': [
+    { label: 'הזמן חבר צוות', action: (n) => n('/dashboard/staff?invite=true') },
+  ],
+  '/dashboard/validators': [
+    { label: 'צור Validator', action: (n) => n('/dashboard/validators?create=true') },
+  ],
+}
 
 const ALL_NAV_ITEMS = [
   { icon: LayoutDashboard, label: 'סקירה כללית', path: '/dashboard', permission: null, roles: null },
@@ -117,39 +145,102 @@ function DashLogo({ small = false }) {
   )
 }
 
-function SidebarLink({ item, collapsed }) {
+function SidebarLink({ item, collapsed, onHover, hovered, navigate }) {
+  const shortcuts = NAV_SHORTCUTS[item.path] || []
   return (
-    <NavLink
-      to={item.path}
-      end={item.path === '/dashboard'}
-      style={({ isActive }) => ({
-        display: 'flex',
-        alignItems: 'center',
-        gap: 12,
-        padding: collapsed ? '10px' : '10px 12px',
-        borderRadius: 'var(--radius-md)',
-        fontSize: 14,
-        fontWeight: 500,
-        fontFamily: "'DM Sans', sans-serif",
-        textDecoration: 'none',
-        transition: 'all 0.2s ease',
-        justifyContent: collapsed ? 'center' : 'flex-start',
-        color: isActive ? '#ffffff' : 'var(--v2-gray-400)',
-        background: isActive ? 'var(--glass-bg)' : 'transparent',
-        borderRight: isActive ? '2px solid var(--v2-primary)' : '2px solid transparent',
-      })}
+    <div
+      style={{ position: 'relative' }}
+      onMouseEnter={() => onHover(item.path)}
+      onMouseLeave={() => onHover(null)}
     >
-      <item.icon size={18} style={{ flexShrink: 0 }} />
-      {!collapsed && <span>{item.label}</span>}
-    </NavLink>
+      <NavLink
+        to={item.path}
+        end={item.path === '/dashboard'}
+        style={({ isActive }) => ({
+          display: 'flex',
+          alignItems: 'center',
+          gap: 12,
+          padding: collapsed ? '10px' : '10px 12px',
+          borderRadius: 'var(--radius-md)',
+          fontSize: 14,
+          fontWeight: 500,
+          fontFamily: "'DM Sans', sans-serif",
+          textDecoration: 'none',
+          transition: 'all 0.2s ease',
+          justifyContent: collapsed ? 'center' : 'flex-start',
+          color: isActive ? '#ffffff' : 'var(--v2-gray-400)',
+          background: isActive ? 'var(--glass-bg)' : 'transparent',
+          borderRight: isActive ? '2px solid var(--v2-primary)' : '2px solid transparent',
+        })}
+      >
+        <item.icon size={18} style={{ flexShrink: 0 }} />
+        {!collapsed && <span>{item.label}</span>}
+      </NavLink>
+      {hovered === item.path && shortcuts.length > 0 && (
+        <motion.div
+          initial={{ opacity: 0, x: 8 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.15 }}
+          style={{
+            position: 'fixed',
+            right: (collapsed ? 64 : 240) + 8,
+            top: 'auto',
+            zIndex: 500,
+            background: 'var(--v2-dark-3)',
+            border: '1px solid var(--glass-border)',
+            borderRadius: 12,
+            padding: '12px 16px',
+            minWidth: 180,
+            boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
+          }}
+        >
+          <div style={{ fontWeight: 700, fontSize: 14, color: '#fff', marginBottom: 8 }}>{item.label}</div>
+          <div style={{ height: 1, background: 'var(--glass-border)', marginBottom: 8 }} />
+          {shortcuts.map((s, i) => (
+            <button
+              key={i}
+              onClick={() => { s.action(navigate); onHover(null); }}
+              style={{
+                display: 'block',
+                width: '100%',
+                textAlign: 'right',
+                marginBottom: 4,
+                padding: '6px 12px',
+                background: 'var(--v2-dark-2)',
+                border: '1px solid var(--glass-border)',
+                borderRadius: 8,
+                fontSize: 12,
+                color: '#fff',
+                cursor: 'pointer',
+              }}
+            >
+              + {s.label}
+            </button>
+          ))}
+        </motion.div>
+      )}
+    </div>
   )
 }
 
 export default function DashboardClientLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [collapsed, setCollapsed] = useState(false)
+  const [hoveredNav, setHoveredNav] = useState(null)
   const [businessConfig, setBusinessConfig] = useState(null)
+  const [systemNotices, setSystemNotices] = useState([])
+  const [dismissedNotices, setDismissedNotices] = useState(() => {
+    try { return JSON.parse(sessionStorage.getItem('dismissed_notices') || '[]') } catch { return [] }
+  })
   const { role, permissions, businessId } = useAuth()
+  const navigate = useNavigate()
+
+  const impersonation = (() => {
+    try {
+      const s = sessionStorage.getItem('axess_impersonate')
+      return s ? JSON.parse(s) : null
+    } catch { return null }
+  })()
   const businessName = 'קפה רוטשילד'
   const balance = 4_820
 
@@ -160,6 +251,24 @@ export default function DashboardClientLayout() {
       .then(setBusinessConfig)
       .catch(() => setBusinessConfig(null))
   }, [businessId])
+
+  useEffect(() => {
+    const type = businessConfig?.type_key || 'all'
+    fetch(`${API_BASE}/api/system-notices?business_type=${type}`)
+      .then(r => r.ok ? r.json() : [])
+      .then(setSystemNotices)
+      .catch(() => setSystemNotices([]))
+  }, [businessConfig?.type_key])
+
+  const dismissNotice = (id) => {
+    setDismissedNotices(prev => {
+      const next = [...prev, id]
+      sessionStorage.setItem('dismissed_notices', JSON.stringify(next))
+      return next
+    })
+  }
+
+  const activeNotices = systemNotices.filter(n => !dismissedNotices.includes(n.id))
 
   const NAV_ITEMS = getVisibleNavItems(role, permissions, businessConfig)
 
@@ -206,7 +315,7 @@ export default function DashboardClientLayout() {
         {/* Nav */}
         <nav style={{ flex: 1, padding: '12px 8px', display: 'flex', flexDirection: 'column', gap: 2 }}>
           {NAV_ITEMS.map(item => (
-            <SidebarLink key={item.path} item={item} collapsed={collapsed} />
+            <SidebarLink key={item.path} item={item} collapsed={collapsed} onHover={setHoveredNav} hovered={hoveredNav} navigate={navigate} />
           ))}
         </nav>
 
@@ -345,6 +454,93 @@ export default function DashboardClientLayout() {
 
       {/* ── MAIN CONTENT ── */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+
+        {/* ── Impersonation Banner ── */}
+        {impersonation?.business && (
+          <div
+            style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              right: 0,
+              background: '#DC2626',
+              color: '#fff',
+              padding: '10px 24px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              zIndex: 9999,
+              fontSize: 14,
+            }}
+          >
+            <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <AlertTriangle size={16} />
+              מצב תמיכה — צופה כ: {impersonation.business?.name || 'עסק'}
+            </span>
+            <button
+              onClick={() => {
+                sessionStorage.removeItem('axess_impersonate')
+                const adminToken = sessionStorage.getItem('axess_admin_token')
+                if (adminToken) {
+                  try {
+                    const p = JSON.parse(adminToken)
+                    const at = p?.access_token ?? p?.session?.access_token
+                    const rt = p?.refresh_token ?? p?.session?.refresh_token
+                    if (at && rt) supabase.auth.setSession({ access_token: at, refresh_token: rt })
+                  } catch (_) {}
+                }
+                sessionStorage.removeItem('axess_admin_token')
+                window.location.href = '/axess-admin'
+              }}
+              style={{
+                background: 'rgba(255,255,255,0.2)',
+                border: 'none',
+                color: '#fff',
+                padding: '6px 14px',
+                borderRadius: 8,
+                cursor: 'pointer',
+                fontWeight: 600,
+              }}
+            >
+              חזור לאדמין
+            </button>
+          </div>
+        )}
+
+        {/* ── System Notice Banners ── */}
+        {activeNotices.map(n => {
+          const isInfo = n.type === 'info'
+          const isWarning = n.type === 'warning'
+          const isMaintenance = n.type === 'maintenance'
+          const bg = isInfo ? 'rgba(37,99,235,0.15)' : isWarning ? 'rgba(234,179,8,0.15)' : 'rgba(220,38,38,0.15)'
+          const border = isInfo ? '#2563EB' : isWarning ? '#EAB308' : '#DC2626'
+          const Icon = isInfo ? Info : isWarning ? AlertTriangle : Wrench
+          return (
+            <div
+              key={n.id}
+              style={{
+                background: bg,
+                borderBottom: `1px solid ${border}`,
+                padding: '12px 24px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 12,
+              }}
+            >
+              <Icon size={18} style={{ color: border, flexShrink: 0 }} />
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: 600, color: '#fff' }}>{n.title}</div>
+                <div style={{ fontSize: 13, color: 'var(--v2-gray-400)' }}>{n.message}</div>
+              </div>
+              <button
+                onClick={() => dismissNotice(n.id)}
+                style={{ background: 'none', border: 'none', color: 'var(--v2-gray-400)', cursor: 'pointer', padding: 4 }}
+              >
+                <X size={18} />
+              </button>
+            </div>
+          )
+        })}
 
         {/* ── HEADER ── */}
         <header
