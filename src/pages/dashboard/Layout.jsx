@@ -232,7 +232,7 @@ export default function DashboardClientLayout() {
   const [dismissedNotices, setDismissedNotices] = useState(() => {
     try { return JSON.parse(sessionStorage.getItem('dismissed_notices') || '[]') } catch { return [] }
   })
-  const { role, permissions, businessId } = useAuth()
+  const { role, permissions, businessId, signOut } = useAuth()
   const navigate = useNavigate()
 
   const impersonation = (() => {
@@ -318,6 +318,29 @@ export default function DashboardClientLayout() {
             <SidebarLink key={item.path} item={item} collapsed={collapsed} onHover={setHoveredNav} hovered={hoveredNav} navigate={navigate} />
           ))}
         </nav>
+
+        <button
+          onClick={async () => {
+            await signOut()
+            navigate('/login')
+          }}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            width: '100%',
+            padding: '12px 16px',
+            background: 'transparent',
+            border: 'none',
+            color: 'var(--v2-gray-400)',
+            cursor: 'pointer',
+            borderRadius: 8,
+            marginTop: 'auto',
+          }}
+        >
+          <LogOut size={18} />
+          {!collapsed && 'התנתק/י'}
+        </button>
 
         {/* Balance */}
         {!collapsed && (
