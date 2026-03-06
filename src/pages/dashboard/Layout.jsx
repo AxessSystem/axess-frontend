@@ -46,8 +46,8 @@ const ALL_NAV_ITEMS = [
   { icon: UserCheck,       label: 'צוות',         path: '/dashboard/staff', permission: 'can_manage_staff', roles: null },
   { icon: QrCode,          label: 'Validators',   path: '/dashboard/validators', permission: null, roles: null },
   { icon: BarChart2,       label: 'דוחות',        path: '/dashboard/reports', permission: 'can_view_reports', roles: null },
-  { icon: Settings,        label: 'הגדרות',       path: '/dashboard/settings', permission: null, roles: null },
   { icon: Building,        label: 'מחלקות',       path: '/dashboard/sub-accounts', permission: 'can_manage_sub_accounts', roles: null },
+  { icon: Settings,        label: 'הגדרות',       path: '/dashboard/settings', permission: null, roles: null },
 ]
 
 function getVisibleNavItems(role, permissions, businessConfig) {
@@ -232,7 +232,7 @@ export default function DashboardClientLayout() {
   const [dismissedNotices, setDismissedNotices] = useState(() => {
     try { return JSON.parse(sessionStorage.getItem('dismissed_notices') || '[]') } catch { return [] }
   })
-  const { role, permissions, businessId, signOut } = useAuth()
+  const { role, permissions, businessId, signOut, isAxessAdmin } = useAuth()
   const navigate = useNavigate()
 
   const impersonation = (() => {
@@ -319,29 +319,6 @@ export default function DashboardClientLayout() {
           ))}
         </nav>
 
-        <button
-          onClick={async () => {
-            await signOut()
-            navigate('/login')
-          }}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 8,
-            width: '100%',
-            padding: '12px 16px',
-            background: 'transparent',
-            border: 'none',
-            color: 'var(--v2-gray-400)',
-            cursor: 'pointer',
-            borderRadius: 8,
-            marginTop: 'auto',
-          }}
-        >
-          <LogOut size={18} />
-          {!collapsed && 'התנתק/י'}
-        </button>
-
         {/* Balance */}
         {!collapsed && (
           <div style={{ padding: '12px', borderTop: '1px solid var(--glass-border)' }}>
@@ -372,6 +349,39 @@ export default function DashboardClientLayout() {
             </div>
           </div>
         )}
+
+        {/* Business name + subtitle above sign out */}
+        {!collapsed && (
+          <div style={{ padding: '12px 16px', borderTop: '1px solid var(--glass-border)' }}>
+            <div style={{ fontWeight: 700, fontSize: 14, color: '#fff' }}>{businessName}</div>
+            <div style={{ fontSize: 12, color: isAxessAdmin ? 'var(--v2-primary)' : 'var(--v2-gray-400)', marginTop: 2 }}>
+              {isAxessAdmin ? 'AXESS Admin' : 'לוח בקרה'}
+            </div>
+          </div>
+        )}
+
+        <button
+          onClick={async () => {
+            await signOut()
+            navigate('/login')
+          }}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            width: '100%',
+            padding: '12px 16px',
+            background: 'transparent',
+            border: 'none',
+            color: 'var(--v2-gray-400)',
+            cursor: 'pointer',
+            borderRadius: 8,
+            marginTop: 8,
+          }}
+        >
+          <LogOut size={18} />
+          {!collapsed && 'התנתק/י'}
+        </button>
 
         {/* Collapse toggle */}
         <button
@@ -451,7 +461,7 @@ export default function DashboardClientLayout() {
             <nav style={{ flex: 1, padding: '12px 8px', display: 'flex', flexDirection: 'column', gap: 2 }}>
               {NAV_ITEMS.map(item => (
                 <div key={item.path} onClick={() => setSidebarOpen(false)}>
-                  <SidebarLink item={item} collapsed={false} />
+                  <SidebarLink item={item} collapsed={false} onHover={() => {}} hovered={null} navigate={navigate} />
                 </div>
               ))}
             </nav>
@@ -471,6 +481,27 @@ export default function DashboardClientLayout() {
                 </div>
               </div>
             </div>
+
+            <button
+              onClick={async () => { setSidebarOpen(false); await signOut(); navigate('/login'); }}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                width: '100%',
+                padding: '12px 16px',
+                background: 'transparent',
+                border: 'none',
+                color: 'var(--v2-gray-400)',
+                cursor: 'pointer',
+                borderRadius: 8,
+                marginTop: 8,
+                borderTop: '1px solid var(--glass-border)',
+              }}
+            >
+              <LogOut size={18} />
+              התנתק/י
+            </button>
           </aside>
         </>
       )}
@@ -718,11 +749,23 @@ export default function DashboardClientLayout() {
           </div>
           <div className="lg:hidden" style={{
             textAlign: 'center',
-            fontSize: 12,
-            color: 'var(--v2-gray-400)',
-            paddingBottom: 4
+            paddingBottom: 4,
           }}>
-            {businessName || 'לוח בקרה'}
+            <div style={{ fontWeight: 700, fontSize: 15, color: '#fff' }}>
+              {impersonation?.business ? impersonation.business?.name || businessName : businessName}
+            </div>
+            <div style={{ fontSize: 12, color: impersonation?.business ? 'var(--v2-gray-400)' : isAxessAdmin ? 'var(--v2-primary)' : 'var(--v2-gray-400)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: 2 }}>
+              {impersonation?.business ? (
+                <>
+                  לוח בקרה
+                  <span style={{ background: '#DC2626', color: '#fff', fontSize: 10, padding: '2px 6px', borderRadius: 4 }}>Admin</span>
+                </>
+              ) : isAxessAdmin ? (
+                'AXESS Admin'
+              ) : (
+                'לוח בקרה'
+              )}
+            </div>
           </div>
         </header>
 
