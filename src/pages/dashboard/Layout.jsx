@@ -449,7 +449,7 @@ export default function DashboardClientLayout() {
               paddingBottom: 80,
             }}
           >
-            {/* header: לוגו + שם עסק + לוח בקרה + X */}
+            {/* א. header: לוגו AXESS + X */}
             <div
               style={{
                 display: 'flex',
@@ -460,15 +460,7 @@ export default function DashboardClientLayout() {
                 gap: 12,
               }}
             >
-              <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 10 }}>
-                <DashLogo />
-                <div>
-                  <div style={{ fontWeight: 700, fontSize: 14, color: '#fff' }}>{businessName}</div>
-                  <div style={{ fontSize: 12, color: isAxessAdmin ? 'var(--v2-primary)' : 'var(--v2-gray-400)' }}>
-                    {isAxessAdmin ? 'AXESS Admin' : 'לוח בקרה'}
-                  </div>
-                </div>
-              </div>
+              <DashLogo />
               <button
                 onClick={() => setSidebarOpen(false)}
                 style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--v2-gray-400)', flexShrink: 0 }}
@@ -477,7 +469,7 @@ export default function DashboardClientLayout() {
               </button>
             </div>
 
-            {/* nav items (כולל מחלקות) */}
+            {/* ב. nav items (כולל מחלקות) */}
             <nav style={{ flex: 1, padding: '12px 8px', display: 'flex', flexDirection: 'column', gap: 2 }}>
               {MAIN_NAV.map(item => (
                 <div key={item.path} onClick={() => setSidebarOpen(false)}>
@@ -486,7 +478,7 @@ export default function DashboardClientLayout() {
               ))}
             </nav>
 
-            {/* Balance — מעל הגדרות */}
+            {/* ג. Balance (יתרת הודעות) */}
             <div style={{ padding: '12px', borderTop: '1px solid var(--glass-border)' }}>
               <div
                 style={{
@@ -503,17 +495,25 @@ export default function DashboardClientLayout() {
               </div>
             </div>
 
-            {/* הגדרות */}
+            {/* ד. הגדרות */}
             {SETTINGS_ITEM && (
               <div onClick={() => setSidebarOpen(false)} style={{ padding: '0 8px 4px' }}>
                 <SidebarLink item={SETTINGS_ITEM} collapsed={false} onHover={() => {}} hovered={null} navigate={navigate} />
               </div>
             )}
 
-            {/* קו מפריד */}
+            {/* ה. קו מפריד */}
             <div style={{ height: 1, background: 'var(--glass-border)', margin: '8px 0' }} />
 
-            {/* התנתק/י */}
+            {/* ו. שם העסק + לוח בקרה */}
+            <div style={{ padding: '12px 16px' }}>
+              <div style={{ fontWeight: 700, fontSize: 14, color: '#fff' }}>{businessName}</div>
+              <div style={{ fontSize: 12, color: isAxessAdmin ? 'var(--v2-primary)' : 'var(--v2-gray-400)', marginTop: 2 }}>
+                {isAxessAdmin ? 'AXESS Admin' : 'לוח בקרה'}
+              </div>
+            </div>
+
+            {/* ז. התנתק/י */}
             <button
               onClick={async () => { setSidebarOpen(false); await signOut(); navigate('/login'); }}
               style={{
@@ -644,7 +644,7 @@ export default function DashboardClientLayout() {
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: 64 }}>
-          {/* Right (RTL): המבורגר (mobile) + לוגו + שם עסק (bold) + לוח בקרה (gray) */}
+          {/* Right (RTL): mobile = המבורגר only | desktop = circle + שם עסק + לוח בקרה */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             {/* המבורגר — mobile only, צד ימין */}
             <button
@@ -654,9 +654,7 @@ export default function DashboardClientLayout() {
             >
               <Menu size={22} />
             </button>
-            <div className="lg:hidden">
-              <DashLogo />
-            </div>
+            {/* Desktop: circle + text */}
             <div
               className="hidden lg:flex"
               style={{
@@ -674,7 +672,7 @@ export default function DashboardClientLayout() {
                 {businessName.charAt(0)}
               </span>
             </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+            <div className="hidden lg:flex" style={{ flexDirection: 'column', gap: 0 }}>
               <div
                 style={{
                   fontFamily: "'Bricolage Grotesque', 'Outfit', sans-serif",
@@ -699,8 +697,27 @@ export default function DashboardClientLayout() {
             </div>
           </div>
 
-          {/* Left (RTL end): פעמון + המבורגר (mobile) | Balance + Notifications + Avatar (desktop) */}
+          {/* Left (RTL end): עיגול (mobile) | Balance + Notifications + Avatar (desktop) | פעמון */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            {/* עיגול לוגו — mobile only, צד שמאל */}
+            <div
+              className="lg:hidden"
+              style={{
+                width: 36,
+                height: 36,
+                borderRadius: 'var(--radius-md)',
+                background: 'rgba(0,195,122,0.12)',
+                border: '1px solid rgba(0,195,122,0.25)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0,
+              }}
+            >
+              <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--v2-primary)' }}>
+                {businessName.charAt(0)}
+              </span>
+            </div>
             {/* Balance badge — desktop only */}
             <div
               className="hidden sm:flex"
