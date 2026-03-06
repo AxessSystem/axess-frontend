@@ -298,6 +298,7 @@ export default function DashboardClientLayout() {
           height: '100vh',
           overflowY: 'auto',
           transition: 'width 0.3s ease',
+          paddingBottom: 24,
         }}
       >
         {/* Logo */}
@@ -445,6 +446,7 @@ export default function DashboardClientLayout() {
               display: 'flex',
               flexDirection: 'column',
               transition: 'transform 300ms ease',
+              paddingBottom: 80,
             }}
           >
             {/* header: לוגו + שם עסק + לוח בקרה + X */}
@@ -642,8 +644,16 @@ export default function DashboardClientLayout() {
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: 64 }}>
-          {/* Right (RTL): לוגו + שם עסק (bold) + לוח בקרה (gray) */}
+          {/* Right (RTL): המבורגר (mobile) + לוגו + שם עסק (bold) + לוח בקרה (gray) */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            {/* המבורגר — mobile only, צד ימין */}
+            <button
+              className="lg:hidden"
+              onClick={() => setSidebarOpen(true)}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--v2-gray-400)', padding: 4, zIndex: 60 }}
+            >
+              <Menu size={22} />
+            </button>
             <div className="lg:hidden">
               <DashLogo />
             </div>
@@ -749,15 +759,6 @@ export default function DashboardClientLayout() {
               >
                 2
               </span>
-            </button>
-
-            {/* המבורגר — mobile only */}
-            <button
-              className="lg:hidden"
-              onClick={() => setSidebarOpen(true)}
-              style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--v2-gray-400)', padding: 4, zIndex: 60 }}
-            >
-              <Menu size={22} />
             </button>
 
             {/* Avatar — desktop only */}
