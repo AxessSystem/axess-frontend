@@ -51,6 +51,7 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       setSession(session)
+      console.log('SESSION USER:', session?.user?.id)
       if (session?.user) {
         const profile = await fetchProfile(session.user.id)
         setProfile(profile)
@@ -81,7 +82,7 @@ export function AuthProvider({ children }) {
     )
 
     return () => subscription.unsubscribe()
-  }, [fetchProfile, fetchBusinessMember])
+  }, [])
 
   const signIn = async (email, password) => {
     const { data, error } = await supabase.auth.signInWithPassword({ email, password })
