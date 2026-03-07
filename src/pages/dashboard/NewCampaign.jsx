@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useAuth } from '@/contexts/AuthContext'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Upload, Users, FileText, Calendar, QrCode, Send,
@@ -217,7 +218,17 @@ function StepRecipients({ onNext, onPrev, data, setData }) {
 
       <div style={{ display: 'flex', justifyContent: 'space-between' }}>
         <button onClick={onPrev} className="btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: 6 }}><ChevronRight size={16} /> חזור</button>
-        <button onClick={onNext} disabled={selected.size === 0} className="btn-primary" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        <button
+          onClick={() => {
+            const ids = [...selected]
+            const phones = MOCK_RECIPIENTS.filter(r => selected.has(r.id)).map(r => r.phone)
+            setData(d => ({ ...d, selectedRecipientIds: ids, selectedRecipientPhones: phones }))
+            onNext()
+          }}
+          disabled={selected.size === 0}
+          className="btn-primary"
+          style={{ display: 'flex', alignItems: 'center', gap: 6 }}
+        >
           המשך ({selected.size}) <ChevronLeft size={16} />
         </button>
       </div>
@@ -540,15 +551,69 @@ function StepValidator({ onNext, onPrev, data, setData }) {
 }
 
 /* ── Step 7: Summary ── */
-function StepSummary({ onPrev, data, onSubmit, selectedEvent }) {
+function StepSummary({ onPrev, data, onSubmit, selectedEvent, businessId, authHeaders }) {
   const [sending, setSending] = useState(false)
   const [done, setDone] = useState(false)
+  const [error, setError] = useState('')
 
   const handleSend = async () => {
+    if (!businessId || !authHeaders) {
+      setError('לא מחובר — התחבר למערכת')
+      return
+    }
     setSending(true)
-    await new Promise(r => setTimeout(r, 2000))
-    setSending(false)
-    setDone(true)
+    setError('')
+    try {
+      const recipientPhones = data.pastedNumbers
+        ? data.pastedNumbers.split('\n').map(l => l.trim()).filter(Boolean)
+        : (data.selectedRecipientPhones || [])
+      const recipientCount = Math.max(data.recipientCount || 0, recipientPhones.length)
+      if (recipientPhones.length === 0 && recipientCount === 0) {
+        setError('בחר נמענים או הדבק מספרי טלפון')
+        setSending(false)
+        return
+      }
+      const createRes = await fetch(`${API_BASE}/api/admin/campaigns`, {
+        method: 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify({
+          business_id: businessId,
+          name: data.linkToEvent && selectedEvent ? `קמפיין אירוע: ${selectedEvent.title}` : undefined,
+          message: data.message,
+          schedule_type: data.scheduleType || 'now',
+          schedule_date: data.scheduleType === 'scheduled' && data.scheduleDate ? `${data.scheduleDate}T${data.scheduleTime || '09:00'}:00` : null,
+          recipient_count: recipientCount,
+          event_page_id: data.selectedEventId || null,
+          text_lead_enabled: !!data.textLeadEnabled,
+          virtual_number: data.virtualNumber || null,
+          validator_enabled: !!data.validatorEnabled,
+          validator_type: data.validatorType || null,
+          validator_title: data.validatorTitle || null,
+          validator_expiry: data.validatorExpiry || null,
+          validator_limit: data.validatorLimit || null,
+          recipient_phones: recipientPhones,
+        }),
+      })
+      const createData = await createRes.json().catch(() => ({}))
+      if (!createRes.ok) {
+        throw new Error(createData.error || 'שגיאה ביצירת קמפיין')
+      }
+      const campaignId = createData.id
+      const sendRes = await fetch(`${API_BASE}/api/admin/campaigns/${campaignId}/send`, {
+        method: 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify({}),
+      })
+      const sendData = await sendRes.json().catch(() => ({}))
+      if (!sendRes.ok) {
+        throw new Error(sendData.error || sendData.details?.[0] || 'שגיאה בשליחת קמפיין')
+      }
+      setDone(true)
+    } catch (err) {
+      setError(err.message || 'שגיאה בשליחה')
+    } finally {
+      setSending(false)
+    }
   }
 
   if (done) {
@@ -607,6 +672,12 @@ function StepSummary({ onPrev, data, onSubmit, selectedEvent }) {
         </div>
       </div>
 
+      {error && (
+        <div style={{ color: '#F87171', fontSize: 14, display: 'flex', alignItems: 'center', gap: 6 }}>
+          <AlertCircle size={16} /> {error}
+        </div>
+      )}
+
       <div style={{ display: 'flex', justifyContent: 'space-between' }}>
         <button onClick={onPrev} className="btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: 6 }}><ChevronRight size={16} /> חזור</button>
         <button onClick={handleSend} disabled={sending} className="btn-primary" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -624,11 +695,17 @@ function StepSummary({ onPrev, data, onSubmit, selectedEvent }) {
 /* ── Main Wizard ── */
 export default function NewCampaign() {
   const navigate = useNavigate()
+  const { session, businessId } = useAuth()
   const [step, setStep] = useState(1)
   const [data, setData] = useState({ scheduleType: 'now', validatorEnabled: false })
-  const businessId = 'placeholder'
+  const effectiveBusinessId = businessId || 'placeholder'
   const [events, setEvents] = useState([])
-  useEffect(() => { if (businessId) fetch(`${API_BASE}/api/admin/events?business_id=${businessId}`).then(r => r.ok ? r.json() : []).then(setEvents).catch(() => []) }, [businessId])
+  const authHeaders = () => {
+    const h = { 'Content-Type': 'application/json', 'X-Business-Id': effectiveBusinessId }
+    if (session?.access_token) h['Authorization'] = `Bearer ${session.access_token}`
+    return h
+  }
+  useEffect(() => { if (effectiveBusinessId) fetch(`${API_BASE}/api/admin/events?business_id=${effectiveBusinessId}`).then(r => r.ok ? r.json() : []).then(setEvents).catch(() => []) }, [effectiveBusinessId])
   const selectedEvent = data.selectedEventId ? events.find(e => e.id === data.selectedEventId) : null
 
   const next = () => setStep(s => Math.min(s + 1, 7))
@@ -648,13 +725,13 @@ export default function NewCampaign() {
       <div style={{ background: 'var(--v2-dark-3)', border: '1px solid var(--glass-border)', borderRadius: 'var(--radius-lg)', padding: '24px' }}>
         <AnimatePresence mode="wait">
           <motion.div key={step} initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} transition={{ duration: 0.25 }}>
-            {step === 1 && <StepUpload onNext={next} data={data} setData={setData} businessId={businessId} />}
+            {step === 1 && <StepUpload onNext={next} data={data} setData={setData} businessId={effectiveBusinessId} />}
             {step === 2 && <StepRecipients onNext={next} onPrev={prev} data={data} setData={setData} />}
             {step === 3 && <StepMessage onNext={next} onPrev={prev} data={data} setData={setData} />}
             {step === 4 && <StepSchedule onNext={next} onPrev={prev} data={data} setData={setData} />}
             {step === 5 && <StepTextLead onNext={next} onPrev={prev} data={data} setData={setData} />}
             {step === 6 && <StepValidator onNext={next} onPrev={prev} data={data} setData={setData} />}
-            {step === 7 && <StepSummary onPrev={prev} data={data} onSubmit={() => navigate('/dashboard')} selectedEvent={selectedEvent} />}
+            {step === 7 && <StepSummary onPrev={prev} data={data} onSubmit={() => navigate('/dashboard')} selectedEvent={selectedEvent} businessId={effectiveBusinessId} authHeaders={authHeaders} />}
           </motion.div>
         </AnimatePresence>
       </div>
