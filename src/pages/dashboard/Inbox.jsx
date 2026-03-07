@@ -8,29 +8,6 @@ import { useAuth } from "@/contexts/AuthContext";
 
 const API_BASE = import.meta.env.VITE_API_URL || "https://axess-backend.up.railway.app";
 
-function useAuthHeaders() {
-  const { session, businessId } = useAuth();
-  return useCallback(() => {
-    const h = { "Content-Type": "application/json", "X-Business-Id": businessId || "" };
-    if (session?.access_token) h["Authorization"] = `Bearer ${session.access_token}`;
-    return h;
-  }, [session?.access_token, businessId]);
-}
-
-function useApiFetch() {
-  const authHeaders = useAuthHeaders();
-  const { businessId } = useAuth();
-  return useCallback(async (path, opts = {}) => {
-    if (!businessId) return Promise.reject(new Error("Not authenticated"));
-    const r = await fetch(`${API_BASE}${path}`, {
-      ...opts,
-      headers: { ...authHeaders(), ...(opts.headers || {}) },
-    });
-    const data = await r.json().catch(() => ({}));
-    return { ...data, ok: r.ok };
-  }, [authHeaders, businessId]);
-}
-
 function EmptyInbox() {
   return (
     <div className="inbox-empty">
@@ -217,11 +194,25 @@ function CampaignGroup({ group, onMarkAllRead, onRefresh, apiFetch }) {
 
 export default function Inbox({ onUnreadChange }) {
   const { session, businessId, loading } = useAuth();
-  const apiFetch = useApiFetch();
   const [data, setData] = useState(null);
   const [dataLoading, setDataLoading] = useState(true);
   const [filter, setFilter] = useState("all");
   const [refreshing, setRefreshing] = useState(false);
+
+  const apiFetch = useCallback(async (path, opts = {}) => {
+    if (!session?.access_token || !businessId) return Promise.reject(new Error("Not authenticated"));
+    const r = await fetch(`${API_BASE}${path}`, {
+      ...opts,
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${session.access_token}`,
+        "X-Business-Id": businessId,
+        ...(opts.headers || {}),
+      },
+    });
+    const data = await r.json().catch(() => ({}));
+    return { ...data, ok: r.ok };
+  }, [session?.access_token, businessId]);
 
   const load = useCallback(async (silent = false) => {
     if (!session?.access_token || !businessId) return;
@@ -257,7 +248,7 @@ export default function Inbox({ onUnreadChange }) {
       </div>
     );
   }
-  if (!session || !businessId) {
+  if (!session?.access_token || !businessId) {
     return (
       <div style={{ padding: 24, color: "var(--v2-gray-400)", textAlign: "center" }}>
         נדרשת התחברות לצפייה באינבוקס
