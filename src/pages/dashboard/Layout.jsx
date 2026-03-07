@@ -407,24 +407,73 @@ export default function DashboardClientLayout() {
   const { role, permissions, businessId, isAxessAdmin, session } = useAuth()
   const navigate = useNavigate()
   const [inboxUnreadCount, setInboxUnreadCount] = useState(0)
+  const [notificationsUnreadCount, setNotificationsUnreadCount] = useState(0)
+  const [recentNotifications, setRecentNotifications] = useState([])
+  const [notificationsDropdownOpen, setNotificationsDropdownOpen] = useState(false)
+  const notificationsBeepedIdsRef = useRef(new Set())
+  const notificationsRef = useRef(null)
 
   useEffect(() => {
     if (!session?.access_token || !businessId) return
-    const fetchUnread = () => {
+    const fetchInboxUnread = () => {
       fetch(`${API_BASE}/api/sms/inbox/unread-count`, {
-        headers: {
-          Authorization: `Bearer ${session.access_token}`,
-          'X-Business-Id': businessId,
-        },
+        headers: { Authorization: `Bearer ${session.access_token}`, 'X-Business-Id': businessId },
       })
         .then(r => r.json())
         .then(data => setInboxUnreadCount(data?.count ?? 0))
         .catch(() => {})
     }
-    fetchUnread()
-    const interval = setInterval(fetchUnread, 30000)
+    fetchInboxUnread()
+    const interval = setInterval(fetchInboxUnread, 30000)
     return () => clearInterval(interval)
   }, [session?.access_token, businessId])
+
+  useEffect(() => {
+    if (!session?.access_token || !businessId) return
+    const playUrgentBeep = () => {
+      try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)()
+        const osc = ctx.createOscillator()
+        const gain = ctx.createGain()
+        osc.connect(gain)
+        gain.connect(ctx.destination)
+        osc.frequency.value = 800
+        osc.type = 'sine'
+        gain.gain.setValueAtTime(0.15, ctx.currentTime)
+        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.15)
+        osc.start(ctx.currentTime)
+        osc.stop(ctx.currentTime + 0.15)
+      } catch (_) {}
+    }
+    const pollNotifications = () => {
+      const headers = { Authorization: `Bearer ${session.access_token}`, 'X-Business-Id': businessId }
+      Promise.all([
+        fetch(`${API_BASE}/api/notifications/unread-count`, { headers }).then(r => r.json()).then(d => d?.count ?? 0).catch(() => 0),
+        fetch(`${API_BASE}/api/notifications?limit=5`, { headers }).then(r => r.json()).then(d => Array.isArray(d) ? d : []).catch(() => []),
+      ]).then(([count, list]) => {
+        setNotificationsUnreadCount(count)
+        setRecentNotifications(list)
+        list.forEach(n => {
+          if (!n.is_read && n.priority === 'urgent' && !notificationsBeepedIdsRef.current.has(n.id)) {
+            playUrgentBeep()
+            notificationsBeepedIdsRef.current.add(n.id)
+          }
+        })
+      })
+    }
+    pollNotifications()
+    const interval = setInterval(pollNotifications, 30000)
+    return () => clearInterval(interval)
+  }, [session?.access_token, businessId])
+
+  useEffect(() => {
+    if (!notificationsDropdownOpen) return
+    const onClose = (e) => {
+      if (notificationsRef.current && !notificationsRef.current.contains(e.target)) setNotificationsDropdownOpen(false)
+    }
+    document.addEventListener('click', onClose)
+    return () => document.removeEventListener('click', onClose)
+  }, [notificationsDropdownOpen])
 
   const impersonation = (() => {
     try {
@@ -941,50 +990,135 @@ export default function DashboardClientLayout() {
               <span style={{ fontSize: 11, color: 'var(--v2-gray-400)' }}>הודעות</span>
             </div>
 
-            {/* Notifications — navigates to inbox */}
-            <button
-              onClick={() => navigate('/dashboard/inbox')}
-              style={{
-                position: 'relative',
-                width: 36,
-                height: 36,
-                borderRadius: 'var(--radius-md)',
-                background: 'var(--glass-bg)',
-                border: '1px solid var(--glass-border)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: 'var(--v2-gray-400)',
-                cursor: 'pointer',
-                transition: 'color 0.2s',
-              }}
-              onMouseEnter={e => (e.currentTarget.style.color = '#ffffff')}
-              onMouseLeave={e => (e.currentTarget.style.color = 'var(--v2-gray-400)')}
-            >
-              <Bell size={16} />
-              {inboxUnreadCount > 0 && (
-                <span
+            {/* Notifications — dropdown with 5 recent + link to full page */}
+            <div ref={notificationsRef} style={{ position: 'relative' }}>
+              <button
+                onClick={() => setNotificationsDropdownOpen(o => !o)}
+                style={{
+                  position: 'relative',
+                  width: 36,
+                  height: 36,
+                  borderRadius: 'var(--radius-md)',
+                  background: 'var(--glass-bg)',
+                  border: '1px solid var(--glass-border)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: 'var(--v2-gray-400)',
+                  cursor: 'pointer',
+                  transition: 'color 0.2s',
+                }}
+                onMouseEnter={e => (e.currentTarget.style.color = '#ffffff')}
+                onMouseLeave={e => (e.currentTarget.style.color = 'var(--v2-gray-400)')}
+              >
+                <Bell size={16} />
+                {notificationsUnreadCount > 0 && (
+                  <span
+                    style={{
+                      position: 'absolute',
+                      top: -3,
+                      right: -3,
+                      minWidth: 16,
+                      height: 16,
+                      padding: '0 4px',
+                      background: 'var(--v2-primary)',
+                      borderRadius: 99,
+                      fontSize: 10,
+                      color: 'var(--v2-dark)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontWeight: 800,
+                    }}
+                  >
+                    {notificationsUnreadCount > 99 ? '99+' : notificationsUnreadCount}
+                  </span>
+                )}
+              </button>
+              {notificationsDropdownOpen && (
+                <div
                   style={{
                     position: 'absolute',
-                    top: -3,
-                    right: -3,
-                    minWidth: 16,
-                    height: 16,
-                    padding: '0 4px',
-                    background: 'var(--v2-primary)',
-                    borderRadius: 99,
-                    fontSize: 10,
-                    color: 'var(--v2-dark)',
+                    top: '100%',
+                    left: 0,
+                    marginTop: 8,
+                    width: 320,
+                    maxHeight: 360,
+                    background: 'var(--v2-dark-3)',
+                    border: '1px solid var(--glass-border)',
+                    borderRadius: 12,
+                    boxShadow: '0 12px 40px rgba(0,0,0,0.5)',
+                    zIndex: 100,
+                    overflow: 'hidden',
                     display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontWeight: 800,
+                    flexDirection: 'column',
                   }}
                 >
-                  {inboxUnreadCount > 99 ? '99+' : inboxUnreadCount}
-                </span>
+                  <div style={{ padding: 12, borderBottom: '1px solid var(--glass-border)' }}>
+                    <div style={{ fontWeight: 600, color: '#fff', fontSize: 14 }}>התראות</div>
+                  </div>
+                  <div style={{ flex: 1, overflowY: 'auto', maxHeight: 280 }}>
+                    {recentNotifications.length === 0 ? (
+                      <div style={{ padding: 20, textAlign: 'center', color: 'var(--v2-gray-400)', fontSize: 13 }}>אין התראות</div>
+                    ) : (
+                      recentNotifications.map(n => (
+                        <button
+                          key={n.id}
+                          onClick={() => {
+                            setNotificationsDropdownOpen(false)
+                            if (!n.is_read) {
+                              fetch(`${API_BASE}/api/notifications/${n.id}/read`, {
+                                method: 'PATCH',
+                                headers: { Authorization: `Bearer ${session.access_token}`, 'X-Business-Id': businessId },
+                              }).then(() => setNotificationsUnreadCount(c => Math.max(0, c - 1)))
+                            }
+                            const url = n.action_url || '/dashboard/notifications'
+                            if (url.startsWith('http')) window.location.href = url
+                            else navigate(url)
+                          }}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'flex-start',
+                            gap: 10,
+                            width: '100%',
+                            padding: '10px 12px',
+                            background: 'transparent',
+                            border: 'none',
+                            cursor: 'pointer',
+                            textAlign: 'right',
+                            borderBottom: '1px solid var(--glass-border)',
+                            transition: 'background 0.15s',
+                          }}
+                          onMouseEnter={e => (e.currentTarget.style.background = 'var(--v2-dark-2)')}
+                          onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                        >
+                          <span style={{ width: 6, height: 6, borderRadius: '50%', marginTop: 6, flexShrink: 0, background: !n.is_read ? '#3B82F6' : 'transparent' }} />
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontWeight: 500, color: '#fff', fontSize: 13 }}>{n.title}</div>
+                            {n.body && <div style={{ fontSize: 12, color: 'var(--v2-gray-400)', marginTop: 2 }}>{n.body}</div>}
+                          </div>
+                        </button>
+                      ))
+                    )}
+                  </div>
+                  <Link
+                    to="/dashboard/notifications"
+                    onClick={() => setNotificationsDropdownOpen(false)}
+                    style={{
+                      display: 'block',
+                      padding: 10,
+                      textAlign: 'center',
+                      fontSize: 13,
+                      color: 'var(--v2-primary)',
+                      textDecoration: 'none',
+                      borderTop: '1px solid var(--glass-border)',
+                    }}
+                  >
+                    צפה בהכל
+                  </Link>
+                </div>
               )}
-            </button>
+            </div>
 
             {/* Avatar — desktop only */}
             <div

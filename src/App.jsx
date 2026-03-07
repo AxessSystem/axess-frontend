@@ -51,6 +51,7 @@ const Staff          = lazy(() => import('@/pages/dashboard/Staff'))
 const Settings       = lazy(() => import('@/pages/dashboard/Settings'))
 const SubAccounts    = lazy(() => import('@/pages/dashboard/SubAccounts'))
 const Inbox          = lazy(() => import('@/pages/dashboard/Inbox'))
+const Notifications  = lazy(() => import('@/pages/dashboard/Notifications'))
 
 /* ── Existing admin/producer pages (lazy) ── */
 const AdminDashboard    = lazy(() => import('@/pages/admin/Dashboard'))
@@ -166,6 +167,7 @@ export default function App() {
               <Route path="settings" element={<Settings />} />
               <Route path="sub-accounts" element={<SubAccounts />} />
               <Route path="inbox" element={<Inbox />} />
+              <Route path="notifications" element={<Notifications />} />
             </Route>
 
             {/* ── Admin ── */}
