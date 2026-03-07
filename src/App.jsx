@@ -10,6 +10,7 @@ import DashboardLayout from '@/components/layout/DashboardLayout'
 /* ── Existing pages (eager) ── */
 import Landing from '@/pages/Landing'
 import Login from '@/pages/Login'
+import ResetPassword from '@/pages/ResetPassword'
 import NotFound from '@/pages/NotFound'
 import Terms from '@/pages/Terms'
 import Privacy from '@/pages/Privacy'
@@ -117,6 +118,7 @@ export default function App() {
             {/* ── Public ── */}
             <Route path="/" element={<Landing />} />
             <Route path="/login" element={<Login />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/join" element={<Join />} />
             <Route path="/join/:token" element={<Join />} />
             <Route path="/onboarding" element={<Onboarding />} />
