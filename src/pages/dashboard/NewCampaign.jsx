@@ -573,38 +573,48 @@ function StepSummary({ onPrev, data, onSubmit, selectedEvent, businessId, authHe
         setSending(false)
         return
       }
-      const createRes = await fetch(`${API_BASE}/api/admin/campaigns`, {
+      const createBody = {
+        business_id: businessId,
+        name: data.linkToEvent && selectedEvent ? `קמפיין אירוע: ${selectedEvent.title}` : undefined,
+        message: data.message,
+        schedule_type: data.scheduleType || 'now',
+        schedule_date: data.scheduleType === 'scheduled' && data.scheduleDate ? `${data.scheduleDate}T${data.scheduleTime || '09:00'}:00` : null,
+        recipient_count: recipientCount,
+        event_page_id: data.selectedEventId || null,
+        text_lead_enabled: !!data.textLeadEnabled,
+        virtual_number: data.virtualNumber || null,
+        validator_enabled: !!data.validatorEnabled,
+        validator_type: data.validatorType || null,
+        validator_title: data.validatorTitle || null,
+        validator_expiry: data.validatorExpiry || null,
+        validator_limit: data.validatorLimit || null,
+        recipient_phones: recipientPhones,
+      }
+      const createUrl = `${API_BASE}/api/admin/campaigns`
+      const createHeaders = authHeaders()
+      console.log('[handleSend] POST create — URL:', createUrl, 'headers:', createHeaders, 'body:', createBody)
+      const createRes = await fetch(createUrl, {
         method: 'POST',
-        headers: authHeaders(),
-        body: JSON.stringify({
-          business_id: businessId,
-          name: data.linkToEvent && selectedEvent ? `קמפיין אירוע: ${selectedEvent.title}` : undefined,
-          message: data.message,
-          schedule_type: data.scheduleType || 'now',
-          schedule_date: data.scheduleType === 'scheduled' && data.scheduleDate ? `${data.scheduleDate}T${data.scheduleTime || '09:00'}:00` : null,
-          recipient_count: recipientCount,
-          event_page_id: data.selectedEventId || null,
-          text_lead_enabled: !!data.textLeadEnabled,
-          virtual_number: data.virtualNumber || null,
-          validator_enabled: !!data.validatorEnabled,
-          validator_type: data.validatorType || null,
-          validator_title: data.validatorTitle || null,
-          validator_expiry: data.validatorExpiry || null,
-          validator_limit: data.validatorLimit || null,
-          recipient_phones: recipientPhones,
-        }),
+        headers: createHeaders,
+        body: JSON.stringify(createBody),
       })
       const createData = await createRes.json().catch(() => ({}))
+      console.log('[handleSend] POST create — status:', createRes.status, 'response:', createData)
       if (!createRes.ok) {
         throw new Error(createData.error || 'שגיאה ביצירת קמפיין')
       }
       const campaignId = createData.id
-      const sendRes = await fetch(`${API_BASE}/api/admin/campaigns/${campaignId}/send`, {
+      const sendUrl = `${API_BASE}/api/admin/campaigns/${campaignId}/send`
+      const sendBody = {}
+      const sendHeaders = authHeaders()
+      console.log('[handleSend] POST send — URL:', sendUrl, 'headers:', sendHeaders, 'body:', sendBody)
+      const sendRes = await fetch(sendUrl, {
         method: 'POST',
-        headers: authHeaders(),
-        body: JSON.stringify({}),
+        headers: sendHeaders,
+        body: JSON.stringify(sendBody),
       })
       const sendData = await sendRes.json().catch(() => ({}))
+      console.log('[handleSend] POST send — status:', sendRes.status, 'response:', sendData)
       if (!sendRes.ok) {
         throw new Error(sendData.error || sendData.details?.[0] || 'שגיאה בשליחת קמפיין')
       }
