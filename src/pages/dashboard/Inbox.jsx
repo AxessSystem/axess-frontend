@@ -6,25 +6,29 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 
-const API_BASE = import.meta.env.VITE_API_URL || "";
+const API_BASE = import.meta.env.VITE_API_URL || "https://axess-backend.up.railway.app";
+
+function useAuthHeaders() {
+  const { session, businessId } = useAuth();
+  return useCallback(() => {
+    const h = { "Content-Type": "application/json", "X-Business-Id": businessId || "" };
+    if (session?.access_token) h["Authorization"] = `Bearer ${session.access_token}`;
+    return h;
+  }, [session?.access_token, businessId]);
+}
 
 function useApiFetch() {
-  const { session, businessId } = useAuth();
+  const authHeaders = useAuthHeaders();
+  const { businessId } = useAuth();
   return useCallback(async (path, opts = {}) => {
-    const token = session?.access_token;
-    if (!token || !businessId) return Promise.reject(new Error("Not authenticated"));
+    if (!businessId) return Promise.reject(new Error("Not authenticated"));
     const r = await fetch(`${API_BASE}${path}`, {
       ...opts,
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-        "X-Business-Id": businessId,
-        ...(opts.headers || {}),
-      },
+      headers: { ...authHeaders(), ...(opts.headers || {}) },
     });
     const data = await r.json().catch(() => ({}));
     return { ...data, ok: r.ok };
-  }, [session?.access_token, businessId]);
+  }, [authHeaders, businessId]);
 }
 
 function EmptyInbox() {
