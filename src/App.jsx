@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect } from 'react'
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom'
 import { Toaster } from 'react-hot-toast'
 import { AuthProvider } from '@/contexts/AuthContext'
 
@@ -91,17 +91,22 @@ function PageLoader() {
   )
 }
 
-export default function App() {
+function RecoveryRedirectHandler() {
+  const navigate = useNavigate()
   useEffect(() => {
     const hash = window.location.hash
     if (hash && hash.includes('type=recovery')) {
-      window.location.href = '/reset-password' + hash
+      navigate('/reset-password' + hash, { replace: true })
     }
-  }, [])
+  }, [navigate])
+  return null
+}
 
+export default function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
+        <RecoveryRedirectHandler />
         <Toaster
           position="top-center"
           toastOptions={{
