@@ -53,6 +53,7 @@ export function AuthProvider({ children }) {
       if (session?.user) {
         const profile = await fetchProfile(session.user.id)
         setProfile(profile)
+        console.log('AUTH FLOW:', { userId: session?.user?.id, sessionExists: !!session })
         const bm = await fetchBusinessMember(session.user.id)
         setBusinessMember(bm)
       } else {
@@ -67,6 +68,7 @@ export function AuthProvider({ children }) {
         if (session?.user) {
           const profile = await fetchProfile(session.user.id)
           setProfile(profile)
+          console.log('AUTH FLOW:', { userId: session?.user?.id, sessionExists: !!session })
           const bm = await fetchBusinessMember(session.user.id)
           setBusinessMember(bm)
         } else {
