@@ -3,7 +3,7 @@ import { Link, Outlet, NavLink, useNavigate, useLocation } from 'react-router-do
 import {
   LayoutDashboard, Send, Users, BarChart2, QrCode, Settings,
   Bell, Menu, X, ChevronDown, Wallet, LogOut, Calendar, Megaphone, UserCheck, Building,
-  Info, AlertTriangle, Wrench
+  Info, AlertTriangle, Wrench, MessageSquare
 } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { supabase } from '@/lib/supabase'
@@ -41,6 +41,7 @@ const ALL_NAV_ITEMS = [
   { icon: Send,            label: 'קמפיין חדש',  path: '/dashboard/new-campaign', permission: 'can_send_campaigns', roles: null },
   { icon: Users,           label: 'קהלים',        path: '/dashboard/audiences', permission: null, roles: null },
   { icon: Calendar,        label: 'אירועים',      path: '/dashboard/events', permission: 'can_edit_events', roles: null },
+  { icon: MessageSquare,   label: 'אינבוקס',       path: '/dashboard/inbox', permission: null, roles: null },
   { icon: Megaphone,       label: 'יחצ"נים',      path: '/dashboard/promoters', permission: 'can_manage_promoters', roles: null },
   { icon: UserCheck,       label: 'צוות',         path: '/dashboard/staff', permission: 'can_manage_staff', roles: null },
   { icon: QrCode,          label: 'Validators',   path: '/dashboard/validators', permission: null, roles: null },
@@ -67,6 +68,7 @@ function getVisibleNavItems(role, permissions, businessConfig) {
     '/dashboard/promoters': 'promoters',
     '/dashboard/staff': 'staff',
     '/dashboard/validators': 'validators',
+    '/dashboard/inbox': 'inbox',
     '/dashboard/reports': 'reports',
     '/dashboard/settings': 'settings',
     '/dashboard/sub-accounts': 'sub_accounts',
@@ -144,7 +146,7 @@ function DashLogo({ small = false }) {
   )
 }
 
-function SidebarLink({ item, collapsed, navigate, isMobile = false }) {
+function SidebarLink({ item, collapsed, navigate, isMobile = false, badgeCount = null }) {
   const shortcuts = NAV_SHORTCUTS[item.path] || []
   const [openDropdown, setOpenDropdown] = useState(false)
   const containerRef = useRef(null)
@@ -212,7 +214,26 @@ function SidebarLink({ item, collapsed, navigate, isMobile = false }) {
           })}
         >
           <item.icon size={18} style={{ flexShrink: 0 }} />
-          {!collapsed && <span>{item.label}</span>}
+          {!collapsed && (
+            <>
+              <span>{item.label}</span>
+              {item.path === '/dashboard/inbox' && badgeCount != null && badgeCount > 0 && (
+                <span
+                  style={{
+                    marginRight: 'auto',
+                    background: 'var(--v2-primary)',
+                    color: 'var(--v2-dark)',
+                    fontSize: 11,
+                    fontWeight: 700,
+                    padding: '2px 6px',
+                    borderRadius: 99,
+                  }}
+                >
+                  {badgeCount > 99 ? '99+' : badgeCount}
+                </span>
+              )}
+            </>
+          )}
         </NavLink>
         {showChevron && (
           <button
@@ -282,7 +303,7 @@ function SidebarLink({ item, collapsed, navigate, isMobile = false }) {
   )
 }
 
-function MobileDrawerNavItem({ item, navigate, onClose, expandedItem, setExpandedItem }) {
+function MobileDrawerNavItem({ item, navigate, onClose, expandedItem, setExpandedItem, badgeCount = null }) {
   const shortcuts = NAV_SHORTCUTS[item.path] || []
   const hasShortcuts = shortcuts.length > 0
   const expanded = expandedItem === item.path
@@ -310,6 +331,21 @@ function MobileDrawerNavItem({ item, navigate, onClose, expandedItem, setExpande
         >
           <item.icon size={18} style={{ flexShrink: 0 }} />
           <span>{item.label}</span>
+          {item.path === '/dashboard/inbox' && badgeCount != null && badgeCount > 0 && (
+            <span
+              style={{
+                marginRight: 'auto',
+                background: 'var(--v2-primary)',
+                color: 'var(--v2-dark)',
+                fontSize: 11,
+                fontWeight: 700,
+                padding: '2px 6px',
+                borderRadius: 99,
+              }}
+            >
+              {badgeCount > 99 ? '99+' : badgeCount}
+            </span>
+          )}
         </NavLink>
         {hasShortcuts && (
           <button
@@ -368,8 +404,27 @@ export default function DashboardClientLayout() {
   const [dismissedNotices, setDismissedNotices] = useState(() => {
     try { return JSON.parse(sessionStorage.getItem('dismissed_notices') || '[]') } catch { return [] }
   })
-  const { role, permissions, businessId, isAxessAdmin } = useAuth()
+  const { role, permissions, businessId, isAxessAdmin, session } = useAuth()
   const navigate = useNavigate()
+  const [inboxUnreadCount, setInboxUnreadCount] = useState(0)
+
+  useEffect(() => {
+    if (!session?.access_token || !businessId) return
+    const fetchUnread = () => {
+      fetch(`${API_BASE}/api/sms/inbox/unread-count`, {
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+          'X-Business-Id': businessId,
+        },
+      })
+        .then(r => r.json())
+        .then(data => setInboxUnreadCount(data?.count ?? 0))
+        .catch(() => {})
+    }
+    fetchUnread()
+    const interval = setInterval(fetchUnread, 30000)
+    return () => clearInterval(interval)
+  }, [session?.access_token, businessId])
 
   const impersonation = (() => {
     try {
@@ -455,7 +510,7 @@ export default function DashboardClientLayout() {
         {/* Nav items (כולל מחלקות) */}
         <nav style={{ padding: '12px 8px', display: 'flex', flexDirection: 'column', gap: 2 }}>
           {NAV_ITEMS.map(item => (
-            <SidebarLink key={item.path} item={item} collapsed={collapsed} navigate={navigate} />
+            <SidebarLink key={item.path} item={item} collapsed={collapsed} navigate={navigate} badgeCount={inboxUnreadCount} />
           ))}
         </nav>
 
@@ -636,6 +691,7 @@ export default function DashboardClientLayout() {
                   onClose={() => setSidebarOpen(false)}
                   expandedItem={expandedItem}
                   setExpandedItem={setExpandedItem}
+                  badgeCount={inboxUnreadCount}
                 />
               ))}
             </nav>
@@ -666,6 +722,7 @@ export default function DashboardClientLayout() {
                   onClose={() => setSidebarOpen(false)}
                   expandedItem={expandedItem}
                   setExpandedItem={setExpandedItem}
+                  badgeCount={null}
                 />
               </div>
             )}
@@ -884,8 +941,9 @@ export default function DashboardClientLayout() {
               <span style={{ fontSize: 11, color: 'var(--v2-gray-400)' }}>הודעות</span>
             </div>
 
-            {/* Notifications */}
+            {/* Notifications — navigates to inbox */}
             <button
+              onClick={() => navigate('/dashboard/inbox')}
               style={{
                 position: 'relative',
                 width: 36,
@@ -904,25 +962,28 @@ export default function DashboardClientLayout() {
               onMouseLeave={e => (e.currentTarget.style.color = 'var(--v2-gray-400)')}
             >
               <Bell size={16} />
-              <span
-                style={{
-                  position: 'absolute',
-                  top: -3,
-                  right: -3,
-                  width: 16,
-                  height: 16,
-                  background: 'var(--v2-primary)',
-                  borderRadius: '50%',
-                  fontSize: 10,
-                  color: 'var(--v2-dark)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontWeight: 800,
-                }}
-              >
-                2
-              </span>
+              {inboxUnreadCount > 0 && (
+                <span
+                  style={{
+                    position: 'absolute',
+                    top: -3,
+                    right: -3,
+                    minWidth: 16,
+                    height: 16,
+                    padding: '0 4px',
+                    background: 'var(--v2-primary)',
+                    borderRadius: 99,
+                    fontSize: 10,
+                    color: 'var(--v2-dark)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontWeight: 800,
+                  }}
+                >
+                  {inboxUnreadCount > 99 ? '99+' : inboxUnreadCount}
+                </span>
+              )}
             </button>
 
             {/* Avatar — desktop only */}
