@@ -1,4 +1,4 @@
-import { lazy, Suspense } from 'react'
+import { lazy, Suspense, useEffect } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { Toaster } from 'react-hot-toast'
 import { AuthProvider } from '@/contexts/AuthContext'
@@ -90,6 +90,13 @@ function PageLoader() {
 }
 
 export default function App() {
+  useEffect(() => {
+    const hash = window.location.hash
+    if (hash && hash.includes('type=recovery')) {
+      window.location.href = '/reset-password' + hash
+    }
+  }, [])
+
   return (
     <BrowserRouter>
       <AuthProvider>
