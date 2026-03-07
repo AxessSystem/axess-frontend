@@ -38,10 +38,10 @@ const NAV_SHORTCUTS = {
 
 const ALL_NAV_ITEMS = [
   { icon: LayoutDashboard, label: 'סקירה כללית', path: '/dashboard', permission: null, roles: null },
+  { icon: MessageSquare,   label: 'אינבוקס',       path: '/dashboard/inbox', permission: null, roles: null },
   { icon: Send,            label: 'קמפיין חדש',  path: '/dashboard/new-campaign', permission: 'can_send_campaigns', roles: null },
   { icon: Users,           label: 'קהלים',        path: '/dashboard/audiences', permission: null, roles: null },
   { icon: Calendar,        label: 'אירועים',      path: '/dashboard/events', permission: 'can_edit_events', roles: null },
-  { icon: MessageSquare,   label: 'אינבוקס',       path: '/dashboard/inbox', permission: null, roles: null },
   { icon: Megaphone,       label: 'יחצ"נים',      path: '/dashboard/promoters', permission: 'can_manage_promoters', roles: null },
   { icon: UserCheck,       label: 'צוות',         path: '/dashboard/staff', permission: 'can_manage_staff', roles: null },
   { icon: QrCode,          label: 'Validators',   path: '/dashboard/validators', permission: null, roles: null },
@@ -217,7 +217,7 @@ function SidebarLink({ item, collapsed, navigate, isMobile = false, badgeCount =
           {!collapsed && (
             <>
               <span>{item.label}</span>
-              {item.path === '/dashboard/inbox' && badgeCount != null && badgeCount > 0 && (
+              {item.path === '/dashboard/inbox' && badgeCount != null && (
                 <span
                   style={{
                     marginRight: 'auto',
@@ -331,7 +331,7 @@ function MobileDrawerNavItem({ item, navigate, onClose, expandedItem, setExpande
         >
           <item.icon size={18} style={{ flexShrink: 0 }} />
           <span>{item.label}</span>
-          {item.path === '/dashboard/inbox' && badgeCount != null && badgeCount > 0 && (
+          {item.path === '/dashboard/inbox' && badgeCount != null && (
             <span
               style={{
                 marginRight: 'auto',
@@ -1012,28 +1012,26 @@ export default function DashboardClientLayout() {
                 onMouseLeave={e => (e.currentTarget.style.color = 'var(--v2-gray-400)')}
               >
                 <Bell size={16} />
-                {notificationsUnreadCount > 0 && (
-                  <span
-                    style={{
-                      position: 'absolute',
-                      top: -3,
-                      right: -3,
-                      minWidth: 16,
-                      height: 16,
-                      padding: '0 4px',
-                      background: 'var(--v2-primary)',
-                      borderRadius: 99,
-                      fontSize: 10,
-                      color: 'var(--v2-dark)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontWeight: 800,
-                    }}
-                  >
-                    {notificationsUnreadCount > 99 ? '99+' : notificationsUnreadCount}
-                  </span>
-                )}
+                <span
+                  style={{
+                    position: 'absolute',
+                    top: -3,
+                    right: -3,
+                    minWidth: 16,
+                    height: 16,
+                    padding: '0 4px',
+                    background: 'var(--v2-primary)',
+                    borderRadius: 99,
+                    fontSize: 10,
+                    color: 'var(--v2-dark)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontWeight: 800,
+                  }}
+                >
+                  {notificationsUnreadCount > 99 ? '99+' : notificationsUnreadCount}
+                </span>
               </button>
               {notificationsDropdownOpen && (
                 <div
