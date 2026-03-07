@@ -193,7 +193,7 @@ function CampaignGroup({ group, onMarkAllRead, onRefresh, apiFetch }) {
 }
 
 export default function Inbox({ onUnreadChange }) {
-  const { session, businessId, loading } = useAuth();
+  const { session, businessId } = useAuth();
   const [data, setData] = useState(null);
   const [dataLoading, setDataLoading] = useState(true);
   const [filter, setFilter] = useState("all");
@@ -241,13 +241,6 @@ export default function Inbox({ onUnreadChange }) {
 
   const totalMessages = (data?.campaigns || []).reduce((sum, g) => sum + g.messages.length, 0);
 
-  if (loading) {
-    return (
-      <div style={{ padding: 48, display: "flex", justifyContent: "center", alignItems: "center" }}>
-        <div style={{ width: 32, height: 32, border: "2px solid var(--v2-primary)", borderTopColor: "transparent", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
-      </div>
-    );
-  }
   if (!session?.access_token || !businessId) {
     return (
       <div style={{ padding: 24, color: "var(--v2-gray-400)", textAlign: "center" }}>
