@@ -7,7 +7,7 @@ import Tooltip from '../../components/ui/Tooltip'
 import DateTimePicker from '../../components/ui/DateTimePicker'
 import RichTextEditor from '../../components/ui/RichTextEditor'
 
-const API_BASE = import.meta.env.VITE_API_URL || 'https://axess-backend.up.railway.app'
+const API_BASE = import.meta.env.VITE_API_URL || 'https://axess-backend-production.up.railway.app'
 const FRONTEND_URL = import.meta.env.VITE_FRONTEND_URL || window.location.origin
 
 function MenuBuilderModal({ businessId, onClose }) {

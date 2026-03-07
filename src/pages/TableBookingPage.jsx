@@ -4,7 +4,7 @@ import { MapPin, Calendar, ChevronDown, ChevronUp, MessageCircle } from 'lucide-
 import toast from 'react-hot-toast'
 import SeatingMap from '../components/SeatingMap'
 
-const API_BASE = import.meta.env.VITE_API_URL || 'https://axess-backend.up.railway.app'
+const API_BASE = import.meta.env.VITE_API_URL || 'https://axess-backend-production.up.railway.app'
 
 export default function TableBookingPage() {
   const { slug } = useParams()

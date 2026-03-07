@@ -8,7 +8,7 @@ import {
 import { useAuth } from '@/contexts/AuthContext'
 import { supabase } from '@/lib/supabase'
 
-const API_BASE = import.meta.env.VITE_API_URL || 'https://axess-backend.up.railway.app'
+const API_BASE = import.meta.env.VITE_API_URL || 'https://axess-backend-production.up.railway.app'
 
 const NAV_SHORTCUTS = {
   '/dashboard': [],

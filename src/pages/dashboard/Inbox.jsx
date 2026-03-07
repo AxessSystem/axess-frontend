@@ -6,7 +6,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 
-const API_BASE = import.meta.env.VITE_API_URL || "https://axess-backend.up.railway.app";
+const API_BASE = import.meta.env.VITE_API_URL || "https://axess-backend-production.up.railway.app";
 
 function EmptyInbox() {
   return (

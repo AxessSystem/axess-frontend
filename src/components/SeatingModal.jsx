@@ -3,7 +3,7 @@ import { X } from 'lucide-react'
 import toast from 'react-hot-toast'
 import SeatingMap from './SeatingMap'
 
-const API_BASE = import.meta.env.VITE_API_URL || 'https://axess-backend.up.railway.app'
+const API_BASE = import.meta.env.VITE_API_URL || 'https://axess-backend-production.up.railway.app'
 
 export default function SeatingModal({ event, ticketType, slug, primaryColor, onClose, onSuccess }) {
   const [seats, setSeats] = useState([])

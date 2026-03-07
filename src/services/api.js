@@ -1,6 +1,6 @@
 import toast from 'react-hot-toast'
 
-const BASE = import.meta.env.VITE_API_URL || 'https://axess-backend.up.railway.app'
+const BASE = import.meta.env.VITE_API_URL || 'https://axess-backend-production.up.railway.app'
 
 /* ── Generic fetch with retry + error handling ── */
 async function apiFetch(path, options = {}, retries = 2) {

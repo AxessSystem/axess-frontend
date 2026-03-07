@@ -5,7 +5,7 @@ import { Search, MoreVertical, Eye, Edit, BarChart2, AlertTriangle, Trash2 } fro
 import { useAuth } from '@/contexts/AuthContext'
 import toast from 'react-hot-toast'
 
-const API_BASE = import.meta.env.VITE_API_URL || 'https://axess-backend.up.railway.app'
+const API_BASE = import.meta.env.VITE_API_URL || 'https://axess-backend-production.up.railway.app'
 
 export default function AdminBusinesses() {
   const { session } = useAuth()

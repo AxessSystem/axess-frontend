@@ -9,7 +9,7 @@ import {
 } from 'lucide-react'
 import StepIndicator from '@/components/ui/StepIndicator'
 
-const API_BASE = import.meta.env.VITE_API_URL || 'https://axess-backend.up.railway.app'
+const API_BASE = import.meta.env.VITE_API_URL || 'https://axess-backend-production.up.railway.app'
 const FRONTEND_URL = import.meta.env.VITE_FRONTEND_URL || window.location.origin
 const STEPS = ['העלאה', 'נמענים', 'הודעה', 'תזמון', 'Text Lead', 'Validator', 'שליחה']
 const MAX_CHARS = 201

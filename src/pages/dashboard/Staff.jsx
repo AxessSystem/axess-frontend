@@ -4,7 +4,7 @@ import toast from 'react-hot-toast'
 import { useAuth } from '@/contexts/AuthContext'
 import Tooltip from '@/components/ui/Tooltip'
 
-const API_BASE = import.meta.env.VITE_API_URL || 'https://axess-backend.up.railway.app'
+const API_BASE = import.meta.env.VITE_API_URL || 'https://axess-backend-production.up.railway.app'
 
 const ROLES = [
   { value: 'owner', label: 'בעלים', desc: 'גישה מלאה', emoji: '👑' },
