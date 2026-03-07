@@ -282,10 +282,10 @@ function SidebarLink({ item, collapsed, navigate, isMobile = false }) {
   )
 }
 
-function MobileDrawerNavItem({ item, navigate, onClose }) {
+function MobileDrawerNavItem({ item, navigate, onClose, expandedItem, setExpandedItem }) {
   const shortcuts = NAV_SHORTCUTS[item.path] || []
-  const [expanded, setExpanded] = useState(false)
   const hasShortcuts = shortcuts.length > 0
+  const expanded = expandedItem === item.path
 
   return (
     <div style={{ marginBottom: 4 }}>
@@ -314,7 +314,10 @@ function MobileDrawerNavItem({ item, navigate, onClose }) {
         {hasShortcuts && (
           <button
             type="button"
-            onClick={(e) => { e.preventDefault(); e.stopPropagation(); setExpanded(x => !x); }}
+            onClick={(e) => {
+              e.stopPropagation()
+              setExpandedItem(expanded ? null : item.path)
+            }}
             style={{
               background: 'none',
               border: 'none',
@@ -325,18 +328,12 @@ function MobileDrawerNavItem({ item, navigate, onClose }) {
               alignItems: 'center',
             }}
           >
-            <ChevronDown size={14} style={{ transform: expanded ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }} />
+            <ChevronDown size={14} style={{ transform: expanded ? 'rotate(180deg)' : 'none', transition: '200ms' }} />
           </button>
         )}
       </div>
-      {hasShortcuts && (
-        <div
-          style={{
-            overflow: 'hidden',
-            maxHeight: expanded ? 200 : 0,
-            transition: 'max-height 0.25s ease-out',
-          }}
-        >
+      {hasShortcuts && expanded && (
+        <div style={{ paddingRight: 32, fontSize: 12, color: 'var(--v2-gray-400)', marginTop: 4 }}>
           {shortcuts.map((s, i) => (
             <button
               key={i}
@@ -346,11 +343,10 @@ function MobileDrawerNavItem({ item, navigate, onClose }) {
                 display: 'block',
                 width: '100%',
                 textAlign: 'right',
-                padding: '8px 16px 8px 32px',
-                fontSize: 12,
-                color: 'var(--v2-gray-400)',
+                padding: '8px 0',
                 background: 'transparent',
                 border: 'none',
+                color: 'var(--v2-gray-400)',
                 cursor: 'pointer',
               }}
             >
@@ -366,6 +362,7 @@ function MobileDrawerNavItem({ item, navigate, onClose }) {
 export default function DashboardClientLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [collapsed, setCollapsed] = useState(false)
+  const [expandedItem, setExpandedItem] = useState(null)
   const [businessConfig, setBusinessConfig] = useState(null)
   const [systemNotices, setSystemNotices] = useState([])
   const [dismissedNotices, setDismissedNotices] = useState(() => {
@@ -619,10 +616,27 @@ export default function DashboardClientLayout() {
               </button>
             </div>
 
-            {/* ב. nav items (כולל מחלקות) + קיצורים מתקפלים */}
-            <nav style={{ flex: 1, padding: '12px 8px', display: 'flex', flexDirection: 'column', gap: 2 }}>
+            {/* ב. תוכן drawer — גלילה חופשית */}
+            <div
+              style={{
+                flex: 1,
+                overflowY: 'auto',
+                height: '100%',
+                paddingBottom: 100,
+                WebkitOverflowScrolling: 'touch',
+              }}
+            >
+            {/* nav items (כולל מחלקות) + קיצורים מתקפלים */}
+            <nav style={{ padding: '12px 8px', display: 'flex', flexDirection: 'column', gap: 2 }}>
               {MAIN_NAV.map(item => (
-                <MobileDrawerNavItem key={item.path} item={item} navigate={navigate} onClose={() => setSidebarOpen(false)} />
+                <MobileDrawerNavItem
+                  key={item.path}
+                  item={item}
+                  navigate={navigate}
+                  onClose={() => setSidebarOpen(false)}
+                  expandedItem={expandedItem}
+                  setExpandedItem={setExpandedItem}
+                />
               ))}
             </nav>
 
@@ -646,32 +660,25 @@ export default function DashboardClientLayout() {
             {/* ד. הגדרות */}
             {SETTINGS_ITEM && (
               <div style={{ padding: '0 8px 4px' }}>
-                <MobileDrawerNavItem item={SETTINGS_ITEM} navigate={navigate} onClose={() => setSidebarOpen(false)} />
+                <MobileDrawerNavItem
+                  item={SETTINGS_ITEM}
+                  navigate={navigate}
+                  onClose={() => setSidebarOpen(false)}
+                  expandedItem={expandedItem}
+                  setExpandedItem={setExpandedItem}
+                />
               </div>
             )}
 
             {/* ה. קו מפריד */}
             <div style={{ height: 1, background: 'var(--glass-border)', margin: '8px 0' }} />
 
-            {/* ו. התנתק/י — חובה שיהיה גלוי */}
+            {/* ו. התנתק/י — תגובה מיידית */}
             <div style={{ paddingBottom: 32 }}>
               <button
                 onClick={async () => {
-                  setSidebarOpen(false)
-                  try {
-                    const { createClient } = await import('@supabase/supabase-js')
-                    const sb = createClient(
-                      import.meta.env.VITE_SUPABASE_URL,
-                      import.meta.env.VITE_SUPABASE_ANON_KEY
-                    )
-                    await sb.auth.signOut()
-                  } catch (e) {
-                    console.error(e)
-                  } finally {
-                    sessionStorage.clear()
-                    localStorage.removeItem('supabase.auth.token')
-                    window.location.href = '/login'
-                  }
+                  window.location.href = '/login'
+                  try { await supabase.auth.signOut() } catch (e) {}
                 }}
                 style={{
                   display: 'flex',
@@ -689,6 +696,7 @@ export default function DashboardClientLayout() {
                 <LogOut size={18} />
                 התנתק/י
               </button>
+            </div>
             </div>
           </aside>
         </>
