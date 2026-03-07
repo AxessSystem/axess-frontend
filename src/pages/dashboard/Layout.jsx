@@ -13,26 +13,26 @@ const API_BASE = import.meta.env.VITE_API_URL || 'https://axess-backend.up.railw
 const NAV_SHORTCUTS = {
   '/dashboard': [],
   '/dashboard/new-campaign': [
-    { label: 'SMS לקהל', action: (n) => n('/dashboard/new-campaign?type=general') },
-    { label: 'קמפיין לאירוע', action: (n) => n('/dashboard/new-campaign?type=event') },
+    { label: 'SMS לקהל', action: (navigate) => navigate('/dashboard/new-campaign?type=general') },
+    { label: 'קמפיין לאירוע', action: (navigate) => navigate('/dashboard/new-campaign?type=event') },
   ],
   '/dashboard/audiences': [
-    { label: 'ייבוא קהל', action: (n) => n('/dashboard/audiences?import=1') },
-    { label: 'ייצוא קהל', action: (n) => n('/dashboard/audiences?export=1') },
+    { label: 'ייבוא קהל', action: (navigate) => navigate('/dashboard/audiences?import=1') },
+    { label: 'ייצוא קהל', action: (navigate) => navigate('/dashboard/audiences?export=1') },
   ],
   '/dashboard/events': [
-    { label: 'צור אירוע', action: (n) => n('/dashboard/events?create=event') },
-    { label: 'צור תיאטרון', action: (n) => n('/dashboard/events?create=theater') },
-    { label: 'צור שולחנות', action: (n) => n('/dashboard/events?create=tables') },
+    { label: 'צור אירוע', action: (navigate) => navigate('/dashboard/events?create=event') },
+    { label: 'צור תיאטרון', action: (navigate) => navigate('/dashboard/events?create=theater') },
+    { label: 'צור שולחנות', action: (navigate) => navigate('/dashboard/events?create=tables') },
   ],
   '/dashboard/promoters': [
-    { label: 'הוסף יחצ"ן', action: (n) => n('/dashboard/promoters?add=true') },
+    { label: 'הוסף יחצ"ן', action: (navigate) => navigate('/dashboard/promoters?add=true') },
   ],
   '/dashboard/staff': [
-    { label: 'הזמן חבר צוות', action: (n) => n('/dashboard/staff?invite=true') },
+    { label: 'הזמן חבר צוות', action: (navigate) => navigate('/dashboard/staff?invite=true') },
   ],
   '/dashboard/validators': [
-    { label: 'צור Validator', action: (n) => n('/dashboard/validators?create=true') },
+    { label: 'צור Validator', action: (navigate) => navigate('/dashboard/validators?create=true') },
   ],
 }
 
@@ -282,6 +282,87 @@ function SidebarLink({ item, collapsed, navigate, isMobile = false }) {
   )
 }
 
+function MobileDrawerNavItem({ item, navigate, onClose }) {
+  const shortcuts = NAV_SHORTCUTS[item.path] || []
+  const [expanded, setExpanded] = useState(false)
+  const hasShortcuts = shortcuts.length > 0
+
+  return (
+    <div style={{ marginBottom: 4 }}>
+      <div style={{ display: 'flex', alignItems: 'center', width: '100%' }}>
+        <NavLink
+          to={item.path}
+          end={item.path === '/dashboard'}
+          onClick={onClose}
+          style={({ isActive }) => ({
+            flex: 1,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 12,
+            padding: '10px 12px',
+            borderRadius: 'var(--radius-md)',
+            fontSize: 14,
+            fontWeight: 500,
+            textDecoration: 'none',
+            color: isActive ? '#ffffff' : 'var(--v2-gray-400)',
+            background: isActive ? 'var(--glass-bg)' : 'transparent',
+          })}
+        >
+          <item.icon size={18} style={{ flexShrink: 0 }} />
+          <span>{item.label}</span>
+        </NavLink>
+        {hasShortcuts && (
+          <button
+            type="button"
+            onClick={(e) => { e.preventDefault(); e.stopPropagation(); setExpanded(x => !x); }}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: 'var(--v2-gray-400)',
+              cursor: 'pointer',
+              padding: 4,
+              display: 'flex',
+              alignItems: 'center',
+            }}
+          >
+            <ChevronDown size={14} style={{ transform: expanded ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }} />
+          </button>
+        )}
+      </div>
+      {hasShortcuts && (
+        <div
+          style={{
+            overflow: 'hidden',
+            maxHeight: expanded ? 200 : 0,
+            transition: 'max-height 0.25s ease-out',
+          }}
+        >
+          {shortcuts.map((s, i) => (
+            <button
+              key={i}
+              type="button"
+              onClick={() => { s.action(navigate); onClose(); }}
+              style={{
+                display: 'block',
+                width: '100%',
+                textAlign: 'right',
+                padding: '8px 16px 8px 32px',
+                fontSize: 12,
+                color: 'var(--v2-gray-400)',
+                background: 'transparent',
+                border: 'none',
+                cursor: 'pointer',
+              }}
+            >
+              + {s.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function DashboardClientLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [collapsed, setCollapsed] = useState(false)
@@ -430,9 +511,17 @@ export default function DashboardClientLayout() {
         <button
           onClick={async () => {
             try {
-              await supabase.auth.signOut()
-            } catch (e) {}
-            window.location.href = '/login'
+              const { createClient } = await import('@supabase/supabase-js')
+              const sb = createClient(
+                import.meta.env.VITE_SUPABASE_URL,
+                import.meta.env.VITE_SUPABASE_ANON_KEY
+              )
+              await sb.auth.signOut()
+            } catch (e) {
+              console.error(e)
+            } finally {
+              window.location.href = '/login'
+            }
           }}
           style={{
             display: 'flex',
@@ -528,12 +617,10 @@ export default function DashboardClientLayout() {
               </button>
             </div>
 
-            {/* ב. nav items (כולל מחלקות) — ללא קיצורים */}
+            {/* ב. nav items (כולל מחלקות) + קיצורים מתקפלים */}
             <nav style={{ flex: 1, padding: '12px 8px', display: 'flex', flexDirection: 'column', gap: 2 }}>
               {MAIN_NAV.map(item => (
-                <div key={item.path} onClick={() => setSidebarOpen(false)}>
-                  <SidebarLink item={item} collapsed={false} navigate={navigate} isMobile />
-                </div>
+                <MobileDrawerNavItem key={item.path} item={item} navigate={navigate} onClose={() => setSidebarOpen(false)} />
               ))}
             </nav>
 
@@ -556,8 +643,8 @@ export default function DashboardClientLayout() {
 
             {/* ד. הגדרות */}
             {SETTINGS_ITEM && (
-              <div onClick={() => setSidebarOpen(false)} style={{ padding: '0 8px 4px' }}>
-                <SidebarLink item={SETTINGS_ITEM} collapsed={false} navigate={navigate} isMobile />
+              <div style={{ padding: '0 8px 4px' }}>
+                <MobileDrawerNavItem item={SETTINGS_ITEM} navigate={navigate} onClose={() => setSidebarOpen(false)} />
               </div>
             )}
 
@@ -567,7 +654,21 @@ export default function DashboardClientLayout() {
             {/* ו. התנתק/י — חובה שיהיה גלוי */}
             <div style={{ paddingBottom: 32 }}>
               <button
-                onClick={async () => { setSidebarOpen(false); await supabase.auth.signOut(); window.location.href = '/login'; }}
+                onClick={async () => {
+                  setSidebarOpen(false)
+                  try {
+                    const { createClient } = await import('@supabase/supabase-js')
+                    const sb = createClient(
+                      import.meta.env.VITE_SUPABASE_URL,
+                      import.meta.env.VITE_SUPABASE_ANON_KEY
+                    )
+                    await sb.auth.signOut()
+                  } catch (e) {
+                    console.error(e)
+                  } finally {
+                    window.location.href = '/login'
+                  }
+                }}
                 style={{
                   display: 'flex',
                   alignItems: 'center',
