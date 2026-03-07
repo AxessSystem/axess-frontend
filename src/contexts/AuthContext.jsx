@@ -31,13 +31,18 @@ export function AuthProvider({ children }) {
         .eq('user_id', userId)
         .eq('status', 'active')
         .limit(1)
-      if (error || !members?.length) return null
+      if (error || !members?.length) {
+        if (error) console.error('business_members query error:', error)
+        if (!members?.length) console.warn('no business_members found for user:', userId)
+        return null
+      }
       const m = members[0]
       const { data: rp } = await supabase.from('role_permissions').select('permissions').eq('role', m.role).single()
       const rolePerms = rp?.permissions || {}
       const merged = { ...rolePerms, ...(m.permissions || {}) }
       return { role: m.role, permissions: merged, businessId: m.business_id }
-    } catch {
+    } catch (err) {
+      console.error('fetchBusinessMember error:', err)
       return null
     }
   }, [])
