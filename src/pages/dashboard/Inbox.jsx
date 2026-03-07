@@ -219,18 +219,18 @@ export default function Inbox({ onUnreadChange }) {
   const { session, businessId, loading } = useAuth();
   const apiFetch = useApiFetch();
   const [data, setData] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [dataLoading, setDataLoading] = useState(true);
   const [filter, setFilter] = useState("all");
   const [refreshing, setRefreshing] = useState(false);
 
   const load = useCallback(async (silent = false) => {
     if (!session?.access_token || !businessId) return;
-    if (!silent) setLoading(true); else setRefreshing(true);
+    if (!silent) setDataLoading(true); else setRefreshing(true);
     try {
       const res = await apiFetch("/api/sms/inbox?limit=100");
       setData(res);
       onUnreadChange?.(res.unread_total || 0);
-    } finally { setLoading(false); setRefreshing(false); }
+    } finally { setDataLoading(false); setRefreshing(false); }
   }, [apiFetch, session?.access_token, businessId, onUnreadChange]);
 
   useEffect(() => {
@@ -342,7 +342,7 @@ export default function Inbox({ onUnreadChange }) {
               <span>תיבת הודעות נכנסות</span>
               {data?.unread_total > 0 && <span className="inbox-header__badge">{data.unread_total}</span>}
             </div>
-            {!loading && (
+            {!dataLoading && (
               <div className="inbox-header__meta">{totalMessages} הודעות • {data?.campaigns?.length || 0} קמפיינים</div>
             )}
           </div>
@@ -361,7 +361,7 @@ export default function Inbox({ onUnreadChange }) {
           ))}
         </div>
 
-        {loading ? (
+        {dataLoading ? (
           <div className="inbox-loading">
             <div className="skeleton" />
             <div className="skeleton" style={{ height: 70 }} />
