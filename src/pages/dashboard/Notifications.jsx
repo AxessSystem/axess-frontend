@@ -103,12 +103,35 @@ export default function Notifications() {
   const groups = groupByDate(filtered)
 
   return (
-    <div dir="rtl" style={{ padding: 24, maxWidth: 680, margin: '0 auto' }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
+    <div dir="rtl" className="notifications-page" style={{ padding: 24, maxWidth: 680, margin: '0 auto' }}>
+      <style>{`
+        @media (max-width: 767px) {
+          .notifications-page .notif-header {
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 12px;
+          }
+          .notifications-page .notif-header-row2 {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            width: 100%;
+            justify-content: space-between;
+          }
+          .notifications-page .notif-mark-all {
+            padding: 4px 8px !important;
+            font-size: 12px !important;
+            background: transparent !important;
+            border: none !important;
+            color: var(--v2-gray-500) !important;
+          }
+        }
+      `}</style>
+      <div className="notif-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
         <h1 style={{ fontSize: 24, fontWeight: 700, color: '#fff', margin: 0 }}>
           התראות
         </h1>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <div className="notif-header-row2" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <div style={{ display: 'flex', background: 'var(--v2-dark-2)', borderRadius: 8, padding: 2 }}>
             {['all', 'unread', 'urgent'].map(k => (
               <button
@@ -130,6 +153,7 @@ export default function Notifications() {
             ))}
           </div>
           <button
+            className="notif-mark-all"
             onClick={handleReadAll}
             disabled={markingAll || !items.some(n => !n.is_read)}
             style={{
