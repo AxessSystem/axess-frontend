@@ -520,6 +520,8 @@ export default function DashboardClientLayout() {
             } catch (e) {
               console.error(e)
             } finally {
+              sessionStorage.clear()
+              localStorage.removeItem('supabase.auth.token')
               window.location.href = '/login'
             }
           }}
@@ -666,6 +668,8 @@ export default function DashboardClientLayout() {
                   } catch (e) {
                     console.error(e)
                   } finally {
+                    sessionStorage.clear()
+                    localStorage.removeItem('supabase.auth.token')
                     window.location.href = '/login'
                   }
                 }}

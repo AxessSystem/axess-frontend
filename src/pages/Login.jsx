@@ -109,6 +109,16 @@ function QRLogo() {
 }
 
 export default function Login() {
+  useEffect(() => {
+    window.history.pushState(null, '', '/login')
+    window.onpopstate = () => {
+      window.history.pushState(null, '', '/login')
+    }
+    return () => {
+      window.onpopstate = null
+    }
+  }, [])
+
   const [tab, setTab] = useState('mobile') // 'mobile' | 'email'
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
