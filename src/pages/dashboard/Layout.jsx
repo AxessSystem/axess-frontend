@@ -1,6 +1,5 @@
-import { useState, useEffect } from 'react'
-import { Link, Outlet, NavLink, useNavigate } from 'react-router-dom'
-import { motion, AnimatePresence } from 'framer-motion'
+import { useState, useEffect, useRef } from 'react'
+import { Link, Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom'
 import {
   LayoutDashboard, Send, Users, BarChart2, QrCode, Settings,
   Bell, Menu, X, ChevronDown, Wallet, LogOut, Calendar, Megaphone, UserCheck, Building,
@@ -145,71 +144,124 @@ function DashLogo({ small = false }) {
   )
 }
 
-function SidebarLink({ item, collapsed, onHover, hovered, navigate }) {
+function SidebarLink({ item, collapsed, navigate, isMobile = false }) {
   const shortcuts = NAV_SHORTCUTS[item.path] || []
+  const [openDropdown, setOpenDropdown] = useState(false)
+  const containerRef = useRef(null)
+  const location = useLocation()
+  const pendingNavRef = useRef(null)
+
+  const isActive = item.path === '/dashboard'
+    ? location.pathname === '/dashboard'
+    : location.pathname === item.path || location.pathname.startsWith(item.path + '/')
+
+  useEffect(() => {
+    if (!openDropdown) return
+    const close = (e) => {
+      if (containerRef.current && !containerRef.current.contains(e.target))
+        setOpenDropdown(false)
+    }
+    document.addEventListener('click', close)
+    return () => document.removeEventListener('click', close)
+  }, [openDropdown])
+
+  const handleLinkClick = (e) => {
+    if (shortcuts.length === 0 || collapsed || isMobile) return
+    e.preventDefault()
+    const now = Date.now()
+    const last = pendingNavRef.current
+    if (last && now - last < 300) {
+      pendingNavRef.current = 0
+      setOpenDropdown(o => !o)
+      return
+    }
+    pendingNavRef.current = now
+    setTimeout(() => {
+      if (pendingNavRef.current === now) {
+        pendingNavRef.current = 0
+        navigate(item.path)
+      }
+    }, 300)
+  }
+
+  const showChevron = !isMobile && !collapsed && shortcuts.length > 0
+
   return (
-    <div
-      style={{ position: 'relative' }}
-      onMouseEnter={() => onHover(item.path)}
-      onMouseLeave={() => onHover(null)}
-    >
-      <NavLink
-        to={item.path}
-        end={item.path === '/dashboard'}
-        style={({ isActive }) => ({
-          display: 'flex',
-          alignItems: 'center',
-          gap: 12,
-          padding: collapsed ? '10px' : '10px 12px',
-          borderRadius: 'var(--radius-md)',
-          fontSize: 14,
-          fontWeight: 500,
-          fontFamily: "'DM Sans', sans-serif",
-          textDecoration: 'none',
-          transition: 'all 0.2s ease',
-          justifyContent: collapsed ? 'center' : 'flex-start',
-          color: isActive ? '#ffffff' : 'var(--v2-gray-400)',
-          background: isActive ? 'var(--glass-bg)' : 'transparent',
-          borderRight: isActive ? '2px solid var(--v2-primary)' : '2px solid transparent',
-        })}
-      >
-        <item.icon size={18} style={{ flexShrink: 0 }} />
-        {!collapsed && <span>{item.label}</span>}
-      </NavLink>
-      {hovered === item.path && shortcuts.length > 0 && (
-        <motion.div
-          initial={{ opacity: 0, x: 8 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.15 }}
+    <div ref={containerRef} style={{ position: 'relative' }}>
+      <div style={{ display: 'flex', alignItems: 'center', width: '100%' }}>
+        <NavLink
+          to={item.path}
+          end={item.path === '/dashboard'}
+          onClick={handleLinkClick}
+          style={() => ({
+            flex: 1,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 12,
+            padding: collapsed ? '10px' : '10px 12px',
+            borderRadius: 'var(--radius-md)',
+            fontSize: 14,
+            fontWeight: 500,
+            fontFamily: "'DM Sans', sans-serif",
+            textDecoration: 'none',
+            transition: 'all 0.2s ease',
+            justifyContent: collapsed ? 'center' : 'flex-start',
+            color: isActive ? '#ffffff' : 'var(--v2-gray-400)',
+            background: isActive ? 'var(--glass-bg)' : 'transparent',
+            borderRight: isActive ? '2px solid var(--v2-primary)' : '2px solid transparent',
+          })}
+        >
+          <item.icon size={18} style={{ flexShrink: 0 }} />
+          {!collapsed && <span>{item.label}</span>}
+        </NavLink>
+        {showChevron && (
+          <button
+            type="button"
+            onClick={(e) => { e.preventDefault(); e.stopPropagation(); setOpenDropdown(o => !o); }}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: 'var(--v2-gray-400)',
+              cursor: 'pointer',
+              padding: 4,
+              display: 'flex',
+              alignItems: 'center',
+            }}
+          >
+            <ChevronDown size={14} style={{ transform: openDropdown ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }} />
+          </button>
+        )}
+      </div>
+      {showChevron && openDropdown && (
+        <div
           style={{
-            position: 'fixed',
-            right: (collapsed ? 64 : 240) + 8,
-            top: 'auto',
-            zIndex: 500,
+            position: 'absolute',
+            top: '100%',
+            right: 0,
+            marginTop: 4,
             background: 'var(--v2-dark-3)',
             border: '1px solid var(--glass-border)',
             borderRadius: 12,
-            padding: '12px 16px',
-            minWidth: 180,
+            padding: 8,
+            zIndex: 500,
+            width: 200,
             boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
           }}
         >
-          <div style={{ fontWeight: 700, fontSize: 14, color: '#fff', marginBottom: 8 }}>{item.label}</div>
-          <div style={{ height: 1, background: 'var(--glass-border)', marginBottom: 8 }} />
           {shortcuts.map((s, i) => (
             <button
               key={i}
-              onClick={() => { s.action(navigate); onHover(null); }}
+              type="button"
+              onClick={() => { s.action(navigate); setOpenDropdown(false); }}
               style={{
                 display: 'block',
                 width: '100%',
                 textAlign: 'right',
-                marginBottom: 4,
-                padding: '6px 12px',
-                background: 'var(--v2-dark-2)',
-                border: '1px solid var(--glass-border)',
+                padding: '8px 12px',
+                background: 'transparent',
+                border: 'none',
                 borderRadius: 8,
-                fontSize: 12,
+                fontSize: 13,
                 color: '#fff',
                 cursor: 'pointer',
               }}
@@ -217,7 +269,7 @@ function SidebarLink({ item, collapsed, onHover, hovered, navigate }) {
               + {s.label}
             </button>
           ))}
-        </motion.div>
+        </div>
       )}
     </div>
   )
@@ -226,13 +278,12 @@ function SidebarLink({ item, collapsed, onHover, hovered, navigate }) {
 export default function DashboardClientLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [collapsed, setCollapsed] = useState(false)
-  const [hoveredNav, setHoveredNav] = useState(null)
   const [businessConfig, setBusinessConfig] = useState(null)
   const [systemNotices, setSystemNotices] = useState([])
   const [dismissedNotices, setDismissedNotices] = useState(() => {
     try { return JSON.parse(sessionStorage.getItem('dismissed_notices') || '[]') } catch { return [] }
   })
-  const { role, permissions, businessId, signOut, isAxessAdmin } = useAuth()
+  const { role, permissions, businessId, isAxessAdmin } = useAuth()
   const navigate = useNavigate()
 
   const impersonation = (() => {
@@ -319,7 +370,7 @@ export default function DashboardClientLayout() {
         {/* Nav items (כולל מחלקות) */}
         <nav style={{ padding: '12px 8px', display: 'flex', flexDirection: 'column', gap: 2 }}>
           {NAV_ITEMS.map(item => (
-            <SidebarLink key={item.path} item={item} collapsed={collapsed} onHover={setHoveredNav} hovered={hoveredNav} navigate={navigate} />
+            <SidebarLink key={item.path} item={item} collapsed={collapsed} navigate={navigate} />
           ))}
         </nav>
 
@@ -371,8 +422,8 @@ export default function DashboardClientLayout() {
         <div style={{ borderTop: '1px solid var(--glass-border)' }} />
         <button
           onClick={async () => {
-            await signOut()
-            navigate('/login')
+            await supabase.auth.signOut()
+            window.location.href = '/login'
           }}
           style={{
             display: 'flex',
@@ -468,13 +519,43 @@ export default function DashboardClientLayout() {
               </button>
             </div>
 
-            {/* ב. nav items (כולל מחלקות) */}
+            {/* ב. nav items (כולל מחלקות) + קיצורים מתחת לכל item */}
             <nav style={{ flex: 1, padding: '12px 8px', display: 'flex', flexDirection: 'column', gap: 2 }}>
-              {MAIN_NAV.map(item => (
-                <div key={item.path} onClick={() => setSidebarOpen(false)}>
-                  <SidebarLink item={item} collapsed={false} onHover={() => {}} hovered={null} navigate={navigate} />
-                </div>
-              ))}
+              {MAIN_NAV.map(item => {
+                const shortcuts = NAV_SHORTCUTS[item.path] || []
+                return (
+                  <div key={item.path} style={{ marginBottom: shortcuts.length ? 8 : 0 }}>
+                    <div onClick={() => setSidebarOpen(false)}>
+                      <SidebarLink item={item} collapsed={false} navigate={navigate} isMobile />
+                    </div>
+                    {shortcuts.length > 0 && (
+                      <div style={{ paddingRight: 24, marginTop: 4, display: 'flex', flexDirection: 'column', gap: 2 }}>
+                        {shortcuts.map((s, i) => (
+                          <button
+                            key={i}
+                            type="button"
+                            onClick={() => { s.action(navigate); setSidebarOpen(false); }}
+                            style={{
+                              display: 'block',
+                              width: '100%',
+                              textAlign: 'right',
+                              padding: '6px 12px',
+                              background: 'transparent',
+                              border: 'none',
+                              borderRadius: 8,
+                              fontSize: 12,
+                              color: 'var(--v2-gray-400)',
+                              cursor: 'pointer',
+                            }}
+                          >
+                            + {s.label}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
             </nav>
 
             {/* ג. Balance (יתרת הודעות) */}
@@ -497,7 +578,7 @@ export default function DashboardClientLayout() {
             {/* ד. הגדרות */}
             {SETTINGS_ITEM && (
               <div onClick={() => setSidebarOpen(false)} style={{ padding: '0 8px 4px' }}>
-                <SidebarLink item={SETTINGS_ITEM} collapsed={false} onHover={() => {}} hovered={null} navigate={navigate} />
+                <SidebarLink item={SETTINGS_ITEM} collapsed={false} navigate={navigate} isMobile />
               </div>
             )}
 
@@ -507,7 +588,7 @@ export default function DashboardClientLayout() {
             {/* ו. התנתק/י — חובה שיהיה גלוי */}
             <div style={{ paddingBottom: 32 }}>
               <button
-                onClick={async () => { setSidebarOpen(false); await signOut(); navigate('/login'); }}
+                onClick={async () => { setSidebarOpen(false); await supabase.auth.signOut(); window.location.href = '/login'; }}
                 style={{
                   display: 'flex',
                   alignItems: 'center',
