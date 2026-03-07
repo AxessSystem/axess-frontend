@@ -194,6 +194,7 @@ function CampaignGroup({ group, onMarkAllRead, onRefresh, apiFetch }) {
 
 export default function Inbox({ onUnreadChange }) {
   const { session, businessId } = useAuth();
+  console.log('AUTH DEBUG:', { accessToken: session?.access_token ? 'exists' : 'missing', businessId });
   const [data, setData] = useState(null);
   const [dataLoading, setDataLoading] = useState(true);
   const [filter, setFilter] = useState("all");
