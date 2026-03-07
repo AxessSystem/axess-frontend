@@ -252,7 +252,13 @@ function SidebarLink({ item, collapsed, navigate, isMobile = false }) {
             <button
               key={i}
               type="button"
-              onClick={() => { s.action(navigate); setOpenDropdown(false); }}
+              onClick={(e) => {
+                e.stopPropagation()
+                s.action(navigate)
+                setOpenDropdown(false)
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--v2-dark-2)' }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent' }}
               style={{
                 display: 'block',
                 width: '100%',
@@ -264,6 +270,7 @@ function SidebarLink({ item, collapsed, navigate, isMobile = false }) {
                 fontSize: 13,
                 color: '#fff',
                 cursor: 'pointer',
+                transition: 'background 150ms',
               }}
             >
               + {s.label}
@@ -422,7 +429,9 @@ export default function DashboardClientLayout() {
         <div style={{ borderTop: '1px solid var(--glass-border)' }} />
         <button
           onClick={async () => {
-            await supabase.auth.signOut()
+            try {
+              await supabase.auth.signOut()
+            } catch (e) {}
             window.location.href = '/login'
           }}
           style={{
@@ -519,43 +528,13 @@ export default function DashboardClientLayout() {
               </button>
             </div>
 
-            {/* ב. nav items (כולל מחלקות) + קיצורים מתחת לכל item */}
+            {/* ב. nav items (כולל מחלקות) — ללא קיצורים */}
             <nav style={{ flex: 1, padding: '12px 8px', display: 'flex', flexDirection: 'column', gap: 2 }}>
-              {MAIN_NAV.map(item => {
-                const shortcuts = NAV_SHORTCUTS[item.path] || []
-                return (
-                  <div key={item.path} style={{ marginBottom: shortcuts.length ? 8 : 0 }}>
-                    <div onClick={() => setSidebarOpen(false)}>
-                      <SidebarLink item={item} collapsed={false} navigate={navigate} isMobile />
-                    </div>
-                    {shortcuts.length > 0 && (
-                      <div style={{ paddingRight: 24, marginTop: 4, display: 'flex', flexDirection: 'column', gap: 2 }}>
-                        {shortcuts.map((s, i) => (
-                          <button
-                            key={i}
-                            type="button"
-                            onClick={() => { s.action(navigate); setSidebarOpen(false); }}
-                            style={{
-                              display: 'block',
-                              width: '100%',
-                              textAlign: 'right',
-                              padding: '6px 12px',
-                              background: 'transparent',
-                              border: 'none',
-                              borderRadius: 8,
-                              fontSize: 12,
-                              color: 'var(--v2-gray-400)',
-                              cursor: 'pointer',
-                            }}
-                          >
-                            + {s.label}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )
-              })}
+              {MAIN_NAV.map(item => (
+                <div key={item.path} onClick={() => setSidebarOpen(false)}>
+                  <SidebarLink item={item} collapsed={false} navigate={navigate} isMobile />
+                </div>
+              ))}
             </nav>
 
             {/* ג. Balance (יתרת הודעות) */}
