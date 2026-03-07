@@ -31,6 +31,7 @@ export function AuthProvider({ children }) {
         .eq('user_id', userId)
         .eq('status', 'active')
         .limit(1)
+      console.log('BM QUERY RESULT:', { members, error, userId })
       if (error || !members?.length) {
         if (error) console.error('business_members query error:', error)
         if (!members?.length) console.warn('no business_members found for user:', userId)
