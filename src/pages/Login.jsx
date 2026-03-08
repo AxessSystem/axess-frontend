@@ -204,7 +204,15 @@ export default function Login() {
     setLoading(true)
     try {
       await signIn(email, password)
-      setTimeout(() => navigate('/dashboard'), 100)
+      // חכה עד ש-businessId נטען
+      let attempts = 0
+      while (attempts < 50) {
+        await new Promise(r => setTimeout(r, 100))
+        attempts++
+        const ctx = window.__axessAuth
+        if (ctx?.businessId) break
+      }
+      navigate('/dashboard')
       toast.success('ברוך הבא!')
     } catch (err) {
       const msg = err.message?.includes('Invalid login credentials')

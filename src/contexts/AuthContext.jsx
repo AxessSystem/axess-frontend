@@ -62,8 +62,10 @@ export function AuthProvider({ children }) {
           console.log('AUTH FLOW:', { userId: session?.user?.id, sessionExists: !!session })
           const bm = await fetchBusinessMember(session.user.id)
           setBusinessMember(bm)
+          window.__axessAuth = { businessId: bm?.businessId }
         } else {
           setBusinessMember(null)
+          window.__axessAuth = { businessId: null }
         }
       })
       .finally(() => {
@@ -79,9 +81,11 @@ export function AuthProvider({ children }) {
           console.log('AUTH FLOW:', { userId: session?.user?.id, sessionExists: !!session })
           const bm = await fetchBusinessMember(session.user.id)
           setBusinessMember(bm)
+          window.__axessAuth = { businessId: bm?.businessId }
         } else {
           setProfile(null)
           setBusinessMember(null)
+          window.__axessAuth = { businessId: null }
         }
         setLoading(false)
       }
