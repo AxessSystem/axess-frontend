@@ -183,6 +183,7 @@ export default function Login() {
     setLoading(true)
     try {
       await verifyOtp(e164, otp)
+      navigate('/dashboard')
       toast.success('ברוך הבא!')
     } catch (err) {
       const msg = err.message?.includes('Token has expired')
@@ -203,6 +204,7 @@ export default function Login() {
     setLoading(true)
     try {
       await signIn(email, password)
+      navigate('/dashboard')
       toast.success('ברוך הבא!')
     } catch (err) {
       const msg = err.message?.includes('Invalid login credentials')
