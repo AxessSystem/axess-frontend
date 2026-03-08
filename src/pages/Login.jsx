@@ -204,7 +204,7 @@ export default function Login() {
     setLoading(true)
     try {
       await signIn(email, password)
-      navigate('/dashboard')
+      setTimeout(() => navigate('/dashboard'), 100)
       toast.success('ברוך הבא!')
     } catch (err) {
       const msg = err.message?.includes('Invalid login credentials')
