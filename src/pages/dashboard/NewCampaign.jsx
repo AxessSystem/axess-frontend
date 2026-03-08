@@ -555,12 +555,24 @@ function StepSummary({ onPrev, data, onSubmit, selectedEvent, businessId, authHe
   const [sending, setSending] = useState(false)
   const [done, setDone] = useState(false)
   const [error, setError] = useState('')
+  const businessIdRef = useRef(businessId)
+  businessIdRef.current = businessId
 
   const handleSend = async () => {
-    if (!businessId) {
-      alert('שגיאה: לא נמצא מזהה עסק. נסה לרענן את הדף.')
-      setSending(false)
-      return
+    let effectiveBusinessId = businessIdRef.current
+    if (!effectiveBusinessId) {
+      let waited = 0
+      while (waited < 3000) {
+        await new Promise(r => setTimeout(r, 100))
+        waited += 100
+        effectiveBusinessId = businessIdRef.current
+        if (effectiveBusinessId) break
+      }
+      if (!effectiveBusinessId) {
+        alert('שגיאה: לא נמצא מזהה עסק. נסה לרענן את הדף.')
+        setSending(false)
+        return
+      }
     }
     if (!authHeaders) {
       setError('לא מחובר — התחבר למערכת')
@@ -579,7 +591,7 @@ function StepSummary({ onPrev, data, onSubmit, selectedEvent, businessId, authHe
         return
       }
       const createBody = {
-        business_id: businessId,
+        business_id: effectiveBusinessId,
         name: data.linkToEvent && selectedEvent ? `קמפיין אירוע: ${selectedEvent.title}` : undefined,
         message: data.message,
         schedule_type: data.scheduleType || 'now',
