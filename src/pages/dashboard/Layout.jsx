@@ -79,6 +79,7 @@ function getVisibleNavItems(role, permissions, businessConfig) {
     return items.filter(item => {
       if (item.path === '/dashboard') return true
       if (item.path === '/dashboard/settings') return true
+      if (item.path === '/dashboard/inbox') return true
       const key = pathToNavKey[item.path]
       return key ? allowedPaths.includes(key) : allowedPaths.some(p => item.path.includes(p))
     })
