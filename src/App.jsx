@@ -1,7 +1,7 @@
 import { lazy, Suspense, useEffect } from 'react'
-import { BrowserRouter, Routes, Route, Navigate, useNavigate, Outlet } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom'
 import { Toaster } from 'react-hot-toast'
-import { AuthProvider, useAuth } from '@/contexts/AuthContext'
+import { AuthProvider } from '@/contexts/AuthContext'
 
 import AdminRoute from '@/components/guards/AdminRoute'
 import ProducerRoute from '@/components/guards/ProducerRoute'
@@ -91,13 +91,6 @@ function PageLoader() {
   )
 }
 
-function ProtectedRoute() {
-  const { session, loading } = useAuth()
-  if (loading && !session) return null
-  if (!session) return <Navigate to="/login" replace />
-  return <Outlet />
-}
-
 function RecoveryRedirectHandler() {
   const navigate = useNavigate()
   useEffect(() => {
@@ -167,21 +160,19 @@ export default function App() {
             <Route path="/industries/organizations" element={<IndustryOrganizations />} />
 
             {/* ── Client Dashboard ── */}
-            <Route element={<ProtectedRoute />}>
-              <Route path="/dashboard" element={<ClientLayout />}>
-                <Route index element={<Overview />} />
-                <Route path="new-campaign" element={<NewCampaign />} />
-                <Route path="audiences" element={<Audiences />} />
-                <Route path="events" element={<EventsPage />} />
-                <Route path="promoters" element={<PromotersPage />} />
-                <Route path="reports" element={<Reports />} />
-                <Route path="validators" element={<ValidatorsPage />} />
-                <Route path="staff" element={<Staff />} />
-                <Route path="settings" element={<Settings />} />
-                <Route path="sub-accounts" element={<SubAccounts />} />
-                <Route path="inbox" element={<Inbox />} />
-                <Route path="notifications" element={<Notifications />} />
-              </Route>
+            <Route path="/dashboard" element={<ClientLayout />}>
+              <Route index element={<Overview />} />
+              <Route path="new-campaign" element={<NewCampaign />} />
+              <Route path="audiences" element={<Audiences />} />
+              <Route path="events" element={<EventsPage />} />
+              <Route path="promoters" element={<PromotersPage />} />
+              <Route path="reports" element={<Reports />} />
+              <Route path="validators" element={<ValidatorsPage />} />
+              <Route path="staff" element={<Staff />} />
+              <Route path="settings" element={<Settings />} />
+              <Route path="sub-accounts" element={<SubAccounts />} />
+              <Route path="inbox" element={<Inbox />} />
+              <Route path="notifications" element={<Notifications />} />
             </Route>
 
             {/* ── Admin ── */}
