@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useParams, useSearchParams } from 'react-router-dom'
 import jsQR from 'jsqr'
 
-const API_BASE = import.meta.env.VITE_API_URL || 'https://axess-backend-production.up.railway.app'
+const API_BASE = import.meta.env.VITE_API_URL || 'https://axess-production.up.railway.app'
 
 // ─── Audio helpers ───────────────────────────────────────────────────────────
 function playBeep(freq = 800, duration = 150) {

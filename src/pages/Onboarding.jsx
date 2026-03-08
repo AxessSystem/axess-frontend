@@ -6,7 +6,7 @@ import ImportModal from '@/components/ui/ImportModal'
 
 const AXESS_PHONE = import.meta.env.VITE_AXESS_PHONE || '972500000000'
 const WA_LINK = `https://wa.me/${AXESS_PHONE}?text=${encodeURIComponent('שלום AXESS אני רוצה להצטרף')}`
-const API_BASE = import.meta.env.VITE_API_URL || 'https://axess-backend-production.up.railway.app'
+const API_BASE = import.meta.env.VITE_API_URL || 'https://axess-production.up.railway.app'
 
 const DEFAULT_TEMPLATES = [
   { name: 'הזמנה לאירוע', template_key: 'event_invite', campaign_type: 'event_invite', message_template: 'היי {{first_name}} 👋 מזמינים אותך ל{{event_name}} בתאריך {{event_date}}. לרכישת כרטיס: {{link}}', is_default: true },

@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { Users, Trophy, Sparkles, GraduationCap, HeartHandshake, Building, Plus } from 'lucide-react'
 import toast from 'react-hot-toast'
 
-const API_BASE = import.meta.env.VITE_API_URL || 'https://axess-backend-production.up.railway.app'
+const API_BASE = import.meta.env.VITE_API_URL || 'https://axess-production.up.railway.app'
 const FRONTEND_URL = import.meta.env.VITE_FRONTEND_URL || window.location.origin
 
 const DEPT_ICONS = {

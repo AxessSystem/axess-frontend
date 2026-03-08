@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { useAuth } from '@/contexts/AuthContext'
 
-const API_BASE = import.meta.env.VITE_API_URL || 'https://axess-backend-production.up.railway.app'
+const API_BASE = import.meta.env.VITE_API_URL || 'https://axess-production.up.railway.app'
 
 export default function AdminAuditLog() {
   const { session } = useAuth()

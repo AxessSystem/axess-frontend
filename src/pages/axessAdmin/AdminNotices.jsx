@@ -4,7 +4,7 @@ import { Plus, X } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import toast from 'react-hot-toast'
 
-const API_BASE = import.meta.env.VITE_API_URL || 'https://axess-backend-production.up.railway.app'
+const API_BASE = import.meta.env.VITE_API_URL || 'https://axess-production.up.railway.app'
 
 export default function AdminNotices() {
   const { session } = useAuth()
