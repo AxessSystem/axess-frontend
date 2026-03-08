@@ -52,20 +52,23 @@ export function AuthProvider({ children }) {
   }, [])
 
   useEffect(() => {
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      setSession(session)
-      console.log('SESSION USER:', session?.user?.id)
-      if (session?.user) {
-        const profile = await fetchProfile(session.user.id)
-        setProfile(profile)
-        console.log('AUTH FLOW:', { userId: session?.user?.id, sessionExists: !!session })
-        const bm = await fetchBusinessMember(session.user.id)
-        setBusinessMember(bm)
-      } else {
-        setBusinessMember(null)
-      }
-      setLoading(false)
-    })
+    supabase.auth.getSession()
+      .then(async ({ data: { session } }) => {
+        setSession(session)
+        console.log('SESSION USER:', session?.user?.id)
+        if (session?.user) {
+          const profile = await fetchProfile(session.user.id)
+          setProfile(profile)
+          console.log('AUTH FLOW:', { userId: session?.user?.id, sessionExists: !!session })
+          const bm = await fetchBusinessMember(session.user.id)
+          setBusinessMember(bm)
+        } else {
+          setBusinessMember(null)
+        }
+      })
+      .finally(() => {
+        setLoading(false)
+      })
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (_event, session) => {
