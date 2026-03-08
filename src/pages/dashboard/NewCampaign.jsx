@@ -557,7 +557,12 @@ function StepSummary({ onPrev, data, onSubmit, selectedEvent, businessId, authHe
   const [error, setError] = useState('')
 
   const handleSend = async () => {
-    if (!businessId || !authHeaders) {
+    if (!businessId) {
+      alert('שגיאה: לא נמצא מזהה עסק. נסה לרענן את הדף.')
+      setSending(false)
+      return
+    }
+    if (!authHeaders) {
       setError('לא מחובר — התחבר למערכת')
       return
     }
@@ -708,7 +713,7 @@ export default function NewCampaign() {
   const { session, businessId } = useAuth()
   const [step, setStep] = useState(1)
   const [data, setData] = useState({ scheduleType: 'now', validatorEnabled: false })
-  const effectiveBusinessId = businessId || 'placeholder'
+  const effectiveBusinessId = businessId
   const [events, setEvents] = useState([])
   const authHeaders = () => {
     const h = { 'Content-Type': 'application/json', 'X-Business-Id': effectiveBusinessId }
