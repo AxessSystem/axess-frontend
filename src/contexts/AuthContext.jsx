@@ -25,12 +25,14 @@ export function AuthProvider({ children }) {
 
   const fetchBusinessMember = useCallback(async (userId) => {
     try {
+      console.log('fetchBusinessMember called with userId:', userId)
       const { data: members, error } = await supabase
         .from('business_members')
         .select('role, permissions, business_id')
         .eq('user_id', userId)
         .eq('status', 'active')
         .limit(1)
+      console.log('business_members result:', JSON.stringify(members), 'error:', JSON.stringify(error))
       console.log('BM QUERY RESULT:', { members, error, userId })
       console.log('BM QUERY DEBUG:', JSON.stringify({ members, error, userId }))
       if (error || !members?.length) {
