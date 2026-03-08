@@ -93,7 +93,7 @@ function PageLoader() {
 
 function ProtectedRoute() {
   const { session, loading } = useAuth()
-  if (loading) return null
+  if (loading && !session) return null
   if (!session) return <Navigate to="/login" replace />
   return <Outlet />
 }
