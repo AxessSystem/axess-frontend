@@ -79,8 +79,6 @@ export function AuthProvider({ children }) {
         } else {
           setBusinessMember(null)
         }
-      })
-      .finally(() => {
         setLoading(false)
       })
 
