@@ -405,7 +405,7 @@ export default function DashboardClientLayout() {
   const [dismissedNotices, setDismissedNotices] = useState(() => {
     try { return JSON.parse(sessionStorage.getItem('dismissed_notices') || '[]') } catch { return [] }
   })
-  const { role, permissions, businessId, isAxessAdmin, session } = useAuth()
+  const { role, permissions, businessId, isAxessAdmin, session, profile } = useAuth()
   const navigate = useNavigate()
   const [inboxUnreadCount, setInboxUnreadCount] = useState(0)
   const [notificationsUnreadCount, setNotificationsUnreadCount] = useState(0)
@@ -482,7 +482,7 @@ export default function DashboardClientLayout() {
       return s ? JSON.parse(s) : null
     } catch { return null }
   })()
-  const businessName = 'קפה רוטשילד'
+  const businessName = profile?.business_name ?? profile?.full_name ?? 'AXESS Admin'
   const balance = 4_820
 
   useEffect(() => {
