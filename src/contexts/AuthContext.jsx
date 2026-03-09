@@ -57,11 +57,19 @@ export function AuthProvider({ children }) {
         setSession(session)
         console.log('SESSION USER:', session?.user?.id)
         if (session?.user) {
-          const profile = await fetchProfile(session.user.id)
-          setProfile(profile)
-          console.log('AUTH FLOW:', { userId: session?.user?.id, sessionExists: !!session })
-          const bm = await fetchBusinessMember(session.user.id)
-          setBusinessMember(bm)
+          try {
+            const profile = await fetchProfile(session.user.id)
+            setProfile(profile)
+            console.log('AUTH FLOW:', { userId: session?.user?.id, sessionExists: !!session })
+          } catch (e) {
+            console.error('fetchProfile failed:', e)
+          }
+          try {
+            const bm = await fetchBusinessMember(session.user.id)
+            setBusinessMember(bm)
+          } catch (e) {
+            console.error('fetchBusinessMember failed:', e)
+          }
         } else {
           setBusinessMember(null)
         }
@@ -74,11 +82,19 @@ export function AuthProvider({ children }) {
       async (_event, session) => {
         setSession(session)
         if (session?.user) {
-          const profile = await fetchProfile(session.user.id)
-          setProfile(profile)
-          console.log('AUTH FLOW:', { userId: session?.user?.id, sessionExists: !!session })
-          const bm = await fetchBusinessMember(session.user.id)
-          setBusinessMember(bm)
+          try {
+            const profile = await fetchProfile(session.user.id)
+            setProfile(profile)
+            console.log('AUTH FLOW:', { userId: session?.user?.id, sessionExists: !!session })
+          } catch (e) {
+            console.error('fetchProfile failed:', e)
+          }
+          try {
+            const bm = await fetchBusinessMember(session.user.id)
+            setBusinessMember(bm)
+          } catch (e) {
+            console.error('fetchBusinessMember failed:', e)
+          }
         } else {
           setProfile(null)
           setBusinessMember(null)
