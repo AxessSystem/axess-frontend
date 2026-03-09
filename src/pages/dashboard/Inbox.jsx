@@ -258,6 +258,7 @@ export default function Inbox({ onUnreadChange }) {
         .inbox-header__title { display: flex; align-items: center; gap: 10px; font-family: "Bricolage Grotesque", "Outfit", sans-serif; font-size: 24px; font-weight: 700; color: #fff; }
         .inbox-header__badge { background: var(--v2-primary); color: var(--v2-dark); font-size: 12px; font-weight: 700; padding: 2px 8px; border-radius: 99px; }
         .inbox-header__meta { font-size: 13px; color: var(--v2-gray-400); margin-top: 4px; }
+        .inbox-header__desc { font-size: 12px; color: var(--v2-gray-400); direction: rtl; margin-top: 6px; line-height: 1.5; }
         .inbox-header__actions { display: flex; gap: 8px; }
         .inbox-filters { display: flex; gap: 6px; margin-bottom: 20px; background: var(--v2-dark-2); border-radius: var(--radius-md); padding: 4px; width: fit-content; border: 1px solid var(--glass-border); }
         .inbox-filters__btn { padding: 6px 16px; border-radius: 6px; border: none; background: transparent; font-size: 13px; font-weight: 500; color: var(--v2-gray-400); cursor: pointer; }
@@ -328,7 +329,15 @@ export default function Inbox({ onUnreadChange }) {
               {data?.unread_total > 0 && <span className="inbox-header__badge">{data.unread_total}</span>}
             </div>
             {!dataLoading && (
-              <div className="inbox-header__meta">{totalMessages} הודעות • {data?.campaigns?.length || 0} קמפיינים</div>
+              <>
+                <div className="inbox-header__meta">{totalMessages} הודעות • {data?.campaigns?.length || 0} קמפיינים</div>
+                <div className="inbox-header__desc">
+                  תיבה זו מציגה את כל ההודעות הנכנסות מלקוחות שהגיבו לקמפיינים שלך.
+                  תשובתך תישלח ללקוח כ-SMS דרך המספר הווירטואלי (Text Lead) המשויך לעסק.
+                  עד 201 תווים = קרדיט אחד • מעל 201 תווים = 2 קרדיטים או יותר.
+                  ניתן להעניק לאנשי צוות הרשאת גישה לתיבה דרך הגדרות → צוות.
+                </div>
+              </>
             )}
           </div>
           <div className="inbox-header__actions">
