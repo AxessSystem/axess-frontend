@@ -53,8 +53,14 @@ export function AuthProvider({ children }) {
 
   useEffect(() => {
     supabase.auth.getSession()
-      .then(async ({ data: { session } }) => {
+      .then(async ({ data }) => {
+        let session = data.session
         setSession(session)
+        const { data: { user } } = await supabase.auth.getUser()
+        console.log('GETUSER RESULT:', user?.id ?? 'NULL')
+        if (!session?.user && user) {
+          session = { ...session, user }
+        }
         console.log('SESSION USER:', session?.user?.id)
         if (session?.user) {
           try {
@@ -81,6 +87,11 @@ export function AuthProvider({ children }) {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (_event, session) => {
         setSession(session)
+        const { data: { user } } = await supabase.auth.getUser()
+        console.log('GETUSER RESULT:', user?.id ?? 'NULL')
+        if (!session?.user && user) {
+          session = { ...session, user }
+        }
         if (session?.user) {
           try {
             const profile = await fetchProfile(session.user.id)
