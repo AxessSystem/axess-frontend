@@ -242,7 +242,7 @@ export default function Inbox({ onUnreadChange }) {
 
   const totalMessages = (data?.campaigns || []).reduce((sum, g) => sum + g.messages.length, 0);
 
-  if (!session?.access_token || !businessId) {
+  if (!session?.access_token) {
     return (
       <div style={{ padding: 24, color: "var(--v2-gray-400)", textAlign: "center" }}>
         נדרשת התחברות לצפייה באינבוקס
