@@ -53,47 +53,19 @@ export function AuthProvider({ children }) {
 
   useEffect(() => {
     supabase.auth.getSession()
-      .then(async ({ data: { session } }) => {
+      .then(({ data: { session } }) => {
         setSession(session)
-        console.log('SESSION USER:', session?.user?.id)
-        if (session?.user) {
-          try {
-            const profile = await fetchProfile(session.user.id)
-            setProfile(profile)
-            console.log('AUTH FLOW:', { userId: session?.user?.id, sessionExists: !!session })
-          } catch (e) {
-            console.error('fetchProfile failed:', e)
-          }
-          try {
-            const bm = await fetchBusinessMember(session.user.id)
-            setBusinessMember(bm)
-          } catch (e) {
-            console.error('fetchBusinessMember failed:', e)
-          }
-        } else {
+        if (!session?.user) {
+          setProfile(null)
           setBusinessMember(null)
+          setLoading(false)
         }
-        setLoading(false)
       })
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
+      (event, session) => {
         setSession(session)
-        if (session?.user) {
-          try {
-            const profile = await fetchProfile(session.user.id)
-            setProfile(profile)
-            console.log('AUTH FLOW:', { userId: session?.user?.id, sessionExists: !!session })
-          } catch (e) {
-            console.error('fetchProfile failed:', e)
-          }
-          try {
-            const bm = await fetchBusinessMember(session.user.id)
-            setBusinessMember(bm)
-          } catch (e) {
-            console.error('fetchBusinessMember failed:', e)
-          }
-        } else {
+        if (!session?.user) {
           setProfile(null)
           setBusinessMember(null)
         }
@@ -103,6 +75,41 @@ export function AuthProvider({ children }) {
 
     return () => subscription.unsubscribe()
   }, [])
+
+  useEffect(() => {
+    const userId = session?.user?.id
+    if (!userId) {
+      setProfile(null)
+      setBusinessMember(null)
+      return
+    }
+
+    let cancelled = false
+
+    const load = async () => {
+      try {
+        const [profileData, bm] = await Promise.all([
+          fetchProfile(userId),
+          fetchBusinessMember(userId)
+        ])
+        if (!cancelled) {
+          setProfile(profileData)
+          setBusinessMember(bm)
+        }
+      } catch (e) {
+        if (!cancelled) {
+          console.error('Auth load failed:', e)
+          setProfile(null)
+          setBusinessMember(null)
+        }
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    }
+
+    load()
+    return () => { cancelled = true }
+  }, [session?.user?.id, fetchProfile, fetchBusinessMember])
 
   const signIn = async (email, password) => {
     const { data, error } = await supabase.auth.signInWithPassword({ email, password })
