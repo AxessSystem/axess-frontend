@@ -746,6 +746,20 @@ export default function DashboardClientLayout() {
               ))}
             </nav>
 
+            {/* ד. הגדרות */}
+            {SETTINGS_ITEM && (
+              <div style={{ padding: '0 8px 4px' }}>
+                <MobileDrawerNavItem
+                  item={SETTINGS_ITEM}
+                  navigate={navigate}
+                  onClose={() => setSidebarOpen(false)}
+                  expandedItem={expandedItem}
+                  setExpandedItem={setExpandedItem}
+                  badgeCount={null}
+                />
+              </div>
+            )}
+
             {/* ג. Balance (יתרת הודעות) */}
             <div style={{ padding: '12px', borderTop: '1px solid var(--glass-border)' }}>
               <div
@@ -763,42 +777,33 @@ export default function DashboardClientLayout() {
               </div>
             </div>
 
-            {/* ד. הגדרות */}
-            {SETTINGS_ITEM && (
-              <div style={{ padding: '0 8px 4px' }}>
-                <MobileDrawerNavItem
-                  item={SETTINGS_ITEM}
-                  navigate={navigate}
-                  onClose={() => setSidebarOpen(false)}
-                  expandedItem={expandedItem}
-                  setExpandedItem={setExpandedItem}
-                  badgeCount={null}
-                />
+            {/* שם משתמש */}
+            <div style={{ padding: '12px 16px 4px', display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div style={{
+                width: 32, height: 32, borderRadius: '50%',
+                background: 'var(--v2-primary)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontWeight: 700, fontSize: 14, color: '#fff', flexShrink: 0
+              }}>
+                {businessName?.charAt(0) ?? 'A'}
               </div>
-            )}
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: '#fff' }}>{businessName}</div>
+                <div style={{ fontSize: 11, color: 'var(--v2-gray-400)' }}>{isAxessAdmin ? 'AXESS Admin' : 'לוח בקרה'}</div>
+              </div>
+            </div>
 
-            {/* ה. קו מפריד */}
+            {/* קו מפריד */}
             <div style={{ height: 1, background: 'var(--glass-border)', margin: '8px 0' }} />
 
-            {/* ו. התנתק/י — תגובה מיידית */}
+            {/* התנתק */}
             <div style={{ paddingBottom: 32 }}>
               <button
                 onClick={async () => {
                   window.location.href = '/login'
                   try { await supabase.auth.signOut() } catch (e) {}
                 }}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 8,
-                  width: '100%',
-                  padding: '12px 16px',
-                  background: 'transparent',
-                  border: 'none',
-                  color: 'var(--v2-gray-400)',
-                  cursor: 'pointer',
-                  borderRadius: 8,
-                }}
+                style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '10px 16px', background: 'none', border: 'none', color: 'var(--v2-gray-400)', cursor: 'pointer', fontSize: 14 }}
               >
                 <LogOut size={18} />
                 התנתק/י
