@@ -201,7 +201,7 @@ export default function Inbox({ onUnreadChange }) {
   const [refreshing, setRefreshing] = useState(false);
 
   const apiFetch = useCallback(async (path, opts = {}) => {
-    if (!session?.access_token || !businessId) return Promise.reject(new Error("Not authenticated"));
+    if (!session?.access_token) return Promise.reject(new Error("Not authenticated"));
     const r = await fetch(`${API_BASE}${path}`, {
       ...opts,
       headers: {
