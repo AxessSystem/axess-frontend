@@ -70,8 +70,9 @@ function CustomerProfileDrawer({ open, onClose, masterRecipientId, businessId, o
 
   const addTag = async () => {
     if (!newTag.trim() || !profile?.id || !businessId) return
+    const tags = [...(profile.tags || []), newTag.trim()]
     try {
-      await api.patchRecipientTags(profile.id, 'add', newTag.trim())
+      await api.patchRecipientTags(profile.id, { tags, business_id: businessId })
       refetch()
       onTagUpdate?.()
       setNewTag('')
@@ -84,8 +85,9 @@ function CustomerProfileDrawer({ open, onClose, masterRecipientId, businessId, o
 
   const removeTag = async (tag) => {
     if (!profile?.id || !businessId) return
+    const tags = (profile.tags || []).filter(t => t !== tag)
     try {
-      await api.patchRecipientTags(profile.id, 'remove', tag)
+      await api.patchRecipientTags(profile.id, { tags, business_id: businessId })
       refetch()
       onTagUpdate?.()
       toast.success('התגית הוסרה')
@@ -96,9 +98,9 @@ function CustomerProfileDrawer({ open, onClose, masterRecipientId, businessId, o
 
   if (!open) return null
 
-  const fullName = profile?.first_name || profile?.last_name ? [profile.first_name, profile.last_name].filter(Boolean).join(' ') : 'ללא שם'
-  const initials = fullName ? fullName.split(/\s+/).map(n => n[0]).join('').slice(0, 2) : (profile?.phone?.[0] || '?')
-  const age = profile?.birth_date ? new Date().getFullYear() - new Date(profile.birth_date).getFullYear() : null
+  const fullName = profile?.first_name || profile?.last_name ? [profile.first_name, profile.last_name].filter(Boolean).join(' ') : 'לא צוין'
+  const initials = fullName !== 'לא צוין' ? fullName.split(/\s+/).map(n => n[0]).join('').slice(0, 2) : (profile?.phone?.[0] || '?')
+  const age = profile?.birth_date ? Math.floor((Date.now() - new Date(profile.birth_date)) / 31557600000) : null
 
   const eventLabels = {
     sms_sent: '📱 קיבל SMS',
@@ -169,12 +171,10 @@ function CustomerProfileDrawer({ open, onClose, masterRecipientId, businessId, o
                         <div style={{ color: '#fff' }}>{age}</div>
                       </div>
                     )}
-                    {profile.email && (
-                      <div style={{ gridColumn: '1 / -1' }}>
-                        <div style={{ color: 'var(--v2-gray-500)', fontSize: 11, marginBottom: 2 }}>אימייל</div>
-                        <div style={{ color: '#fff', fontSize: 12, wordBreak: 'break-all' }}>{profile.email}</div>
-                      </div>
-                    )}
+                    <div style={{ gridColumn: '1 / -1' }}>
+                      <div style={{ color: 'var(--v2-gray-500)', fontSize: 11, marginBottom: 2 }}>אימייל</div>
+                      <div style={{ color: '#fff', fontSize: 12, wordBreak: 'break-all' }}>{profile.email || 'לא צוין'}</div>
+                    </div>
                     {profile.id_number && (
                       <div>
                         <div style={{ color: 'var(--v2-gray-500)', fontSize: 11, marginBottom: 2 }}>ת.ז</div>
@@ -189,13 +189,12 @@ function CustomerProfileDrawer({ open, onClose, masterRecipientId, businessId, o
                   <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--v2-gray-400)', marginBottom: 10 }}>סיכום פעילות</div>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, fontSize: 13 }}>
                     {[
-                      { label: 'Engagement', value: profile.counters?.engagement_score ?? 0, color: 'var(--v2-primary)' },
-                      { label: 'אירועים', value: profile.counters?.total_events ?? 0 },
-                      { label: "צ'ק-אינים", value: profile.counters?.checkins ?? 0 },
-                      { label: 'קמפיינים', value: profile.counters?.campaigns_received ?? 0 },
-                      { label: 'לינקים', value: profile.counters?.link_clicks ?? 0 },
-                      { label: 'מימושים', value: profile.counters?.redemptions ?? 0 },
-                      { label: 'הוצאה', value: profile.counters?.total_spent ?? 0, suffix: '₪', color: 'var(--v2-primary)' },
+                      { label: 'קמפיינים שקיבל', value: profile.axess_data?.campaigns_received ?? profile.counters?.campaigns_received ?? 0 },
+                      { label: 'פתח / לחץ', value: profile.axess_data?.campaigns_opened ?? profile.counters?.link_clicks ?? 0 },
+                      { label: 'מימושי ולידטור', value: profile.axess_data?.redemptions ?? profile.counters?.redemptions ?? 0 },
+                      { label: 'אירועים', value: profile.business_data?.total_events ?? profile.counters?.total_events ?? 0 },
+                      { label: "סה״כ הוצאה", value: profile.business_data?.total_spent ?? profile.counters?.total_spent ?? 0, suffix: '₪', color: 'var(--v2-primary)' },
+                      { label: 'Engagement', value: profile.axess_data?.engagement_score ?? profile.counters?.engagement_score ?? 0, color: 'var(--v2-primary)' },
                     ].map((item, i) => (
                       <div key={i}>
                         <div style={{ color: 'var(--v2-gray-500)', fontSize: 11, marginBottom: 2 }}>{item.label}</div>
@@ -270,22 +269,23 @@ function CustomerProfileDrawer({ open, onClose, masterRecipientId, businessId, o
                 )}
 
                 {/* שכבה 5 — היסטוריית פעילות */}
-                {profile.timeline?.length > 0 && (
+                {(profile.activity_log ?? []).length > 0 && (
                   <div>
                     <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--v2-gray-400)', marginBottom: 10 }}>היסטוריית פעילות</div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
-                      {profile.timeline.slice(0, 10).map((item, i) => (
+                      {(profile.activity_log || []).map((item, i) => (
                         <div key={i} style={{ display: 'flex', gap: 10, padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,.06)' }}>
                           <div style={{
                             width: 8, height: 8, borderRadius: '50%', marginTop: 5, flexShrink: 0,
-                            background: (item.event_type || item.type) === 'validator_redeemed' ? 'var(--v2-primary)' : (item.event_type || item.type) === 'link_clicked' ? '#3b82f6' : (item.event_type || item.type) === 'sms_sent' || (item.event_type || item.type) === 'sms_delivered' ? '#94a3b8' : '#f59e0b',
+                            background: item.activity_type === 'validator_redeemed' ? 'var(--v2-primary)' : item.activity_type === 'link_clicked' ? '#3b82f6' : item.activity_type === 'checkin' ? '#10b981' : '#94a3b8',
                           }} />
                           <div>
                             <div style={{ fontSize: 13, fontWeight: 500, color: '#fff' }}>
-                              {eventLabels[(item.event_type || item.type)] || (item.event_type || item.type)}
+                              {eventLabels[item.activity_type] || item.activity_type}
                             </div>
+                            {item.note && <div style={{ fontSize: 12, color: 'var(--v2-gray-400)' }}>{item.note}</div>}
                             <div style={{ fontSize: 11, color: 'var(--v2-gray-500)' }}>
-                              {new Date(item.created_at || item.date).toLocaleDateString('he-IL')}
+                              {new Date(item.created_at).toLocaleDateString('he-IL', { dateStyle: 'medium', timeStyle: 'short' })}
                             </div>
                           </div>
                         </div>
@@ -357,7 +357,7 @@ export default function Audiences() {
     fetch(`${API_BASE}/api/admin/segments`, { headers }).then(r => r.ok ? r.json() : {}).then(d => setSegments({ presets: PRESET_SEGMENTS, saved: d?.saved || [] }))
     fetch(`${API_BASE}/api/admin/recipients`, { headers }).then(r => r.ok ? r.json() : {}).then(d => setRecipients(d?.recipients || []))
     fetch(`${API_BASE}/api/admin/campaigns?limit=100&business_id=${businessId}`, { headers }).then(r => r.ok ? r.json() : {}).then(d => setCampaigns(d?.campaigns || d || []))
-    fetch(`${API_BASE}/api/admin/events?limit=100&business_id=${businessId}`, { headers }).then(r => r.ok ? r.json() : {}).then(d => setEvents(d?.events || d || []))
+    if (businessId) fetch(`${API_BASE}/api/admin/recipients/events-list?business_id=${businessId}`, { headers }).then(r => r.ok ? r.json() : {}).then(d => setEvents(d?.events || []))
   }, [session?.access_token, businessId])
 
   const getWhereClause = (segmentId) => {
@@ -614,7 +614,7 @@ export default function Audiences() {
             setSelectedEvent(val)
             if (!val) return
             setLoading(true)
-            const r = await fetch(`${API_BASE}/api/admin/segments/ai`, { method: 'POST', headers: h(), body: JSON.stringify({ query: `אירוע ${val}`, eventId: val }) })
+            const r = await fetch(`${API_BASE}/api/admin/segments/ai`, { method: 'POST', headers: h(), body: JSON.stringify({ query: `אירוע ${val}`, eventTitle: val }) })
             const d = r.ok ? await r.json() : {}
             setRecipients(d?.recipients || [])
             setPage(1)
@@ -622,8 +622,8 @@ export default function Audiences() {
           }}>
             <option value="">בחר אירוע...</option>
             {Array.isArray(events)
-              ? events.filter(ev => !eventSearch || (ev.title && ev.title.includes(eventSearch)) || (ev.name && ev.name.includes(eventSearch))).map(ev => (
-                <option key={ev.id} value={ev.id}>{ev.title || ev.name} — {new Date(ev.event_date || ev.created_at).toLocaleDateString('he-IL')}</option>
+              ? events.filter(ev => !eventSearch || ev.toLowerCase().includes(eventSearch.toLowerCase())).map(ev => (
+                <option key={ev} value={ev}>{ev}</option>
               ))
               : null}
           </select>
@@ -694,21 +694,23 @@ export default function Audiences() {
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
                       <div style={{ fontSize: 14, fontWeight: 600, color: '#ffffff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.name || '—'}</div>
-                      <EngagementScore score={r.score} size={40} />
+                      <EngagementScore score={r.axess_data?.engagement_score ?? r.score} size={40} />
                     </div>
                     <div style={{ fontSize: 12, color: 'var(--v2-gray-400)', marginTop: 2 }}><Phone size={11} /> {r.phone}</div>
                     <div style={{ display: 'flex', gap: 8, marginTop: 3 }}>
-                      <span style={{ fontSize: 11, color: 'var(--v2-gray-400)' }}>
-                        {r.gender === 'Female' ? '👩 נקבה' : r.gender === 'Male' ? '👨 זכר' : '👤'}
-                      </span>
+                      {r.gender && (
+                        <span style={{ fontSize: 11, color: 'var(--v2-gray-400)' }}>
+                          {r.gender === 'Female' ? '👩 נקבה' : r.gender === 'Male' ? '👨 זכר' : r.gender}
+                        </span>
+                      )}
                       {r.birth_date && (
                         <span style={{ fontSize: 11, color: 'var(--v2-gray-400)' }}>
-                          {new Date().getFullYear() - new Date(r.birth_date).getFullYear()} שנים
+                          {Math.floor((Date.now() - new Date(r.birth_date)) / 31557600000)} שנים
                         </span>
                       )}
                     </div>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
-                      {(Array.isArray(r.tags) ? r.tags : []).map(tag => (
+                      {((r.tags ?? []).slice(0, 3)).map(tag => (
                         <span key={tag} style={{ fontSize: 11, padding: '2px 8px', borderRadius: 9999, background: tag === 'VIP' ? 'rgba(245,158,11,0.12)' : 'rgba(255,255,255,0.06)', color: tag === 'VIP' ? '#F59E0B' : 'var(--v2-gray-400)' }}>{tag}</span>
                       ))}
                     </div>
@@ -746,7 +748,7 @@ export default function Audiences() {
             toast.success('נוסף לקמפיין')
           }}>➕ הוסף לקמפיין קיים</button>
           <ExportButton businessId={businessId} segment={activeSegment} label="📥 ייצוא CSV" />
-          <button className="btn-ghost" onClick={() => setShowBulkTagModal(true)}>🏷️ תגית לסגמנט</button>
+          <button className="btn-ghost" onClick={() => setShowBulkTagModal(true)}>🏷️ הוסף תגית לסגמנט</button>
         </div>
       </div>
 
@@ -765,7 +767,7 @@ export default function Audiences() {
               <button className="btn-primary" style={{ flex: 1 }} onClick={async () => {
                 const ids = recipients.map(r => r.master_recipient_id || r.id).filter(Boolean)
                 try {
-                  await api.patchBulkTags(bulkTag, ids)
+                  await api.patchBulkTags({ tag: bulkTag, recipient_ids: ids, business_id: businessId })
                   setShowBulkTagModal(false)
                   setBulkTag('')
                   toast.success(`התגית נוספה ל-${recipients.length} לקוחות`)

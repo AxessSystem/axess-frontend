@@ -90,11 +90,14 @@ export const api = {
   getCustomerProfile: (masterRecipientId, businessId) =>
     apiFetch(`/api/admin/customer-profile/${masterRecipientId}${businessId ? `?business_id=${encodeURIComponent(businessId)}` : ''}`),
 
-  patchRecipientTags: (id, action, tag) =>
-    apiFetch(`/api/admin/recipients/${id}/tags`, { method: 'PATCH', body: JSON.stringify({ action, tag }) }),
+  patchRecipientTags: (id, { tags, business_id }) =>
+    apiFetch(`/api/admin/recipients/${id}/tags`, { method: 'PATCH', body: JSON.stringify({ tags, business_id }) }),
 
-  patchBulkTags: (tag, recipient_ids) =>
-    apiFetch('/api/admin/recipients/bulk-tags', { method: 'PATCH', body: JSON.stringify({ tag, recipient_ids }) }),
+  patchBulkTags: ({ tag, recipient_ids, business_id }) =>
+    apiFetch('/api/admin/recipients/bulk-tags', { method: 'PATCH', body: JSON.stringify({ tag, recipient_ids, business_id }) }),
+
+  getEventsList: (businessId) =>
+    apiFetch(`/api/admin/recipients/events-list?business_id=${encodeURIComponent(businessId)}`),
 
   /* Balance */
   getBalance: () =>
