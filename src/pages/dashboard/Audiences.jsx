@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Search, Users, Phone, Tag, X, ShoppingBag, Activity, Clock, Upload } from 'lucide-react'
+import { Search, Users, Phone, Tag, X, ShoppingBag, Activity, Clock, Upload, Crown, RefreshCw, Sparkles, CheckCircle, Radio, Scan, AlertTriangle, Ticket, Cake, Send, Calendar } from 'lucide-react'
 import EngagementScore from '@/components/ui/EngagementScore'
 import EmptyState from '@/components/ui/EmptyState'
 import ImportModal from '@/components/ui/ImportModal'
@@ -12,19 +12,34 @@ import toast from 'react-hot-toast'
 
 const API_BASE = import.meta.env.VITE_API_URL || 'https://axess-production.up.railway.app'
 
+const SEGMENT_ICONS = {
+  all: Users,
+  vip: Crown,
+  loyal: RefreshCw,
+  new: Sparkles,
+  checkin: CheckCircle,
+  live: Radio,
+  scanned: Scan,
+  at_risk: AlertTriangle,
+  validator: Ticket,
+  birthday: Cake,
+  by_campaign: Send,
+  by_event: Calendar,
+}
+
 const PRESET_SEGMENTS = [
-  { id: 'all', name: 'הכל', icon: '👥', description: 'כל הלקוחות הפעילים במערכת' },
-  { id: 'vip', name: 'VIP', icon: '👑', description: 'לקוחות עם engagement מעל 75 שהוציאו מעל ₪500' },
-  { id: 'loyal', name: 'חוזרים', icon: '🔄', description: 'לקוחות שביקרו 2+ פעמים ופעילים ב-60 יום האחרונים' },
-  { id: 'new', name: 'חדשים', icon: '✨', description: 'הצטרפו ב-30 יום האחרונים' },
-  { id: 'checkin', name: "ביצעו צ'ק-אין", icon: '✅', description: "לקוחות שביצעו צ'ק-אין — מהחדש לישן" },
-  { id: 'live', name: 'לקוחות לייב', icon: '🟢', description: "ביצעו צ'ק-אין בטווח שעות מוגדר (ברירת מחדל: 3 שעות)" },
-  { id: 'scanned', name: 'נסרקו', icon: '📲', description: 'לקוחות שנסרקו דרך Scan Station' },
-  { id: 'at_risk', name: 'בסיכון נטישה', icon: '⚠️', description: 'לא פעילים 90+ יום אך היו פעילים בעבר' },
-  { id: 'validator', name: 'Validator (מימושים/קופונים)', icon: '🎟️', description: 'לקוחות שמימשו לפחות ולידטור אחד' },
-  { id: 'birthday', name: 'ימי הולדת החודש', icon: '🎂', description: 'לקוחות עם יומולדת ב-30 הימים הקרובים' },
-  { id: 'by_campaign', name: 'לפי קמפיין', icon: '📱', description: 'סינון לקוחות לפי קמפיין ספציפי' },
-  { id: 'by_event', name: 'לפי אירוע', icon: '🎪', description: 'סינון לקוחות לפי אירוע ספציפי שהשתתפו בו' },
+  { id: 'all', name: 'הכל', description: 'כל הלקוחות הפעילים במערכת' },
+  { id: 'vip', name: 'VIP', description: 'לקוחות עם engagement מעל 75 שהוציאו מעל ₪500' },
+  { id: 'loyal', name: 'חוזרים', description: 'לקוחות שביקרו 2+ פעמים ופעילים ב-60 יום האחרונים' },
+  { id: 'new', name: 'חדשים', description: 'הצטרפו ב-30 יום האחרונים' },
+  { id: 'checkin', name: "ביצעו צ'ק-אין", description: "לקוחות שביצעו צ'ק-אין — מהחדש לישן" },
+  { id: 'live', name: 'לקוחות לייב', description: "ביצעו צ'ק-אין בטווח שעות מוגדר (ברירת מחדל: 3 שעות)" },
+  { id: 'scanned', name: 'נסרקו', description: 'לקוחות שנסרקו דרך Scan Station' },
+  { id: 'at_risk', name: 'בסיכון נטישה', description: 'לא פעילים 90+ יום אך היו פעילים בעבר' },
+  { id: 'validator', name: 'Validator (מימושים/קופונים)', description: 'לקוחות שמימשו לפחות ולידטור אחד' },
+  { id: 'birthday', name: 'ימי הולדת החודש', description: 'לקוחות עם יומולדת ב-30 הימים הקרובים' },
+  { id: 'by_campaign', name: 'לפי קמפיין', description: 'סינון לקוחות לפי קמפיין ספציפי' },
+  { id: 'by_event', name: 'לפי אירוע', description: 'סינון לקוחות לפי אירוע ספציפי שהשתתפו בו' },
 ]
 
 function CustomerProfileDrawer({ open, onClose, masterRecipientId, businessId }) {
@@ -182,6 +197,7 @@ export default function Audiences() {
   const [events, setEvents] = useState([])
   const [selectedEvent, setSelectedEvent] = useState('')
   const [eventSearch, setEventSearch] = useState('')
+  const [page, setPage] = useState(1)
 
   const h = () => {
     const headers = { 'Content-Type': 'application/json', 'X-Business-Id': businessId || '' }
@@ -220,6 +236,7 @@ export default function Audiences() {
       const r = await fetch(`${API_BASE}/api/admin/recipients`, { headers })
       const d = r.ok ? await r.json() : {}
       setRecipients(d?.recipients || [])
+      setPage(1)
       return
     }
     if (segment.id === 'by_campaign' || segment.id === 'by_event') return
@@ -232,6 +249,7 @@ export default function Audiences() {
     })
     const data = r.ok ? await r.json() : {}
     setRecipients(data?.recipients || [])
+    setPage(1)
     setLoading(false)
   }
 
@@ -243,6 +261,7 @@ export default function Audiences() {
     const r = await fetch(`${API_BASE}/api/admin/segments/${seg.id}/run`, { method: 'POST', headers })
     const data = r.ok ? await r.json() : {}
     setRecipients(data?.recipients || [])
+    setPage(1)
     setLoading(false)
   }
 
@@ -257,6 +276,7 @@ export default function Audiences() {
     const data = r.ok ? await r.json() : {}
     setRecipients(data?.recipients || [])
     setLastWhereClause(data?.whereClause || '')
+    setPage(1)
     setLoading(false)
     setShowSaveModal(true)
   }
@@ -277,6 +297,10 @@ export default function Audiences() {
       if (sortBy === 'name') return (a.name || '').localeCompare(b.name || '', 'he')
       return 0
     })
+
+  const PER_PAGE = 100
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PER_PAGE))
+  const paginated = filtered.slice((page - 1) * PER_PAGE, page * PER_PAGE)
 
   const ALL_TAGS = ['הכל', 'VIP', 'לקוח קבוע', 'חדש']
 
@@ -303,26 +327,70 @@ export default function Audiences() {
         </p>
       </div>
 
-      <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '8px', marginBottom: '16px' }}>
-        {PRESET_SEGMENTS.map(seg => (
-          <div
-            key={seg.id}
-            onClick={() => runPreset(seg)}
-            className="glass-card"
-            style={{
-              minWidth: '120px', padding: '12px', cursor: 'pointer', flexShrink: 0,
-              border: activeSegment === seg.id ? '2px solid var(--v2-primary)' : '1px solid var(--border)',
-              position: 'relative',
-            }}
-          >
-            <div title={seg.description} style={{ position: 'absolute', top: '6px', left: '6px', width: '16px', height: '16px', borderRadius: '50%', background: 'var(--border)', color: 'var(--text-secondary)', fontSize: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'help' }}>?</div>
-            <div style={{ fontSize: '20px', marginBottom: '4px' }}>{seg.icon}</div>
-            <div style={{ fontSize: '13px', fontWeight: 600 }}>{seg.name}</div>
-            {activeSegment === seg.id && (
-              <button onClick={e => { e.stopPropagation(); addSegmentToSelection(seg.name); }} style={{ fontSize: '10px', marginTop: '4px', padding: '2px 6px', background: 'var(--v2-primary)', border: 'none', borderRadius: '4px', color: '#000', cursor: 'pointer' }}>+ הוסף</button>
-            )}
-          </div>
-        ))}
+      <style>{`
+        @media (max-width: 768px) {
+          .audience-search-row { flex-direction: column; align-items: stretch; }
+          .audience-search-row > div:first-child { flex-direction: row !important; }
+          .audience-segment-chips {
+            overflow-x: auto;
+            white-space: nowrap;
+            -webkit-overflow-scrolling: touch;
+          }
+          .audience-segment-chips .segment-chip {
+            min-width: auto;
+            padding: 6px 10px;
+            height: 36px;
+            background: transparent !important;
+            border: 1px solid var(--border);
+            border-radius: 9999px;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            flex-shrink: 0;
+          }
+          .audience-segment-chips .segment-chip.active {
+            border-color: var(--v2-primary);
+          }
+          .audience-actions {
+            position: fixed;
+            bottom: 60px;
+            right: 0;
+            left: 0;
+            background: var(--v2-dark-2, var(--card));
+            border-top: 1px solid var(--border, var(--glass-border));
+            padding: 12px 16px;
+            z-index: 50;
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+          }
+        }
+      `}</style>
+
+      <div className="audience-segment-chips" style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '8px', marginBottom: '16px', whiteSpace: 'nowrap' }}>
+        {PRESET_SEGMENTS.map(seg => {
+          const IconComp = SEGMENT_ICONS[seg.id] || Users
+          return (
+            <div
+              key={seg.id}
+              onClick={() => runPreset(seg)}
+              className={`segment-chip ${activeSegment === seg.id ? 'active' : ''}`}
+              style={{
+                minWidth: '120px', padding: '12px', cursor: 'pointer', flexShrink: 0,
+                border: activeSegment === seg.id ? '2px solid var(--v2-primary)' : '1px solid var(--border)',
+                borderRadius: 'var(--radius-md)',
+                background: 'var(--v2-dark-3)', position: 'relative',
+              }}
+            >
+              <div title={seg.description} style={{ position: 'absolute', top: '6px', left: '6px', width: '16px', height: '16px', borderRadius: '50%', background: 'var(--border)', color: 'var(--text-secondary)', fontSize: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'help' }}>?</div>
+              <IconComp size={16} style={{ flexShrink: 0 }} />
+              <span style={{ fontSize: '13px', fontWeight: 600, whiteSpace: 'nowrap' }}>{seg.name}</span>
+              {activeSegment === seg.id && (
+                <button onClick={e => { e.stopPropagation(); addSegmentToSelection(seg.name); }} style={{ fontSize: '10px', marginRight: '4px', padding: '2px 6px', background: 'var(--v2-primary)', border: 'none', borderRadius: '4px', color: '#000', cursor: 'pointer' }}>+ הוסף</button>
+              )}
+            </div>
+          )
+        })}
       </div>
 
       {segments.saved?.length > 0 && (
@@ -385,6 +453,7 @@ export default function Audiences() {
               const r = await fetch(`${API_BASE}/api/admin/segments/ai`, { method: 'POST', headers: h(), body: JSON.stringify({ query: `קמפיין ${selectedCampaign} סינון ${campaignFilter}`, campaignId: selectedCampaign, campaignFilter }) })
               const d = r.ok ? await r.json() : {}
               setRecipients(d?.recipients || [])
+              setPage(1)
               setLoading(false)
             }}>הצג לקוחות</button>
           )}
@@ -402,6 +471,7 @@ export default function Audiences() {
             const r = await fetch(`${API_BASE}/api/admin/segments/ai`, { method: 'POST', headers: h(), body: JSON.stringify({ query: `אירוע ${val}`, eventId: val }) })
             const d = r.ok ? await r.json() : {}
             setRecipients(d?.recipients || [])
+            setPage(1)
             setLoading(false)
           }}>
             <option value="">בחר אירוע...</option>
@@ -441,13 +511,16 @@ export default function Audiences() {
       )}
 
       <div className="glass-card" style={{ overflow: 'hidden' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 18px', borderBottom: '1px solid var(--border)' }}>
-          <div style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>{loading ? 'טוען...' : <><strong style={{ color: 'var(--v2-primary)' }}>{recipients.length}</strong> לקוחות</>}</div>
-          <div style={{ display: 'flex', gap: 10 }}>
-            <input placeholder="🔍 חפש לפי שם או טלפון..." className="form-input input" style={{ width: '250px', fontSize: '13px' }} value={search} onChange={e => setSearch(e.target.value)} />
-            <div style={{ display: 'flex', gap: 6 }}>
-              {ALL_TAGS.map(tag => (
-                <button key={tag} onClick={() => setActiveTag(tag)} style={{ padding: '6px 12px', borderRadius: 'var(--radius-full)', fontSize: 12, background: activeTag === tag ? 'var(--v2-primary)' : 'rgba(255,255,255,0.04)', color: activeTag === tag ? 'var(--v2-dark)' : 'var(--v2-gray-400)', border: 'none', cursor: 'pointer' }}>{tag}</button>
+        <div style={{ padding: '14px 18px', borderBottom: '1px solid var(--border)' }}>
+          <div className="audience-search-row" style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center' }}>
+            <div style={{ flex: '1 1 200px', minWidth: 0, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <input placeholder="🔍 חפש לפי שם או טלפון..." className="form-input input" style={{ flex: 1, minWidth: 180, fontSize: '13px' }} value={search} onChange={e => { setSearch(e.target.value); setPage(1) }} />
+              <button onClick={() => setActiveTag('הכל')} style={{ padding: '6px 12px', borderRadius: 'var(--radius-full)', fontSize: 12, background: activeTag === 'הכל' ? 'var(--v2-primary)' : 'rgba(255,255,255,0.04)', color: activeTag === 'הכל' ? 'var(--v2-dark)' : 'var(--v2-gray-400)', border: 'none', cursor: 'pointer', whiteSpace: 'nowrap' }}>הכל</button>
+            </div>
+            <div style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>{loading ? 'טוען...' : <><strong style={{ color: 'var(--v2-primary)' }}>{filtered.length}</strong> לקוחות</>}</div>
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+              {ALL_TAGS.filter(t => t !== 'הכל').map(tag => (
+                <button key={tag} onClick={() => { setActiveTag(tag); setPage(1) }} style={{ padding: '6px 12px', borderRadius: 'var(--radius-full)', fontSize: 12, background: activeTag === tag ? 'var(--v2-primary)' : 'rgba(255,255,255,0.04)', color: activeTag === tag ? 'var(--v2-dark)' : 'var(--v2-gray-400)', border: 'none', cursor: 'pointer' }}>{tag}</button>
               ))}
             </div>
             <select className="input" style={{ width: 'auto' }} value={sortBy} onChange={e => setSortBy(e.target.value)}>
@@ -461,8 +534,9 @@ export default function Audiences() {
         {filtered.length === 0 ? (
           <EmptyState icon="🔍" title="לא נמצאו אנשי קשר" description="נסה לשנות את מונחי החיפוש או הסנן" />
         ) : (
+          <>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 14, padding: '16px' }}>
-            {filtered.map((r, i) => (
+            {paginated.map((r, i) => (
               <motion.div key={r.id || r.phone || i} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.03 }}
                 style={{ background: 'var(--v2-dark-3)', border: '1px solid var(--glass-border)', borderRadius: 'var(--radius-lg)', padding: '18px', cursor: 'pointer' }}
                 onClick={() => setSelectedCustomerId(String(r.master_recipient_id || r.id))}
@@ -491,9 +565,18 @@ export default function Audiences() {
               </motion.div>
             ))}
           </div>
+
+          {totalPages > 1 && (
+            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px', padding: '12px' }}>
+              <button disabled={page === 1} onClick={() => setPage(p => p - 1)} style={{ padding: '6px 12px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)', background: page === 1 ? 'rgba(255,255,255,0.04)' : 'transparent', color: 'var(--text-secondary)', cursor: page === 1 ? 'not-allowed' : 'pointer' }}>הקודם</button>
+              <span style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>{page} / {totalPages}</span>
+              <button disabled={page === totalPages} onClick={() => setPage(p => p + 1)} style={{ padding: '6px 12px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)', background: page === totalPages ? 'rgba(255,255,255,0.04)' : 'transparent', color: 'var(--text-secondary)', cursor: page === totalPages ? 'not-allowed' : 'pointer' }}>הבא</button>
+            </div>
+          )}
+          </>
         )}
 
-        <div style={{ display: 'flex', gap: '8px', padding: '14px 18px', borderTop: '1px solid var(--border)', flexWrap: 'wrap' }}>
+        <div className="audience-actions" style={{ display: 'flex', gap: '8px', padding: '14px 18px', borderTop: '1px solid var(--border)', flexWrap: 'wrap' }}>
           <button className="btn-primary" onClick={() => {
             const phones = recipients.map(r => r.phone).filter(Boolean)
             sessionStorage.setItem('campaign_recipients', JSON.stringify(phones))
