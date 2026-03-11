@@ -6,25 +6,13 @@ import EmptyState from '@/components/ui/EmptyState'
 import ImportModal from '@/components/ui/ImportModal'
 import ExportButton from '@/components/ui/ExportButton'
 import { api } from '@/services/api'
+import { useAuth } from '@/contexts/AuthContext'
 
-const MOCK_RECIPIENTS = [
-  { id: 1,  name: 'דני כהן',      phone: '050-1234567', tags: ['לקוח קבוע', 'VIP'], score: 85, campaigns: 12, lastSeen: '28/02/2026' },
-  { id: 2,  name: 'מיכל לוי',     phone: '052-9876543', tags: ['חדש'],               score: 42, campaigns: 2,  lastSeen: '15/02/2026' },
-  { id: 3,  name: 'יוסי ברק',     phone: '054-5555555', tags: ['VIP'],               score: 96, campaigns: 28, lastSeen: '01/03/2026' },
-  { id: 4,  name: 'שרה גולן',     phone: '058-1111222', tags: ['לקוח קבוע'],        score: 71, campaigns: 8,  lastSeen: '25/02/2026' },
-  { id: 5,  name: 'אבי שמיר',     phone: '050-7777888', tags: ['חדש'],               score: 28, campaigns: 1,  lastSeen: '10/02/2026' },
-  { id: 6,  name: 'רחל אברהם',    phone: '052-3334455', tags: ['VIP', 'לקוח קבוע'], score: 91, campaigns: 19, lastSeen: '27/02/2026' },
-  { id: 7,  name: 'משה כץ',       phone: '054-2223344', tags: ['לקוח קבוע'],        score: 63, campaigns: 6,  lastSeen: '20/02/2026' },
-  { id: 8,  name: 'לאה פרידמן',   phone: '058-9998877', tags: ['חדש'],               score: 55, campaigns: 3,  lastSeen: '18/02/2026' },
-  { id: 9,  name: 'ניר שפירא',    phone: '050-4445566', tags: ['VIP'],               score: 88, campaigns: 15, lastSeen: '28/02/2026' },
-  { id: 10, name: 'תמר הרוש',     phone: '052-7776655', tags: ['לקוח קבוע'],        score: 74, campaigns: 9,  lastSeen: '22/02/2026' },
-]
+const API_BASE = import.meta.env.VITE_API_URL || 'https://axess-production.up.railway.app'
 
 const ALL_TAGS = ['הכל', 'VIP', 'לקוח קבוע', 'חדש']
 
-const businessId = null // TODO: from AuthContext when available
-
-function CustomerProfileDrawer({ open, onClose, masterRecipientId }) {
+function CustomerProfileDrawer({ open, onClose, masterRecipientId, businessId }) {
   const [profile, setProfile] = useState(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
@@ -158,22 +146,69 @@ function CustomerProfileDrawer({ open, onClose, masterRecipientId }) {
 }
 
 export default function Audiences() {
+  const { session, businessId } = useAuth()
+  const [segments, setSegments] = useState({ presets: [], saved: [] })
+  const [recipients, setRecipients] = useState([])
+  const [nlQuery, setNlQuery] = useState('')
+  const [showSaveModal, setShowSaveModal] = useState(false)
+  const [saveName, setSaveName] = useState('')
+  const [lastWhereClause, setLastWhereClause] = useState('')
+  const [loading, setLoading] = useState(false)
   const [search, setSearch] = useState('')
   const [activeTag, setActiveTag] = useState('הכל')
   const [sortBy, setSortBy] = useState('score')
   const [selectedCustomerId, setSelectedCustomerId] = useState(null)
   const [importOpen, setImportOpen] = useState(false)
 
-  const filtered = MOCK_RECIPIENTS
+  useEffect(() => {
+    if (!session?.access_token || !businessId) return
+    const h = { Authorization: `Bearer ${session.access_token}`, 'X-Business-Id': businessId }
+    fetch(`${API_BASE}/api/admin/segments`, { headers: h }).then(r => r.ok ? r.json() : { presets: [], saved: [] }).then(setSegments)
+    fetch(`${API_BASE}/api/admin/recipients`, { headers: h }).then(r => r.ok ? r.json() : {}).then(d => setRecipients(d?.recipients || []))
+  }, [session?.access_token, businessId])
+
+  const runPreset = async (preset) => {
+    if (!businessId || !session?.access_token) return
+    setLoading(true)
+    const h = { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}`, 'X-Business-Id': businessId }
+    const r = await fetch(`${API_BASE}/api/admin/segments/ai`, { method: 'POST', headers: h, body: JSON.stringify({ query: preset.name, whereClause: preset.where_clause }) })
+    const data = r.ok ? await r.json() : {}
+    setRecipients(data?.recipients || [])
+    setLoading(false)
+  }
+
+  const runSaved = async (seg) => {
+    if (!businessId || !session?.access_token) return
+    setLoading(true)
+    const h = { Authorization: `Bearer ${session.access_token}`, 'X-Business-Id': businessId }
+    const r = await fetch(`${API_BASE}/api/admin/segments/${seg.id}/run`, { method: 'POST', headers: h })
+    const data = r.ok ? await r.json() : {}
+    setRecipients(data?.recipients || [])
+    setLoading(false)
+  }
+
+  const runAI = async () => {
+    if (!nlQuery.trim() || !businessId || !session?.access_token) return
+    setLoading(true)
+    const h = { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}`, 'X-Business-Id': businessId }
+    const r = await fetch(`${API_BASE}/api/admin/segments/ai`, { method: 'POST', headers: h, body: JSON.stringify({ query: nlQuery }) })
+    const data = r.ok ? await r.json() : {}
+    setRecipients(data?.recipients || [])
+    setLastWhereClause(data?.whereClause || '')
+    setLoading(false)
+    setShowSaveModal(true)
+  }
+
+  const filtered = recipients
     .filter(r => {
-      const matchSearch = r.name.includes(search) || r.phone.includes(search)
-      const matchTag = activeTag === 'הכל' || r.tags.includes(activeTag)
+      const matchSearch = !search || (r.name && r.name.includes(search)) || (r.phone && r.phone.includes(search))
+      const matchTag = activeTag === 'הכל' || (Array.isArray(r.tags) && r.tags.includes(activeTag))
       return matchSearch && matchTag
     })
     .sort((a, b) => {
-      if (sortBy === 'score') return b.score - a.score
-      if (sortBy === 'campaigns') return b.campaigns - a.campaigns
-      if (sortBy === 'name') return a.name.localeCompare(b.name, 'he')
+      if (sortBy === 'score') return (b.score || 0) - (a.score || 0)
+      if (sortBy === 'campaigns') return (b.campaigns || 0) - (a.campaigns || 0)
+      if (sortBy === 'name') return (a.name || '').localeCompare(b.name || '', 'he')
       return 0
     })
 
@@ -186,7 +221,7 @@ export default function Audiences() {
           <h1 style={{ fontFamily: "'Bricolage Grotesque','Outfit',sans-serif", fontWeight: 800, fontSize: 26, color: '#ffffff' }}>
             קהלים
           </h1>
-          <p style={{ color: 'var(--v2-gray-400)', fontSize: 14, marginTop: 4 }}>{MOCK_RECIPIENTS.length} אנשי קשר</p>
+          <p style={{ color: 'var(--v2-gray-400)', fontSize: 14, marginTop: 4 }}>{recipients.length} אנשי קשר</p>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <button
@@ -199,12 +234,57 @@ export default function Audiences() {
         </div>
       </div>
 
+      {/* Segmentation: presets + saved + AI */}
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginBottom: 8 }}>
+        {(segments.presets || []).map(p => (
+          <button key={p.id} onClick={() => runPreset(p)} disabled={loading}
+            style={{ padding: '8px 14px', borderRadius: 'var(--radius-full)', fontSize: 13, background: 'var(--v2-dark-3)', border: '1px solid var(--glass-border)', color: '#fff', cursor: loading ? 'wait' : 'pointer' }}>
+            {p.icon} {p.name}
+          </button>
+        ))}
+        {(segments.saved || []).map(seg => (
+          <button key={seg.id} onClick={() => runSaved(seg)} disabled={loading}
+            style={{ padding: '8px 14px', borderRadius: 'var(--radius-full)', fontSize: 13, background: 'rgba(0,195,122,0.15)', border: '1px solid rgba(0,195,122,0.3)', color: 'var(--v2-primary)', cursor: loading ? 'wait' : 'pointer' }}>
+            {seg.name}
+          </button>
+        ))}
+        <div style={{ display: 'flex', gap: 8, flex: 1, minWidth: 200 }}>
+          <input className="input" placeholder="סגמנטציה AI — תאר את הקהל..." value={nlQuery} onChange={e => setNlQuery(e.target.value)} style={{ flex: 1 }} />
+          <button onClick={runAI} disabled={loading || !nlQuery.trim()}
+            style={{ padding: '8px 16px', background: 'var(--v2-primary)', color: 'var(--v2-dark)', border: 'none', borderRadius: 'var(--radius-md)', fontWeight: 600, cursor: loading ? 'wait' : 'pointer' }}>
+            חפש
+          </button>
+        </div>
+      </div>
+
+      {showSaveModal && (
+        <div className="glass-card" style={{ padding: '16px', marginBottom: '16px' }}>
+          <p style={{ marginBottom: '8px' }}>💾 לשמור סגמנט זה לשימוש חוזר?</p>
+          <input
+            className="form-input input"
+            placeholder="שם הסגמנט..."
+            value={saveName}
+            onChange={e => setSaveName(e.target.value)}
+          />
+          <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
+            <button className="btn-primary" onClick={async () => {
+              if (!businessId || !session?.access_token) return
+              const h = { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}`, 'X-Business-Id': businessId }
+              await fetch(`${API_BASE}/api/admin/segments`, { method: 'POST', headers: h, body: JSON.stringify({ name: saveName, whereClause: lastWhereClause, createdBy: 'ai', description: nlQuery }) })
+              setShowSaveModal(false)
+              fetch(`${API_BASE}/api/admin/segments`, { headers: { Authorization: `Bearer ${session.access_token}`, 'X-Business-Id': businessId } }).then(r => r.ok ? r.json() : {}).then(setSegments)
+            }}>שמור</button>
+            <button className="btn-ghost" onClick={() => setShowSaveModal(false)}>דלג</button>
+          </div>
+        </div>
+      )}
+
       {/* Stats row */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14 }}>
         {[
-          { label: 'סה"כ אנשי קשר', value: MOCK_RECIPIENTS.length, icon: Users, color: 'var(--v2-primary)' },
-          { label: 'VIP', value: MOCK_RECIPIENTS.filter(r => r.tags.includes('VIP')).length, icon: Tag, color: '#F59E0B' },
-          { label: 'ממוצע ציון', value: Math.round(MOCK_RECIPIENTS.reduce((s, r) => s + r.score, 0) / MOCK_RECIPIENTS.length), icon: Phone, color: 'var(--v2-accent)' },
+          { label: 'סה"כ אנשי קשר', value: recipients.length, icon: Users, color: 'var(--v2-primary)' },
+          { label: 'VIP', value: recipients.filter(r => Array.isArray(r.tags) && r.tags.includes('VIP')).length, icon: Tag, color: '#F59E0B' },
+          { label: 'ממוצע ציון', value: recipients.length ? Math.round(recipients.reduce((s, r) => s + (r.score || 0), 0) / recipients.length) : 0, icon: Phone, color: 'var(--v2-accent)' },
         ].map(({ label, value, icon: Icon, color }) => (
           <div key={label} style={{ background: 'var(--v2-dark-3)', border: '1px solid var(--glass-border)', borderRadius: 'var(--radius-lg)', padding: '20px', textAlign: 'center', transition: 'border-color 0.3s, box-shadow 0.3s' }}
             onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--v2-primary)'; e.currentTarget.style.boxShadow = 'var(--shadow-glow-green)' }}
@@ -263,7 +343,7 @@ export default function Audiences() {
               <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
                 {/* Avatar */}
                 <div style={{ width: 44, height: 44, borderRadius: 'var(--radius-md)', background: 'rgba(0,195,122,0.12)', border: '1px solid rgba(0,195,122,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                  <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--v2-primary)' }}>{r.name.charAt(0)}</span>
+                  <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--v2-primary)' }}>{(r.name || '—').charAt(0)}</span>
                 </div>
 
                 <div style={{ flex: 1, minWidth: 0 }}>
@@ -276,7 +356,7 @@ export default function Audiences() {
                   </div>
 
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
-                    {r.tags.map(tag => (
+                    {(Array.isArray(r.tags) ? r.tags : []).map(tag => (
                       <span key={tag} style={{
                         fontSize: 11, padding: '2px 8px', borderRadius: 9999, fontWeight: 500,
                         background: tag === 'VIP' ? 'rgba(245,158,11,0.12)' : tag === 'לקוח קבוע' ? 'rgba(0,195,122,0.1)' : 'rgba(255,255,255,0.06)',
@@ -301,6 +381,7 @@ export default function Audiences() {
         open={!!selectedCustomerId}
         onClose={() => setSelectedCustomerId(null)}
         masterRecipientId={selectedCustomerId}
+        businessId={businessId}
       />
 
       <ImportModal
