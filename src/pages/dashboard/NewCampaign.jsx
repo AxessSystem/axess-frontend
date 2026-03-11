@@ -727,6 +727,26 @@ export default function NewCampaign() {
   const [data, setData] = useState({ scheduleType: 'now', validatorEnabled: false })
   const effectiveBusinessId = businessId
   const [events, setEvents] = useState([])
+
+  useEffect(() => {
+    const savedPhones = sessionStorage.getItem('campaign_recipients')
+    const savedSegmentName = sessionStorage.getItem('campaign_segment_name')
+    if (savedPhones) {
+      try {
+        const phones = JSON.parse(savedPhones)
+        setData(d => ({
+          ...d,
+          selectedRecipientPhones: phones,
+          recipientCount: phones.length,
+          segmentLabel: savedSegmentName || d.segmentLabel,
+        }))
+        setStep(3)
+      } catch (_) {}
+      sessionStorage.removeItem('campaign_recipients')
+      sessionStorage.removeItem('campaign_segment_name')
+    }
+  }, [])
+
   const authHeaders = () => {
     const h = { 'Content-Type': 'application/json', 'X-Business-Id': effectiveBusinessId }
     if (session?.access_token) h['Authorization'] = `Bearer ${session.access_token}`
