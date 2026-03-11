@@ -55,15 +55,15 @@ function CustomerProfileDrawer({ open, onClose, masterRecipientId, businessId })
       .then(setProfile)
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false))
-  }, [open, masterRecipientId])
+  }, [open, masterRecipientId, businessId])
 
   if (!open) return null
   const fullName = profile?.first_name || profile?.last_name
     ? [profile.first_name, profile.last_name].filter(Boolean).join(' ')
     : 'ללא שם'
   const initials = fullName ? fullName.split(/\s+/).map(n => n[0]).join('').slice(0, 2) : (profile?.phone?.[0] || '?')
-  const totalSpent = Number(profile?.total_spent) || 0
-  const totalPurchases = parseInt(profile?.total_purchases || 0, 10)
+  const totalSpent = Number(profile?.total_spent) ?? Number(profile?.business_data?.total_spent) ?? 0
+  const totalPurchases = parseInt(profile?.total_purchases ?? profile?.business_data?.total_events ?? 0, 10)
   const lastActive = profile?.last_active ? new Date(profile.last_active) : null
   const daysSinceActive = lastActive ? Math.floor((Date.now() - lastActive) / 86400000) : null
   const engagementScore = profile?.engagement_score ?? (profile?.axess_data?.engagement_score ?? 0)
@@ -146,6 +146,24 @@ function CustomerProfileDrawer({ open, onClose, masterRecipientId, businessId })
                     ))}
                   </div>
                 )}
+                {(profile.business_data?.events?.length > 0) && (
+                  <div>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: '#ffffff', marginBottom: 12 }}>היסטוריית אירועים</div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 240, overflowY: 'auto' }}>
+                      {(profile.business_data.events || []).map((ev, idx) => (
+                        <div key={idx} style={{ padding: '12px 14px', background: 'var(--v2-dark-3)', borderRadius: 'var(--radius-md)', fontSize: 13, border: '1px solid var(--glass-border)' }}>
+                          <div style={{ color: '#ffffff', fontWeight: 600, marginBottom: 4 }}>{ev.event_title || 'אירוע'}</div>
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px 12px', fontSize: 11, color: 'var(--v2-gray-400)' }}>
+                            {ev.purchase_date && <span>📅 {new Date(ev.purchase_date).toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>}
+                            {ev.scan_status && <span>📋 {ev.scan_status === 'Scanned' ? 'נסרק' : ev.scan_status === 'Not scanned' ? 'לא נסרק' : ev.scan_status}</span>}
+                            {ev.payment_method && <span>💳 {ev.payment_method}</span>}
+                            {(ev.ticket_price != null && ev.ticket_price !== '' && ev.ticket_price !== '0') && <span>₪{Number(ev.ticket_price).toLocaleString('he-IL')}</span>}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
                 <div>
                   <div style={{ fontSize: 14, fontWeight: 700, color: '#ffffff', marginBottom: 12 }}>ציר זמן פעילות</div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 280, overflowY: 'auto' }}>
@@ -155,6 +173,11 @@ function CustomerProfileDrawer({ open, onClose, masterRecipientId, businessId })
                         <div style={{ flex: 1 }}>
                           <div style={{ color: '#ffffff' }}>{item.label}</div>
                           {item.amount != null && <div style={{ color: 'var(--v2-gray-400)', fontSize: 11 }}>₪{Number(item.amount).toLocaleString('he-IL')}</div>}
+                          {item.type === 'event' && (item.scan_status || item.payment_method) && (
+                            <div style={{ color: 'var(--v2-gray-500)', fontSize: 10, marginTop: 2 }}>
+                              {[item.scan_status, item.payment_method].filter(Boolean).join(' • ')}
+                            </div>
+                          )}
                         </div>
                         <div style={{ color: 'var(--v2-gray-400)', fontSize: 11 }}>{item.date ? new Date(item.date).toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' }) : ''}</div>
                       </div>
