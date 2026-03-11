@@ -90,6 +90,12 @@ export const api = {
   getCustomerProfile: (masterRecipientId, businessId) =>
     apiFetch(`/api/admin/customer-profile/${masterRecipientId}${businessId ? `?business_id=${encodeURIComponent(businessId)}` : ''}`),
 
+  patchRecipientTags: (id, action, tag) =>
+    apiFetch(`/api/admin/recipients/${id}/tags`, { method: 'PATCH', body: JSON.stringify({ action, tag }) }),
+
+  patchBulkTags: (tag, recipient_ids) =>
+    apiFetch('/api/admin/recipients/bulk-tags', { method: 'PATCH', body: JSON.stringify({ tag, recipient_ids }) }),
+
   /* Balance */
   getBalance: () =>
     apiFetch('/api/admin/balance'),

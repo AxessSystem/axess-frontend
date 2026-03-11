@@ -42,10 +42,21 @@ const PRESET_SEGMENTS = [
   { id: 'by_event', name: 'לפי אירוע', description: 'סינון לקוחות לפי אירוע ספציפי שהשתתפו בו' },
 ]
 
-function CustomerProfileDrawer({ open, onClose, masterRecipientId, businessId }) {
+function CustomerProfileDrawer({ open, onClose, masterRecipientId, businessId, onTagUpdate }) {
+  const navigate = useNavigate()
   const [profile, setProfile] = useState(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
+  const [newTag, setNewTag] = useState('')
+  const [showTagInput, setShowTagInput] = useState(false)
+
+  const refetch = () => {
+    if (masterRecipientId && businessId) {
+      api.getCustomerProfile(masterRecipientId, businessId)
+        .then(setProfile)
+        .catch((err) => setError(err.message))
+    }
+  }
 
   useEffect(() => {
     if (!open || !masterRecipientId) return
@@ -57,18 +68,46 @@ function CustomerProfileDrawer({ open, onClose, masterRecipientId, businessId })
       .finally(() => setLoading(false))
   }, [open, masterRecipientId, businessId])
 
+  const addTag = async () => {
+    if (!newTag.trim() || !profile?.id || !businessId) return
+    try {
+      await api.patchRecipientTags(profile.id, 'add', newTag.trim())
+      refetch()
+      onTagUpdate?.()
+      setNewTag('')
+      setShowTagInput(false)
+      toast.success('התגית נוספה')
+    } catch (e) {
+      toast.error(e.message || 'שגיאה בהוספת תגית')
+    }
+  }
+
+  const removeTag = async (tag) => {
+    if (!profile?.id || !businessId) return
+    try {
+      await api.patchRecipientTags(profile.id, 'remove', tag)
+      refetch()
+      onTagUpdate?.()
+      toast.success('התגית הוסרה')
+    } catch (e) {
+      toast.error(e.message || 'שגיאה בהסרת תגית')
+    }
+  }
+
   if (!open) return null
-  const fullName = profile?.first_name || profile?.last_name
-    ? [profile.first_name, profile.last_name].filter(Boolean).join(' ')
-    : 'ללא שם'
+
+  const fullName = profile?.first_name || profile?.last_name ? [profile.first_name, profile.last_name].filter(Boolean).join(' ') : 'ללא שם'
   const initials = fullName ? fullName.split(/\s+/).map(n => n[0]).join('').slice(0, 2) : (profile?.phone?.[0] || '?')
-  const totalSpent = Number(profile?.total_spent) ?? Number(profile?.business_data?.total_spent) ?? 0
-  const totalPurchases = parseInt(profile?.total_purchases ?? profile?.business_data?.total_events ?? 0, 10)
-  const lastActive = profile?.last_active ? new Date(profile.last_active) : null
-  const daysSinceActive = lastActive ? Math.floor((Date.now() - lastActive) / 86400000) : null
-  const engagementScore = profile?.engagement_score ?? (profile?.axess_data?.engagement_score ?? 0)
-  const completeness = parseInt(profile?.profile_completeness || 0, 10)
-  const tags = profile?.tags || []
+  const age = profile?.birth_date ? new Date().getFullYear() - new Date(profile.birth_date).getFullYear() : null
+
+  const eventLabels = {
+    sms_sent: '📱 קיבל SMS',
+    sms_delivered: '✅ SMS נמסר',
+    link_clicked: '🔗 לחץ על לינק',
+    validator_redeemed: '🎟️ מימש ולידטור',
+    sms_replied: '💬 הגיב ל-SMS',
+    checkin: "📍 צ'ק-אין",
+  }
 
   return (
     <AnimatePresence>
@@ -93,7 +132,7 @@ function CustomerProfileDrawer({ open, onClose, masterRecipientId, businessId })
             overflowY: 'auto', boxShadow: '-8px 0 24px rgba(0,0,0,0.4)',
           }}
         >
-          <div style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 24 }}>
+          <div style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 20 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
               <h2 style={{ fontFamily: "'Bricolage Grotesque','Outfit',sans-serif", fontWeight: 800, fontSize: 20, color: '#ffffff' }}>כרטיס לקוח</h2>
               <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--v2-gray-400)', cursor: 'pointer', padding: 4 }}><X size={20} /></button>
@@ -102,6 +141,7 @@ function CustomerProfileDrawer({ open, onClose, masterRecipientId, businessId })
             {error && <div style={{ textAlign: 'center', color: '#EF4444', padding: 40 }}>{error}</div>}
             {profile && !loading && (
               <>
+                {/* HEADER */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
                   <div style={{
                     width: 64, height: 64, borderRadius: 'var(--radius-lg)', background: 'rgba(0,195,122,0.15)', border: '1px solid rgba(0,195,122,0.3)',
@@ -111,78 +151,159 @@ function CustomerProfileDrawer({ open, onClose, masterRecipientId, businessId })
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 18, fontWeight: 700, color: '#ffffff' }}>{fullName}</div>
-                    <div style={{ fontSize: 14, color: 'var(--v2-gray-400)', display: 'flex', alignItems: 'center', gap: 6, marginTop: 4 }}><Phone size={14} /> {profile.phone || '—'}</div>
+                    <div style={{ fontSize: 14, color: 'var(--v2-gray-400)', display: 'flex', alignItems: 'center', gap: 6, marginTop: 4 }}><Phone size={14} /> <span dir="ltr">{profile.phone || '—'}</span></div>
                   </div>
                 </div>
-                <div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6, fontSize: 12, color: 'var(--v2-gray-400)' }}>שלמות פרופיל <span>{completeness}%</span></div>
-                  <div style={{ height: 6, background: 'rgba(255,255,255,0.08)', borderRadius: 9999, overflow: 'hidden' }}>
-                    <div style={{ height: '100%', width: `${completeness}%`, background: 'var(--v2-primary)', borderRadius: 9999 }} />
-                  </div>
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                  {[
-                    { label: 'סה"כ רכישות', value: totalPurchases, icon: ShoppingBag },
-                    { label: 'סה"כ הוצאה', value: `₪${totalSpent.toLocaleString('he-IL')}`, icon: Activity },
-                    { label: 'Engagement', value: engagementScore, icon: Activity },
-                    { label: 'פעיל לאחרונה', value: daysSinceActive !== null ? (daysSinceActive < 1 ? 'היום' : `לפני ${daysSinceActive} ימים`) : '—', icon: Clock },
-                  ].map(({ label, value, icon: Icon }) => (
-                    <div key={label} style={{ background: 'var(--v2-dark-3)', border: '1px solid var(--glass-border)', borderRadius: 'var(--radius-md)', padding: 14 }}>
-                      <Icon size={16} style={{ color: 'var(--v2-primary)', marginBottom: 6 }} />
-                      <div style={{ fontSize: 18, fontWeight: 800, color: '#ffffff', fontFamily: 'monospace' }}>{value}</div>
-                      <div style={{ fontSize: 11, color: 'var(--v2-gray-400)', marginTop: 2 }}>{label}</div>
+
+                {/* שכבה 1 — פרטים בסיסיים */}
+                <div style={{ background: 'var(--v2-dark-3)', border: '1px solid var(--glass-border)', borderRadius: 'var(--radius-md)', padding: 16 }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--v2-gray-400)', marginBottom: 10 }}>פרטים אישיים</div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, fontSize: 13 }}>
+                    <div>
+                      <div style={{ color: 'var(--v2-gray-500)', fontSize: 11, marginBottom: 2 }}>מגדר</div>
+                      <div style={{ color: '#fff' }}>{profile.gender === 'Female' ? 'נקבה' : profile.gender === 'Male' ? 'זכר' : 'לא צוין'}</div>
                     </div>
-                  ))}
+                    {age != null && (
+                      <div>
+                        <div style={{ color: 'var(--v2-gray-500)', fontSize: 11, marginBottom: 2 }}>גיל</div>
+                        <div style={{ color: '#fff' }}>{age}</div>
+                      </div>
+                    )}
+                    {profile.email && (
+                      <div style={{ gridColumn: '1 / -1' }}>
+                        <div style={{ color: 'var(--v2-gray-500)', fontSize: 11, marginBottom: 2 }}>אימייל</div>
+                        <div style={{ color: '#fff', fontSize: 12, wordBreak: 'break-all' }}>{profile.email}</div>
+                      </div>
+                    )}
+                    {profile.id_number && (
+                      <div>
+                        <div style={{ color: 'var(--v2-gray-500)', fontSize: 11, marginBottom: 2 }}>ת.ז</div>
+                        <div style={{ color: '#fff' }}>{profile.id_number}</div>
+                      </div>
+                    )}
+                  </div>
                 </div>
-                {tags.length > 0 && (
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                    {tags.map(tag => (
-                      <span key={tag} style={{
-                        fontSize: 12, padding: '4px 10px', borderRadius: 9999, fontWeight: 500,
-                        background: tag === 'VIP' ? 'rgba(245,158,11,0.15)' : tag === 'פעיל' ? 'rgba(0,195,122,0.15)' : tag === 'נוטש' ? 'rgba(239,68,68,0.12)' : 'rgba(255,255,255,0.06)',
-                        color: tag === 'VIP' ? '#F59E0B' : tag === 'פעיל' ? 'var(--v2-primary)' : tag === 'נוטש' ? '#EF4444' : 'var(--v2-gray-400)',
-                        border: `1px solid ${tag === 'VIP' ? 'rgba(245,158,11,0.3)' : tag === 'פעיל' ? 'rgba(0,195,122,0.3)' : tag === 'נוטש' ? 'rgba(239,68,68,0.2)' : 'var(--glass-border)'}`,
-                      }}>{tag}</span>
+
+                {/* שכבה 2 — מונים Customer 360 */}
+                <div style={{ background: 'var(--v2-dark-3)', border: '1px solid var(--glass-border)', borderRadius: 'var(--radius-md)', padding: 16 }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--v2-gray-400)', marginBottom: 10 }}>סיכום פעילות</div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, fontSize: 13 }}>
+                    {[
+                      { label: 'Engagement', value: profile.counters?.engagement_score ?? 0, color: 'var(--v2-primary)' },
+                      { label: 'אירועים', value: profile.counters?.total_events ?? 0 },
+                      { label: "צ'ק-אינים", value: profile.counters?.checkins ?? 0 },
+                      { label: 'קמפיינים', value: profile.counters?.campaigns_received ?? 0 },
+                      { label: 'לינקים', value: profile.counters?.link_clicks ?? 0 },
+                      { label: 'מימושים', value: profile.counters?.redemptions ?? 0 },
+                      { label: 'הוצאה', value: profile.counters?.total_spent ?? 0, suffix: '₪', color: 'var(--v2-primary)' },
+                    ].map((item, i) => (
+                      <div key={i}>
+                        <div style={{ color: 'var(--v2-gray-500)', fontSize: 11, marginBottom: 2 }}>{item.label}</div>
+                        <div style={{ color: item.color || '#fff', fontWeight: 600 }}>{item.suffix || ''}{Number(item.value || 0).toLocaleString('he-IL')}</div>
+                      </div>
                     ))}
                   </div>
-                )}
-                {(profile.business_data?.events?.length > 0) && (
+                </div>
+
+                {/* שכבה 3 — תגיות */}
+                <div style={{ background: 'var(--v2-dark-3)', border: '1px solid var(--glass-border)', borderRadius: 'var(--radius-md)', padding: 16 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--v2-gray-400)' }}>תגיות</span>
+                    <button onClick={() => setShowTagInput(!showTagInput)} style={{ fontSize: 12, padding: '2px 8px', background: 'transparent', border: '1px solid var(--v2-primary)', color: 'var(--v2-primary)', borderRadius: 6, cursor: 'pointer' }}>+ הוסף</button>
+                  </div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: showTagInput ? 8 : 0 }}>
+                    {(profile.tags || []).map((tag, i) => (
+                      <span key={i} style={{
+                        display: 'inline-flex', alignItems: 'center', gap: 4,
+                        fontSize: 11, padding: '3px 10px', borderRadius: 9999,
+                        background: 'rgba(0,195,122,0.15)', color: 'var(--v2-primary)', border: '1px solid rgba(0,195,122,0.3)',
+                      }}>
+                        {tag}
+                        <button onClick={() => removeTag(tag)} style={{ background: 'none', border: 'none', color: 'var(--v2-primary)', cursor: 'pointer', fontSize: 14, padding: 0, lineHeight: 1 }}>×</button>
+                      </span>
+                    ))}
+                    {(!profile.tags || profile.tags.length === 0) && !showTagInput && (
+                      <span style={{ fontSize: 12, color: 'var(--v2-gray-500)' }}>אין תגיות</span>
+                    )}
+                  </div>
+                  {showTagInput && (
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <input
+                        className="form-input input"
+                        style={{ flex: 1, fontSize: 13, background: 'var(--v2-dark-2)', border: '1px solid var(--glass-border)', color: '#fff', padding: '8px 12px', borderRadius: 8 }}
+                        placeholder="למשל: קהל טכנו, חובב ספא..."
+                        value={newTag}
+                        onChange={e => setNewTag(e.target.value)}
+                        onKeyDown={e => e.key === 'Enter' && addTag()}
+                      />
+                      <button onClick={addTag} style={{ padding: '8px 16px', background: 'var(--v2-primary)', color: 'var(--v2-dark)', border: 'none', borderRadius: 8, fontWeight: 600, cursor: 'pointer' }}>הוסף</button>
+                    </div>
+                  )}
+                </div>
+
+                {/* שכבה 4 — היסטוריית אירועים */}
+                {profile.business_data?.events?.length > 0 && (
                   <div>
-                    <div style={{ fontSize: 14, fontWeight: 700, color: '#ffffff', marginBottom: 12 }}>היסטוריית אירועים</div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 240, overflowY: 'auto' }}>
-                      {(profile.business_data.events || []).map((ev, idx) => (
-                        <div key={idx} style={{ padding: '12px 14px', background: 'var(--v2-dark-3)', borderRadius: 'var(--radius-md)', fontSize: 13, border: '1px solid var(--glass-border)' }}>
-                          <div style={{ color: '#ffffff', fontWeight: 600, marginBottom: 4 }}>{ev.event_title || 'אירוע'}</div>
-                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px 12px', fontSize: 11, color: 'var(--v2-gray-400)' }}>
-                            {ev.purchase_date && <span>📅 {new Date(ev.purchase_date).toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>}
-                            {ev.scan_status && <span>📋 {ev.scan_status === 'Scanned' ? 'נסרק' : ev.scan_status === 'Not scanned' ? 'לא נסרק' : ev.scan_status}</span>}
+                    <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--v2-gray-400)', marginBottom: 10 }}>היסטוריית אירועים</div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 200, overflowY: 'auto' }}>
+                      {(profile.business_data.events || []).map((ev, i) => (
+                        <div key={i} style={{
+                          padding: '10px 14px', borderRadius: 8, background: 'var(--v2-dark-3)',
+                          border: '1px solid var(--glass-border)',
+                        }}>
+                          <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 4, color: '#fff' }}>{ev.event_title || 'אירוע'}</div>
+                          <div style={{ fontSize: 12, color: 'var(--v2-gray-400)', display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                            {ev.purchase_date && <span>📅 {(ev.purchase_date + '').substring(0, 10)}</span>}
+                            {ev.ticket_price && ev.ticket_price !== '0' && <span>💰 ₪{ev.ticket_price}</span>}
                             {ev.payment_method && <span>💳 {ev.payment_method}</span>}
-                            {(ev.ticket_price != null && ev.ticket_price !== '' && ev.ticket_price !== '0') && <span>₪{Number(ev.ticket_price).toLocaleString('he-IL')}</span>}
+                            <span style={{ color: ev.scan_status === 'Scanned' ? 'var(--v2-primary)' : '#94a3b8' }}>
+                              {ev.scan_status === 'Scanned' ? '✅ נסרק' : '⭕ לא נסרק'}
+                            </span>
+                          </div>
+                          {ev.salesperson && ev.salesperson !== 'null' && (
+                            <div style={{ fontSize: 11, color: 'var(--v2-gray-500)', marginTop: 3 }}>נמכר ע"י: {ev.salesperson}</div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* שכבה 5 — היסטוריית פעילות */}
+                {profile.timeline?.length > 0 && (
+                  <div>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--v2-gray-400)', marginBottom: 10 }}>היסטוריית פעילות</div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+                      {profile.timeline.slice(0, 10).map((item, i) => (
+                        <div key={i} style={{ display: 'flex', gap: 10, padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,.06)' }}>
+                          <div style={{
+                            width: 8, height: 8, borderRadius: '50%', marginTop: 5, flexShrink: 0,
+                            background: (item.event_type || item.type) === 'validator_redeemed' ? 'var(--v2-primary)' : (item.event_type || item.type) === 'link_clicked' ? '#3b82f6' : (item.event_type || item.type) === 'sms_sent' || (item.event_type || item.type) === 'sms_delivered' ? '#94a3b8' : '#f59e0b',
+                          }} />
+                          <div>
+                            <div style={{ fontSize: 13, fontWeight: 500, color: '#fff' }}>
+                              {eventLabels[(item.event_type || item.type)] || (item.event_type || item.type)}
+                            </div>
+                            <div style={{ fontSize: 11, color: 'var(--v2-gray-500)' }}>
+                              {new Date(item.created_at || item.date).toLocaleDateString('he-IL')}
+                            </div>
                           </div>
                         </div>
                       ))}
                     </div>
                   </div>
                 )}
-                <div>
-                  <div style={{ fontSize: 14, fontWeight: 700, color: '#ffffff', marginBottom: 12 }}>ציר זמן פעילות</div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 280, overflowY: 'auto' }}>
-                    {(profile.timeline || []).map((item, idx) => (
-                      <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', background: 'var(--v2-dark-3)', borderRadius: 'var(--radius-md)', fontSize: 13 }}>
-                        <span style={{ fontSize: 16 }}>{item.icon}</span>
-                        <div style={{ flex: 1 }}>
-                          <div style={{ color: '#ffffff' }}>{item.label}</div>
-                          {item.amount != null && <div style={{ color: 'var(--v2-gray-400)', fontSize: 11 }}>₪{Number(item.amount).toLocaleString('he-IL')}</div>}
-                          {item.type === 'event' && (item.scan_status || item.payment_method) && (
-                            <div style={{ color: 'var(--v2-gray-500)', fontSize: 10, marginTop: 2 }}>
-                              {[item.scan_status, item.payment_method].filter(Boolean).join(' • ')}
-                            </div>
-                          )}
-                        </div>
-                        <div style={{ color: 'var(--v2-gray-400)', fontSize: 11 }}>{item.date ? new Date(item.date).toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' }) : ''}</div>
-                      </div>
-                    ))}
-                  </div>
+
+                {/* כפתורי פעולה */}
+                <div style={{ paddingTop: 16, borderTop: '1px solid var(--glass-border)', display: 'flex', gap: 8 }}>
+                  <button style={{ flex: 1, padding: '12px 16px', background: 'var(--v2-primary)', color: 'var(--v2-dark)', border: 'none', borderRadius: 8, fontWeight: 600, cursor: 'pointer' }}
+                    onClick={() => { sessionStorage.setItem('campaign_recipients', JSON.stringify([profile.phone])); navigate('/dashboard/new-campaign'); }}>
+                    📱 שלח SMS
+                  </button>
+                  <button style={{ padding: '12px 16px', background: 'transparent', color: 'var(--v2-gray-400)', border: '1px solid var(--glass-border)', borderRadius: 8, cursor: 'pointer' }}
+                    onClick={() => navigate('/dashboard/inbox')}>
+                    💬 אינבוקס
+                  </button>
                 </div>
               </>
             )}
@@ -211,6 +332,8 @@ export default function Audiences() {
   const [sortBy, setSortBy] = useState('score')
   const [selectedCustomerId, setSelectedCustomerId] = useState(null)
   const [importOpen, setImportOpen] = useState(false)
+  const [showBulkTagModal, setShowBulkTagModal] = useState(false)
+  const [bulkTag, setBulkTag] = useState('')
 
   const [liveHours, setLiveHours] = useState(3)
   const [campaigns, setCampaigns] = useState([])
@@ -574,6 +697,16 @@ export default function Audiences() {
                       <EngagementScore score={r.score} size={40} />
                     </div>
                     <div style={{ fontSize: 12, color: 'var(--v2-gray-400)', marginTop: 2 }}><Phone size={11} /> {r.phone}</div>
+                    <div style={{ display: 'flex', gap: 8, marginTop: 3 }}>
+                      <span style={{ fontSize: 11, color: 'var(--v2-gray-400)' }}>
+                        {r.gender === 'Female' ? '👩 נקבה' : r.gender === 'Male' ? '👨 זכר' : '👤'}
+                      </span>
+                      {r.birth_date && (
+                        <span style={{ fontSize: 11, color: 'var(--v2-gray-400)' }}>
+                          {new Date().getFullYear() - new Date(r.birth_date).getFullYear()} שנים
+                        </span>
+                      )}
+                    </div>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
                       {(Array.isArray(r.tags) ? r.tags : []).map(tag => (
                         <span key={tag} style={{ fontSize: 11, padding: '2px 8px', borderRadius: 9999, background: tag === 'VIP' ? 'rgba(245,158,11,0.12)' : 'rgba(255,255,255,0.06)', color: tag === 'VIP' ? '#F59E0B' : 'var(--v2-gray-400)' }}>{tag}</span>
@@ -613,10 +746,41 @@ export default function Audiences() {
             toast.success('נוסף לקמפיין')
           }}>➕ הוסף לקמפיין קיים</button>
           <ExportButton businessId={businessId} segment={activeSegment} label="📥 ייצוא CSV" />
+          <button className="btn-ghost" onClick={() => setShowBulkTagModal(true)}>🏷️ תגית לסגמנט</button>
         </div>
       </div>
 
-      <CustomerProfileDrawer open={!!selectedCustomerId} onClose={() => setSelectedCustomerId(null)} masterRecipientId={selectedCustomerId} businessId={businessId} />
+      {showBulkTagModal && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 200, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }} onClick={() => setShowBulkTagModal(false)}>
+          <div className="glass-card" style={{ padding: 20, width: '100%', maxWidth: 320 }} onClick={e => e.stopPropagation()}>
+            <div style={{ fontWeight: 700, marginBottom: 12, fontSize: 16 }}>🏷️ הוסף תגית ל-{recipients.length} לקוחות</div>
+            <input
+              className="form-input input"
+              placeholder="שם התגית..."
+              value={bulkTag}
+              onChange={e => setBulkTag(e.target.value)}
+              style={{ width: '100%', marginBottom: 12, padding: '10px 14px' }}
+            />
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button className="btn-primary" style={{ flex: 1 }} onClick={async () => {
+                const ids = recipients.map(r => r.master_recipient_id || r.id).filter(Boolean)
+                try {
+                  await api.patchBulkTags(bulkTag, ids)
+                  setShowBulkTagModal(false)
+                  setBulkTag('')
+                  toast.success(`התגית נוספה ל-${recipients.length} לקוחות`)
+                  fetch(`${API_BASE}/api/admin/recipients`, { headers: h() }).then(r => r.ok ? r.json() : {}).then(d => setRecipients(d?.recipients || []))
+                } catch (e) {
+                  toast.error(e.message || 'שגיאה')
+                }
+              }}>החל</button>
+              <button className="btn-ghost" onClick={() => { setShowBulkTagModal(false); setBulkTag('') }}>ביטול</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <CustomerProfileDrawer open={!!selectedCustomerId} onClose={() => setSelectedCustomerId(null)} masterRecipientId={selectedCustomerId} businessId={businessId} onTagUpdate={() => fetch(`${API_BASE}/api/admin/recipients`, { headers: h() }).then(r => r.ok ? r.json() : {}).then(d => setRecipients(d?.recipients || []))} />
       <ImportModal isOpen={importOpen} onClose={() => setImportOpen(false)} businessId={businessId} onImportDone={() => { setImportOpen(false); fetch(`${API_BASE}/api/admin/recipients`, { headers: h() }).then(r => r.ok ? r.json() : {}).then(d => setRecipients(d?.recipients || [])) }} />
     </div>
   )
