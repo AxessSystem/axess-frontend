@@ -474,28 +474,58 @@ export default function Audiences() {
       </div>
 
       <style>{`
+        .segment-chip .segment-chip-tooltip {
+          position: absolute;
+          top: 6px;
+          left: 6px;
+          width: 18px;
+          height: 18px;
+          border-radius: 50%;
+          background: var(--glass-bg);
+          border: 1px solid var(--glass-border);
+          color: var(--v2-gray-400);
+          font-size: 11px;
+          cursor: help;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          padding: 0;
+        }
         @media (max-width: 768px) {
-          .audience-search-row { flex-direction: column; align-items: stretch; }
-          .audience-search-row > div:first-child { flex-direction: row !important; }
           .audience-segment-chips {
-            overflow-x: auto;
-            white-space: nowrap;
-            -webkit-overflow-scrolling: touch;
+            display: grid !important;
+            grid-template-columns: repeat(3, 1fr) !important;
+            gap: 10px !important;
+            padding: 12px !important;
+            overflow-x: unset !important;
+            flex-wrap: unset !important;
           }
-          .audience-segment-chips .segment-chip {
-            min-width: auto;
-            padding: 6px 10px;
-            height: 36px;
-            background: transparent !important;
-            border: 1px solid var(--border);
-            border-radius: 9999px;
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            flex-shrink: 0;
+          .segment-chip {
+            aspect-ratio: 1 !important;
+            display: flex !important;
+            flex-direction: column !important;
+            align-items: center !important;
+            justify-content: center !important;
+            padding: 10px 6px !important;
+            text-align: center !important;
+            position: relative !important;
+            min-width: unset !important;
+            white-space: unset !important;
           }
-          .audience-segment-chips .segment-chip.active {
-            border-color: var(--v2-primary);
+          .audience-search-row {
+            display: flex !important;
+            gap: 8px !important;
+            padding: 0 12px !important;
+            align-items: stretch !important;
+          }
+          .audience-search-row .btn-primary {
+            min-width: 64px !important;
+            flex-shrink: 0 !important;
+            font-size: 14px !important;
+          }
+          .audience-search-row .form-input {
+            flex: 1 !important;
+            font-size: 14px !important;
           }
           .audience-actions {
             position: fixed;
@@ -528,7 +558,7 @@ export default function Audiences() {
                 background: 'var(--v2-dark-3)', position: 'relative',
               }}
             >
-              <div title={seg.description} style={{ position: 'absolute', top: '6px', left: '6px', width: '16px', height: '16px', borderRadius: '50%', background: 'var(--border)', color: 'var(--text-secondary)', fontSize: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'help' }}>?</div>
+              <div className="segment-chip-tooltip" title={seg.description}>?</div>
               <IconComp size={16} style={{ flexShrink: 0 }} />
               <span style={{ fontSize: '13px', fontWeight: 600, whiteSpace: 'nowrap' }}>{seg.name}</span>
               {activeSegment === seg.id && (
@@ -661,7 +691,7 @@ export default function Audiences() {
           <div className="audience-search-row" style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center' }}>
             <div style={{ flex: '1 1 200px', minWidth: 0, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               <input placeholder="🔍 חפש לפי שם או טלפון..." className="form-input input" style={{ flex: 1, minWidth: 180, fontSize: '13px' }} value={search} onChange={e => { setSearch(e.target.value); setPage(1) }} />
-              <button onClick={() => setActiveTag('הכל')} style={{ padding: '6px 12px', borderRadius: 'var(--radius-full)', fontSize: 12, background: activeTag === 'הכל' ? 'var(--v2-primary)' : 'rgba(255,255,255,0.04)', color: activeTag === 'הכל' ? 'var(--v2-dark)' : 'var(--v2-gray-400)', border: 'none', cursor: 'pointer', whiteSpace: 'nowrap' }}>הכל</button>
+              <button className={activeTag === 'הכל' ? 'btn-primary' : 'btn-ghost'} onClick={() => setActiveTag('הכל')}>הכל</button>
             </div>
             <div style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>{loading ? 'טוען...' : <><strong style={{ color: 'var(--v2-primary)' }}>{filtered.length}</strong> לקוחות</>}</div>
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
