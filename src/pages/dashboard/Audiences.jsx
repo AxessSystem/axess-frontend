@@ -817,8 +817,10 @@ export default function Audiences() {
               </label>
             )) : null}
           </div>
-          <button className="btn-ghost" style={{ marginTop: '8px', fontSize: '12px' }} onClick={() => setSelectedEvents([])}>נקה הכל</button>
-          <button className="btn-primary" style={{ marginTop: '8px', marginRight: '8px', fontSize: '13px' }} onClick={runEventSegment} disabled={loading || !selectedEvents.length}>{loading ? '...' : 'הצג לקוחות'}</button>
+          <div style={{ display: 'flex', gap: '8px', marginTop: '8px', flexWrap: 'wrap' }}>
+            <button className="btn-ghost" style={{ fontSize: '12px' }} onClick={() => setSelectedEvents([])}>נקה הכל</button>
+            <button className="btn-primary" onClick={runEventSegment} disabled={loading || !selectedEvents.length}>{loading ? '...' : 'הצג לקוחות'}</button>
+          </div>
         </div>
       )}
 
