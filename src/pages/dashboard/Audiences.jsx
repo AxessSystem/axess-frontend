@@ -173,12 +173,10 @@ function CustomerProfileDrawer({ open, onClose, masterRecipientId, businessId, o
                       <div style={{ color: 'var(--v2-gray-500)', fontSize: 11, marginBottom: 2 }}>מגדר</div>
                       <div style={{ color: '#fff' }}>{profile.gender === 'Female' ? 'נקבה' : profile.gender === 'Male' ? 'זכר' : 'לא צוין'}</div>
                     </div>
-                    {age != null && (
-                      <div>
-                        <div style={{ color: 'var(--v2-gray-500)', fontSize: 11, marginBottom: 2 }}>גיל</div>
-                        <div style={{ color: '#fff' }}>{age}</div>
-                      </div>
-                    )}
+                    <div>
+                      <div style={{ color: 'var(--v2-gray-500)', fontSize: 11, marginBottom: 2 }}>גיל</div>
+                      <div style={{ color: '#fff' }}>{age != null ? age : 'לא צוין'}</div>
+                    </div>
                     <div style={{ gridColumn: '1 / -1' }}>
                       <div style={{ color: 'var(--v2-gray-500)', fontSize: 11, marginBottom: 2 }}>אימייל</div>
                       <div style={{ color: '#fff', fontSize: 12, wordBreak: 'break-all' }}>{profile.email || 'לא צוין'}</div>
@@ -187,6 +185,18 @@ function CustomerProfileDrawer({ open, onClose, masterRecipientId, businessId, o
                       <div>
                         <div style={{ color: 'var(--v2-gray-500)', fontSize: 11, marginBottom: 2 }}>ת.ז</div>
                         <div style={{ color: '#fff' }}>{profile.id_number}</div>
+                      </div>
+                    )}
+                    {profile.custom_data?.subscribed && (
+                      <div>
+                        <div style={{ color: 'var(--v2-gray-500)', fontSize: 11, marginBottom: 2 }}>מנוי לדיוור</div>
+                        <div style={{ color: '#fff' }}>{profile.custom_data.subscribed}</div>
+                      </div>
+                    )}
+                    {profile.custom_data?.instagram_url && (
+                      <div style={{ gridColumn: '1 / -1' }}>
+                        <div style={{ color: 'var(--v2-gray-500)', fontSize: 11, marginBottom: 2 }}>אינסטגרם</div>
+                        <a href={profile.custom_data.instagram_url} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--v2-primary)', fontSize: 12, wordBreak: 'break-all' }}>{profile.custom_data.instagram_url}</a>
                       </div>
                     )}
                   </div>
@@ -847,11 +857,9 @@ export default function Audiences() {
                           {r.gender === 'Female' ? '👩 נקבה' : r.gender === 'Male' ? '👨 זכר' : r.gender}
                         </span>
                       )}
-                      {r.birth_date && (
-                        <span style={{ fontSize: 11, color: 'var(--v2-gray-400)' }}>
-                          {Math.floor((Date.now() - new Date(r.birth_date)) / 31557600000)} שנים
-                        </span>
-                      )}
+                      <span style={{ fontSize: 11, color: 'var(--v2-gray-400)' }}>
+                        {r.birth_date ? `${Math.floor((Date.now() - new Date(r.birth_date)) / 31557600000)} שנים` : 'גיל לא צוין'}
+                      </span>
                     </div>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
                       {((r.tags ?? []).slice(0, 3)).map(tag => (
