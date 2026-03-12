@@ -448,7 +448,14 @@ export default function ImportModal({ isOpen, onClose, businessId, onImportDone 
                   <p style={{ color: 'var(--v2-gray-400)' }}>{result.new_rows} לקוחות חדשים נוספו</p>
                   <p style={{ color: 'var(--v2-gray-400)' }}>{result.updated_rows} לקוחות עודכנו</p>
                   {(result.duplicate_rows ?? 0) > 0 && (
-                    <p style={{ color: '#F59E0B' }}>{result.duplicate_rows} שורות כפולות דולגו</p>
+                    <div style={{
+                      display: 'flex', alignItems: 'center', gap: 8, marginTop: 8, padding: 12,
+                      background: 'rgba(245, 158, 11, 0.1)', border: '1px solid rgba(245, 158, 11, 0.4)',
+                      borderRadius: 'var(--radius-md)', color: '#f59e0b', fontSize: 14,
+                    }}>
+                      <AlertTriangle size={18} style={{ flexShrink: 0 }} />
+                      {result.duplicate_rows} שורות כפולות דולגו
+                    </div>
                   )}
                   {result.error_rows > 0 && (
                     <div style={{
