@@ -512,7 +512,7 @@ export default function Audiences() {
             position: relative !important;
             min-width: unset !important;
             white-space: unset !important;
-            max-width: 78px !important;
+            max-width: 117px !important;
             justify-self: center !important;
             font-size: 14px !important;
           }
