@@ -662,9 +662,11 @@ export default function Audiences() {
             background: var(--primary-dim, rgba(0,195,122,0.12)) !important;
             color: var(--v2-primary) !important;
           }
-          .audience-search-row-3 {
-            margin-top: 16px;
-          }
+          .audience-search-row-3-count { display: none; }
+          .audience-search-count-row { display: block; margin-top: 8px; }
+        }
+        @media (max-width: 768px) {
+          .audience-search-count-row { display: none; }
         }
       `}</style>
 
@@ -849,6 +851,7 @@ export default function Audiences() {
             </select>
             </div>
           </div>
+          <div className="audience-search-count-row" style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>{loading ? 'טוען...' : <><strong style={{ color: 'var(--v2-primary)' }}>{filtered.length}</strong> לקוחות</>}</div>
         </div>
 
         {filtered.length === 0 ? (
