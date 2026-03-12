@@ -646,6 +646,26 @@ export default function Audiences() {
           background: rgba(0,195,122,0.12);
           color: var(--v2-primary);
         }
+        @media (min-width: 769px) {
+          .audience-event-select {
+            background: var(--card2, var(--card)) !important;
+            color: var(--text) !important;
+            border: 1px solid var(--border) !important;
+            border-radius: var(--radius-md);
+          }
+          .audience-event-select option {
+            background: var(--card2, var(--card));
+            color: var(--text);
+          }
+          .audience-event-select option:hover,
+          .audience-event-select option:focus {
+            background: var(--primary-dim, rgba(0,195,122,0.12)) !important;
+            color: var(--v2-primary) !important;
+          }
+          .audience-search-row-3 {
+            margin-top: 16px;
+          }
+        }
       `}</style>
 
       <div className="segment-categories">
@@ -760,7 +780,7 @@ export default function Audiences() {
       {activeSegment === 'by_event' && (
         <div className="glass-card" style={{ padding: '12px', marginBottom: '12px' }}>
           <input placeholder="🔍 חפש אירוע..." className="form-input input" style={{ marginBottom: '8px' }} value={eventSearch} onChange={e => setEventSearch(e.target.value)} />
-          <select className="form-input input" value={selectedEvent} onChange={async e => {
+          <select className="form-input input audience-event-select" value={selectedEvent} onChange={async e => {
             const val = e.target.value
             setSelectedEvent(val)
             if (!val) return
