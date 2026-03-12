@@ -474,6 +474,7 @@ export default function Audiences() {
       </div>
 
       <style>{`
+        .audience-search-row-spacer { display: none; }
         .segment-chip .segment-chip-tooltip {
           position: absolute;
           top: 6px;
@@ -506,18 +507,20 @@ export default function Audiences() {
             flex-direction: column !important;
             align-items: center !important;
             justify-content: center !important;
-            padding: 10px 6px !important;
+            padding: 14px 9px !important;
             text-align: center !important;
             position: relative !important;
             min-width: unset !important;
             white-space: unset !important;
-            max-width: 52px !important;
+            max-width: 78px !important;
             justify-self: center !important;
+            font-size: 14px !important;
           }
+          .segment-chip svg { width: 24px !important; height: 24px !important; }
           .audience-search-row {
             display: grid !important;
             grid-template-columns: 1fr auto !important;
-            grid-template-rows: auto auto auto !important;
+            grid-template-rows: auto auto auto auto !important;
             gap: 10px 12px !important;
             padding: 0 12px !important;
           }
@@ -546,8 +549,14 @@ export default function Audiences() {
             gap: 6px !important;
             flex-wrap: wrap !important;
           }
-          .audience-search-row-3 {
+          .audience-search-row-spacer {
+            display: block !important;
             grid-row: 3;
+            grid-column: 1 / -1;
+            min-height: 40px;
+          }
+          .audience-search-row-3 {
+            grid-row: 4;
             grid-column: 1 / -1;
             display: flex !important;
             justify-content: space-between !important;
@@ -724,6 +733,7 @@ export default function Audiences() {
                 <button key={tag} onClick={() => { setActiveTag(tag); setPage(1) }} style={{ padding: '6px 12px', borderRadius: 'var(--radius-full)', fontSize: 12, background: activeTag === tag ? 'var(--v2-primary)' : 'rgba(255,255,255,0.04)', color: activeTag === tag ? 'var(--v2-dark)' : 'var(--v2-gray-400)', border: 'none', cursor: 'pointer' }}>{tag}</button>
               ))}
             </div>
+            <div className="audience-search-row-spacer" />
             <div className="audience-search-row-3">
               <div className="audience-search-row-3-count" style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>{loading ? 'טוען...' : <><strong style={{ color: 'var(--v2-primary)' }}>{filtered.length}</strong> לקוחות</>}</div>
               <select className="input audience-search-row-3-sort" style={{ width: 'auto' }} value={sortBy} onChange={e => setSortBy(e.target.value)}>
