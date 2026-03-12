@@ -13,6 +13,12 @@ const MAP_OPTIONS = [
   { value: 'total_spent', label: 'סכום קניות' },
   { value: 'birth_date', label: 'תאריך לידה' },
   { value: 'tags', label: 'תגיות' },
+  { value: 'event_title', label: 'שם אירוע' },
+  { value: 'ticket_price', label: 'מחיר כרטיס' },
+  { value: 'scan_status', label: 'סטטוס סריקה' },
+  { value: 'purchase_date', label: 'תאריך רכישה' },
+  { value: 'payment_method', label: 'אמצעי תשלום' },
+  { value: 'salesperson', label: 'איש מכירות' },
   { value: 'skip', label: 'דלג על עמודה זו' },
 ]
 
@@ -25,6 +31,7 @@ export default function ImportModal({ isOpen, onClose, businessId, onImportDone 
   const [importing, setImporting] = useState(false)
   const [result, setResult] = useState(null)
   const [errorCsvBase64, setErrorCsvBase64] = useState(null)
+  const [duplicateFileWarning, setDuplicateFileWarning] = useState(null)
   const fileRef = useRef()
 
   const reset = () => {
@@ -35,6 +42,7 @@ export default function ImportModal({ isOpen, onClose, businessId, onImportDone 
     setStats(null)
     setResult(null)
     setErrorCsvBase64(null)
+    setDuplicateFileWarning(null)
   }
 
   const handleClose = () => {
@@ -72,8 +80,9 @@ export default function ImportModal({ isOpen, onClose, businessId, onImportDone 
     }
   }
 
-  const handleConfirm = async () => {
+  const handleConfirm = async (forceReimport = false) => {
     if (!file || !businessId || !columnMapping) return
+    setDuplicateFileWarning(null)
     setImporting(true)
     try {
       const buf = await file.arrayBuffer()
@@ -86,10 +95,16 @@ export default function ImportModal({ isOpen, onClose, businessId, onImportDone 
           file_data: base64,
           column_mapping: columnMapping,
           filename: file.name,
+          force_reimport: forceReimport,
         }),
       })
-      if (!res.ok) throw new Error(await res.text())
-      const data = await res.json()
+      const data = await res.json().catch(() => ({}))
+      if (res.status === 409 && data.already_imported) {
+        setDuplicateFileWarning(data.error || 'הקובץ שהעלת כבר קיים במערכת')
+        setImporting(false)
+        return
+      }
+      if (!res.ok) throw new Error(data.error || 'שגיאה בייבוא')
       setResult(data)
       setErrorCsvBase64(data.error_csv_base64 || null)
       setStep(4)
@@ -310,6 +325,39 @@ export default function ImportModal({ isOpen, onClose, businessId, onImportDone 
                     יש {preview.stats?.invalid_phones} שורות עם טלפון לא תקין — יופעו קובץ שגויים לאחר הייבוא
                   </div>
                 )}
+                {duplicateFileWarning && (
+                  <div style={{
+                    display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 20, padding: 16,
+                    background: 'rgba(245, 158, 11, 0.15)', border: '1px solid rgba(245, 158, 11, 0.5)',
+                    borderRadius: 'var(--radius-md)', color: '#F59E0B', fontSize: 14,
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <AlertCircle size={20} />
+                      {duplicateFileWarning}
+                    </div>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <button
+                        onClick={() => handleConfirm(true)}
+                        disabled={importing}
+                        style={{
+                          padding: '10px 20px', background: '#F59E0B', color: '#000',
+                          border: 'none', borderRadius: 'var(--radius-full)', fontWeight: 600, cursor: importing ? 'wait' : 'pointer',
+                        }}
+                      >
+                        {importing ? 'מייבא...' : 'המשך בכל זאת'}
+                      </button>
+                      <button
+                        onClick={() => setDuplicateFileWarning(null)}
+                        style={{
+                          padding: '10px 20px', background: 'transparent', color: '#F59E0B',
+                          border: '1px solid #F59E0B', borderRadius: 'var(--radius-full)', fontWeight: 600, cursor: 'pointer',
+                        }}
+                      >
+                        ביטול
+                      </button>
+                    </div>
+                  </div>
+                )}
                 <div style={{ display: 'flex', gap: 12 }}>
                   <button
                     onClick={() => setStep(2)}
@@ -321,7 +369,7 @@ export default function ImportModal({ isOpen, onClose, businessId, onImportDone 
                     חזור לעריכה
                   </button>
                   <button
-                    onClick={handleConfirm}
+                    onClick={() => handleConfirm(false)}
                     disabled={importing}
                     style={{
                       flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
@@ -348,6 +396,9 @@ export default function ImportModal({ isOpen, onClose, businessId, onImportDone 
                   <h3 style={{ fontSize: 20, fontWeight: 800, color: '#fff', marginBottom: 8 }}>הייבוא הושלם</h3>
                   <p style={{ color: 'var(--v2-gray-400)' }}>{result.new_rows} לקוחות חדשים נוספו</p>
                   <p style={{ color: 'var(--v2-gray-400)' }}>{result.updated_rows} לקוחות עודכנו</p>
+                  {(result.duplicate_rows ?? 0) > 0 && (
+                    <p style={{ color: '#F59E0B' }}>{result.duplicate_rows} שורות כפולות דולגו</p>
+                  )}
                   {result.error_rows > 0 && (
                     <div style={{ marginTop: 12 }}>
                       <p style={{ color: '#EF4444' }}>{result.error_rows} שורות לא יובאו</p>
