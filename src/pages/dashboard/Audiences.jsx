@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Search, Users, Phone, Tag, X, ShoppingBag, Activity, Clock, Upload, Crown, RefreshCw, Sparkles, CheckCircle, Radio, Scan, AlertTriangle, Ticket, Cake, Send, Calendar } from 'lucide-react'
@@ -362,8 +362,6 @@ export default function Audiences() {
   const [events, setEvents] = useState([])
   const [selectedEvents, setSelectedEvents] = useState([])
   const [eventSearch, setEventSearch] = useState('')
-  const [eventDropdownOpen, setEventDropdownOpen] = useState(false)
-  const eventDropdownRef = useRef(null)
   const [page, setPage] = useState(1)
   const [isMobile, setIsMobile] = useState(typeof window !== 'undefined' && window.innerWidth <= 768)
 
@@ -373,14 +371,6 @@ export default function Audiences() {
     window.addEventListener('resize', check)
     return () => window.removeEventListener('resize', check)
   }, [])
-
-  useEffect(() => {
-    const handleClickOutside = (e) => {
-      if (eventDropdownRef.current && !eventDropdownRef.current.contains(e.target)) setEventDropdownOpen(false)
-    }
-    if (eventDropdownOpen) document.addEventListener('click', handleClickOutside)
-    return () => document.removeEventListener('click', handleClickOutside)
-  }, [eventDropdownOpen])
 
   const h = () => {
     const headers = { 'Content-Type': 'application/json', 'X-Business-Id': businessId || '' }
@@ -816,56 +806,19 @@ export default function Audiences() {
       {activeSegment === 'by_event' && (
         <div className="glass-card" style={{ padding: '12px', marginBottom: '12px' }}>
           <input placeholder="🔍 חפש אירוע..." className="form-input input" style={{ marginBottom: '8px' }} value={eventSearch} onChange={e => setEventSearch(e.target.value)} />
-          {isMobile ? (
-            <>
-              <div style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '8px' }}>
-                {selectedEvents.length === 0 ? 'בחר אירועים' : selectedEvents.length === 1 ? selectedEvents[0] : `${selectedEvents.length} אירועים נבחרו`}
-              </div>
-              <div style={{ maxHeight: 180, overflowY: 'auto', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)', background: 'var(--card)', padding: '4px 0' }}>
-                {Array.isArray(events) ? events.filter(ev => !eventSearch || ev.toLowerCase().includes(eventSearch.toLowerCase())).map(ev => (
-                  <label key={ev} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', cursor: 'pointer', color: 'var(--text)' }}>
-                    <input type="checkbox" checked={selectedEvents.includes(ev)} onChange={e => setSelectedEvents(prev => e.target.checked ? [...prev, ev] : prev.filter(x => x !== ev))} />
-                    <span>{ev}</span>
-                  </label>
-                )) : null}
-              </div>
-              <button className="btn-ghost" style={{ marginTop: '8px', fontSize: '12px' }} onClick={() => setSelectedEvents([])}>נקה הכל</button>
-              <button className="btn-primary" style={{ marginTop: '8px', marginRight: '8px', fontSize: '13px' }} onClick={runEventSegment} disabled={loading || !selectedEvents.length}>{loading ? '...' : 'הצג לקוחות'}</button>
-            </>
-          ) : (
-            <div ref={eventDropdownRef} style={{ position: 'relative' }}>
-              <button
-                type="button"
-                onClick={() => setEventDropdownOpen(o => !o)}
-                style={{
-                  width: '100%', textAlign: 'right', padding: '10px 14px', background: 'var(--card2, var(--card))', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)', color: 'var(--text)', fontSize: '14px', cursor: 'pointer',
-                }}
-              >
-                {selectedEvents.length === 0 ? 'בחר אירועים...' : selectedEvents.length === 1 ? selectedEvents[0] : `${selectedEvents.length} אירועים נבחרו`}
-              </button>
-              {eventDropdownOpen && (
-                <div style={{ position: 'absolute', top: '100%', right: 0, left: 0, marginTop: 4, background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)', zIndex: 100, maxHeight: 220, overflowY: 'auto', boxShadow: '0 4px 12px rgba(0,0,0,0.15)' }}>
-                  {Array.isArray(events) ? events.filter(ev => !eventSearch || ev.toLowerCase().includes(eventSearch.toLowerCase())).map(ev => (
-                    <label
-                      key={ev}
-                      style={{
-                        display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', cursor: 'pointer', color: 'var(--text)',
-                      }}
-                      onMouseEnter={e => { e.currentTarget.style.background = 'var(--primary-dim, rgba(0,195,122,0.12))'; e.currentTarget.style.color = 'var(--v2-primary)' }}
-                      onMouseLeave={e => { e.currentTarget.style.background = ''; e.currentTarget.style.color = 'var(--text)' }}
-                    >
-                      <input type="checkbox" checked={selectedEvents.includes(ev)} onChange={e => setSelectedEvents(prev => e.target.checked ? [...prev, ev] : prev.filter(x => x !== ev))} onClick={e => e.stopPropagation()} />
-                      <span>{ev}</span>
-                    </label>
-                  )) : null}
-                  <div style={{ borderTop: '1px solid var(--border)', padding: '8px 14px' }}>
-                    <button type="button" className="btn-ghost" style={{ fontSize: '12px' }} onClick={() => { setSelectedEvents([]); setEventDropdownOpen(false) }}>נקה הכל</button>
-                  </div>
-                </div>
-              )}
-              <button className="btn-primary" style={{ marginTop: '8px', fontSize: '13px' }} onClick={runEventSegment} disabled={loading || !selectedEvents.length}>{loading ? '...' : 'הצג לקוחות'}</button>
-            </div>
-          )}
+          <div style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '8px' }}>
+            {selectedEvents.length === 0 ? 'בחר אירועים' : selectedEvents.length === 1 ? selectedEvents[0] : `${selectedEvents.length} אירועים נבחרו`}
+          </div>
+          <div style={{ maxHeight: 180, overflowY: 'auto', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)', background: 'var(--card)', padding: '4px 0' }}>
+            {Array.isArray(events) ? events.filter(ev => !eventSearch || ev.toLowerCase().includes(eventSearch.toLowerCase())).map(ev => (
+              <label key={ev} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', cursor: 'pointer', color: 'var(--text)' }}>
+                <input type="checkbox" checked={selectedEvents.includes(ev)} onChange={e => setSelectedEvents(prev => e.target.checked ? [...prev, ev] : prev.filter(x => x !== ev))} />
+                <span>{ev}</span>
+              </label>
+            )) : null}
+          </div>
+          <button className="btn-ghost" style={{ marginTop: '8px', fontSize: '12px' }} onClick={() => setSelectedEvents([])}>נקה הכל</button>
+          <button className="btn-primary" style={{ marginTop: '8px', marginRight: '8px', fontSize: '13px' }} onClick={runEventSegment} disabled={loading || !selectedEvents.length}>{loading ? '...' : 'הצג לקוחות'}</button>
         </div>
       )}
 
