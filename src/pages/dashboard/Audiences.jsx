@@ -502,7 +502,8 @@ export default function Audiences() {
             flex-wrap: unset !important;
           }
           .segment-chip {
-            aspect-ratio: 1 !important;
+            width: 117px !important;
+            height: 117px !important;
             display: flex !important;
             flex-direction: column !important;
             align-items: center !important;
@@ -510,13 +511,12 @@ export default function Audiences() {
             padding: 14px 9px !important;
             text-align: center !important;
             position: relative !important;
-            min-width: unset !important;
-            white-space: unset !important;
-            max-width: 117px !important;
+            overflow: hidden !important;
+            white-space: normal !important;
             justify-self: center !important;
             font-size: 14px !important;
           }
-          .segment-chip svg { width: 24px !important; height: 24px !important; }
+          .segment-chip svg { width: 24px !important; height: 24px !important; flex-shrink: 0 !important; }
           .audience-search-row {
             display: grid !important;
             grid-template-columns: 1fr auto !important;
