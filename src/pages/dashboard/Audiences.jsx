@@ -495,11 +495,12 @@ export default function Audiences() {
         @media (max-width: 768px) {
           .audience-segment-chips {
             display: grid !important;
-            grid-template-columns: repeat(3, 1fr) !important;
+            grid-template-columns: repeat(3, 117px) !important;
             gap: 6px !important;
             padding: 8px !important;
             overflow-x: unset !important;
             flex-wrap: unset !important;
+            margin: 0 auto !important;
           }
           .segment-chip {
             width: 117px !important;
