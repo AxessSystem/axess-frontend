@@ -344,6 +344,14 @@ export default function Audiences() {
   const [selectedEvent, setSelectedEvent] = useState('')
   const [eventSearch, setEventSearch] = useState('')
   const [page, setPage] = useState(1)
+  const [isMobile, setIsMobile] = useState(typeof window !== 'undefined' && window.innerWidth <= 768)
+
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth <= 768)
+    check()
+    window.addEventListener('resize', check)
+    return () => window.removeEventListener('resize', check)
+  }, [])
 
   const h = () => {
     const headers = { 'Content-Type': 'application/json', 'X-Business-Id': businessId || '' }
@@ -580,7 +588,7 @@ export default function Audiences() {
         }
       `}</style>
 
-      <div className="audience-segment-chips" style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '8px', marginBottom: '16px', whiteSpace: 'nowrap' }}>
+      <div className="audience-segment-chips" style={isMobile ? { gap: '8px', paddingBottom: '8px', marginBottom: '16px' } : { display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '8px', marginBottom: '16px', whiteSpace: 'nowrap' }}>
         {PRESET_SEGMENTS.map(seg => {
           const IconComp = SEGMENT_ICONS[seg.id] || Users
           return (
