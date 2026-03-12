@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Upload, X, FileText, Check, ArrowRight, Download, AlertCircle } from 'lucide-react'
+import { Upload, X, FileText, Check, ArrowRight, Download, AlertTriangle, XCircle } from 'lucide-react'
 
 const API_BASE = import.meta.env.VITE_API_URL || 'https://axess-production.up.railway.app'
 const MAP_OPTIONS = [
@@ -32,6 +32,8 @@ export default function ImportModal({ isOpen, onClose, businessId, onImportDone 
   const [result, setResult] = useState(null)
   const [errorCsvBase64, setErrorCsvBase64] = useState(null)
   const [duplicateFileWarning, setDuplicateFileWarning] = useState(null)
+  const [inlineError, setInlineError] = useState(null)
+  const [inlineWarning, setInlineWarning] = useState(null)
   const fileRef = useRef()
 
   const reset = () => {
@@ -43,6 +45,8 @@ export default function ImportModal({ isOpen, onClose, businessId, onImportDone 
     setResult(null)
     setErrorCsvBase64(null)
     setDuplicateFileWarning(null)
+    setInlineError(null)
+    setInlineWarning(null)
   }
 
   const handleClose = () => {
@@ -56,8 +60,18 @@ export default function ImportModal({ isOpen, onClose, businessId, onImportDone 
     setPreview(null)
   }
 
+  const parseApiError = (text, fallback) => {
+    try {
+      const j = JSON.parse(text)
+      return j?.error || fallback
+    } catch {
+      return (text && text.trim()) ? text : fallback
+    }
+  }
+
   const handleAnalyze = async () => {
     if (!file || !businessId) return
+    setInlineError(null)
     setImporting(true)
     try {
       const fd = new FormData()
@@ -67,14 +81,18 @@ export default function ImportModal({ isOpen, onClose, businessId, onImportDone 
         method: 'POST',
         body: fd,
       })
-      if (!res.ok) throw new Error(await res.text())
-      const data = await res.json()
+      const text = await res.text()
+      if (!res.ok) {
+        setInlineError(parseApiError(text, 'שגיאה בניתוח הקובץ'))
+        return
+      }
+      const data = JSON.parse(text)
       setPreview(data)
       setColumnMapping(data.suggested_mapping || {})
       setStep(2)
     } catch (err) {
       console.error(err)
-      alert(err.message || 'שגיאה בניתוח הקובץ')
+      setInlineError(err.message || 'שגיאה בניתוח הקובץ')
     } finally {
       setImporting(false)
     }
@@ -83,6 +101,7 @@ export default function ImportModal({ isOpen, onClose, businessId, onImportDone 
   const handleConfirm = async (forceReimport = false) => {
     if (!file || !businessId || !columnMapping) return
     setDuplicateFileWarning(null)
+    setInlineError(null)
     setImporting(true)
     try {
       const buf = await file.arrayBuffer()
@@ -98,20 +117,26 @@ export default function ImportModal({ isOpen, onClose, businessId, onImportDone 
           force_reimport: forceReimport,
         }),
       })
-      const data = await res.json().catch(() => ({}))
+      const text = await res.text()
+      let data = {}
+      try { if (text) data = JSON.parse(text) } catch (_) {}
       if (res.status === 409 && data.already_imported) {
         setDuplicateFileWarning(data.error || 'הקובץ שהעלת כבר קיים במערכת')
         setImporting(false)
         return
       }
-      if (!res.ok) throw new Error(data.error || 'שגיאה בייבוא')
+      if (!res.ok) {
+        setInlineError(parseApiError(text, 'שגיאה בייבוא'))
+        setImporting(false)
+        return
+      }
       setResult(data)
       setErrorCsvBase64(data.error_csv_base64 || null)
       setStep(4)
       onImportDone?.()
     } catch (err) {
       console.error(err)
-      alert(err.message || 'שגיאה בייבוא')
+      setInlineError(err.message || 'שגיאה בייבוא')
     } finally {
       setImporting(false)
     }
@@ -191,8 +216,18 @@ export default function ImportModal({ isOpen, onClose, businessId, onImportDone 
                   <input ref={fileRef} type="file" accept=".csv,.xlsx,.xls" style={{ display: 'none' }} onChange={e => handleFile(e.target.files?.[0])} />
                   <Upload size={40} style={{ color: 'var(--v2-primary)', margin: '0 auto 12px', display: 'block' }} />
                   <div style={{ color: '#fff', fontWeight: 600, marginBottom: 4 }}>גרור קובץ לכאן או לחץ לבחירה</div>
-                  <div style={{ color: 'var(--v2-gray-400)', fontSize: 13 }}>תומך ב-CSV ו-Excel (.xlsx)</div>
+                  <div style={{ color: 'var(--v2-gray-400)', fontSize: 13 }}>תומך ב-CSV ו-Excel (.xlsx, .xls)</div>
                 </div>
+                {inlineError && (
+                  <div style={{
+                    display: 'flex', alignItems: 'center', gap: 10, marginTop: 16, padding: 14,
+                    background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.4)',
+                    borderRadius: 'var(--radius-md)', color: '#ef4444', fontSize: 14,
+                  }}>
+                    <XCircle size={20} style={{ flexShrink: 0 }} />
+                    {inlineError}
+                  </div>
+                )}
                 {file && (
                   <div style={{ marginTop: 16, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -320,19 +355,33 @@ export default function ImportModal({ isOpen, onClose, businessId, onImportDone 
                   </div>
                 )}
                 {(preview.stats?.invalid_phones ?? 0) > 0 && (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 20, color: '#EF4444', fontSize: 14 }}>
-                    <AlertCircle size={18} />
+                  <div style={{
+                    display: 'flex', alignItems: 'center', gap: 8, marginBottom: 20, padding: 14,
+                    background: 'rgba(245, 158, 11, 0.1)', border: '1px solid rgba(245, 158, 11, 0.4)',
+                    borderRadius: 'var(--radius-md)', color: '#f59e0b', fontSize: 14,
+                  }}>
+                    <AlertTriangle size={18} style={{ flexShrink: 0 }} />
                     יש {preview.stats?.invalid_phones} שורות עם טלפון לא תקין — יופעו קובץ שגויים לאחר הייבוא
+                  </div>
+                )}
+                {inlineError && (
+                  <div style={{
+                    display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20, padding: 14,
+                    background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.4)',
+                    borderRadius: 'var(--radius-md)', color: '#ef4444', fontSize: 14,
+                  }}>
+                    <XCircle size={20} style={{ flexShrink: 0 }} />
+                    {inlineError}
                   </div>
                 )}
                 {duplicateFileWarning && (
                   <div style={{
                     display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 20, padding: 16,
-                    background: 'rgba(245, 158, 11, 0.15)', border: '1px solid rgba(245, 158, 11, 0.5)',
-                    borderRadius: 'var(--radius-md)', color: '#F59E0B', fontSize: 14,
+                    background: 'rgba(245, 158, 11, 0.1)', border: '1px solid rgba(245, 158, 11, 0.4)',
+                    borderRadius: 'var(--radius-md)', color: '#f59e0b', fontSize: 14,
                   }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <AlertCircle size={20} />
+                      <AlertTriangle size={20} style={{ flexShrink: 0 }} />
                       {duplicateFileWarning}
                     </div>
                     <div style={{ display: 'flex', gap: 8 }}>
@@ -386,28 +435,35 @@ export default function ImportModal({ isOpen, onClose, businessId, onImportDone 
 
             {step === 4 && result && (
               <motion.div key="s4" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+                <div style={{
+                  display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20, padding: 14,
+                  background: 'var(--primary-dim, rgba(0,195,122,0.12))', border: '1px solid var(--v2-primary)',
+                  borderRadius: 'var(--radius-md)', color: 'var(--v2-primary)', fontSize: 14,
+                }}>
+                  <Check size={20} style={{ flexShrink: 0 }} />
+                  הקובץ יובא בהצלחה
+                </div>
                 <div style={{ textAlign: 'center', marginBottom: 24 }}>
-                  <div style={{
-                    width: 64, height: 64, borderRadius: '50%', background: 'rgba(0,195,122,0.2)', border: '2px solid var(--v2-primary)',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px',
-                  }}>
-                    <Check size={32} style={{ color: 'var(--v2-primary)' }} />
-                  </div>
-                  <h3 style={{ fontSize: 20, fontWeight: 800, color: '#fff', marginBottom: 8 }}>הייבוא הושלם</h3>
+                  <h3 style={{ fontSize: 20, fontWeight: 800, color: '#fff', marginBottom: 12 }}>הייבוא הושלם</h3>
                   <p style={{ color: 'var(--v2-gray-400)' }}>{result.new_rows} לקוחות חדשים נוספו</p>
                   <p style={{ color: 'var(--v2-gray-400)' }}>{result.updated_rows} לקוחות עודכנו</p>
                   {(result.duplicate_rows ?? 0) > 0 && (
                     <p style={{ color: '#F59E0B' }}>{result.duplicate_rows} שורות כפולות דולגו</p>
                   )}
                   {result.error_rows > 0 && (
-                    <div style={{ marginTop: 12 }}>
-                      <p style={{ color: '#EF4444' }}>{result.error_rows} שורות לא יובאו</p>
+                    <div style={{
+                      display: 'flex', alignItems: 'center', gap: 8, marginTop: 12, padding: 12,
+                      background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.4)',
+                      borderRadius: 'var(--radius-md)', color: '#ef4444', fontSize: 14,
+                    }}>
+                      <XCircle size={18} style={{ flexShrink: 0 }} />
+                      <span>{result.error_rows} שורות לא יובאו</span>
                       <button
                         onClick={downloadErrors}
                         style={{
                           display: 'inline-flex', alignItems: 'center', gap: 8, marginTop: 8,
-                          padding: '8px 16px', background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.3)',
-                          borderRadius: 'var(--radius-md)', color: '#EF4444', fontWeight: 600, cursor: 'pointer',
+                          padding: '8px 16px', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.4)',
+                          borderRadius: 'var(--radius-md)', color: '#ef4444', fontWeight: 600, cursor: 'pointer',
                         }}
                       >
                         <Download size={16} /> הורד קובץ שגויים
