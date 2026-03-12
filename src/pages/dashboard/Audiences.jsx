@@ -506,15 +506,14 @@ export default function Audiences() {
             flex-direction: column !important;
             align-items: center !important;
             justify-content: center !important;
-            padding: 5px 4px !important;
+            padding: 10px 6px !important;
             text-align: center !important;
             position: relative !important;
             min-width: unset !important;
             white-space: unset !important;
-            font-size: 11px !important;
+            max-width: 52px !important;
+            justify-self: center !important;
           }
-          .segment-chip svg { width: 12px !important; height: 12px !important; }
-          .segment-chip .segment-chip-tooltip { width: 14px !important; height: 14px !important; font-size: 9px !important; top: 4px !important; left: 4px !important; }
           .audience-search-row {
             display: grid !important;
             grid-template-columns: 1fr auto !important;
@@ -541,21 +540,18 @@ export default function Audiences() {
           }
           .audience-search-row-2-tags {
             grid-row: 2;
-            grid-column: 1;
+            grid-column: 1 / -1;
             justify-self: end;
             display: flex !important;
             gap: 6px !important;
             flex-wrap: wrap !important;
           }
-          .audience-search-row-2-sort {
-            grid-row: 2;
-            grid-column: 2;
-            justify-self: start;
-          }
           .audience-search-row-3 {
             grid-row: 3;
-            grid-column: 1;
-            justify-self: end;
+            grid-column: 1 / -1;
+            display: flex !important;
+            justify-content: space-between !important;
+            align-items: center !important;
           }
           .audience-actions {
             position: fixed;
@@ -723,17 +719,19 @@ export default function Audiences() {
               <input placeholder="🔍 חפש לפי שם או טלפון..." className="form-input input" style={{ flex: 1, minWidth: 180, fontSize: '13px' }} value={search} onChange={e => { setSearch(e.target.value); setPage(1) }} />
               <button className={activeTag === 'הכל' ? 'btn-primary' : 'btn-ghost'} onClick={() => setActiveTag('הכל')}>הכל</button>
             </div>
-            <div className="audience-search-row-3" style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>{loading ? 'טוען...' : <><strong style={{ color: 'var(--v2-primary)' }}>{filtered.length}</strong> לקוחות</>}</div>
             <div className="audience-search-row-2-tags" style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
               {ALL_TAGS.filter(t => t !== 'הכל').map(tag => (
                 <button key={tag} onClick={() => { setActiveTag(tag); setPage(1) }} style={{ padding: '6px 12px', borderRadius: 'var(--radius-full)', fontSize: 12, background: activeTag === tag ? 'var(--v2-primary)' : 'rgba(255,255,255,0.04)', color: activeTag === tag ? 'var(--v2-dark)' : 'var(--v2-gray-400)', border: 'none', cursor: 'pointer' }}>{tag}</button>
               ))}
             </div>
-            <select className="input audience-search-row-2-sort" style={{ width: 'auto' }} value={sortBy} onChange={e => setSortBy(e.target.value)}>
+            <div className="audience-search-row-3">
+              <div className="audience-search-row-3-count" style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>{loading ? 'טוען...' : <><strong style={{ color: 'var(--v2-primary)' }}>{filtered.length}</strong> לקוחות</>}</div>
+              <select className="input audience-search-row-3-sort" style={{ width: 'auto' }} value={sortBy} onChange={e => setSortBy(e.target.value)}>
               <option value="score">מיין: ציון</option>
               <option value="campaigns">מיין: קמפיינים</option>
               <option value="name">מיין: שם</option>
             </select>
+            </div>
           </div>
         </div>
 
