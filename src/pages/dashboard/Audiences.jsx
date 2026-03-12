@@ -768,38 +768,54 @@ export default function Audiences() {
       {activeSegment === 'by_campaign' && (
         <div className="glass-card" style={{ padding: '12px', marginBottom: '12px' }}>
           <input placeholder="🔍 חפש קמפיין..." className="form-input input" style={{ marginBottom: '8px' }} value={campaignSearch} onChange={e => setCampaignSearch(e.target.value)} />
-          <select className="form-input input" style={{ marginBottom: '10px' }} value={selectedCampaign} onChange={e => setSelectedCampaign(e.target.value)}>
-            <option value="">בחר קמפיין...</option>
+          <div style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '8px' }}>
+            {!selectedCampaign ? 'בחר קמפיין' : (campaigns.find(c => c.id === selectedCampaign)?.name || (campaigns.find(c => c.id === selectedCampaign)?.message || '').substring(0, 40) || 'קמפיין נבחר')}
+          </div>
+          <div style={{ maxHeight: 180, overflowY: 'auto', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)', background: 'var(--card)', padding: '4px 0' }}>
             {Array.isArray(campaigns)
               ? campaigns.filter(c => !campaignSearch || (c.name && c.name.includes(campaignSearch)) || (c.message && c.message.includes(campaignSearch))).map(c => (
-                <option key={c.id} value={c.id}>{c.name || (c.message || '').substring(0, 40)} — {new Date(c.sent_at || c.created_at).toLocaleDateString('he-IL')}</option>
+                <label key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', cursor: 'pointer', color: 'var(--text)' }}>
+                  <input type="radio" name="campaignSelect" checked={selectedCampaign === c.id} onChange={() => setSelectedCampaign(selectedCampaign === c.id ? '' : c.id)} />
+                  <span>{c.name || (c.message || '').substring(0, 40)} — {new Date(c.sent_at || c.created_at).toLocaleDateString('he-IL')}</span>
+                </label>
               ))
               : null}
-          </select>
-          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-            {[
-              { val: 'all', label: 'הכל' },
-              { val: 'received', label: 'קיבלו' },
-              { val: 'clicked', label: 'לחצו' },
-              { val: 'redeemed', label: 'מימשו' },
-              { val: 'not_received', label: 'לא קיבלו' },
-            ].map(f => (
-              <label key={f.val} style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '13px', cursor: 'pointer' }}>
-                <input type="radio" name="campaignFilter" value={f.val} checked={campaignFilter === f.val} onChange={() => setCampaignFilter(f.val)} />
-                {f.label}
-              </label>
-            ))}
           </div>
           {selectedCampaign && (
-            <button className="btn-primary" style={{ marginTop: '10px', fontSize: '13px' }} onClick={async () => {
+            <>
+              <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '10px', marginBottom: '6px' }}>סינון:</div>
+              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '8px' }}>
+                {[
+                  { val: 'all', label: 'הכל' },
+                  { val: 'received', label: 'קיבלו' },
+                  { val: 'clicked', label: 'לחצו' },
+                  { val: 'redeemed', label: 'מימשו' },
+                  { val: 'not_received', label: 'לא קיבלו' },
+                ].map(f => (
+                  <button
+                    key={f.val}
+                    type="button"
+                    style={{ padding: '6px 12px', borderRadius: 'var(--radius-full)', fontSize: 12, background: campaignFilter === f.val ? 'var(--v2-primary)' : 'rgba(255,255,255,0.04)', color: campaignFilter === f.val ? 'var(--v2-dark)' : 'var(--v2-gray-400)', border: 'none', cursor: 'pointer' }}
+                    onClick={() => setCampaignFilter(f.val)}
+                  >
+                    {f.label}
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
+          <div style={{ display: 'flex', gap: '8px', marginTop: '8px', flexWrap: 'wrap' }}>
+            <button className="btn-ghost" style={{ fontSize: '12px' }} onClick={() => setSelectedCampaign('')}>נקה הכל</button>
+            <button className="btn-primary" onClick={async () => {
+              if (!selectedCampaign) return
               setLoading(true)
               const r = await fetch(`${API_BASE}/api/admin/segments/ai`, { method: 'POST', headers: h(), body: JSON.stringify({ query: `קמפיין ${selectedCampaign} סינון ${campaignFilter}`, campaignId: selectedCampaign, campaignFilter }) })
               const d = r.ok ? await r.json() : {}
               setRecipients(d?.recipients || [])
               setPage(1)
               setLoading(false)
-            }}>הצג לקוחות</button>
-          )}
+            }} disabled={loading || !selectedCampaign}>{loading ? '...' : 'הצג לקוחות'}</button>
+          </div>
         </div>
       )}
 
