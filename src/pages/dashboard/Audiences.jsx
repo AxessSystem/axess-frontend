@@ -27,19 +27,27 @@ const SEGMENT_ICONS = {
   by_event: Calendar,
 }
 
+const CATEGORIES = [
+  { id: 'all_cat', label: 'הכל' },
+  { id: 'engagement', label: 'מעורבות' },
+  { id: 'value', label: 'ערך' },
+  { id: 'data', label: 'דאטה שלי' },
+  { id: 'saved', label: 'שמורים' },
+]
+
 const PRESET_SEGMENTS = [
-  { id: 'all', name: 'הכל', description: 'כל הלקוחות הפעילים במערכת' },
-  { id: 'vip', name: 'VIP', description: 'לקוחות עם engagement מעל 75 שהוציאו מעל ₪500' },
-  { id: 'loyal', name: 'חוזרים', description: 'לקוחות שביקרו 2+ פעמים ופעילים ב-60 יום האחרונים' },
-  { id: 'new', name: 'חדשים', description: 'הצטרפו ב-30 יום האחרונים' },
-  { id: 'checkin', name: "ביצעו צ'ק-אין", description: "לקוחות שביצעו צ'ק-אין — מהחדש לישן" },
-  { id: 'live', name: 'לקוחות לייב', description: "ביצעו צ'ק-אין בטווח שעות מוגדר (ברירת מחדל: 3 שעות)" },
-  { id: 'scanned', name: 'נסרקו', description: 'לקוחות שנסרקו דרך Scan Station' },
-  { id: 'at_risk', name: 'בסיכון נטישה', description: 'לא פעילים 90+ יום אך היו פעילים בעבר' },
-  { id: 'validator', name: 'Validator (מימושים/קופונים)', description: 'לקוחות שמימשו לפחות ולידטור אחד' },
-  { id: 'birthday', name: 'ימי הולדת החודש', description: 'לקוחות עם יומולדת ב-30 הימים הקרובים' },
-  { id: 'by_campaign', name: 'לפי קמפיין', description: 'סינון לקוחות לפי קמפיין ספציפי' },
-  { id: 'by_event', name: 'לפי אירוע', description: 'סינון לקוחות לפי אירוע ספציפי שהשתתפו בו' },
+  { id: 'all', name: 'הכל', description: 'כל הלקוחות הפעילים במערכת', dataSource: 'both', category: 'all_cat' },
+  { id: 'vip', name: 'VIP', description: 'לקוחות עם engagement מעל 75 שהוציאו מעל ₪500', dataSource: 'historical', category: 'value' },
+  { id: 'loyal', name: 'חוזרים', description: 'לקוחות שביקרו 2+ פעמים ופעילים ב-60 יום האחרונים', dataSource: 'historical', category: 'value' },
+  { id: 'new', name: 'חדשים', description: 'הצטרפו ב-30 יום האחרונים', dataSource: 'both', category: 'value' },
+  { id: 'checkin', name: "ביצעו צ'ק-אין", description: "לקוחות שביצעו צ'ק-אין — מהחדש לישן", dataSource: 'native', category: 'engagement' },
+  { id: 'live', name: 'לקוחות לייב', description: "ביצעו צ'ק-אין בטווח שעות מוגדר (ברירת מחדל: 3 שעות)", dataSource: 'native', category: 'engagement' },
+  { id: 'scanned', name: 'נסרקו', description: 'לקוחות שנסרקו דרך Scan Station', dataSource: 'historical', category: 'data' },
+  { id: 'at_risk', name: 'בסיכון נטישה', description: 'לא פעילים 90+ יום אך היו פעילים בעבר', dataSource: 'historical', category: 'value' },
+  { id: 'validator', name: 'Validator (מימושים/קופונים)', description: 'לקוחות שמימשו לפחות ולידטור אחד', dataSource: 'native', category: 'engagement' },
+  { id: 'birthday', name: 'ימי הולדת החודש', description: 'לקוחות עם יומולדת ב-30 הימים הקרובים', dataSource: 'both', category: 'data' },
+  { id: 'by_campaign', name: 'לפי קמפיין', description: 'סינון לקוחות לפי קמפיין ספציפי', dataSource: 'native', category: 'engagement' },
+  { id: 'by_event', name: 'לפי אירוע', description: 'סינון לקוחות לפי אירוע ספציפי שהשתתפו בו', dataSource: 'historical', category: 'data' },
 ]
 
 function CustomerProfileDrawer({ open, onClose, masterRecipientId, businessId, onTagUpdate }) {
@@ -319,6 +327,7 @@ export default function Audiences() {
   const { session, businessId } = useAuth()
 
   const [activeSegment, setActiveSegment] = useState('all')
+  const [activeCategory, setActiveCategory] = useState('all_cat')
   const [selectedSegments, setSelectedSegments] = useState([])
   const [recipients, setRecipients] = useState([])
   const [segments, setSegments] = useState({ presets: PRESET_SEGMENTS, saved: [] })
@@ -395,14 +404,24 @@ export default function Audiences() {
     }
     if (segment.id === 'by_campaign' || segment.id === 'by_event') return
     setLoading(true)
-    const wc = getWhereClause(segment.id)
-    const r = await fetch(`${API_BASE}/api/admin/segments/ai`, {
-      method: 'POST',
-      headers: h(),
-      body: JSON.stringify({ query: segment.name, whereClause: wc }),
-    })
-    const data = r.ok ? await r.json() : {}
-    setRecipients(data?.recipients || [])
+    if (segment.id === 'scanned') {
+      const r = await fetch(`${API_BASE}/api/admin/segments/historical`, {
+        method: 'POST',
+        headers: h(),
+        body: JSON.stringify({ filter: 'scanned', business_id: businessId }),
+      })
+      const data = r.ok ? await r.json() : {}
+      setRecipients(data?.recipients || [])
+    } else {
+      const wc = getWhereClause(segment.id)
+      const r = await fetch(`${API_BASE}/api/admin/segments/ai`, {
+        method: 'POST',
+        headers: h(),
+        body: JSON.stringify({ query: segment.name, whereClause: wc }),
+      })
+      const data = r.ok ? await r.json() : {}
+      setRecipients(data?.recipients || [])
+    }
     setPage(1)
     setLoading(false)
   }
@@ -585,11 +604,70 @@ export default function Audiences() {
             gap: 8px;
             flex-wrap: wrap;
           }
+          .segment-categories {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+          }
+        }
+        .segment-categories {
+          display: flex;
+          gap: 8px;
+          padding-bottom: 12px;
+          margin-bottom: 8px;
+        }
+        .category-btn {
+          flex-shrink: 0;
+          padding: 8px 16px;
+          border-radius: var(--radius-md);
+          border: 1px solid var(--glass-border);
+          background: var(--v2-dark-3);
+          color: var(--v2-gray-400);
+          font-size: 13px;
+          font-weight: 600;
+          cursor: pointer;
+          transition: border-color 0.2s, color 0.2s, background 0.2s;
+        }
+        .category-btn:hover {
+          border-color: var(--v2-primary);
+          color: var(--v2-primary);
+        }
+        .category-btn.active {
+          border-color: var(--v2-primary);
+          background: rgba(0,195,122,0.12);
+          color: var(--v2-primary);
         }
       `}</style>
 
+      <div className="segment-categories">
+        {CATEGORIES.map(cat => (
+          <button
+            key={cat.id}
+            type="button"
+            className={`category-btn ${activeCategory === cat.id ? 'active' : ''}`}
+            onClick={() => setActiveCategory(cat.id)}
+          >
+            {cat.label}
+          </button>
+        ))}
+      </div>
+
+      {activeCategory === 'saved' ? (
+        segments.saved?.length > 0 ? (
+          <div style={{ marginBottom: '16px' }}>
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+              {segments.saved.map(seg => (
+                <button key={seg.id} className="btn-ghost" style={{ fontSize: '12px' }} onClick={() => runSaved(seg)}>
+                  {seg.name} ({seg.use_count || 0})
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <div style={{ fontSize: '13px', color: 'var(--v2-gray-500)', marginBottom: '16px' }}>אין סגמנטים שמורים</div>
+        )
+      ) : (
       <div className="audience-segment-chips" style={isMobile ? { gap: '8px', paddingBottom: '8px', marginBottom: '16px' } : { display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '8px', marginBottom: '16px', whiteSpace: 'nowrap' }}>
-        {PRESET_SEGMENTS.map(seg => {
+        {(activeCategory === 'all_cat' ? PRESET_SEGMENTS : PRESET_SEGMENTS.filter(s => s.category === activeCategory)).map(seg => {
           const IconComp = SEGMENT_ICONS[seg.id] || Users
           return (
             <div
@@ -613,18 +691,6 @@ export default function Audiences() {
           )
         })}
       </div>
-
-      {segments.saved?.length > 0 && (
-        <div style={{ marginBottom: '16px' }}>
-          <div style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '8px' }}>💾 סגמנטים שמורים</div>
-          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-            {segments.saved.map(seg => (
-              <button key={seg.id} className="btn-ghost" style={{ fontSize: '12px' }} onClick={() => runSaved(seg)}>
-                {seg.name} ({seg.use_count || 0})
-              </button>
-            ))}
-          </div>
-        </div>
       )}
 
       {selectedSegments.length > 0 && (
