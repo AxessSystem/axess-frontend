@@ -501,6 +501,7 @@ export default function Audiences() {
             overflow-x: unset !important;
             flex-wrap: unset !important;
             margin: 0 auto !important;
+            align-self: center !important;
           }
           .segment-chip {
             width: 117px !important;
