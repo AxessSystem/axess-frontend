@@ -352,7 +352,11 @@ export default function Audiences() {
   const [selectedCustomerId, setSelectedCustomerId] = useState(null)
   const [importOpen, setImportOpen] = useState(false)
   const [showBulkTagModal, setShowBulkTagModal] = useState(false)
+  const [bulkTagMode, setBulkTagMode] = useState('add') // 'add' | 'remove'
   const [bulkTag, setBulkTag] = useState('')
+  const [bulkTagToRemove, setBulkTagToRemove] = useState('')
+  const [showSaveSegmentModal, setShowSaveSegmentModal] = useState(false)
+  const [saveSegmentName, setSaveSegmentName] = useState('')
 
   const [liveHours, setLiveHours] = useState(3)
   const [campaigns, setCampaigns] = useState([])
@@ -483,6 +487,19 @@ export default function Audiences() {
   const paginated = filtered.slice((page - 1) * PER_PAGE, page * PER_PAGE)
 
   const ALL_TAGS = ['הכל', 'VIP', 'לקוח קבוע', 'חדש']
+
+  const canSaveAsSegment = recipients.length > 0 && (
+    activeSegment === 'by_event' ||
+    activeSegment === 'by_campaign' ||
+    !!lastWhereClause
+  )
+  const defaultSaveSegmentName = activeSegment === 'by_event'
+    ? (selectedEvents?.length ? selectedEvents.join(', ') : 'אירוע')
+    : activeSegment === 'by_campaign'
+      ? (campaigns.find(c => c.id === selectedCampaign)?.name || (campaigns.find(c => c.id === selectedCampaign)?.message || '').substring(0, 40) || 'קמפיין')
+      : lastWhereClause
+        ? (nlQuery?.substring(0, 40) || 'סגמנט AI')
+        : ''
 
   return (
     <div className="page-container" style={{ display: 'flex', flexDirection: 'column', gap: 24 }} dir="rtl">
@@ -937,45 +954,111 @@ export default function Audiences() {
             toast.success('נוסף לקמפיין')
           }}>➕ הוסף לקמפיין קיים</button>
           <ExportButton businessId={businessId} segment={activeSegment} label="📥 ייצוא CSV" />
-          <button className="btn-ghost" onClick={() => setShowBulkTagModal(true)}>🏷️ הוסף תגית לסגמנט</button>
+          <button className="btn-ghost" onClick={() => { setShowBulkTagModal(true); setBulkTagMode('add'); setBulkTag(''); setBulkTagToRemove(''); }}>🏷️ תגיות לסגמנט</button>
+          {canSaveAsSegment && (
+            <button className="btn-ghost" onClick={() => { setSaveSegmentName(defaultSaveSegmentName); setShowSaveSegmentModal(true); }}>💾 שמור כסגמנט</button>
+          )}
         </div>
       </div>
 
-      {showBulkTagModal && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 200, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }} onClick={() => setShowBulkTagModal(false)}>
-          <div className="glass-card" style={{ padding: 20, width: '100%', maxWidth: 320 }} onClick={e => e.stopPropagation()}>
-            <div style={{ fontWeight: 700, marginBottom: 12, fontSize: 16 }}>🏷️ הוסף תגית ל-{recipients.length} לקוחות</div>
+      {showSaveSegmentModal && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 200, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }} onClick={() => setShowSaveSegmentModal(false)}>
+          <div className="glass-card" style={{ padding: 20, width: '100%', maxWidth: 340 }} onClick={e => e.stopPropagation()}>
+            <div style={{ fontWeight: 700, marginBottom: 12, fontSize: 16 }}>💾 שמור כסגמנט</div>
             <input
               className="form-input input"
-              placeholder="שם התגית..."
-              value={bulkTag}
-              onChange={e => setBulkTag(e.target.value)}
+              placeholder="שם הסגמנט"
+              value={saveSegmentName}
+              onChange={e => setSaveSegmentName(e.target.value)}
               style={{ width: '100%', marginBottom: 12, padding: '10px 14px' }}
             />
             <div style={{ display: 'flex', gap: 8 }}>
-              <button className="btn-primary" style={{ flex: 1 }} onClick={async () => {
-                const ids = recipients.map(r => r.master_recipient_id || r.id).filter(Boolean)
+              <button className="btn-primary" style={{ flex: 1 }} disabled={!saveSegmentName.trim()} onClick={async () => {
                 try {
-                  const r = await fetch(`${API_BASE}/api/admin/recipients/bulk-tags`, {
+                  let body
+                  if (activeSegment === 'by_event') {
+                    body = { name: saveSegmentName.trim(), filter_type: 'by_event', filter_params: { eventTitles: selectedEvents }, recipient_count: recipients.length }
+                  } else if (activeSegment === 'by_campaign') {
+                    body = { name: saveSegmentName.trim(), filter_type: 'by_campaign', filter_params: { campaignId: selectedCampaign, campaignFilter }, recipient_count: recipients.length }
+                  } else {
+                    body = { name: saveSegmentName.trim(), whereClause: lastWhereClause, description: nlQuery, createdBy: 'ai', recipient_count: recipients.length }
+                  }
+                  const r = await fetch(`${API_BASE}/api/admin/segments`, { method: 'POST', headers: h(), body: JSON.stringify(body) })
+                  const data = await r.json().catch(() => ({}))
+                  if (!r.ok) throw new Error(data.message || data.error || `HTTP ${r.status}`)
+                  setShowSaveSegmentModal(false)
+                  setSaveSegmentName('')
+                  toast.success('הסגמנט נשמר')
+                  const segRes = await fetch(`${API_BASE}/api/admin/segments`, { headers: h() })
+                  const segData = segRes.ok ? await segRes.json() : {}
+                  setSegments(prev => ({ presets: PRESET_SEGMENTS, saved: segData?.saved || [] }))
+                } catch (e) {
+                  toast.error(e.message || 'שגיאה בשמירה')
+                }
+              }}>שמור</button>
+              <button className="btn-ghost" onClick={() => { setShowSaveSegmentModal(false); setSaveSegmentName(''); }}>ביטול</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showBulkTagModal && (() => {
+        const segmentTags = [...new Set(recipients.flatMap(r => r.tags || []))].filter(Boolean).sort()
+        return (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 200, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }} onClick={() => setShowBulkTagModal(false)}>
+          <div className="glass-card" style={{ padding: 20, width: '100%', maxWidth: 340 }} onClick={e => e.stopPropagation()}>
+            <div style={{ fontWeight: 700, marginBottom: 16, fontSize: 16 }}>🏷️ תגיות ל-{recipients.length} לקוחות</div>
+            <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+              <button type="button" onClick={() => setBulkTagMode('add')} style={{ flex: 1, padding: '8px 12px', borderRadius: 8, border: bulkTagMode === 'add' ? '2px solid var(--v2-primary)' : '1px solid var(--glass-border)', background: bulkTagMode === 'add' ? 'rgba(0,195,122,0.12)' : 'transparent', color: bulkTagMode === 'add' ? 'var(--v2-primary)' : 'var(--v2-gray-400)', fontWeight: 600, cursor: 'pointer' }}>הוסף תגית</button>
+              <button type="button" onClick={() => setBulkTagMode('remove')} style={{ flex: 1, padding: '8px 12px', borderRadius: 8, border: bulkTagMode === 'remove' ? '2px solid var(--v2-primary)' : '1px solid var(--glass-border)', background: bulkTagMode === 'remove' ? 'rgba(0,195,122,0.12)' : 'transparent', color: bulkTagMode === 'remove' ? 'var(--v2-primary)' : 'var(--v2-gray-400)', fontWeight: 600, cursor: 'pointer' }}>הסר תגית</button>
+            </div>
+            {bulkTagMode === 'add' ? (
+              <input
+                className="form-input input"
+                placeholder="שם התגית..."
+                value={bulkTag}
+                onChange={e => setBulkTag(e.target.value)}
+                style={{ width: '100%', marginBottom: 12, padding: '10px 14px' }}
+              />
+            ) : (
+              <div style={{ marginBottom: 12 }}>
+                <label style={{ fontSize: 12, color: 'var(--v2-gray-500)', marginBottom: 6, display: 'block' }}>בחר תגית להסרה</label>
+                <select className="form-input input" value={bulkTagToRemove} onChange={e => setBulkTagToRemove(e.target.value)} style={{ width: '100%', padding: '10px 14px' }}>
+                  <option value="">— בחר תגית —</option>
+                  {segmentTags.map(t => <option key={t} value={t}>{t}</option>)}
+                </select>
+                {segmentTags.length === 0 && <div style={{ fontSize: 12, color: 'var(--v2-gray-500)', marginTop: 6 }}>אין תגיות בסגמנט</div>}
+              </div>
+            )}
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button className="btn-primary" style={{ flex: 1 }} disabled={bulkTagMode === 'add' ? !bulkTag.trim() : !bulkTagToRemove} onClick={async () => {
+                const ids = recipients.map(r => r.master_recipient_id || r.id).filter(Boolean)
+                const tagVal = bulkTagMode === 'add' ? bulkTag.trim() : bulkTagToRemove
+                if (!tagVal || ids.length === 0) return
+                try {
+                  const endpoint = bulkTagMode === 'add' ? '/api/admin/recipients/bulk-tags' : '/api/admin/recipients/bulk-tags-remove'
+                  const r = await fetch(`${API_BASE}${endpoint}`, {
                     method: 'PATCH',
                     headers: h(),
-                    body: JSON.stringify({ tag: bulkTag, recipient_ids: ids, business_id: businessId }),
+                    body: JSON.stringify({ tag: tagVal, recipient_ids: ids, business_id: businessId }),
                   })
                   const data = await r.json().catch(() => ({}))
                   if (!r.ok) throw new Error(data.message || data.error || `HTTP ${r.status}`)
                   setShowBulkTagModal(false)
                   setBulkTag('')
-                  toast.success(`התגית נוספה ל-${recipients.length} לקוחות`)
+                  setBulkTagToRemove('')
+                  toast.success(bulkTagMode === 'add' ? `התגית נוספה ל-${recipients.length} לקוחות` : `התגית הוסרה מ-${recipients.length} לקוחות`)
                   fetch(`${API_BASE}/api/admin/recipients`, { headers: h() }).then(res => res.ok ? res.json() : {}).then(d => setRecipients(d?.recipients || []))
                 } catch (e) {
                   toast.error(e.message || 'שגיאה')
                 }
-              }}>החל</button>
-              <button className="btn-ghost" onClick={() => { setShowBulkTagModal(false); setBulkTag('') }}>ביטול</button>
+              }}>{bulkTagMode === 'add' ? 'הוסף' : 'הסר'}</button>
+              <button className="btn-ghost" onClick={() => { setShowBulkTagModal(false); setBulkTag(''); setBulkTagToRemove(''); }}>ביטול</button>
             </div>
           </div>
         </div>
-      )}
+        )
+      })()}
 
       <CustomerProfileDrawer open={!!selectedCustomerId} onClose={() => setSelectedCustomerId(null)} masterRecipientId={selectedCustomerId} businessId={businessId} onTagUpdate={() => fetch(`${API_BASE}/api/admin/recipients`, { headers: h() }).then(r => r.ok ? r.json() : {}).then(d => setRecipients(d?.recipients || []))} />
       <ImportModal isOpen={importOpen} onClose={() => setImportOpen(false)} businessId={businessId} onImportDone={() => { fetch(`${API_BASE}/api/admin/recipients`, { headers: h() }).then(r => r.ok ? r.json() : {}).then(d => setRecipients(d?.recipients || [])) }} />
