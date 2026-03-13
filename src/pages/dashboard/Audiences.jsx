@@ -387,21 +387,6 @@ export default function Audiences() {
     if (businessId) fetch(`${API_BASE}/api/admin/recipients/events-list?business_id=${businessId}`, { headers }).then(r => r.ok ? r.json() : {}).then(d => setEvents(d?.events || []))
   }, [session?.access_token, businessId])
 
-  const getWhereClause = (segmentId) => {
-    switch (segmentId) {
-      case 'vip': return `engagement_score > 75 AND (axess_data->>'total_spent')::numeric > 500`
-      case 'loyal': return `last_active <= 60 AND campaigns_received >= 2`
-      case 'new': return `created_at >= NOW() - INTERVAL '30 days'`
-      case 'checkin': return `last_checkin_at IS NOT NULL`
-      case 'live': return `last_checkin_at >= NOW() - INTERVAL '${liveHours} hours'`
-      case 'scanned': return `(axess_data->>'scan_count')::int > 0`
-      case 'at_risk': return `last_active > 90 AND campaigns_received >= 2`
-      case 'validator': return `redemptions > 0`
-      case 'birthday': return `EXTRACT(MONTH FROM birth_date) = EXTRACT(MONTH FROM NOW())`
-      default: return null
-    }
-  }
-
   const runPreset = async (segment) => {
     setActiveSegment(segment.id)
     if (segment.id === 'all') {
@@ -414,24 +399,15 @@ export default function Audiences() {
     }
     if (segment.id === 'by_campaign' || segment.id === 'by_event') return
     setLoading(true)
-    if (segment.id === 'scanned') {
-      const r = await fetch(`${API_BASE}/api/admin/segments/historical`, {
-        method: 'POST',
-        headers: h(),
-        body: JSON.stringify({ filter: 'scanned', business_id: businessId }),
-      })
-      const data = r.ok ? await r.json() : {}
-      setRecipients(data?.recipients || [])
-    } else {
-      const wc = getWhereClause(segment.id)
-      const r = await fetch(`${API_BASE}/api/admin/segments/ai`, {
-        method: 'POST',
-        headers: h(),
-        body: JSON.stringify({ query: segment.name, whereClause: wc }),
-      })
-      const data = r.ok ? await r.json() : {}
-      setRecipients(data?.recipients || [])
-    }
+    const payload = { filter: segment.id, business_id: businessId }
+    if (segment.id === 'live') payload.liveHours = liveHours
+    const r = await fetch(`${API_BASE}/api/admin/segments/historical`, {
+      method: 'POST',
+      headers: h(),
+      body: JSON.stringify(payload),
+    })
+    const data = r.ok ? await r.json() : {}
+    setRecipients(data?.recipients || [])
     setPage(1)
     setLoading(false)
   }
@@ -472,19 +448,16 @@ export default function Audiences() {
     if (!selectedEvents?.length || !businessId || !session?.access_token) return
     setLoading(true)
     const headers = h()
-    let merged = []
     const byPhone = {}
     for (const ev of selectedEvents) {
-      const r = await fetch(`${API_BASE}/api/admin/segments/ai`, {
+      const r = await fetch(`${API_BASE}/api/admin/segments/historical`, {
         method: 'POST',
         headers,
-        body: JSON.stringify({ query: `אירוע ${ev}`, eventTitle: ev }),
+        body: JSON.stringify({ filter: 'by_event', eventTitle: ev, business_id: businessId }),
       })
       const d = r.ok ? await r.json() : {}
       for (const rec of d?.recipients || []) {
-        if (rec.phone && !byPhone[rec.phone]) {
-          byPhone[rec.phone] = rec
-        }
+        if (rec.phone && !byPhone[rec.phone]) byPhone[rec.phone] = rec
       }
     }
     setRecipients(Object.values(byPhone))
@@ -809,7 +782,11 @@ export default function Audiences() {
             <button className="btn-primary" onClick={async () => {
               if (!selectedCampaign) return
               setLoading(true)
-              const r = await fetch(`${API_BASE}/api/admin/segments/ai`, { method: 'POST', headers: h(), body: JSON.stringify({ query: `קמפיין ${selectedCampaign} סינון ${campaignFilter}`, campaignId: selectedCampaign, campaignFilter }) })
+              const r = await fetch(`${API_BASE}/api/admin/segments/historical`, {
+                method: 'POST',
+                headers: h(),
+                body: JSON.stringify({ filter: 'by_campaign', campaignId: selectedCampaign, campaignFilter, business_id: businessId }),
+              })
               const d = r.ok ? await r.json() : {}
               setRecipients(d?.recipients || [])
               setPage(1)
