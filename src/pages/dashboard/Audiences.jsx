@@ -956,11 +956,17 @@ export default function Audiences() {
               <button className="btn-primary" style={{ flex: 1 }} onClick={async () => {
                 const ids = recipients.map(r => r.master_recipient_id || r.id).filter(Boolean)
                 try {
-                  await api.patchBulkTags({ tag: bulkTag, recipient_ids: ids, business_id: businessId })
+                  const r = await fetch(`${API_BASE}/api/admin/recipients/bulk-tags`, {
+                    method: 'PATCH',
+                    headers: h(),
+                    body: JSON.stringify({ tag: bulkTag, recipient_ids: ids, business_id: businessId }),
+                  })
+                  const data = await r.json().catch(() => ({}))
+                  if (!r.ok) throw new Error(data.message || data.error || `HTTP ${r.status}`)
                   setShowBulkTagModal(false)
                   setBulkTag('')
                   toast.success(`התגית נוספה ל-${recipients.length} לקוחות`)
-                  fetch(`${API_BASE}/api/admin/recipients`, { headers: h() }).then(r => r.ok ? r.json() : {}).then(d => setRecipients(d?.recipients || []))
+                  fetch(`${API_BASE}/api/admin/recipients`, { headers: h() }).then(res => res.ok ? res.json() : {}).then(d => setRecipients(d?.recipients || []))
                 } catch (e) {
                   toast.error(e.message || 'שגיאה')
                 }
