@@ -139,7 +139,6 @@ export default function ImportModal({ isOpen, onClose, businessId, onImportDone 
       setResult(data)
       setErrorCsvBase64(data.error_csv_base64 || null)
       setStep(4)
-      onImportDone?.()
     } catch (err) {
       console.error(err)
       setInlineError(err.message || 'שגיאה בייבוא')
@@ -485,7 +484,7 @@ export default function ImportModal({ isOpen, onClose, businessId, onImportDone 
                   )}
                 </div>
                 <button
-                  onClick={handleClose}
+                  onClick={() => { onImportDone?.(); handleClose(); }}
                   style={{
                     width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
                     padding: '14px 24px', background: 'var(--v2-primary)', color: 'var(--v2-dark)', border: 'none',

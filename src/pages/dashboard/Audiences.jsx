@@ -995,7 +995,7 @@ export default function Audiences() {
       )}
 
       <CustomerProfileDrawer open={!!selectedCustomerId} onClose={() => setSelectedCustomerId(null)} masterRecipientId={selectedCustomerId} businessId={businessId} onTagUpdate={() => fetch(`${API_BASE}/api/admin/recipients`, { headers: h() }).then(r => r.ok ? r.json() : {}).then(d => setRecipients(d?.recipients || []))} />
-      <ImportModal isOpen={importOpen} onClose={() => setImportOpen(false)} businessId={businessId} onImportDone={() => { setImportOpen(false); fetch(`${API_BASE}/api/admin/recipients`, { headers: h() }).then(r => r.ok ? r.json() : {}).then(d => setRecipients(d?.recipients || [])) }} />
+      <ImportModal isOpen={importOpen} onClose={() => setImportOpen(false)} businessId={businessId} onImportDone={() => { fetch(`${API_BASE}/api/admin/recipients`, { headers: h() }).then(r => r.ok ? r.json() : {}).then(d => setRecipients(d?.recipients || [])) }} />
     </div>
   )
 }
