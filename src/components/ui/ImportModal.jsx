@@ -105,7 +105,13 @@ export default function ImportModal({ isOpen, onClose, businessId, onImportDone 
     setImporting(true)
     try {
       const buf = await file.arrayBuffer()
-      const base64 = btoa(String.fromCharCode.apply(null, new Uint8Array(buf)))
+      const bytes = new Uint8Array(buf)
+      const chunkSize = 8192
+      let binary = ''
+      for (let i = 0; i < bytes.length; i += chunkSize) {
+        binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunkSize))
+      }
+      const base64 = btoa(binary)
       const res = await fetch(`${API_BASE}/api/admin/import/confirm`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
