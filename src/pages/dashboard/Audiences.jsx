@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Search, Users, Phone, Tag, X, ShoppingBag, Activity, Clock, Upload, Crown, RefreshCw, Sparkles, CheckCircle, Radio, Scan, AlertTriangle, Ticket, Cake, Send, Calendar } from 'lucide-react'
+import { Search, Users, Phone, Tag, X, ShoppingBag, Activity, Clock, Upload, Crown, RefreshCw, Sparkles, CheckCircle, Radio, Scan, AlertTriangle, Ticket, Cake, Send, Calendar, Pencil } from 'lucide-react'
 import EngagementScore from '@/components/ui/EngagementScore'
 import EmptyState from '@/components/ui/EmptyState'
 import ImportModal from '@/components/ui/ImportModal'
@@ -52,11 +52,14 @@ const PRESET_SEGMENTS = [
 
 function CustomerProfileDrawer({ open, onClose, masterRecipientId, businessId, onTagUpdate }) {
   const navigate = useNavigate()
+  const { session } = useAuth()
   const [profile, setProfile] = useState(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
   const [newTag, setNewTag] = useState('')
   const [showTagInput, setShowTagInput] = useState(false)
+  const [isEditing, setIsEditing] = useState(false)
+  const [editForm, setEditForm] = useState({ first_name: '', last_name: '', email: '', gender: '', birth_date: '', id_number: '' })
 
   const refetch = () => {
     if (masterRecipientId && businessId) {
@@ -70,11 +73,48 @@ function CustomerProfileDrawer({ open, onClose, masterRecipientId, businessId, o
     if (!open || !masterRecipientId) return
     setLoading(true)
     setError(null)
+    setIsEditing(false)
     api.getCustomerProfile(masterRecipientId, businessId || undefined)
       .then(setProfile)
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false))
   }, [open, masterRecipientId, businessId])
+
+  const startEdit = () => {
+    if (!profile) return
+    setEditForm({
+      first_name: profile.first_name || '',
+      last_name: profile.last_name || '',
+      email: profile.email || '',
+      gender: profile.gender || '',
+      birth_date: profile.birth_date ? String(profile.birth_date).slice(0, 10) : '',
+      id_number: profile.id_number || '',
+    })
+    setIsEditing(true)
+  }
+  const cancelEdit = () => setIsEditing(false)
+  const saveProfile = async () => {
+    if (!profile?.id || !businessId || !session?.access_token) return
+    const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}`, 'X-Business-Id': businessId }
+    const body = { business_id: businessId }
+    if (editForm.first_name !== undefined) body.first_name = editForm.first_name
+    if (editForm.last_name !== undefined) body.last_name = editForm.last_name
+    if (editForm.email !== undefined) body.email = editForm.email
+    if (editForm.gender !== undefined) body.gender = editForm.gender || null
+    if (editForm.birth_date !== undefined) body.birth_date = editForm.birth_date || null
+    if (editForm.id_number !== undefined) body.id_number = editForm.id_number
+    try {
+      const r = await fetch(`${API_BASE}/api/admin/recipients/${profile.id}/profile`, { method: 'PATCH', headers, body: JSON.stringify(body) })
+      const data = await r.json().catch(() => ({}))
+      if (!r.ok) throw new Error(data.message || data.error || `HTTP ${r.status}`)
+      setIsEditing(false)
+      refetch()
+      onTagUpdate?.()
+      toast.success('הפרופיל עודכן')
+    } catch (e) {
+      toast.error(e.message || 'שגיאה בעדכון')
+    }
+  }
 
   const addTag = async () => {
     if (!newTag.trim() || !profile?.id || !businessId) return
@@ -145,7 +185,12 @@ function CustomerProfileDrawer({ open, onClose, masterRecipientId, businessId, o
           <div style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 20 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
               <h2 style={{ fontFamily: "'Bricolage Grotesque','Outfit',sans-serif", fontWeight: 800, fontSize: 20, color: '#ffffff' }}>כרטיס לקוח</h2>
-              <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--v2-gray-400)', cursor: 'pointer', padding: 4 }}><X size={20} /></button>
+              <div style={{ display: 'flex', gap: 4 }}>
+                {!isEditing && (
+                  <button onClick={startEdit} style={{ background: 'none', border: 'none', color: 'var(--v2-gray-400)', cursor: 'pointer', padding: 4 }} title="עריכה"><Pencil size={18} /></button>
+                )}
+                <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--v2-gray-400)', cursor: 'pointer', padding: 4 }}><X size={20} /></button>
+              </div>
             </div>
             {loading && <div style={{ textAlign: 'center', color: 'var(--v2-gray-400)', padding: 40 }}>טוען...</div>}
             {error && <div style={{ textAlign: 'center', color: '#EF4444', padding: 40 }}>{error}</div>}
@@ -160,8 +205,17 @@ function CustomerProfileDrawer({ open, onClose, masterRecipientId, businessId, o
                     {profile.avatar_url ? <img src={profile.avatar_url} alt="" style={{ width: '100%', height: '100%', borderRadius: 'inherit', objectFit: 'cover' }} /> : initials}
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 18, fontWeight: 700, color: '#ffffff' }}>{fullName}</div>
-                    <div style={{ fontSize: 14, color: 'var(--v2-gray-400)', display: 'flex', alignItems: 'center', gap: 6, marginTop: 4 }}><Phone size={14} /> <span dir="ltr">{profile.phone || '—'}</span></div>
+                    {isEditing ? (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                        <input className="form-input input" placeholder="שם פרטי" value={editForm.first_name} onChange={e => setEditForm(f => ({ ...f, first_name: e.target.value }))} style={{ fontSize: 14, background: 'var(--v2-dark-2)', border: '1px solid var(--glass-border)', color: '#fff', padding: '8px 12px', borderRadius: 8 }} />
+                        <input className="form-input input" placeholder="שם משפחה" value={editForm.last_name} onChange={e => setEditForm(f => ({ ...f, last_name: e.target.value }))} style={{ fontSize: 14, background: 'var(--v2-dark-2)', border: '1px solid var(--glass-border)', color: '#fff', padding: '8px 12px', borderRadius: 8 }} />
+                      </div>
+                    ) : (
+                      <>
+                        <div style={{ fontSize: 18, fontWeight: 700, color: '#ffffff' }}>{fullName}</div>
+                        <div style={{ fontSize: 14, color: 'var(--v2-gray-400)', display: 'flex', alignItems: 'center', gap: 6, marginTop: 4 }}><Phone size={14} /> <span dir="ltr">{profile.phone || '—'}</span></div>
+                      </>
+                    )}
                   </div>
                 </div>
 
@@ -171,7 +225,15 @@ function CustomerProfileDrawer({ open, onClose, masterRecipientId, businessId, o
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, fontSize: 13 }}>
                     <div>
                       <div style={{ color: 'var(--v2-gray-500)', fontSize: 11, marginBottom: 2 }}>מגדר</div>
-                      <div style={{ color: '#fff' }}>{profile.gender === 'Female' ? 'נקבה' : profile.gender === 'Male' ? 'זכר' : 'לא צוין'}</div>
+                      {isEditing ? (
+                        <select className="form-input input" value={editForm.gender} onChange={e => setEditForm(f => ({ ...f, gender: e.target.value }))} style={{ width: '100%', fontSize: 13, background: 'var(--v2-dark-2)', border: '1px solid var(--glass-border)', color: '#fff', padding: '8px 12px', borderRadius: 8 }}>
+                          <option value="">לא צוין</option>
+                          <option value="Male">זכר</option>
+                          <option value="Female">נקבה</option>
+                        </select>
+                      ) : (
+                        <div style={{ color: '#fff' }}>{profile.gender === 'Female' ? 'נקבה' : profile.gender === 'Male' ? 'זכר' : 'לא צוין'}</div>
+                      )}
                     </div>
                     <div>
                       <div style={{ color: 'var(--v2-gray-500)', fontSize: 11, marginBottom: 2 }}>גיל</div>
@@ -179,14 +241,28 @@ function CustomerProfileDrawer({ open, onClose, masterRecipientId, businessId, o
                     </div>
                     <div style={{ gridColumn: '1 / -1' }}>
                       <div style={{ color: 'var(--v2-gray-500)', fontSize: 11, marginBottom: 2 }}>אימייל</div>
-                      <div style={{ color: '#fff', fontSize: 12, wordBreak: 'break-all' }}>{profile.email || 'לא צוין'}</div>
+                      {isEditing ? (
+                        <input type="email" className="form-input input" placeholder="אימייל" value={editForm.email} onChange={e => setEditForm(f => ({ ...f, email: e.target.value }))} style={{ width: '100%', fontSize: 12, background: 'var(--v2-dark-2)', border: '1px solid var(--glass-border)', color: '#fff', padding: '8px 12px', borderRadius: 8 }} />
+                      ) : (
+                        <div style={{ color: '#fff', fontSize: 12, wordBreak: 'break-all' }}>{profile.email || 'לא צוין'}</div>
+                      )}
                     </div>
-                    {profile.id_number && (
-                      <div>
-                        <div style={{ color: 'var(--v2-gray-500)', fontSize: 11, marginBottom: 2 }}>ת.ז</div>
-                        <div style={{ color: '#fff' }}>{profile.id_number}</div>
-                      </div>
-                    )}
+                    <div>
+                      <div style={{ color: 'var(--v2-gray-500)', fontSize: 11, marginBottom: 2 }}>תאריך לידה</div>
+                      {isEditing ? (
+                        <input type="date" className="form-input input" value={editForm.birth_date} onChange={e => setEditForm(f => ({ ...f, birth_date: e.target.value }))} style={{ width: '100%', fontSize: 13, background: 'var(--v2-dark-2)', border: '1px solid var(--glass-border)', color: '#fff', padding: '8px 12px', borderRadius: 8 }} />
+                      ) : (
+                        <div style={{ color: '#fff' }}>{profile.birth_date ? new Date(profile.birth_date).toLocaleDateString('he-IL') : 'לא צוין'}</div>
+                      )}
+                    </div>
+                    <div>
+                      <div style={{ color: 'var(--v2-gray-500)', fontSize: 11, marginBottom: 2 }}>ת.ז</div>
+                      {isEditing ? (
+                        <input className="form-input input" placeholder="תעודת זהות" value={editForm.id_number} onChange={e => setEditForm(f => ({ ...f, id_number: e.target.value }))} style={{ width: '100%', fontSize: 13, background: 'var(--v2-dark-2)', border: '1px solid var(--glass-border)', color: '#fff', padding: '8px 12px', borderRadius: 8 }} />
+                      ) : (
+                        <div style={{ color: '#fff' }}>{profile.id_number || 'לא צוין'}</div>
+                      )}
+                    </div>
                     {profile.custom_data?.subscribed && (
                       <div>
                         <div style={{ color: 'var(--v2-gray-500)', fontSize: 11, marginBottom: 2 }}>מנוי לדיוור</div>
@@ -200,6 +276,12 @@ function CustomerProfileDrawer({ open, onClose, masterRecipientId, businessId, o
                       </div>
                     )}
                   </div>
+                  {isEditing && (
+                    <div style={{ display: 'flex', gap: 8, marginTop: 16, paddingTop: 16, borderTop: '1px solid var(--glass-border)' }}>
+                      <button onClick={saveProfile} style={{ flex: 1, padding: '10px 16px', background: 'var(--v2-primary)', color: 'var(--v2-dark)', border: 'none', borderRadius: 8, fontWeight: 600, cursor: 'pointer' }}>שמור</button>
+                      <button onClick={cancelEdit} style={{ padding: '10px 16px', background: 'transparent', color: 'var(--v2-gray-400)', border: '1px solid var(--glass-border)', borderRadius: 8, cursor: 'pointer' }}>ביטול</button>
+                    </div>
+                  )}
                 </div>
 
                 {/* שכבה 2 — מונים Customer 360 */}
