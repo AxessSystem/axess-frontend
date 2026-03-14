@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '@/contexts/AuthContext'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
@@ -152,10 +152,12 @@ function StepUpload({ onNext, data, setData, businessId }) {
 
 /* ── Step 2: Recipients ── */
 function StepRecipients({ onNext, onPrev, data, setData }) {
+  const preselected = data.preselectedRecipients || []
+  const allRecipients = [...preselected, ...MOCK_RECIPIENTS.filter(r => !preselected.some(p => p.phone === r.phone))]
   const [filter, setFilter] = useState('')
-  const [selected, setSelected] = useState(new Set(MOCK_RECIPIENTS.map(r => r.id)))
+  const [selected, setSelected] = useState(() => new Set([...preselected.map(r => r.id), ...MOCK_RECIPIENTS.map(r => r.id)]))
 
-  const filtered = MOCK_RECIPIENTS.filter(r =>
+  const filtered = allRecipients.filter(r =>
     r.name.includes(filter) || r.phone.includes(filter) || r.tags.some(t => t.includes(filter))
   )
 
@@ -221,7 +223,7 @@ function StepRecipients({ onNext, onPrev, data, setData }) {
         <button
           onClick={() => {
             const ids = [...selected]
-            const phones = MOCK_RECIPIENTS.filter(r => selected.has(r.id)).map(r => r.phone)
+            const phones = allRecipients.filter(r => selected.has(r.id)).map(r => r.phone)
             setData(d => ({ ...d, selectedRecipientIds: ids, selectedRecipientPhones: phones }))
             onNext()
           }}
@@ -722,13 +724,29 @@ function StepSummary({ onPrev, data, onSubmit, selectedEvent, businessId, authHe
 /* ── Main Wizard ── */
 export default function NewCampaign() {
   const navigate = useNavigate()
+  const location = useLocation()
   const { session, businessId } = useAuth()
   const [step, setStep] = useState(1)
   const [data, setData] = useState({ scheduleType: 'now', validatorEnabled: false })
   const effectiveBusinessId = businessId
   const [events, setEvents] = useState([])
 
+  const processedPreselected = useRef(false)
   useEffect(() => {
+    const preselected = location.state?.preselectedRecipient
+    if (preselected?.phone && !processedPreselected.current) {
+      processedPreselected.current = true
+      const rec = { id: 'preselected-' + preselected.phone, phone: preselected.phone, name: preselected.name || preselected.phone, tags: [], score: 0 }
+      setData(d => ({
+        ...d,
+        preselectedRecipients: [rec],
+        selectedRecipientPhones: [preselected.phone],
+        recipientCount: 1,
+      }))
+      setStep(2)
+      navigate(location.pathname, { replace: true, state: {} })
+      return
+    }
     const savedPhones = sessionStorage.getItem('campaign_recipients')
     const savedSegmentName = sessionStorage.getItem('campaign_segment_name')
     if (savedPhones) {

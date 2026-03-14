@@ -397,11 +397,14 @@ function CustomerProfileDrawer({ open, onClose, masterRecipientId, businessId, o
                 {/* כפתורי פעולה */}
                 <div style={{ paddingTop: 16, borderTop: '1px solid var(--glass-border)', display: 'flex', gap: 8 }}>
                   <button style={{ flex: 1, padding: '12px 16px', background: 'var(--v2-primary)', color: 'var(--v2-dark)', border: 'none', borderRadius: 8, fontWeight: 600, cursor: 'pointer' }}
-                    onClick={() => { sessionStorage.setItem('campaign_recipients', JSON.stringify([profile.phone])); navigate('/dashboard/new-campaign'); }}>
+                    onClick={() => {
+                      const name = [profile.first_name, profile.last_name].filter(Boolean).join(' ').trim() || '—'
+                      navigate('/dashboard/new-campaign', { state: { preselectedRecipient: { phone: profile.phone, name } } })
+                    }}>
                     📱 שלח SMS
                   </button>
                   <button style={{ padding: '12px 16px', background: 'transparent', color: 'var(--v2-gray-400)', border: '1px solid var(--glass-border)', borderRadius: 8, cursor: 'pointer' }}
-                    onClick={() => navigate('/dashboard/inbox')}>
+                    onClick={() => navigate('/dashboard/inbox', { state: { openConversation: profile.phone } })}>
                     💬 אינבוקס
                   </button>
                 </div>

@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
+import { useLocation } from "react-router-dom";
 import {
   MessageSquare, Send, Check, CheckCheck,
   ChevronDown, ChevronUp, RefreshCw,
@@ -144,8 +145,8 @@ function MessageRow({ msg, onMarkRead, onReplySent, apiFetch }) {
   );
 }
 
-function CampaignGroup({ group, onMarkAllRead, onRefresh, apiFetch }) {
-  const [open, setOpen] = useState(true);
+function CampaignGroup({ group, onMarkAllRead, onRefresh, apiFetch, initialOpen }) {
+  const [open, setOpen] = useState(initialOpen !== false);
   const [localUnread, setLocalUnread] = useState(group.unread);
 
   const handleMarkAllRead = async () => {
@@ -194,6 +195,8 @@ function CampaignGroup({ group, onMarkAllRead, onRefresh, apiFetch }) {
 
 export default function Inbox({ onUnreadChange }) {
   const { session, businessId } = useAuth();
+  const location = useLocation();
+  const openConversationPhone = location.state?.openConversation;
   console.log('AUTH DEBUG:', { accessToken: session?.access_token ? 'exists' : 'missing', businessId });
   const [data, setData] = useState(null);
   const [dataLoading, setDataLoading] = useState(true);
@@ -364,15 +367,20 @@ export default function Inbox({ onUnreadChange }) {
         ) : filteredCampaigns.length === 0 ? (
           <EmptyInbox />
         ) : (
-          filteredCampaigns.map((group) => (
-            <CampaignGroup
-              key={group.campaign_id || "no_campaign"}
-              group={group}
-              onMarkAllRead={() => load(true)}
-              onRefresh={() => load(true)}
-              apiFetch={apiFetch}
-            />
-          ))
+          filteredCampaigns.map((group) => {
+            const hasOpenConversation = openConversationPhone && group.messages?.some((m) => String(m.from_phone || "").replace(/\D/g, "") === String(openConversationPhone || "").replace(/\D/g, ""));
+            const initialOpen = openConversationPhone ? !!hasOpenConversation : true;
+            return (
+              <CampaignGroup
+                key={group.campaign_id || "no_campaign"}
+                group={group}
+                onMarkAllRead={() => load(true)}
+                onRefresh={() => load(true)}
+                apiFetch={apiFetch}
+                initialOpen={initialOpen}
+              />
+            );
+          })
         )}
       </div>
     </>
