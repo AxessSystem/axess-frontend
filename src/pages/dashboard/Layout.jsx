@@ -417,7 +417,7 @@ export default function DashboardClientLayout() {
   useEffect(() => {
     if (!session?.access_token || !businessId) return
     const fetchInboxUnread = () => {
-      fetch(`${API_BASE}/api/sms/inbox/unread-count`, {
+      fetch(`${API_BASE}/api/inbox/unread-count`, {
         headers: { Authorization: `Bearer ${session.access_token}`, 'X-Business-Id': businessId },
       })
         .then(r => r.json())
