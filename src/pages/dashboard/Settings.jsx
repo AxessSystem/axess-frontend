@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import toast from 'react-hot-toast'
 import { motion } from 'framer-motion'
-import { Save, Building, Building2, MessageSquare, CreditCard, Bell, Wallet, User, Link2, Store, Calendar, LayoutGrid, Grid3X3, Megaphone, QrCode, Send, Users, UsersRound, ClipboardList, MessageCircle } from 'lucide-react'
+import { Save, Building, Building2, MessageSquare, CreditCard, Bell, Wallet, User, Link2, Store, Calendar, LayoutGrid, Grid3X3, Megaphone, QrCode, Send, Users, UsersRound, ClipboardList, MessageCircle, MessageCircleMore, FileText, GitBranch, Eye, RefreshCw, Plus, X } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 
 const API_BASE = import.meta.env.VITE_API_URL || 'https://axess-production.up.railway.app'
@@ -53,6 +53,7 @@ const TABS = [
   { id: 'business',      label: 'פרטי עסק',   icon: Building2 },
   { id: 'businesstype',  label: 'סוג עסק',    icon: Store },
   { id: 'sms',           label: 'הגדרות SMS', icon: MessageSquare },
+  { id: 'whatsapp',      label: 'WhatsApp Business', icon: MessageCircleMore },
   { id: 'links',         label: 'לינקים',     icon: Link2 },
   { id: 'payments',      label: 'תשלומים',    icon: Wallet },
   { id: 'billing',       label: 'חיוב',       icon: CreditCard },
@@ -186,6 +187,195 @@ function LinksTab({ businessId }) {
             )}
           </div>
         </div>
+      )}
+    </motion.div>
+  )
+}
+
+function WhatsAppTab({ businessId, session }) {
+  const [waTab, setWaTab] = useState('account')
+  const [status, setStatus] = useState(null)
+  const [templates, setTemplates] = useState([])
+  const [rules, setRules] = useState([])
+  const [staff, setStaff] = useState([])
+  const [connectForm, setConnectForm] = useState({
+    phone_number_id: '', waba_id: '', access_token: '', business_phone_number: '', display_name: '', is_sandbox: false
+  })
+  const [connecting, setConnecting] = useState(false)
+  const [templateModal, setTemplateModal] = useState(false)
+  const [ruleModal, setRuleModal] = useState(false)
+  const [ruleForm, setRuleForm] = useState({ rule_type: 'keyword', match_value: '', channel: 'both', action: 'queue_general', target_agent_id: '', target_department: '', bot_reply_text: '', is_active: true })
+
+  const authHeaders = () => ({
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${session?.access_token}`,
+    'X-Business-Id': businessId,
+  })
+
+  useEffect(() => {
+    if (businessId && session?.access_token) {
+      fetch(`${API_BASE}/api/whatsapp/status`, { headers: authHeaders() }).then(r => r.ok ? r.json() : {}).then(setStatus).catch(() => setStatus(null))
+    }
+  }, [businessId, session?.access_token, waTab])
+
+  useEffect(() => {
+    if (waTab === 'templates' && businessId && session?.access_token) {
+      fetch(`${API_BASE}/api/whatsapp/templates`, { headers: authHeaders() }).then(r => r.ok ? r.json() : {}).then(d => setTemplates(d.templates || [])).catch(() => setTemplates([]))
+    }
+  }, [waTab, businessId, session?.access_token])
+
+  useEffect(() => {
+    if (waTab === 'rules' && businessId && session?.access_token) {
+      fetch(`${API_BASE}/api/inbox/routing-rules`, { headers: authHeaders() }).then(r => r.ok ? r.json() : {}).then(d => setRules(d.rules || [])).catch(() => setRules([]))
+      fetch(`${API_BASE}/api/staff?business_id=${businessId}`, { headers: authHeaders() }).then(r => r.ok ? r.json() : []).then(setStaff).catch(() => [])
+    }
+  }, [waTab, businessId, session?.access_token])
+
+  const handleConnect = async () => {
+    if (!connectForm.phone_number_id || !connectForm.waba_id || !connectForm.access_token) {
+      toast.error('מלא את כל השדות הנדרשים')
+      return
+    }
+    setConnecting(true)
+    try {
+      const r = await fetch(`${API_BASE}/api/whatsapp/connect`, {
+        method: 'POST', headers: authHeaders(), body: JSON.stringify({
+          phone_number_id: connectForm.phone_number_id,
+          waba_id: connectForm.waba_id,
+          access_token: connectForm.access_token,
+          business_phone_number: connectForm.business_phone_number || undefined,
+          display_name: connectForm.display_name || undefined,
+          is_sandbox: connectForm.is_sandbox,
+        }),
+      })
+      const data = await r.json()
+      if (!r.ok) throw new Error(data.error || 'שגיאה')
+      toast.success('חיבור הושלם בהצלחה')
+      setStatus({ ...status, connected: true, display_name: data.display_name, business_phone_number: data.business_phone_number })
+    } catch (e) { toast.error(e.message) }
+    finally { setConnecting(false) }
+  }
+
+  const handleDisconnect = async () => {
+    try {
+      const r = await fetch(`${API_BASE}/api/whatsapp/disconnect`, { method: 'DELETE', headers: authHeaders() })
+      if (r.ok) { setStatus(null); toast.success('החשבון נותק') }
+    } catch (e) { toast.error(e.message) }
+  }
+
+  const handleAddRule = async () => {
+    try {
+      const r = await fetch(`${API_BASE}/api/inbox/routing-rules`, {
+        method: 'POST', headers: authHeaders(), body: JSON.stringify({
+          ...ruleForm,
+          target_agent_id: ruleForm.target_agent_id || null,
+          rule_order: rules.length,
+        }),
+      })
+      const data = await r.json()
+      if (!r.ok) throw new Error(data.error || 'שגיאה')
+      setRules([...rules, data.rule])
+      setRuleModal(false)
+      setRuleForm({ rule_type: 'keyword', match_value: '', channel: 'both', action: 'queue_general', target_agent_id: '', target_department: '', bot_reply_text: '', is_active: true })
+      toast.success('כלל נוסף')
+    } catch (e) { toast.error(e.message) }
+  }
+
+  const statusBadge = (s) => {
+    if (s === 'PENDING') return <span style={{ background: '#F59E0B', color: '#000', padding: '2px 8px', borderRadius: 999, fontSize: 11 }}>ממתין</span>
+    if (s === 'APPROVED') return <span style={{ background: '#22C55E', color: '#000', padding: '2px 8px', borderRadius: 999, fontSize: 11 }}>מאושר</span>
+    if (s === 'REJECTED') return <span style={{ background: '#EF4444', color: '#fff', padding: '2px 8px', borderRadius: 999, fontSize: 11 }}>נדחה</span>
+    return null
+  }
+
+  return (
+    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} style={{ ...cardStyle, display: 'flex', flexDirection: 'column', gap: 20 }}>
+      <h2 style={sectionH2}>WhatsApp Business API</h2>
+      <div style={{ display: 'flex', gap: 8, background: 'var(--v2-dark-2)', padding: 4, borderRadius: 'var(--radius-md)', width: 'fit-content' }}>
+        {[
+          { id: 'account', label: 'חיבור חשבון', icon: MessageCircleMore },
+          { id: 'templates', label: 'תבניות', icon: FileText },
+          { id: 'rules', label: 'כללי ניתוב', icon: GitBranch },
+        ].map(t => (
+          <button key={t.id} onClick={() => setWaTab(t.id)} style={{
+            display: 'flex', alignItems: 'center', gap: 8, padding: '10px 16px', borderRadius: 8, border: 'none', background: waTab === t.id ? 'var(--v2-primary)' : 'transparent', color: waTab === t.id ? 'var(--v2-dark)' : 'var(--v2-gray-400)', fontWeight: 500, cursor: 'pointer',
+          }}>
+            <t.icon size={16} /> {t.label}
+          </button>
+        ))}
+      </div>
+
+      {waTab === 'account' && (
+        <>
+          {status?.connected ? (
+            <div style={{ padding: 16, background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.3)', borderRadius: 'var(--radius-md)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
+                <span style={{ fontSize: 24 }}>✅</span>
+                <span style={{ fontWeight: 600, color: '#22C55E' }}>מחובר</span>
+                <span style={{ color: 'var(--v2-gray-400)' }}>— {status.display_name} ({status.business_phone_number})</span>
+              </div>
+              <div style={{ fontSize: 13, color: 'var(--v2-gray-400)' }}>סשנים פעילים: {status.active_sessions_count || 0}</div>
+              <button onClick={handleDisconnect} style={{ marginTop: 12, padding: '8px 16px', background: '#EF4444', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 500 }}>נתק</button>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <div><label className="label">Phone Number ID (מ-Meta)</label><input className="input" value={connectForm.phone_number_id} onChange={e => setConnectForm(f => ({ ...f, phone_number_id: e.target.value }))} dir="ltr" /></div>
+              <div><label className="label">WABA ID</label><input className="input" value={connectForm.waba_id} onChange={e => setConnectForm(f => ({ ...f, waba_id: e.target.value }))} dir="ltr" /></div>
+              <div><label className="label">Access Token</label><input type="password" className="input" value={connectForm.access_token} onChange={e => setConnectForm(f => ({ ...f, access_token: e.target.value }))} dir="ltr" placeholder="לא יוצג שוב" /></div>
+              <div><label className="label">מספר טלפון עסקי</label><input className="input" value={connectForm.business_phone_number} onChange={e => setConnectForm(f => ({ ...f, business_phone_number: e.target.value }))} dir="ltr" placeholder="05X-XXX-XXXX" /></div>
+              <div><label className="label">Display Name</label><input className="input" value={connectForm.display_name} onChange={e => setConnectForm(f => ({ ...f, display_name: e.target.value }))} /></div>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}><input type="checkbox" checked={connectForm.is_sandbox} onChange={e => setConnectForm(f => ({ ...f, is_sandbox: e.target.checked }))} /> Sandbox</label>
+              <button onClick={handleConnect} disabled={connecting} className="btn-primary">חבר חשבון</button>
+            </div>
+          )}
+        </>
+      )}
+
+      {waTab === 'templates' && (
+        <>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+            {templates.map(t => (
+              <div key={t.id} style={{ padding: 12, background: 'var(--v2-dark-2)', borderRadius: 'var(--radius-md)', border: '1px solid var(--glass-border)', display: 'flex', alignItems: 'center', gap: 12 }}>
+                <span style={{ fontWeight: 600 }}>{t.template_name}</span>
+                {statusBadge(t.meta_status)}
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+
+      {waTab === 'rules' && (
+        <>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {rules.map(r => (
+              <div key={r.id} style={{ padding: 14, background: 'var(--v2-dark-2)', borderRadius: 'var(--radius-md)', border: '1px solid var(--glass-border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div><strong>{r.rule_type}</strong> — {r.match_value || '(ברירת מחדל)'} → {r.action}</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>{r.is_active ? <span style={{ color: '#22C55E' }}>פעיל</span> : <span style={{ color: '#94a3b8' }}>כבוי</span>}</div>
+              </div>
+            ))}
+          </div>
+          <button onClick={() => setRuleModal(true)} className="btn-primary">+ הוסף כלל</button>
+          {ruleModal && (
+            <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={() => setRuleModal(false)}>
+              <div dir="rtl" style={{ background: 'var(--v2-dark-2)', borderRadius: 'var(--radius-lg)', padding: 24, maxWidth: 420, width: '90%' }} onClick={e => e.stopPropagation()}>
+                <h3 style={{ marginBottom: 16 }}>כלל ניתוב חדש</h3>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  <div><label className="label">סוג</label><select className="input" value={ruleForm.rule_type} onChange={e => setRuleForm(f => ({ ...f, rule_type: e.target.value }))}><option value="keyword">מילת מפתח</option><option value="department">מחלקה</option><option value="phone_number">מספר ישיר</option><option value="default">ברירת מחדל</option></select></div>
+                  <div><label className="label">ערך התאמה</label><input className="input" value={ruleForm.match_value} onChange={e => setRuleForm(f => ({ ...f, match_value: e.target.value }))} placeholder="למשל: הזמנה" /></div>
+                  <div><label className="label">ערוץ</label><select className="input" value={ruleForm.channel} onChange={e => setRuleForm(f => ({ ...f, channel: e.target.value }))}><option value="both">שניהם</option><option value="sms">SMS</option><option value="whatsapp">WhatsApp</option></select></div>
+                  <div><label className="label">פעולה</label><select className="input" value={ruleForm.action} onChange={e => setRuleForm(f => ({ ...f, action: e.target.value }))}><option value="queue_general">תור כללי</option><option value="assign_agent">הקצה נציג</option><option value="assign_department">הקצה מחלקה</option><option value="bot_reply">תשובת בוט</option></select></div>
+                  {ruleForm.action === 'assign_agent' && <div><label className="label">נציג</label><select className="input" value={ruleForm.target_agent_id} onChange={e => setRuleForm(f => ({ ...f, target_agent_id: e.target.value }))}><option value="">בחר...</option>{staff.map(s => <option key={s.id} value={s.id}>#{s.role}</option>)}</select></div>}
+                  {ruleForm.action === 'assign_department' && <div><label className="label">מחלקה</label><input className="input" value={ruleForm.target_department} onChange={e => setRuleForm(f => ({ ...f, target_department: e.target.value }))} /></div>}
+                  {ruleForm.action === 'bot_reply' && <div><label className="label">טקסט בוט</label><textarea className="input" value={ruleForm.bot_reply_text} onChange={e => setRuleForm(f => ({ ...f, bot_reply_text: e.target.value }))} rows={3} /></div>}
+                </div>
+                <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
+                  <button onClick={() => setRuleModal(false)} style={{ padding: '10px 16px', background: 'transparent', border: '1px solid var(--glass-border)', color: 'var(--v2-gray-400)', borderRadius: 8, cursor: 'pointer' }}>ביטול</button>
+                  <button onClick={handleAddRule} className="btn-primary">שמור</button>
+                </div>
+              </div>
+            </div>
+          )}
+        </>
       )}
     </motion.div>
   )
@@ -422,7 +612,7 @@ function BusinessTypeTab({ businessId, config, onConfigChange }) {
 }
 
 export default function Settings() {
-  const { user, updateUser, businessId } = useAuth()
+  const { user, session, updateUser, businessId } = useAuth()
   const [activeTab, setActiveTab] = useState('account')
   const [saving, setSaving] = useState(false)
 
@@ -601,6 +791,11 @@ export default function Settings() {
           </div>
           <SaveButton saving={saving} onClick={handleSave} label="שמור שינויים" />
         </motion.div>
+      )}
+
+      {/* WhatsApp Business Tab */}
+      {activeTab === 'whatsapp' && (
+        <WhatsAppTab businessId={businessId} session={session} />
       )}
 
       {/* Links Tab */}

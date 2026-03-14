@@ -11,7 +11,7 @@ import StepIndicator from '@/components/ui/StepIndicator'
 
 const API_BASE = import.meta.env.VITE_API_URL || 'https://axess-production.up.railway.app'
 const FRONTEND_URL = import.meta.env.VITE_FRONTEND_URL || window.location.origin
-const STEPS = ['העלאה', 'נמענים', 'הודעה', 'תזמון', 'Text Lead', 'Validator', 'שליחה']
+const STEPS = ['העלאה', 'נמענים', 'ערוץ', 'הודעה', 'תזמון', 'Text Lead', 'Validator', 'שליחה']
 const MAX_CHARS = 201
 
 /* ── shared style tokens ── */
@@ -233,6 +233,48 @@ function StepRecipients({ onNext, onPrev, data, setData }) {
         >
           המשך ({selected.size}) <ChevronLeft size={16} />
         </button>
+      </div>
+    </div>
+  )
+}
+
+/* ── Step 2.5: Channel ── */
+function StepChannel({ onNext, onPrev, data, setData, waConnected }) {
+  const channel = data.channel || 'sms'
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+      <div>
+        <h2 style={S.h2}>בחר ערוץ שליחה</h2>
+        <p style={{ ...S.muted, fontSize: 14 }}>SMS, WhatsApp או שניהם</p>
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        {[
+          { value: 'sms', label: 'SMS בלבד', desc: 'שליחה דרך TextMe', icon: '📱' },
+          { value: 'whatsapp', label: 'WhatsApp בלבד', desc: 'דורש חיבור WA Business', icon: '🟢', disabled: !waConnected },
+          { value: 'both', label: 'שניהם', desc: 'SMS + WhatsApp', icon: '📲', disabled: !waConnected },
+        ].map(opt => {
+          const isActive = channel === opt.value
+          return (
+            <div key={opt.value} onClick={() => !opt.disabled && setData(d => ({ ...d, channel: opt.value }))}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 14, padding: '14px 16px',
+                borderRadius: 'var(--radius-md)', border: `2px solid ${isActive ? 'var(--v2-primary)' : 'var(--glass-border)'}`,
+                background: isActive ? 'rgba(0,195,122,0.05)' : 'rgba(255,255,255,0.02)',
+                cursor: opt.disabled ? 'not-allowed' : 'pointer', opacity: opt.disabled ? 0.6 : 1, transition: 'all 0.2s',
+              }}
+            >
+              <div style={{ fontSize: 24 }}>{opt.icon}</div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 14, fontWeight: 600, color: '#ffffff' }}>{opt.label}</div>
+                <div style={{ fontSize: 12, color: 'var(--v2-gray-400)' }}>{opt.desc}</div>
+              </div>
+            </div>
+          )
+        })}
+      </div>
+      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+        <button onClick={onPrev} className="btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: 6 }}><ChevronRight size={16} /> חזור</button>
+        <button onClick={onNext} className="btn-primary" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>המשך <ChevronLeft size={16} /></button>
       </div>
     </div>
   )
@@ -608,6 +650,9 @@ function StepSummary({ onPrev, data, onSubmit, selectedEvent, businessId, authHe
         validator_expiry: data.validatorExpiry || null,
         validator_limit: data.validatorLimit || null,
         recipient_phones: recipientPhones,
+        channel: data.channel || 'sms',
+        whatsapp_template_name: data.whatsappTemplateName || null,
+        whatsapp_template_variables: data.whatsappTemplateVars || {},
       }
       const createUrl = `${API_BASE}/api/admin/campaigns`
       const createHeaders = authHeaders()
@@ -727,9 +772,10 @@ export default function NewCampaign() {
   const location = useLocation()
   const { session, businessId } = useAuth()
   const [step, setStep] = useState(1)
-  const [data, setData] = useState({ scheduleType: 'now', validatorEnabled: false })
+  const [data, setData] = useState({ scheduleType: 'now', validatorEnabled: false, channel: 'sms' })
   const effectiveBusinessId = businessId
   const [events, setEvents] = useState([])
+  const [waConnected, setWaConnected] = useState(false)
 
   const processedPreselected = useRef(false)
   useEffect(() => {
@@ -743,7 +789,7 @@ export default function NewCampaign() {
         selectedRecipientPhones: [preselected.phone],
         recipientCount: 1,
       }))
-      setStep(2)
+      setStep(3)
       navigate(location.pathname, { replace: true, state: {} })
       return
     }
@@ -758,7 +804,7 @@ export default function NewCampaign() {
           recipientCount: phones.length,
           segmentLabel: savedSegmentName || d.segmentLabel,
         }))
-        setStep(3)
+        setStep(4)
       } catch (_) {}
       sessionStorage.removeItem('campaign_recipients')
       sessionStorage.removeItem('campaign_segment_name')
@@ -771,9 +817,10 @@ export default function NewCampaign() {
     return h
   }
   useEffect(() => { if (effectiveBusinessId) fetch(`${API_BASE}/api/admin/events?business_id=${effectiveBusinessId}`).then(r => r.ok ? r.json() : []).then(setEvents).catch(() => []) }, [effectiveBusinessId])
+  useEffect(() => { if (effectiveBusinessId && session?.access_token) fetch(`${API_BASE}/api/whatsapp/status`, { headers: { 'Authorization': `Bearer ${session.access_token}`, 'X-Business-Id': effectiveBusinessId } }).then(r => r.ok ? r.json() : {}).then(s => setWaConnected(!!s?.connected)).catch(() => setWaConnected(false)) }, [effectiveBusinessId, session?.access_token])
   const selectedEvent = data.selectedEventId ? events.find(e => e.id === data.selectedEventId) : null
 
-  const next = () => setStep(s => Math.min(s + 1, 7))
+  const next = () => setStep(s => Math.min(s + 1, 8))
   const prev = () => setStep(s => Math.max(s - 1, 1))
 
   return (
@@ -792,11 +839,12 @@ export default function NewCampaign() {
           <motion.div key={step} initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} transition={{ duration: 0.25 }}>
             {step === 1 && <StepUpload onNext={next} data={data} setData={setData} businessId={effectiveBusinessId} />}
             {step === 2 && <StepRecipients onNext={next} onPrev={prev} data={data} setData={setData} />}
-            {step === 3 && <StepMessage onNext={next} onPrev={prev} data={data} setData={setData} />}
-            {step === 4 && <StepSchedule onNext={next} onPrev={prev} data={data} setData={setData} />}
-            {step === 5 && <StepTextLead onNext={next} onPrev={prev} data={data} setData={setData} />}
-            {step === 6 && <StepValidator onNext={next} onPrev={prev} data={data} setData={setData} />}
-            {step === 7 && <StepSummary onPrev={prev} data={data} onSubmit={() => navigate('/dashboard')} selectedEvent={selectedEvent} businessId={effectiveBusinessId} authHeaders={authHeaders} />}
+            {step === 3 && <StepChannel onNext={next} onPrev={prev} data={data} setData={setData} waConnected={waConnected} />}
+            {step === 4 && <StepMessage onNext={next} onPrev={prev} data={data} setData={setData} />}
+            {step === 5 && <StepSchedule onNext={next} onPrev={prev} data={data} setData={setData} />}
+            {step === 6 && <StepTextLead onNext={next} onPrev={prev} data={data} setData={setData} />}
+            {step === 7 && <StepValidator onNext={next} onPrev={prev} data={data} setData={setData} />}
+            {step === 8 && <StepSummary onPrev={prev} data={data} onSubmit={() => navigate('/dashboard')} selectedEvent={selectedEvent} businessId={effectiveBusinessId} authHeaders={authHeaders} />}
           </motion.div>
         </AnimatePresence>
       </div>
