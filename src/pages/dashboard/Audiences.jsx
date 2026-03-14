@@ -404,7 +404,7 @@ function CustomerProfileDrawer({ open, onClose, masterRecipientId, businessId, o
                     📱 שלח SMS
                   </button>
                   <button style={{ padding: '12px 16px', background: 'transparent', color: 'var(--v2-gray-400)', border: '1px solid var(--glass-border)', borderRadius: 8, cursor: 'pointer' }}
-                    onClick={() => navigate('/dashboard/inbox', { state: { openConversation: profile.phone } })}>
+                    onClick={() => navigate('/dashboard/inbox', { state: { openConversation: profile.phone, openConversationName: fullName } })}>
                     💬 אינבוקס
                   </button>
                 </div>
