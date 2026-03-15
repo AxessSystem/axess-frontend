@@ -487,17 +487,21 @@ export default function Audiences() {
       fetch(`${API_BASE}/api/admin/recipients/events-list?business_id=${businessId}`, { headers }),
     ])
       .then(async ([rRes, sRes, cRes, eRes]) => {
+        if (!rRes.ok) console.error('[Audiences] recipients failed:', rRes.status)
+        if (!sRes.ok) console.error('[Audiences] segments failed:', sRes.status)
         const [rData, sData, cData, eData] = await Promise.all([
-          rRes.json().catch(() => ({})),
-          sRes.json().catch(() => ({})),
-          cRes.json().catch(() => ({})),
-          eRes.json().catch(() => ({})),
+          rRes.ok ? rRes.json().catch(() => ({})) : {},
+          sRes.ok ? sRes.json().catch(() => ({})) : {},
+          cRes.ok ? cRes.json().catch(() => ({})) : {},
+          eRes.ok ? eRes.json().catch(() => ({})) : {},
         ])
+        console.log('[Audiences] recipients loaded:', rData?.recipients?.length ?? 0)
         setRecipients(rData?.recipients || [])
         setSegments({ presets: PRESET_SEGMENTS, saved: sData?.saved || [] })
         setCampaigns(cData?.campaigns || cData || [])
         setEvents(eData?.events || [])
       })
+      .catch(err => console.error('[Audiences] fetch error:', err))
       .finally(() => setLoadingRecipients(false))
   }, [session?.access_token, businessId])
 

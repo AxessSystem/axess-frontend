@@ -203,6 +203,7 @@ const FLOW_TYPES = [
 function WhatsAppTab({ businessId, session }) {
   const [waTab, setWaTab] = useState('account')
   const [status, setStatus] = useState(null)
+  const [loadingWaStatus, setLoadingWaStatus] = useState(true)
   const [templates, setTemplates] = useState([])
   const [rules, setRules] = useState([])
   const [flows, setFlows] = useState([])
@@ -240,9 +241,16 @@ function WhatsAppTab({ businessId, session }) {
   })
 
   useEffect(() => {
-    if (businessId && session?.access_token) {
-      fetch(`${API_BASE}/api/whatsapp/status`, { headers: authHeaders() }).then(r => r.ok ? r.json() : {}).then(setStatus).catch(() => setStatus(null))
+    if (!businessId || !session?.access_token) {
+      setLoadingWaStatus(false)
+      return
     }
+    setLoadingWaStatus(true)
+    fetch(`${API_BASE}/api/whatsapp/status`, { headers: authHeaders() })
+      .then(r => r.ok ? r.json() : {})
+      .then(d => setStatus(d))
+      .catch(() => setStatus(null))
+      .finally(() => setLoadingWaStatus(false))
   }, [businessId, session?.access_token, waTab])
 
   useEffect(() => {
@@ -353,7 +361,15 @@ function WhatsAppTab({ businessId, session }) {
 
       {waTab === 'account' && (
         <>
-          {status?.connected ? (
+          {loadingWaStatus ? (
+            <>
+              <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: 24, color: 'var(--v2-gray-400)' }}>
+                <RefreshCw size={20} style={{ flexShrink: 0, animation: 'spin 1s linear infinite' }} />
+                <span>בודק חיבור…</span>
+              </div>
+            </>
+          ) : status?.connected ? (
             <div style={{ padding: 16, background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.3)', borderRadius: 'var(--radius-md)' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
                 <span style={{ fontSize: 24 }}>✅</span>
