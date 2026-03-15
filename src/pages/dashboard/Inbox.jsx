@@ -26,6 +26,13 @@ function formatRelative(iso) {
   return d.toLocaleDateString("he-IL", { day: "2-digit", month: "2-digit" });
 }
 
+function extractVariables(components) {
+  const body = components?.find((c) => c.type === "BODY");
+  if (!body?.text) return 0;
+  const matches = body.text.match(/\{\{(\d+)\}\}/g);
+  return matches ? Math.max(...matches.map((m) => parseInt(m.replace(/[{}]/g, ""), 10))) : 0;
+}
+
 const CHANNEL_ICON = { sms: "💬", whatsapp: "🟢" };
 const STATUS_LABELS = {
   unassigned: { label: "לא מוקצה", color: "#EF4444" },
@@ -47,6 +54,8 @@ function ChatSendPanel({
 
   const targetConvId = sendChannel === "sms" ? smsConvoId : waConvoId || convId;
   const approvedTemplates = (templates || []).filter((t) => t.meta_status === "APPROVED");
+  const selectedTemplate = approvedTemplates.find((t) => t.template_name === templateName);
+  const templateVarCount = extractVariables(selectedTemplate?.components);
 
   const handleSend = async () => {
     const useTemplate = sendChannel === "whatsapp" && !waSession && templateName;
@@ -116,9 +125,9 @@ function ChatSendPanel({
           </select>
         </div>
       )}
-      {sendChannel === "whatsapp" && !waSession && templateName && (
+      {sendChannel === "whatsapp" && !waSession && templateName && templateVarCount > 0 && (
         <div className="inbox-send-vars">
-          {[1, 2, 3].map((i) => (
+          {Array.from({ length: templateVarCount }, (_, i) => i + 1).map((i) => (
             <input
               key={i}
               placeholder={`משתנה {{${i}}}`}
@@ -336,7 +345,7 @@ export default function Inbox({ onUnreadChange }) {
 
   useEffect(() => {
     loadConversations();
-    const t = setInterval(() => loadConversations(true), 20000);
+    const t = setInterval(() => loadConversations(true), 10000);
     return () => clearInterval(t);
   }, [loadConversations]);
 
@@ -719,13 +728,18 @@ export default function Inbox({ onUnreadChange }) {
                       ))}
                     </select>
                   </div>
-                  {newMsgTemplateName && (
-                    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                      {[1, 2, 3].map((i) => (
-                        <input key={i} placeholder={`משתנה {{${i}}}`} value={newMsgTemplateVars[i] || ""} onChange={(e) => setNewMsgTemplateVars((v) => ({ ...v, [i]: e.target.value }))} style={{ padding: "8px 10px", borderRadius: 8, border: "1px solid var(--glass-border)", background: "var(--v2-dark-3)", color: "#fff" }} />
-                      ))}
-                    </div>
-                  )}
+                  {newMsgTemplateName && (() => {
+                    const t = (templates || []).find((x) => x.template_name === newMsgTemplateName);
+                    const n = extractVariables(t?.components);
+                    if (n === 0) return null;
+                    return (
+                      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                        {Array.from({ length: n }, (_, i) => i + 1).map((i) => (
+                          <input key={i} placeholder={`משתנה {{${i}}}`} value={newMsgTemplateVars[i] || ""} onChange={(e) => setNewMsgTemplateVars((v) => ({ ...v, [i]: e.target.value }))} style={{ padding: "8px 10px", borderRadius: 8, border: "1px solid var(--glass-border)", background: "var(--v2-dark-3)", color: "#fff" }} />
+                        ))}
+                      </div>
+                    );
+                  })()}
                 </>
               )}
 
