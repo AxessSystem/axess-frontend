@@ -230,6 +230,8 @@ function WhatsAppTab({ businessId, session }) {
   const [libCategory, setLibCategory] = useState('')
   const [libBusinessType, setLibBusinessType] = useState('')
   const [adoptBusy, setAdoptBusy] = useState(null)
+  const [openLibCategoryDropdown, setOpenLibCategoryDropdown] = useState(false)
+  const [openLibBusinessTypeDropdown, setOpenLibBusinessTypeDropdown] = useState(false)
 
   const authHeaders = () => ({
     'Content-Type': 'application/json',
@@ -390,27 +392,41 @@ function WhatsAppTab({ businessId, session }) {
           <h3 style={{ ...sectionH2, fontSize: 15, marginTop: 24, marginBottom: 8 }}>ספריית תבניות מוכנות</h3>
           <p style={{ color: 'var(--v2-gray-400)', fontSize: 13, marginBottom: 12 }}>בחר תבנית וצרף לעסק — התבנית תישלח לאישור Meta</p>
           <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 16 }}>
-            <div>
+            <div style={{ position: 'relative', minWidth: 160 }}>
               <label className="label" style={{ display: 'block', marginBottom: 4 }}>קטגוריה</label>
-              <select className="input" value={libCategory} onChange={e => setLibCategory(e.target.value)} style={{ minWidth: 160 }}>
-                <option value="">הכל</option>
-                <option value="UTILITY">אישורים ועדכונים (UTILITY)</option>
-                <option value="MARKETING">קמפיינים ומבצעים (MARKETING)</option>
-                <option value="AUTHENTICATION">אימות (AUTHENTICATION)</option>
-                <option value="SERVICE">שירות (SERVICE)</option>
-              </select>
+              <button type="button" onClick={() => { setOpenLibBusinessTypeDropdown(false); setOpenLibCategoryDropdown(!openLibCategoryDropdown) }} style={{ width: '100%', textAlign: 'right', padding: '8px 12px', fontSize: 13, color: 'var(--text, var(--v2-gray-300))', background: 'var(--card, var(--v2-dark-2))', border: '1px solid var(--border, var(--glass-border))', borderRadius: 'var(--radius-md)', cursor: 'pointer' }}>
+                {libCategory === '' ? 'הכל' : libCategory === 'UTILITY' ? 'אישורים ועדכונים (UTILITY)' : libCategory === 'MARKETING' ? 'קמפיינים ומבצעים (MARKETING)' : libCategory === 'AUTHENTICATION' ? 'אימות (AUTHENTICATION)' : libCategory === 'SERVICE' ? 'שירות (SERVICE)' : libCategory}
+              </button>
+              {openLibCategoryDropdown && (
+                <>
+                  <div style={{ position: 'fixed', inset: 0, zIndex: 150 }} onClick={() => setOpenLibCategoryDropdown(false)} />
+                  <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: 4, minWidth: '100%', maxHeight: 180, overflowY: 'auto', border: '1px solid var(--border, var(--glass-border))', borderRadius: 'var(--radius-md)', background: 'var(--card, var(--v2-dark-2))', padding: '4px 0', zIndex: 151, boxShadow: '0 8px 24px rgba(0,0,0,0.3)' }}>
+                    {[{ value: '', label: 'הכל' }, { value: 'UTILITY', label: 'אישורים ועדכונים (UTILITY)' }, { value: 'MARKETING', label: 'קמפיינים ומבצעים (MARKETING)' }, { value: 'AUTHENTICATION', label: 'אימות (AUTHENTICATION)' }, { value: 'SERVICE', label: 'שירות (SERVICE)' }].map(opt => (
+                      <button key={opt.value || 'all'} type="button" onClick={() => { setLibCategory(opt.value); setOpenLibCategoryDropdown(false) }} style={{ display: 'block', width: '100%', padding: '8px 12px', textAlign: 'right', border: 'none', background: 'transparent', color: 'var(--text, var(--v2-gray-300))', cursor: 'pointer', fontSize: 13 }}>
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
             </div>
-            <div>
+            <div style={{ position: 'relative', minWidth: 140 }}>
               <label className="label" style={{ display: 'block', marginBottom: 4 }}>סוג עסק</label>
-              <select className="input" value={libBusinessType} onChange={e => setLibBusinessType(e.target.value)} style={{ minWidth: 140 }}>
-                <option value="">הכל</option>
-                <option value="hotel">מלון</option>
-                <option value="restaurant">מסעדה</option>
-                <option value="events">אירועים</option>
-                <option value="retail">חנות</option>
-                <option value="gym">חדר כושר</option>
-                <option value="general">כללי</option>
-              </select>
+              <button type="button" onClick={() => { setOpenLibCategoryDropdown(false); setOpenLibBusinessTypeDropdown(!openLibBusinessTypeDropdown) }} style={{ width: '100%', textAlign: 'right', padding: '8px 12px', fontSize: 13, color: 'var(--text, var(--v2-gray-300))', background: 'var(--card, var(--v2-dark-2))', border: '1px solid var(--border, var(--glass-border))', borderRadius: 'var(--radius-md)', cursor: 'pointer' }}>
+                {libBusinessType === '' ? 'הכל' : libBusinessType === 'hotel' ? 'מלון' : libBusinessType === 'restaurant' ? 'מסעדה' : libBusinessType === 'events' ? 'אירועים' : libBusinessType === 'retail' ? 'חנות' : libBusinessType === 'gym' ? 'חדר כושר' : libBusinessType === 'general' ? 'כללי' : libBusinessType}
+              </button>
+              {openLibBusinessTypeDropdown && (
+                <>
+                  <div style={{ position: 'fixed', inset: 0, zIndex: 150 }} onClick={() => setOpenLibBusinessTypeDropdown(false)} />
+                  <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: 4, minWidth: '100%', maxHeight: 180, overflowY: 'auto', border: '1px solid var(--border, var(--glass-border))', borderRadius: 'var(--radius-md)', background: 'var(--card, var(--v2-dark-2))', padding: '4px 0', zIndex: 151, boxShadow: '0 8px 24px rgba(0,0,0,0.3)' }}>
+                    {[{ value: '', label: 'הכל' }, { value: 'hotel', label: 'מלון' }, { value: 'restaurant', label: 'מסעדה' }, { value: 'events', label: 'אירועים' }, { value: 'retail', label: 'חנות' }, { value: 'gym', label: 'חדר כושר' }, { value: 'general', label: 'כללי' }].map(opt => (
+                      <button key={opt.value || 'all'} type="button" onClick={() => { setLibBusinessType(opt.value); setOpenLibBusinessTypeDropdown(false) }} style={{ display: 'block', width: '100%', padding: '8px 12px', textAlign: 'right', border: 'none', background: 'transparent', color: 'var(--text, var(--v2-gray-300))', cursor: 'pointer', fontSize: 13 }}>
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
             </div>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>

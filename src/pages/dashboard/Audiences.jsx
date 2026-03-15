@@ -427,6 +427,7 @@ export default function Audiences() {
   const [recipients, setRecipients] = useState([])
   const [segments, setSegments] = useState({ presets: PRESET_SEGMENTS, saved: [] })
   const [loading, setLoading] = useState(false)
+  const [loadingRecipients, setLoadingRecipients] = useState(true)
   const [nlQuery, setNlQuery] = useState('')
   const [showSaveModal, setShowSaveModal] = useState(false)
   const [saveName, setSaveName] = useState('')
@@ -473,12 +474,31 @@ export default function Audiences() {
   }
 
   useEffect(() => {
-    if (!session?.access_token || !businessId) return
+    if (!session?.access_token || !businessId) {
+      setLoadingRecipients(false)
+      return
+    }
+    setLoadingRecipients(true)
     const headers = { Authorization: `Bearer ${session.access_token}`, 'X-Business-Id': businessId }
-    fetch(`${API_BASE}/api/admin/segments`, { headers }).then(r => r.ok ? r.json() : {}).then(d => setSegments({ presets: PRESET_SEGMENTS, saved: d?.saved || [] }))
-    fetch(`${API_BASE}/api/admin/recipients`, { headers }).then(r => r.ok ? r.json() : {}).then(d => setRecipients(d?.recipients || []))
-    fetch(`${API_BASE}/api/admin/campaigns?limit=100&business_id=${businessId}`, { headers }).then(r => r.ok ? r.json() : {}).then(d => setCampaigns(d?.campaigns || d || []))
-    if (businessId) fetch(`${API_BASE}/api/admin/recipients/events-list?business_id=${businessId}`, { headers }).then(r => r.ok ? r.json() : {}).then(d => setEvents(d?.events || []))
+    Promise.all([
+      fetch(`${API_BASE}/api/admin/recipients`, { headers }),
+      fetch(`${API_BASE}/api/admin/segments`, { headers }),
+      fetch(`${API_BASE}/api/admin/campaigns?limit=100&business_id=${businessId}`, { headers }),
+      fetch(`${API_BASE}/api/admin/recipients/events-list?business_id=${businessId}`, { headers }),
+    ])
+      .then(async ([rRes, sRes, cRes, eRes]) => {
+        const [rData, sData, cData, eData] = await Promise.all([
+          rRes.json().catch(() => ({})),
+          sRes.json().catch(() => ({})),
+          cRes.json().catch(() => ({})),
+          eRes.json().catch(() => ({})),
+        ])
+        setRecipients(rData?.recipients || [])
+        setSegments({ presets: PRESET_SEGMENTS, saved: sData?.saved || [] })
+        setCampaigns(cData?.campaigns || cData || [])
+        setEvents(eData?.events || [])
+      })
+      .finally(() => setLoadingRecipients(false))
   }, [session?.access_token, businessId])
 
   const runPreset = async (segment) => {
@@ -541,15 +561,17 @@ export default function Audiences() {
   const runEventSegment = async () => {
     if (!selectedEvents?.length || !businessId || !session?.access_token) return
     setLoading(true)
-    const headers = h()
+    const results = await Promise.all(
+      selectedEvents.map(ev =>
+        fetch(`${API_BASE}/api/admin/segments/historical`, {
+          method: 'POST',
+          headers: h(),
+          body: JSON.stringify({ filter: 'by_event', eventTitle: ev, business_id: businessId }),
+        }).then(r => r.ok ? r.json() : {})
+      )
+    )
     const byPhone = {}
-    for (const ev of selectedEvents) {
-      const r = await fetch(`${API_BASE}/api/admin/segments/historical`, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({ filter: 'by_event', eventTitle: ev, business_id: businessId }),
-      })
-      const d = r.ok ? await r.json() : {}
+    for (const d of results) {
       for (const rec of d?.recipients || []) {
         if (rec.phone && !byPhone[rec.phone]) byPhone[rec.phone] = rec
       }
@@ -597,7 +619,7 @@ export default function Audiences() {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <div>
           <h1 style={{ fontFamily: "'Bricolage Grotesque','Outfit',sans-serif", fontWeight: 800, fontSize: 26, color: '#ffffff' }}>קהלים</h1>
-          <p style={{ color: 'var(--v2-gray-400)', fontSize: 14, marginTop: 4 }}>{recipients.length} אנשי קשר</p>
+          <p style={{ color: 'var(--v2-gray-400)', fontSize: 14, marginTop: 4 }}>{loadingRecipients ? 'טוען...' : `${recipients.length} אנשי קשר`}</p>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <button onClick={() => setImportOpen(true)} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 16px', background: 'var(--v2-primary)', color: 'var(--v2-dark)', border: 'none', borderRadius: 'var(--radius-full)', fontWeight: 600, cursor: 'pointer' }}>
@@ -615,6 +637,7 @@ export default function Audiences() {
       </div>
 
       <style>{`
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
         .audience-search-row-spacer { display: none; }
         .segment-chip .segment-chip-tooltip {
           position: absolute;
@@ -952,6 +975,56 @@ export default function Audiences() {
 
       <div className="glass-card" style={{ overflow: 'hidden' }}>
         <div style={{ padding: '14px 18px', borderBottom: '1px solid var(--border)' }}>
+          <div style={{ textAlign: 'right', fontSize: 20, fontWeight: 700, color: 'var(--v2-primary)', marginBottom: 12 }}>
+            {loadingRecipients || loading ? 'טוען...' : <><strong>{filtered.length}</strong> לקוחות</>}
+          </div>
+          <div className="audience-actions" style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', overflowX: 'auto', paddingBottom: 8, marginBottom: 12 }}>
+            <button className="btn-primary" onClick={() => {
+              const phones = recipients.map(r => r.phone).filter(Boolean)
+              sessionStorage.setItem('campaign_recipients', JSON.stringify(phones))
+              sessionStorage.setItem('campaign_segment_name', activeSegment)
+              navigate('/dashboard/new-campaign')
+            }}>צור קמפיין</button>
+            <button className="btn-ghost" onClick={() => {
+              const phones = recipients.map(r => r.phone).filter(Boolean)
+              const existing = JSON.parse(sessionStorage.getItem('campaign_recipients') || '[]')
+              sessionStorage.setItem('campaign_recipients', JSON.stringify([...new Set([...existing, ...phones])]))
+              toast.success('נוסף לקמפיין')
+            }}>הוסף לקמפיין קיים</button>
+            <div style={{ position: 'relative', flexShrink: 0 }}>
+              <button className="btn-ghost" style={{ display: 'flex', alignItems: 'center', gap: 6 }} onClick={async () => { setShowFlowDropdown(!showFlowDropdown); if (!showFlowDropdown && session?.access_token && businessId) { const r = await fetch(`${API_BASE}/api/whatsapp/flows`, { headers: { Authorization: `Bearer ${session.access_token}`, 'X-Business-Id': businessId } }); const d = r.ok ? await r.json() : {}; setFlowsList((d.flows || []).filter(x => x.meta_status === 'PUBLISHED')); } }}><Workflow size={16} /> שלח Flow</button>
+              {showFlowDropdown && (
+                <>
+                  <div style={{ position: 'fixed', inset: 0, zIndex: 150 }} onClick={() => setShowFlowDropdown(false)} />
+                  <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: 4, minWidth: 220, background: 'var(--v2-dark-2)', border: '1px solid var(--glass-border)', borderRadius: 'var(--radius-md)', boxShadow: '0 8px 24px rgba(0,0,0,0.4)', zIndex: 151, padding: 6 }}>
+                    {flowsList.length === 0 ? <div style={{ padding: 12, fontSize: 13, color: 'var(--v2-gray-400)' }}>אין Flows מפורסמים. צור בהגדרות → WhatsApp → Flows</div> : flowsList.map(flow => (
+                      <button key={flow.id} type="button" disabled={flowSendBusy} style={{ display: 'block', width: '100%', padding: '10px 12px', textAlign: 'right', borderRadius: 6, border: 'none', background: 'transparent', color: '#fff', cursor: flowSendBusy ? 'not-allowed' : 'pointer', fontSize: 13 }} onClick={async () => {
+                        setShowFlowDropdown(false)
+                        const phones = recipients.map(r => r.phone).filter(Boolean)
+                        if (!phones.length) { toast.error('אין נמענים בסגמנט'); return }
+                        setFlowSendBusy(true)
+                        try {
+                          const r = await fetch(`${API_BASE}/api/whatsapp/flows/${flow.id}/send`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}`, 'X-Business-Id': businessId }, body: JSON.stringify({ recipient_phones: phones }) })
+                          const data = await r.json().catch(() => ({}))
+                          if (!r.ok) throw new Error(data.error || 'שגיאה')
+                          const ok = (data.results || []).filter(x => x.success).length
+                          toast.success(`Flow נשלח ל-${ok}/${phones.length} נמענים`)
+                        } catch (e) { toast.error(e.message || 'שגיאה בשליחה') }
+                        setFlowSendBusy(false)
+                      }}>
+                        {flow.display_name || flow.flow_name}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+            <ExportButton businessId={businessId} segment={activeSegment} label="ייצוא CSV" />
+            <button className="btn-ghost" onClick={() => { setShowBulkTagModal(true); setBulkTagMode('add'); setBulkTag(''); setBulkTagToRemove(''); }}>תגיות לסגמנט</button>
+            {canSaveAsSegment && (
+              <button className="btn-ghost" onClick={() => { setSaveSegmentName(defaultSaveSegmentName); setShowSaveSegmentModal(true); }}>שמור כסגמנט</button>
+            )}
+          </div>
           <div className="audience-search-row" style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center' }}>
             <div className="audience-search-row-1" style={{ flex: '1 1 200px', minWidth: 0, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               <input placeholder="🔍 חפש לפי שם או טלפון..." className="form-input input" style={{ flex: 1, minWidth: 180, fontSize: '13px' }} value={search} onChange={e => { setSearch(e.target.value); setPage(1) }} />
@@ -964,7 +1037,7 @@ export default function Audiences() {
             </div>
             <div className="audience-search-row-spacer" />
             <div className="audience-search-row-3">
-              <div className="audience-search-row-3-count" style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>{loading ? 'טוען...' : <><strong style={{ color: 'var(--v2-primary)' }}>{filtered.length}</strong> לקוחות</>}</div>
+              <div className="audience-search-row-3-count" style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>{(loading || loadingRecipients) ? 'טוען...' : <><strong style={{ color: 'var(--v2-primary)' }}>{filtered.length}</strong> לקוחות</>}</div>
               <select className="input audience-search-row-3-sort" style={{ width: 'auto' }} value={sortBy} onChange={e => setSortBy(e.target.value)}>
               <option value="score">מיין: ציון</option>
               <option value="campaigns">מיין: קמפיינים</option>
@@ -972,10 +1045,14 @@ export default function Audiences() {
             </select>
             </div>
           </div>
-          <div className="audience-search-count-row" style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>{loading ? 'טוען...' : <><strong style={{ color: 'var(--v2-primary)' }}>{filtered.length}</strong> לקוחות</>}</div>
+          <div className="audience-search-count-row" style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>{(loading || loadingRecipients) ? 'טוען...' : <><strong style={{ color: 'var(--v2-primary)' }}>{filtered.length}</strong> לקוחות</>}</div>
         </div>
 
-        {filtered.length === 0 ? (
+        {loadingRecipients ? (
+          <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '48px 16px' }}>
+            <RefreshCw size={28} style={{ color: 'var(--v2-primary)', animation: 'spin 1s linear infinite' }} />
+          </div>
+        ) : filtered.length === 0 ? (
           <EmptyState icon="🔍" title="לא נמצאו אנשי קשר" description="נסה לשנות את מונחי החיפוש או הסנן" />
         ) : (
           <>
@@ -1029,54 +1106,6 @@ export default function Audiences() {
           )}
           </>
         )}
-
-        <div className="audience-actions" style={{ display: 'flex', gap: '8px', padding: '14px 18px', borderTop: '1px solid var(--border)', flexWrap: 'wrap' }}>
-          <button className="btn-primary" onClick={() => {
-            const phones = recipients.map(r => r.phone).filter(Boolean)
-            sessionStorage.setItem('campaign_recipients', JSON.stringify(phones))
-            sessionStorage.setItem('campaign_segment_name', activeSegment)
-            navigate('/dashboard/new-campaign')
-          }}>📤 צור קמפיין לסגמנט ({recipients.length})</button>
-          <button className="btn-ghost" onClick={() => {
-            const phones = recipients.map(r => r.phone).filter(Boolean)
-            const existing = JSON.parse(sessionStorage.getItem('campaign_recipients') || '[]')
-            sessionStorage.setItem('campaign_recipients', JSON.stringify([...new Set([...existing, ...phones])]))
-            toast.success('נוסף לקמפיין')
-          }}>➕ הוסף לקמפיין קיים</button>
-          <div style={{ position: 'relative' }}>
-            <button className="btn-ghost" style={{ display: 'flex', alignItems: 'center', gap: 6 }} onClick={async () => { setShowFlowDropdown(!showFlowDropdown); if (!showFlowDropdown && session?.access_token && businessId) { const r = await fetch(`${API_BASE}/api/whatsapp/flows`, { headers: { Authorization: `Bearer ${session.access_token}`, 'X-Business-Id': businessId } }); const d = r.ok ? await r.json() : {}; setFlowsList((d.flows || []).filter(x => x.meta_status === 'PUBLISHED')); } }}><Workflow size={16} /> שלח Flow</button>
-            {showFlowDropdown && (
-              <>
-                <div style={{ position: 'fixed', inset: 0, zIndex: 150 }} onClick={() => setShowFlowDropdown(false)} />
-                <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: 4, minWidth: 220, background: 'var(--v2-dark-2)', border: '1px solid var(--glass-border)', borderRadius: 'var(--radius-md)', boxShadow: '0 8px 24px rgba(0,0,0,0.4)', zIndex: 151, padding: 6 }}>
-                  {flowsList.length === 0 ? <div style={{ padding: 12, fontSize: 13, color: 'var(--v2-gray-400)' }}>אין Flows מפורסמים. צור בהגדרות → WhatsApp → Flows</div> : flowsList.map(flow => (
-                    <button key={flow.id} type="button" disabled={flowSendBusy} style={{ display: 'block', width: '100%', padding: '10px 12px', textAlign: 'right', borderRadius: 6, border: 'none', background: 'transparent', color: '#fff', cursor: flowSendBusy ? 'not-allowed' : 'pointer', fontSize: 13 }} onClick={async () => {
-                      setShowFlowDropdown(false)
-                      const phones = recipients.map(r => r.phone).filter(Boolean)
-                      if (!phones.length) { toast.error('אין נמענים בסגמנט'); return }
-                      setFlowSendBusy(true)
-                      try {
-                        const r = await fetch(`${API_BASE}/api/whatsapp/flows/${flow.id}/send`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}`, 'X-Business-Id': businessId }, body: JSON.stringify({ recipient_phones: phones }) })
-                        const data = await r.json().catch(() => ({}))
-                        if (!r.ok) throw new Error(data.error || 'שגיאה')
-                        const ok = (data.results || []).filter(x => x.success).length
-                        toast.success(`Flow נשלח ל-${ok}/${phones.length} נמענים`)
-                      } catch (e) { toast.error(e.message || 'שגיאה בשליחה') }
-                      setFlowSendBusy(false)
-                    }}>
-                      {flow.display_name || flow.flow_name}
-                    </button>
-                  ))}
-                </div>
-              </>
-            )}
-          </div>
-          <ExportButton businessId={businessId} segment={activeSegment} label="📥 ייצוא CSV" />
-          <button className="btn-ghost" onClick={() => { setShowBulkTagModal(true); setBulkTagMode('add'); setBulkTag(''); setBulkTagToRemove(''); }}>🏷️ תגיות לסגמנט</button>
-          {canSaveAsSegment && (
-            <button className="btn-ghost" onClick={() => { setSaveSegmentName(defaultSaveSegmentName); setShowSaveSegmentModal(true); }}>💾 שמור כסגמנט</button>
-          )}
-        </div>
       </div>
 
       {showSaveSegmentModal && (
