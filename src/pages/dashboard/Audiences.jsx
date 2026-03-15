@@ -1018,8 +1018,8 @@ export default function Audiences() {
               <RefreshCw size={14} /> רענן
             </button>
           </div>
-          {/* Row 4: action buttons — horizontal scroll, Settings tab style + icons */}
-          <div style={{ display: 'flex', overflowX: 'auto', gap: 8, paddingBottom: 4, marginBottom: 12 }}>
+          {/* Row 4: action buttons — container + buttons match Settings tabs */}
+          <div style={{ display: 'flex', gap: 4, padding: 4, background: 'var(--v2-dark-3)', border: '1px solid var(--glass-border)', borderRadius: 'var(--radius-lg)', overflowX: 'auto', marginBottom: 12 }}>
             <button
               type="button"
               onClick={() => {
@@ -1028,9 +1028,9 @@ export default function Audiences() {
                 sessionStorage.setItem('campaign_segment_name', activeSegment)
                 navigate('/dashboard/new-campaign')
               }}
-              style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 16px', borderRadius: 'var(--radius-md)', fontSize: 13, fontWeight: 500, whiteSpace: 'nowrap', background: 'transparent', color: 'var(--v2-gray-400)', border: 'none', cursor: 'pointer', transition: 'all 0.2s', flexShrink: 0 }}
-              onMouseEnter={e => { e.currentTarget.style.color = '#ffffff' }}
-              onMouseLeave={e => { e.currentTarget.style.color = 'var(--v2-gray-400)' }}
+              style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 16px', borderRadius: 'var(--radius-md)', fontSize: 13, fontWeight: 500, whiteSpace: 'nowrap', border: 'none', cursor: 'pointer', transition: 'all 0.2s', background: 'transparent', color: 'var(--v2-gray-400)', flexShrink: 0 }}
+              onMouseEnter={e => e.currentTarget.style.color = '#ffffff'}
+              onMouseLeave={e => e.currentTarget.style.color = 'var(--v2-gray-400)'}
             >
               <Send size={14} /> צור קמפיין
             </button>
@@ -1042,9 +1042,9 @@ export default function Audiences() {
                 sessionStorage.setItem('campaign_recipients', JSON.stringify([...new Set([...existing, ...phones])]))
                 toast.success('נוסף לקמפיין')
               }}
-              style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 16px', borderRadius: 'var(--radius-md)', fontSize: 13, fontWeight: 500, whiteSpace: 'nowrap', background: 'transparent', color: 'var(--v2-gray-400)', border: 'none', cursor: 'pointer', transition: 'all 0.2s', flexShrink: 0 }}
-              onMouseEnter={e => { e.currentTarget.style.color = '#ffffff' }}
-              onMouseLeave={e => { e.currentTarget.style.color = 'var(--v2-gray-400)' }}
+              style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 16px', borderRadius: 'var(--radius-md)', fontSize: 13, fontWeight: 500, whiteSpace: 'nowrap', border: 'none', cursor: 'pointer', transition: 'all 0.2s', background: 'transparent', color: 'var(--v2-gray-400)', flexShrink: 0 }}
+              onMouseEnter={e => e.currentTarget.style.color = '#ffffff'}
+              onMouseLeave={e => e.currentTarget.style.color = 'var(--v2-gray-400)'}
             >
               <Plus size={14} /> הוסף לקמפיין קיים
             </button>
@@ -1052,9 +1052,9 @@ export default function Audiences() {
               <button
                 type="button"
                 onClick={async () => { setShowFlowDropdown(!showFlowDropdown); if (!showFlowDropdown && session?.access_token && businessId) { const r = await fetch(`${API_BASE}/api/whatsapp/flows`, { headers: { Authorization: `Bearer ${session.access_token}`, 'X-Business-Id': businessId } }); const d = r.ok ? await r.json() : {}; setFlowsList((d.flows || []).filter(x => x.meta_status === 'PUBLISHED')); } }}
-                style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 16px', borderRadius: 'var(--radius-md)', fontSize: 13, fontWeight: 500, whiteSpace: 'nowrap', background: 'transparent', color: 'var(--v2-gray-400)', border: 'none', cursor: 'pointer', transition: 'all 0.2s' }}
-                onMouseEnter={e => { e.currentTarget.style.color = '#ffffff' }}
-                onMouseLeave={e => { e.currentTarget.style.color = 'var(--v2-gray-400)' }}
+                style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 16px', borderRadius: 'var(--radius-md)', fontSize: 13, fontWeight: 500, whiteSpace: 'nowrap', border: 'none', cursor: 'pointer', transition: 'all 0.2s', background: 'transparent', color: 'var(--v2-gray-400)' }}
+                onMouseEnter={e => e.currentTarget.style.color = '#ffffff'}
+                onMouseLeave={e => e.currentTarget.style.color = 'var(--v2-gray-400)'}
               >
                 <Zap size={14} /> שלח Flow
               </button>
@@ -1090,9 +1090,9 @@ export default function Audiences() {
             <button
               type="button"
               onClick={() => { setShowBulkTagModal(true); setBulkTagMode('add'); setBulkTag(''); setBulkTagToRemove(''); }}
-              style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 16px', borderRadius: 'var(--radius-md)', fontSize: 13, fontWeight: 500, whiteSpace: 'nowrap', background: 'transparent', color: 'var(--v2-gray-400)', border: 'none', cursor: 'pointer', transition: 'all 0.2s', flexShrink: 0 }}
-              onMouseEnter={e => { e.currentTarget.style.color = '#ffffff' }}
-              onMouseLeave={e => { e.currentTarget.style.color = 'var(--v2-gray-400)' }}
+              style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 16px', borderRadius: 'var(--radius-md)', fontSize: 13, fontWeight: 500, whiteSpace: 'nowrap', border: 'none', cursor: 'pointer', transition: 'all 0.2s', background: 'transparent', color: 'var(--v2-gray-400)', flexShrink: 0 }}
+              onMouseEnter={e => e.currentTarget.style.color = '#ffffff'}
+              onMouseLeave={e => e.currentTarget.style.color = 'var(--v2-gray-400)'}
             >
               <Tag size={14} /> תגיות לסגמנט
             </button>
