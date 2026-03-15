@@ -511,6 +511,16 @@ export default function DashboardClientLayout() {
 
   const activeNotices = systemNotices.filter(n => !dismissedNotices.includes(n.id))
 
+  const handleLogout = async () => {
+    try {
+      await supabase.auth.signOut()
+    } catch (e) {
+      console.error('signOut error:', e)
+    } finally {
+      window.location.href = '/login'
+    }
+  }
+
   const NAV_ITEMS = getVisibleNavItems(role, permissions, businessConfig)
   const SETTINGS_PATH = '/dashboard/settings'
   const MAIN_NAV = NAV_ITEMS.filter(i => i.path !== SETTINGS_PATH)
@@ -611,22 +621,7 @@ export default function DashboardClientLayout() {
         {/* קו מפריד + התנתק/י */}
         <div style={{ borderTop: '1px solid var(--glass-border)' }} />
         <button
-          onClick={async () => {
-            try {
-              const { createClient } = await import('@supabase/supabase-js')
-              const sb = createClient(
-                import.meta.env.VITE_SUPABASE_URL,
-                import.meta.env.VITE_SUPABASE_ANON_KEY
-              )
-              await sb.auth.signOut()
-            } catch (e) {
-              console.error(e)
-            } finally {
-              sessionStorage.clear()
-              localStorage.removeItem('supabase.auth.token')
-              window.location.href = '/login'
-            }
-          }}
+          onClick={handleLogout}
           style={{
             display: 'flex',
             alignItems: 'center',
@@ -799,15 +794,7 @@ export default function DashboardClientLayout() {
             {/* התנתק */}
             <div style={{ paddingBottom: 32 }}>
               <button
-                onClick={async () => {
-                  try {
-                    await supabase.auth.signOut()
-                  } catch (e) {
-                    console.error('signOut error:', e)
-                  } finally {
-                    window.location.href = '/login'
-                  }
-                }}
+                onClick={handleLogout}
                 style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '10px 16px', background: 'none', border: 'none', color: 'var(--v2-gray-400)', cursor: 'pointer', fontSize: 14 }}
               >
                 <LogOut size={18} />

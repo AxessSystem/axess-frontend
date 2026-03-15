@@ -52,15 +52,16 @@ export function AuthProvider({ children }) {
   }, [])
 
   useEffect(() => {
-    supabase.auth.getSession()
-      .then(({ data: { session } }) => {
-        setSession(session)
-        if (!session?.user) {
-          setProfile(null)
-          setBusinessMember(null)
-          setLoading(false)
-        }
-      })
+    const init = async () => {
+      const { data: { session } } = await supabase.auth.getSession()
+      setSession(session)
+      if (!session?.user) {
+        setProfile(null)
+        setBusinessMember(null)
+      }
+      setLoading(false)
+    }
+    init()
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
@@ -75,11 +76,12 @@ export function AuthProvider({ children }) {
 
     const handleVisibilityChange = async () => {
       if (document.visibilityState === 'visible') {
-        const { data: { session } } = await supabase.auth.getSession()
-        setSession(session)
-        if (!session?.user) {
-          setProfile(null)
-          setBusinessMember(null)
+        const { data: { session } } = await supabase.auth.refreshSession()
+        if (session) {
+          setSession(session)
+        } else {
+          const { data: { session: s } } = await supabase.auth.getSession()
+          setSession(s)
         }
       }
     }
