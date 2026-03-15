@@ -243,6 +243,15 @@ export default function Inbox({ onUnreadChange }) {
   const [showNewMessage, setShowNewMessage] = useState(false);
   const [preselectedPhone, setPreselectedPhone] = useState(null);
   const pendingOpenRef = useRef(null);
+  const [recipientSearch, setRecipientSearch] = useState("");
+  const [recipientResults, setRecipientResults] = useState([]);
+  const [selectedRecipient, setSelectedRecipient] = useState(null);
+  const [newMsgChannel, setNewMsgChannel] = useState("sms");
+  const [newMsgMessage, setNewMsgMessage] = useState("");
+  const [newMsgTemplateName, setNewMsgTemplateName] = useState("");
+  const [newMsgTemplateVars, setNewMsgTemplateVars] = useState({});
+  const [newMsgSending, setNewMsgSending] = useState(false);
+  const recipientSearchDebounceRef = useRef(null);
 
   const isSupervisor = role === "owner" || role === "manager";
 
@@ -252,6 +261,38 @@ export default function Inbox({ onUnreadChange }) {
       pendingOpenRef.current = { phone: state.openConversation, name: state.openConversationName || "" };
     }
   }, [location.state]);
+
+  useEffect(() => {
+    if (showNewMessage && preselectedPhone) {
+      setSelectedRecipient({ phone: preselectedPhone.phone, name: preselectedPhone.name || "" });
+      setRecipientSearch(preselectedPhone.phone || "");
+      setRecipientResults([]);
+    }
+    if (showNewMessage) {
+      setNewMsgMessage("");
+      setNewMsgTemplateName("");
+      setNewMsgTemplateVars({});
+    }
+  }, [showNewMessage, preselectedPhone]);
+
+  useEffect(() => {
+    if (!recipientSearch.trim()) {
+      setRecipientResults([]);
+      return;
+    }
+    if (recipientSearchDebounceRef.current) clearTimeout(recipientSearchDebounceRef.current);
+    recipientSearchDebounceRef.current = setTimeout(() => {
+      const q = recipientSearch.trim();
+      if (!q || !session?.access_token || !businessId) return;
+      fetch(`${API_BASE}/api/admin/recipients?search=${encodeURIComponent(q)}`, { headers: authHeaders() })
+        .then((r) => (r.ok ? r.json() : []))
+        .then((data) => setRecipientResults(Array.isArray(data) ? data : (data?.recipients || [])))
+        .catch(() => setRecipientResults([]));
+    }, 300);
+    return () => {
+      if (recipientSearchDebounceRef.current) clearTimeout(recipientSearchDebounceRef.current);
+    };
+  }, [recipientSearch, session?.access_token, businessId, authHeaders]);
 
   const authHeaders = useCallback(() => ({
     "Content-Type": "application/json",
@@ -620,15 +661,147 @@ export default function Inbox({ onUnreadChange }) {
       {showNewMessage && (
         <div className="inbox-overlay" onClick={() => setShowNewMessage(false)}>
           <div className="inbox-new-msg-panel" onClick={(e) => e.stopPropagation()}>
-            <div style={{ padding: 16, borderBottom: "1px solid var(--glass-border)", display: "flex", justifyContent: "space-between" }}>
+            <div style={{ padding: 16, borderBottom: "1px solid var(--glass-border)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <h3 style={{ margin: 0 }}>הודעה חדשה</h3>
               <button className="btn btn--ghost" onClick={() => setShowNewMessage(false)}><X size={20} /></button>
             </div>
-            <div style={{ padding: 16 }}>
-              <p style={{ color: "var(--v2-gray-400)", fontSize: 13 }}>לשליחת הודעה חדשה, עבור לקמפיין חדש או השתמש בשליחת SMS ישיר מדשבורד.</p>
-              {preselectedPhone && (
-                <p dir="ltr" style={{ marginTop: 8 }}>נמען: {preselectedPhone.phone}</p>
+            <div style={{ padding: 16, display: "flex", flexDirection: "column", gap: 16 }}>
+              <div>
+                <label style={{ display: "block", fontSize: 12, color: "var(--v2-gray-500)", marginBottom: 6 }}>חיפוש נמען (שם או טלפון)</label>
+                <input
+                  type="text"
+                  className="inbox-search-input"
+                  placeholder="הקלד לחיפוש..."
+                  value={recipientSearch}
+                  onChange={(e) => setRecipientSearch(e.target.value)}
+                  dir="rtl"
+                  style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid var(--glass-border)", background: "var(--v2-dark-3)", color: "#fff" }}
+                />
+                {recipientResults.length > 0 && (
+                  <ul style={{ margin: "8px 0 0", padding: 0, listStyle: "none", maxHeight: 200, overflowY: "auto", border: "1px solid var(--glass-border)", borderRadius: 8 }}>
+                    {recipientResults.map((r) => (
+                      <li
+                        key={r.id || r.phone}
+                        onClick={() => { setSelectedRecipient({ phone: r.phone, name: r.name || "" }); setRecipientSearch(r.phone || r.name); setRecipientResults([]); }}
+                        style={{ padding: "10px 12px", cursor: "pointer", borderBottom: "1px solid var(--glass-border)", background: selectedRecipient?.phone === r.phone ? "rgba(0,195,122,0.15)" : "transparent" }}
+                      >
+                        <span style={{ fontWeight: 600 }}>{r.name || "—"}</span>
+                        <span dir="ltr" style={{ marginRight: 8, color: "var(--v2-gray-400)", fontSize: 13 }}>{r.phone}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                {selectedRecipient && (
+                  <p style={{ marginTop: 8, fontSize: 13, color: "var(--v2-gray-400)" }}>
+                    נבחר: <span style={{ fontWeight: 600 }}>{selectedRecipient.name || "—"}</span> <span dir="ltr">{selectedRecipient.phone}</span>
+                  </p>
+                )}
+              </div>
+
+              {(waStatus?.connected) && (
+                <div>
+                  <label style={{ display: "block", fontSize: 12, color: "var(--v2-gray-500)", marginBottom: 6 }}>ערוץ</label>
+                  <div className="inbox-send-tabs" style={{ display: "flex", gap: 8 }}>
+                    <button type="button" className={newMsgChannel === "sms" ? "active" : ""} onClick={() => setNewMsgChannel("sms")} style={{ padding: "8px 14px", borderRadius: 8, border: "1px solid var(--glass-border)", background: newMsgChannel === "sms" ? "var(--v2-primary)" : "transparent", color: newMsgChannel === "sms" ? "var(--v2-dark)" : "var(--v2-gray-400)", cursor: "pointer" }}>💬 SMS</button>
+                    <button type="button" className={newMsgChannel === "whatsapp" ? "active" : ""} onClick={() => setNewMsgChannel("whatsapp")} style={{ padding: "8px 14px", borderRadius: 8, border: "1px solid var(--glass-border)", background: newMsgChannel === "whatsapp" ? "var(--v2-primary)" : "transparent", color: newMsgChannel === "whatsapp" ? "var(--v2-dark)" : "var(--v2-gray-400)", cursor: "pointer" }}>🟢 WhatsApp</button>
+                  </div>
+                </div>
               )}
+
+              {newMsgChannel === "whatsapp" && (templates || []).filter((t) => t.meta_status === "APPROVED").length > 0 && (
+                <>
+                  <div>
+                    <label style={{ display: "block", fontSize: 12, color: "var(--v2-gray-500)", marginBottom: 6 }}>תבנית (אם אין חלון 24 שעות)</label>
+                    <select value={newMsgTemplateName} onChange={(e) => setNewMsgTemplateName(e.target.value)} style={{ width: "100%", padding: "10px", borderRadius: 8, border: "1px solid var(--glass-border)", background: "var(--v2-dark-3)", color: "#fff" }}>
+                      <option value="">בחר תבנית...</option>
+                      {(templates || []).filter((t) => t.meta_status === "APPROVED").map((t) => (
+                        <option key={t.id} value={t.template_name}>{t.template_name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  {newMsgTemplateName && (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                      {[1, 2, 3].map((i) => (
+                        <input key={i} placeholder={`משתנה {{${i}}}`} value={newMsgTemplateVars[i] || ""} onChange={(e) => setNewMsgTemplateVars((v) => ({ ...v, [i]: e.target.value }))} style={{ padding: "8px 10px", borderRadius: 8, border: "1px solid var(--glass-border)", background: "var(--v2-dark-3)", color: "#fff" }} />
+                      ))}
+                    </div>
+                  )}
+                </>
+              )}
+
+              <div>
+                <label style={{ display: "block", fontSize: 12, color: "var(--v2-gray-500)", marginBottom: 6 }}>הודעה</label>
+                {(newMsgChannel === "sms" || (newMsgChannel === "whatsapp" && (!newMsgTemplateName || (waStatus?.active_sessions_count || 0) > 0))) && (
+                  <>
+                    <textarea
+                      placeholder="כתוב הודעה..."
+                      value={newMsgMessage}
+                      onChange={(e) => setNewMsgMessage(e.target.value)}
+                      rows={3}
+                      maxLength={612}
+                      dir="rtl"
+                      style={{ width: "100%", padding: 12, borderRadius: 8, border: "1px solid var(--glass-border)", background: "var(--v2-dark-3)", color: "#fff", resize: "none" }}
+                    />
+                    {newMsgChannel === "sms" && newMsgMessage.length > 0 && (
+                      <div className="inbox-char-count" style={{ fontSize: 11, color: "var(--v2-gray-500)", marginTop: 4 }}>
+                        {newMsgMessage.length <= 160 ? 160 - newMsgMessage.length : 153 - ((newMsgMessage.length - 160) % 153)} תווים • {newMsgMessage.length <= 160 ? 1 : Math.ceil(newMsgMessage.length / 153)} SMS
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+
+              <button
+                className="btn btn--primary"
+                disabled={!selectedRecipient?.phone || newMsgSending || (newMsgChannel === "sms" && !newMsgMessage.trim()) || (newMsgChannel === "whatsapp" && !newMsgTemplateName && !newMsgMessage.trim())}
+                onClick={async () => {
+                  if (!selectedRecipient?.phone || !session?.access_token || !businessId) return;
+                  const useTemplate = newMsgChannel === "whatsapp" && newMsgTemplateName;
+                  if (newMsgChannel === "sms" && !newMsgMessage.trim()) return toast.error("הכנס הודעה");
+                  if (newMsgChannel === "whatsapp" && !useTemplate && !newMsgMessage.trim()) return toast.error("הכנס הודעה או בחר תבנית");
+                  setNewMsgSending(true);
+                  try {
+                    const createRes = await fetch(`${API_BASE}/api/inbox/conversations`, {
+                      method: "POST",
+                      headers: authHeaders(),
+                      body: JSON.stringify({ business_id: businessId, customer_phone: selectedRecipient.phone, channel: newMsgChannel }),
+                    });
+                    const convData = await createRes.json().catch(() => ({}));
+                    if (!createRes.ok) throw new Error(convData.error || "שגיאה ביצירת שיחה");
+                    const convId = convData.id;
+                    const sendBody = { channel: newMsgChannel, target_conversation_id: convId };
+                    if (newMsgChannel === "sms") sendBody.message = newMsgMessage.trim();
+                    else {
+                      if (useTemplate) {
+                        sendBody.template_name = newMsgTemplateName;
+                        sendBody.template_variables = Object.keys(newMsgTemplateVars).sort().map((k) => newMsgTemplateVars[k]);
+                      } else sendBody.message = newMsgMessage.trim();
+                    }
+                    const sendRes = await fetch(`${API_BASE}/api/inbox/conversations/${convId}/send`, {
+                      method: "POST",
+                      headers: authHeaders(),
+                      body: JSON.stringify(sendBody),
+                    });
+                    const sendData = await sendRes.json().catch(() => ({}));
+                    if (!sendRes.ok) throw new Error(sendData.message || sendData.error || "שגיאה בשליחה");
+                    toast.success("נשלח");
+                    setShowNewMessage(false);
+                    setSelectedRecipient(null);
+                    setRecipientSearch("");
+                    setNewMsgMessage("");
+                    setNewMsgTemplateName("");
+                    setNewMsgTemplateVars({});
+                    await loadConversations(false);
+                    setSelectedConv({ id: convId, customer_phone: selectedRecipient.phone, channel: newMsgChannel });
+                  } catch (e) {
+                    toast.error(e.message);
+                  } finally {
+                    setNewMsgSending(false);
+                  }
+                }}
+              >
+                {newMsgSending ? <RefreshCw size={16} className="spin" /> : <Send size={16} />} שלח
+              </button>
             </div>
           </div>
         </div>
