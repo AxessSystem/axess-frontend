@@ -226,6 +226,10 @@ function WhatsAppTab({ businessId, session }) {
   const [flowSendTemplate, setFlowSendTemplate] = useState('flow_invite')
   const [flowSendBusy, setFlowSendBusy] = useState(false)
   const [ruleForm, setRuleForm] = useState({ rule_type: 'keyword', match_value: '', channel: 'both', action: 'queue_general', target_agent_id: '', target_department: '', bot_reply_text: '', is_active: true })
+  const [libraryTemplates, setLibraryTemplates] = useState([])
+  const [libCategory, setLibCategory] = useState('')
+  const [libBusinessType, setLibBusinessType] = useState('')
+  const [adoptBusy, setAdoptBusy] = useState(null)
 
   const authHeaders = () => ({
     'Content-Type': 'application/json',
@@ -244,6 +248,18 @@ function WhatsAppTab({ businessId, session }) {
       fetch(`${API_BASE}/api/whatsapp/templates`, { headers: authHeaders() }).then(r => r.ok ? r.json() : {}).then(d => setTemplates(d.templates || [])).catch(() => setTemplates([]))
     }
   }, [waTab, businessId, session?.access_token])
+
+  useEffect(() => {
+    if (waTab === 'templates' && session?.access_token) {
+      const q = new URLSearchParams()
+      if (libCategory) q.set('category', libCategory)
+      if (libBusinessType) q.set('business_type', libBusinessType)
+      fetch(`${API_BASE}/api/whatsapp/template-library?${q}`, { headers: authHeaders() })
+        .then(r => r.ok ? r.json() : {})
+        .then(d => setLibraryTemplates(d.templates || []))
+        .catch(() => setLibraryTemplates([]))
+    }
+  }, [waTab, session?.access_token, libCategory, libBusinessType])
 
   useEffect(() => {
     if (waTab === 'rules' && businessId && session?.access_token) {
@@ -361,6 +377,7 @@ function WhatsAppTab({ businessId, session }) {
 
       {waTab === 'templates' && (
         <>
+          <h3 style={{ ...sectionH2, fontSize: 15, marginBottom: 8 }}>תבניות העסק</h3>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
             {templates.map(t => (
               <div key={t.id} style={{ padding: 12, background: 'var(--v2-dark-2)', borderRadius: 'var(--radius-md)', border: '1px solid var(--glass-border)', display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -369,6 +386,80 @@ function WhatsAppTab({ businessId, session }) {
               </div>
             ))}
           </div>
+
+          <h3 style={{ ...sectionH2, fontSize: 15, marginTop: 24, marginBottom: 8 }}>ספריית תבניות מוכנות</h3>
+          <p style={{ color: 'var(--v2-gray-400)', fontSize: 13, marginBottom: 12 }}>בחר תבנית וצרף לעסק — התבנית תישלח לאישור Meta</p>
+          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 16 }}>
+            <div>
+              <label className="label" style={{ display: 'block', marginBottom: 4 }}>קטגוריה</label>
+              <select className="input" value={libCategory} onChange={e => setLibCategory(e.target.value)} style={{ minWidth: 160 }}>
+                <option value="">הכל</option>
+                <option value="UTILITY">אישורים ועדכונים (UTILITY)</option>
+                <option value="MARKETING">קמפיינים ומבצעים (MARKETING)</option>
+                <option value="AUTHENTICATION">אימות (AUTHENTICATION)</option>
+                <option value="SERVICE">שירות (SERVICE)</option>
+              </select>
+            </div>
+            <div>
+              <label className="label" style={{ display: 'block', marginBottom: 4 }}>סוג עסק</label>
+              <select className="input" value={libBusinessType} onChange={e => setLibBusinessType(e.target.value)} style={{ minWidth: 140 }}>
+                <option value="">הכל</option>
+                <option value="hotel">מלון</option>
+                <option value="restaurant">מסעדה</option>
+                <option value="events">אירועים</option>
+                <option value="retail">חנות</option>
+                <option value="gym">חדר כושר</option>
+                <option value="general">כללי</option>
+              </select>
+            </div>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {libraryTemplates.map(t => {
+              const comps = Array.isArray(t.components) ? t.components : (typeof t.components === 'string' ? (() => { try { return JSON.parse(t.components || '[]') } catch { return [] } })() : [])
+              const bodyComp = comps.find(c => c.type === 'BODY')
+              const headerComp = comps.find(c => c.type === 'HEADER')
+              const previewText = (headerComp?.text ? headerComp.text.replace(/\{\{\d+\}\}/g, '•') + '\n' : '') + (bodyComp?.text || '').replace(/\{\{\d+\}\}/g, '•')
+              return (
+                <div key={t.id} style={{ padding: 14, background: 'var(--v2-dark-2)', borderRadius: 'var(--radius-md)', border: '1px solid var(--glass-border)' }}>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+                    <div style={{ flex: 1, minWidth: 200 }}>
+                      <div style={{ fontWeight: 600, marginBottom: 4 }}>{t.display_name_he || t.template_name}</div>
+                      <div style={{ fontSize: 12, color: 'var(--v2-gray-400)', marginBottom: 6 }}>{t.description_he}</div>
+                      <div style={{ fontSize: 12, color: 'var(--v2-gray-300)', whiteSpace: 'pre-wrap', background: 'rgba(0,0,0,0.2)', padding: 8, borderRadius: 6 }}>{previewText || '—'}</div>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span style={{ fontSize: 11, padding: '2px 6px', borderRadius: 999, background: 'rgba(0,195,122,0.15)', color: 'var(--v2-primary)' }}>{t.category}</span>
+                      {t.business_type && <span style={{ fontSize: 11, color: 'var(--v2-gray-400)' }}>{t.business_type}</span>}
+                      <button
+                        disabled={adoptBusy === t.id}
+                        onClick={async () => {
+                          setAdoptBusy(t.id)
+                          try {
+                            const r = await fetch(`${API_BASE}/api/whatsapp/template-library/${t.id}/adopt`, { method: 'POST', headers: authHeaders(), body: JSON.stringify({}) })
+                            const data = await r.json()
+                            if (!r.ok) throw new Error(data.error || 'שגיאה')
+                            setTemplates(prev => [{ id: data.template?.id, template_name: data.template?.template_name, meta_status: data.template?.meta_status }, ...prev])
+                            toast.success('התבנית נוספה ונשלחה לאישור Meta')
+                          } catch (e) {
+                            toast.error(e.message)
+                          } finally {
+                            setAdoptBusy(null)
+                          }
+                        }}
+                        className="btn-primary"
+                        style={{ padding: '8px 14px', fontSize: 13 }}
+                      >
+                        {adoptBusy === t.id ? '...' : 'הוסף לעסק'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+          {libraryTemplates.length === 0 && (libCategory || libBusinessType) && (
+            <p style={{ color: 'var(--v2-gray-400)', fontSize: 13 }}>לא נמצאו תבניות — נסה פילטרים אחרים</p>
+          )}
         </>
       )}
 
