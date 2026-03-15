@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Search, Users, Phone, Tag, X, ShoppingBag, Activity, Clock, Upload, Crown, RefreshCw, Sparkles, CheckCircle, Radio, Scan, AlertTriangle, Ticket, Cake, Send, Calendar, Pencil, Workflow } from 'lucide-react'
+import { Search, Users, Phone, Tag, X, ShoppingBag, Activity, Clock, Upload, Crown, RefreshCw, Sparkles, CheckCircle, Radio, Scan, AlertTriangle, Ticket, Cake, Send, Calendar, Pencil, Workflow, Plus, Zap, Download } from 'lucide-react'
 import EngagementScore from '@/components/ui/EngagementScore'
 import EmptyState from '@/components/ui/EmptyState'
 import ImportModal from '@/components/ui/ImportModal'
@@ -1018,26 +1018,46 @@ export default function Audiences() {
               <RefreshCw size={14} /> רענן
             </button>
           </div>
-          {/* Row 4: vertical actions — Settings-style list */}
-          <div style={{ background: 'var(--card)', padding: '12px 16px', borderRadius: 'var(--radius-md)', marginBottom: 12 }}>
-            <div style={{ padding: '12px 0', borderBottom: '1px solid var(--glass-border)', textAlign: 'right' }}>
-              <button type="button" className="btn-primary" style={{ width: '100%', justifyContent: 'flex-end' }} onClick={() => {
+          {/* Row 4: action buttons — horizontal scroll, Settings tab style + icons */}
+          <div style={{ display: 'flex', overflowX: 'auto', gap: 8, paddingBottom: 4, marginBottom: 12 }}>
+            <button
+              type="button"
+              onClick={() => {
                 const phones = recipients.map(r => r.phone).filter(Boolean)
                 sessionStorage.setItem('campaign_recipients', JSON.stringify(phones))
                 sessionStorage.setItem('campaign_segment_name', activeSegment)
                 navigate('/dashboard/new-campaign')
-              }}>צור קמפיין</button>
-            </div>
-            <div style={{ padding: '12px 0', borderBottom: '1px solid var(--glass-border)', textAlign: 'right' }}>
-              <button type="button" className="btn-ghost" style={{ width: '100%', justifyContent: 'flex-end' }} onClick={() => {
+              }}
+              style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 16px', borderRadius: 'var(--radius-md)', fontSize: 13, fontWeight: 500, whiteSpace: 'nowrap', background: 'transparent', color: 'var(--v2-gray-400)', border: 'none', cursor: 'pointer', transition: 'all 0.2s', flexShrink: 0 }}
+              onMouseEnter={e => { e.currentTarget.style.color = '#ffffff' }}
+              onMouseLeave={e => { e.currentTarget.style.color = 'var(--v2-gray-400)' }}
+            >
+              <Send size={14} /> צור קמפיין
+            </button>
+            <button
+              type="button"
+              onClick={() => {
                 const phones = recipients.map(r => r.phone).filter(Boolean)
                 const existing = JSON.parse(sessionStorage.getItem('campaign_recipients') || '[]')
                 sessionStorage.setItem('campaign_recipients', JSON.stringify([...new Set([...existing, ...phones])]))
                 toast.success('נוסף לקמפיין')
-              }}>הוסף לקמפיין קיים</button>
-            </div>
-            <div style={{ padding: '12px 0', borderBottom: '1px solid var(--glass-border)', textAlign: 'right', position: 'relative' }}>
-              <button type="button" className="btn-ghost" style={{ width: '100%', justifyContent: 'flex-end', display: 'flex', alignItems: 'center', gap: 6 }} onClick={async () => { setShowFlowDropdown(!showFlowDropdown); if (!showFlowDropdown && session?.access_token && businessId) { const r = await fetch(`${API_BASE}/api/whatsapp/flows`, { headers: { Authorization: `Bearer ${session.access_token}`, 'X-Business-Id': businessId } }); const d = r.ok ? await r.json() : {}; setFlowsList((d.flows || []).filter(x => x.meta_status === 'PUBLISHED')); } }}><Workflow size={16} /> שלח Flow</button>
+              }}
+              style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 16px', borderRadius: 'var(--radius-md)', fontSize: 13, fontWeight: 500, whiteSpace: 'nowrap', background: 'transparent', color: 'var(--v2-gray-400)', border: 'none', cursor: 'pointer', transition: 'all 0.2s', flexShrink: 0 }}
+              onMouseEnter={e => { e.currentTarget.style.color = '#ffffff' }}
+              onMouseLeave={e => { e.currentTarget.style.color = 'var(--v2-gray-400)' }}
+            >
+              <Plus size={14} /> הוסף לקמפיין קיים
+            </button>
+            <div style={{ position: 'relative', flexShrink: 0 }}>
+              <button
+                type="button"
+                onClick={async () => { setShowFlowDropdown(!showFlowDropdown); if (!showFlowDropdown && session?.access_token && businessId) { const r = await fetch(`${API_BASE}/api/whatsapp/flows`, { headers: { Authorization: `Bearer ${session.access_token}`, 'X-Business-Id': businessId } }); const d = r.ok ? await r.json() : {}; setFlowsList((d.flows || []).filter(x => x.meta_status === 'PUBLISHED')); } }}
+                style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 16px', borderRadius: 'var(--radius-md)', fontSize: 13, fontWeight: 500, whiteSpace: 'nowrap', background: 'transparent', color: 'var(--v2-gray-400)', border: 'none', cursor: 'pointer', transition: 'all 0.2s' }}
+                onMouseEnter={e => { e.currentTarget.style.color = '#ffffff' }}
+                onMouseLeave={e => { e.currentTarget.style.color = 'var(--v2-gray-400)' }}
+              >
+                <Zap size={14} /> שלח Flow
+              </button>
               {showFlowDropdown && (
                 <>
                   <div style={{ position: 'fixed', inset: 0, zIndex: 150 }} onClick={() => setShowFlowDropdown(false)} />
@@ -1064,12 +1084,18 @@ export default function Audiences() {
                 </>
               )}
             </div>
-            <div style={{ padding: '12px 0', borderBottom: '1px solid var(--glass-border)', textAlign: 'right' }}>
+            <div style={{ flexShrink: 0 }}>
               <ExportButton businessId={businessId} segment={activeSegment} label="ייצוא CSV" />
             </div>
-            <div style={{ padding: '12px 0', textAlign: 'right' }}>
-              <button type="button" className="btn-ghost" style={{ width: '100%', justifyContent: 'flex-end' }} onClick={() => { setShowBulkTagModal(true); setBulkTagMode('add'); setBulkTag(''); setBulkTagToRemove(''); }}>תגיות לסגמנט</button>
-            </div>
+            <button
+              type="button"
+              onClick={() => { setShowBulkTagModal(true); setBulkTagMode('add'); setBulkTag(''); setBulkTagToRemove(''); }}
+              style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 16px', borderRadius: 'var(--radius-md)', fontSize: 13, fontWeight: 500, whiteSpace: 'nowrap', background: 'transparent', color: 'var(--v2-gray-400)', border: 'none', cursor: 'pointer', transition: 'all 0.2s', flexShrink: 0 }}
+              onMouseEnter={e => { e.currentTarget.style.color = '#ffffff' }}
+              onMouseLeave={e => { e.currentTarget.style.color = 'var(--v2-gray-400)' }}
+            >
+              <Tag size={14} /> תגיות לסגמנט
+            </button>
           </div>
           {loadError && (
             <div style={{ marginTop: 12, padding: '10px 14px', background: 'rgba(245,158,11,0.12)', border: '1px solid rgba(245,158,11,0.4)', borderRadius: 'var(--radius-md)', color: '#F59E0B', fontSize: 14 }}>
