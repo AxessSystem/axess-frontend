@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import toast from 'react-hot-toast'
 import { motion } from 'framer-motion'
-import { Save, Building, Building2, MessageSquare, CreditCard, Bell, Wallet, User, Link2, Store, Calendar, LayoutGrid, Grid3X3, Megaphone, QrCode, Send, Users, UsersRound, ClipboardList, MessageCircle, MessageCircleMore, FileText, GitBranch, Eye, RefreshCw, Plus, X } from 'lucide-react'
+import { Save, Building, Building2, MessageSquare, CreditCard, Bell, Wallet, User, Link2, Store, Calendar, LayoutGrid, Grid3X3, Megaphone, QrCode, Send, Users, UsersRound, ClipboardList, MessageCircle, MessageCircleMore, FileText, GitBranch, Eye, RefreshCw, Plus, X, Workflow, CheckCircle, Utensils, Ticket, Tag, ShoppingBag } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 
 const API_BASE = import.meta.env.VITE_API_URL || 'https://axess-production.up.railway.app'
@@ -192,11 +192,20 @@ function LinksTab({ businessId }) {
   )
 }
 
+const FLOW_TYPES = [
+  { id: 'checkin', label: "צ'ק-אין", desc: 'אימות הזמנה וצ\'ק-אין באירוע', icon: CheckCircle },
+  { id: 'booking', label: 'הזמנת שולחן', desc: 'בחירת תאריך, שעה ומספר אורחים', icon: Utensils },
+  { id: 'purchase', label: 'רכישת כרטיס', desc: 'בחירת כרטיס, פרטים ותשלום', icon: Ticket },
+  { id: 'validator', label: 'מימוש קופון', desc: 'הזנת קוד קופון ומימוש', icon: Tag },
+  { id: 'retail', label: 'קנייה', desc: 'קטלוג, סל ותשלום', icon: ShoppingBag },
+]
+
 function WhatsAppTab({ businessId, session }) {
   const [waTab, setWaTab] = useState('account')
   const [status, setStatus] = useState(null)
   const [templates, setTemplates] = useState([])
   const [rules, setRules] = useState([])
+  const [flows, setFlows] = useState([])
   const [staff, setStaff] = useState([])
   const [connectForm, setConnectForm] = useState({
     phone_number_id: '', waba_id: '', access_token: '', business_phone_number: '', display_name: '', is_sandbox: false
@@ -204,6 +213,18 @@ function WhatsAppTab({ businessId, session }) {
   const [connecting, setConnecting] = useState(false)
   const [templateModal, setTemplateModal] = useState(false)
   const [ruleModal, setRuleModal] = useState(false)
+  const [flowCreateModal, setFlowCreateModal] = useState(false)
+  const [flowCreateStep, setFlowCreateStep] = useState(1)
+  const [flowCreateType, setFlowCreateType] = useState(null)
+  const [flowCreateParams, setFlowCreateParams] = useState({ business_name: '', event_name: '', coupon_title: '' })
+  const [flowCreateDisplayName, setFlowCreateDisplayName] = useState('')
+  const [flowCreateBusy, setFlowCreateBusy] = useState(false)
+  const [flowCreateError, setFlowCreateError] = useState(null)
+  const [flowSendModal, setFlowSendModal] = useState(null)
+  const [flowSendPhones, setFlowSendPhones] = useState('')
+  const [flowSendCta, setFlowSendCta] = useState('')
+  const [flowSendTemplate, setFlowSendTemplate] = useState('flow_invite')
+  const [flowSendBusy, setFlowSendBusy] = useState(false)
   const [ruleForm, setRuleForm] = useState({ rule_type: 'keyword', match_value: '', channel: 'both', action: 'queue_general', target_agent_id: '', target_department: '', bot_reply_text: '', is_active: true })
 
   const authHeaders = () => ({
@@ -228,6 +249,12 @@ function WhatsAppTab({ businessId, session }) {
     if (waTab === 'rules' && businessId && session?.access_token) {
       fetch(`${API_BASE}/api/inbox/routing-rules`, { headers: authHeaders() }).then(r => r.ok ? r.json() : {}).then(d => setRules(d.rules || [])).catch(() => setRules([]))
       fetch(`${API_BASE}/api/staff?business_id=${businessId}`, { headers: authHeaders() }).then(r => r.ok ? r.json() : []).then(setStaff).catch(() => [])
+    }
+  }, [waTab, businessId, session?.access_token])
+
+  useEffect(() => {
+    if (waTab === 'flows' && businessId && session?.access_token) {
+      fetch(`${API_BASE}/api/whatsapp/flows`, { headers: authHeaders() }).then(r => r.ok ? r.json() : {}).then(d => setFlows(d.flows || [])).catch(() => setFlows([]))
     }
   }, [waTab, businessId, session?.access_token])
 
@@ -291,11 +318,12 @@ function WhatsAppTab({ businessId, session }) {
   return (
     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} style={{ ...cardStyle, display: 'flex', flexDirection: 'column', gap: 20 }}>
       <h2 style={sectionH2}>WhatsApp Business API</h2>
-      <div style={{ display: 'flex', gap: 8, background: 'var(--v2-dark-2)', padding: 4, borderRadius: 'var(--radius-md)', width: 'fit-content' }}>
+      <div style={{ display: 'flex', gap: 8, background: 'var(--v2-dark-2)', padding: 4, borderRadius: 'var(--radius-md)', width: 'fit-content', flexWrap: 'wrap' }}>
         {[
           { id: 'account', label: 'חיבור חשבון', icon: MessageCircleMore },
           { id: 'templates', label: 'תבניות', icon: FileText },
           { id: 'rules', label: 'כללי ניתוב', icon: GitBranch },
+          { id: 'flows', label: 'Flows', icon: Workflow },
         ].map(t => (
           <button key={t.id} onClick={() => setWaTab(t.id)} style={{
             display: 'flex', alignItems: 'center', gap: 8, padding: '10px 16px', borderRadius: 8, border: 'none', background: waTab === t.id ? 'var(--v2-primary)' : 'transparent', color: waTab === t.id ? 'var(--v2-dark)' : 'var(--v2-gray-400)', fontWeight: 500, cursor: 'pointer',
@@ -371,6 +399,136 @@ function WhatsAppTab({ businessId, session }) {
                 <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
                   <button onClick={() => setRuleModal(false)} style={{ padding: '10px 16px', background: 'transparent', border: '1px solid var(--glass-border)', color: 'var(--v2-gray-400)', borderRadius: 8, cursor: 'pointer' }}>ביטול</button>
                   <button onClick={handleAddRule} className="btn-primary">שמור</button>
+                </div>
+              </div>
+            </div>
+          )}
+        </>
+      )}
+
+      {waTab === 'flows' && (
+        <>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {flows.map(f => (
+              <div key={f.id} style={{ padding: 14, background: 'var(--v2-dark-2)', borderRadius: 'var(--radius-md)', border: '1px solid var(--glass-border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                  <span style={{ fontWeight: 600, color: '#fff' }}>{f.display_name || f.flow_name}</span>
+                  <span style={{ fontSize: 12, padding: '2px 8px', borderRadius: 999, background: 'rgba(0,195,122,0.2)', color: 'var(--v2-primary)' }}>{FLOW_TYPES.find(t => t.id === f.flow_type)?.label || f.flow_type}</span>
+                  <span style={{ fontSize: 12, padding: '2px 8px', borderRadius: 999, background: f.meta_status === 'PUBLISHED' ? 'rgba(34,197,94,0.2)' : 'rgba(245,158,11,0.2)', color: f.meta_status === 'PUBLISHED' ? '#22C55E' : '#F59E0B' }}>{f.meta_status === 'PUBLISHED' ? 'פורסם' : 'טיוטה'}</span>
+                  <span style={{ fontSize: 12, color: 'var(--v2-gray-400)' }}>{f.created_at ? new Date(f.created_at).toLocaleDateString('he-IL') : ''}</span>
+                </div>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  {f.meta_status === 'DRAFT' && (
+                    <button onClick={async () => { try { await fetch(`${API_BASE}/api/whatsapp/flows/${f.id}/publish`, { method: 'POST', headers: authHeaders() }); setFlows(prev => prev.map(x => x.id === f.id ? { ...x, meta_status: 'PUBLISHED' } : x)); toast.success('פורסם'); } catch (e) { toast.error(e.message); } }} style={{ padding: '6px 12px', background: 'var(--v2-primary)', color: 'var(--v2-dark)', border: 'none', borderRadius: 8, fontWeight: 600, cursor: 'pointer', fontSize: 12 }}>פרסם</button>
+                  )}
+                  <button onClick={() => setFlowSendModal(f)} style={{ padding: '6px 12px', background: 'rgba(37,99,235,0.2)', color: '#60a5fa', border: '1px solid rgba(37,99,235,0.4)', borderRadius: 8, cursor: 'pointer', fontSize: 12 }}>שלח ללקוחות</button>
+                  <button onClick={async () => { if (!confirm('למחוק את ה-Flow?')) return; try { await fetch(`${API_BASE}/api/whatsapp/flows/${f.id}`, { method: 'DELETE', headers: authHeaders() }); setFlows(prev => prev.filter(x => x.id !== f.id)); toast.success('נמחק'); } catch (e) { toast.error(e.message); } }} style={{ padding: '6px 12px', background: 'transparent', color: '#EF4444', border: '1px solid rgba(239,68,68,0.5)', borderRadius: 8, cursor: 'pointer', fontSize: 12 }}>מחק</button>
+                </div>
+              </div>
+            ))}
+          </div>
+          <button onClick={() => { setFlowCreateModal(true); setFlowCreateStep(1); setFlowCreateType(null); setFlowCreateParams({ business_name: '', event_name: '', coupon_title: '' }); setFlowCreateDisplayName(''); setFlowCreateError(null); }} className="btn-primary" style={{ alignSelf: 'flex-start' }}><Plus size={16} style={{ marginLeft: 6, verticalAlign: 'middle' }} /> צור Flow חדש</button>
+
+          {flowCreateModal && (
+            <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }} onClick={() => !flowCreateBusy && setFlowCreateModal(false)}>
+              <div dir="rtl" style={{ background: 'var(--v2-dark-2)', borderRadius: 'var(--radius-lg)', padding: 24, maxWidth: 480, width: '100%', maxHeight: '90vh', overflowY: 'auto', border: '1px solid var(--glass-border)' }} onClick={e => e.stopPropagation()}>
+                <h3 style={{ marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}><Workflow size={20} /> צור Flow חדש — שלב {flowCreateStep}/3</h3>
+                {flowCreateStep === 1 && (
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: 12 }}>
+                    {FLOW_TYPES.map(t => {
+                      const Icon = t.icon
+                      return (
+                        <button key={t.id} type="button" onClick={() => { setFlowCreateType(t.id); setFlowCreateStep(2); }} style={{ padding: 16, borderRadius: 12, border: '1px solid var(--glass-border)', background: 'var(--v2-dark-3)', textAlign: 'center', cursor: 'pointer', transition: 'all 0.2s' }}>
+                          <Icon size={28} style={{ display: 'block', margin: '0 auto 8px', color: 'var(--v2-primary)' }} />
+                          <div style={{ fontWeight: 600, fontSize: 13, color: '#fff' }}>{t.label}</div>
+                          <div style={{ fontSize: 11, color: 'var(--v2-gray-400)', marginTop: 4 }}>{t.desc}</div>
+                        </button>
+                      )
+                    })}
+                  </div>
+                )}
+                {flowCreateStep === 2 && flowCreateType && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                    <div><label className="label">שם תצוגה</label><input className="input" value={flowCreateDisplayName} onChange={e => setFlowCreateDisplayName(e.target.value)} placeholder="למשל: צ'ק-אין אירוע קיץ" /></div>
+                    <div><label className="label">שם עסק</label><input className="input" value={flowCreateParams.business_name} onChange={e => setFlowCreateParams(p => ({ ...p, business_name: e.target.value }))} placeholder="המסעדה שלי" /></div>
+                    {['checkin', 'purchase'].includes(flowCreateType) && <div><label className="label">שם אירוע</label><input className="input" value={flowCreateParams.event_name} onChange={e => setFlowCreateParams(p => ({ ...p, event_name: e.target.value }))} placeholder="ערב מוזיקה" /></div>}
+                    {flowCreateType === 'validator' && <div><label className="label">שם קופון</label><input className="input" value={flowCreateParams.coupon_title} onChange={e => setFlowCreateParams(p => ({ ...p, coupon_title: e.target.value }))} placeholder="הנחה 20%" /></div>}
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <button type="button" onClick={() => setFlowCreateStep(1)} style={{ padding: '10px 16px', background: 'transparent', border: '1px solid var(--glass-border)', color: 'var(--v2-gray-400)', borderRadius: 8, cursor: 'pointer' }}>הקודם</button>
+                      <button type="button" onClick={() => setFlowCreateStep(3)} className="btn-primary">המשך</button>
+                    </div>
+                  </div>
+                )}
+                {flowCreateStep === 3 && flowCreateType && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                    <div style={{ padding: 12, background: 'var(--v2-dark-3)', borderRadius: 8, fontSize: 13 }}>
+                      <div><strong>סוג:</strong> {FLOW_TYPES.find(t => t.id === flowCreateType)?.label}</div>
+                      <div><strong>שם תצוגה:</strong> {flowCreateDisplayName || '—'}</div>
+                      <div><strong>שם עסק:</strong> {flowCreateParams.business_name || '—'}</div>
+                      {['checkin', 'purchase'].includes(flowCreateType) && <div><strong>שם אירוע:</strong> {flowCreateParams.event_name || '—'}</div>}
+                      {flowCreateType === 'validator' && <div><strong>שם קופון:</strong> {flowCreateParams.coupon_title || '—'}</div>}
+                    </div>
+                    {flowCreateError && <div style={{ color: '#EF4444', fontSize: 13 }}>{flowCreateError}</div>}
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <button type="button" onClick={() => setFlowCreateStep(2)} disabled={flowCreateBusy} style={{ padding: '10px 16px', background: 'transparent', border: '1px solid var(--glass-border)', color: 'var(--v2-gray-400)', borderRadius: 8, cursor: 'pointer' }}>הקודם</button>
+                      <button type="button" disabled={flowCreateBusy || !flowCreateParams.business_name?.trim()} className="btn-primary" onClick={async () => {
+                        setFlowCreateBusy(true); setFlowCreateError(null)
+                        try {
+                          const r = await fetch(`${API_BASE}/api/whatsapp/flows`, { method: 'POST', headers: authHeaders(), body: JSON.stringify({ flow_type: flowCreateType, params: { ...flowCreateParams, business_name: flowCreateParams.business_name || 'העסק' }, display_name: flowCreateDisplayName || undefined }) })
+                          const data = await r.json().catch(() => ({}))
+                          if (!r.ok) throw new Error(data.error || 'שגיאה ביצירת Flow')
+                          const flowId = data.flow?.id
+                          if (flowId) {
+                            const r2 = await fetch(`${API_BASE}/api/whatsapp/flows/${flowId}/publish`, { method: 'POST', headers: authHeaders() })
+                            if (!r2.ok) { setFlowCreateError('נוצר אך פרסום נכשל'); setFlowCreateBusy(false); return }
+                          }
+                          setFlows(prev => [{ ...data.flow, meta_status: 'PUBLISHED' }, ...prev])
+                          setFlowCreateModal(false)
+                          toast.success('Flow נוצר ופורסם')
+                        } catch (e) { setFlowCreateError(e.message || 'שגיאה') }
+                        setFlowCreateBusy(false)
+                      }}>{flowCreateBusy ? '...' : 'צור ופרסם'}</button>
+                    </div>
+                  </div>
+                )}
+                {flowCreateStep > 1 && (
+                  <button type="button" onClick={() => setFlowCreateModal(false)} style={{ marginTop: 12, fontSize: 12, color: 'var(--v2-gray-400)', background: 'none', border: 'none', cursor: 'pointer' }}>ביטול</button>
+                )}
+              </div>
+            </div>
+          )}
+
+          {flowSendModal && (
+            <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 101, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }} onClick={() => !flowSendBusy && setFlowSendModal(null)}>
+              <div dir="rtl" style={{ background: 'var(--v2-dark-2)', borderRadius: 'var(--radius-lg)', padding: 24, maxWidth: 420, width: '100%', border: '1px solid var(--glass-border)' }} onClick={e => e.stopPropagation()}>
+                <h3 style={{ marginBottom: 16 }}>שלח Flow — {flowSendModal.display_name || flowSendModal.flow_name}</h3>
+                <div style={{ marginBottom: 12 }}>
+                  <label className="label">טלפונים (מופרדים בפסיק או שורה)</label>
+                  <textarea className="input" rows={4} value={flowSendPhones} onChange={e => setFlowSendPhones(e.target.value)} placeholder="0501234567, 0509876543" dir="ltr" style={{ resize: 'vertical' }} />
+                </div>
+                <div style={{ marginBottom: 12 }}>
+                  <label className="label">שם תבנית WA (אופציונלי)</label>
+                  <input className="input" value={flowSendTemplate} onChange={e => setFlowSendTemplate(e.target.value)} placeholder="flow_invite" dir="ltr" />
+                </div>
+                <div style={{ marginBottom: 16 }}>
+                  <label className="label">טקסט כפתור CTA (אופציונלי)</label>
+                  <input className="input" value={flowSendCta} onChange={e => setFlowSendCta(e.target.value)} placeholder="התחל" />
+                </div>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button onClick={() => setFlowSendModal(null)} style={{ padding: '10px 16px', background: 'transparent', border: '1px solid var(--glass-border)', color: 'var(--v2-gray-400)', borderRadius: 8, cursor: 'pointer' }}>ביטול</button>
+                  <button disabled={flowSendBusy || !flowSendPhones.trim()} className="btn-primary" onClick={async () => {
+                    setFlowSendBusy(true)
+                    const phones = flowSendPhones.split(/[\n,]+/).map(p => p.trim()).filter(Boolean)
+                    try {
+                      const r = await fetch(`${API_BASE}/api/whatsapp/flows/${flowSendModal.id}/send`, { method: 'POST', headers: authHeaders(), body: JSON.stringify({ recipient_phones: phones, template_name: flowSendTemplate || 'flow_invite', flow_cta_text: flowSendCta || undefined }) })
+                      const data = await r.json().catch(() => ({}))
+                      if (!r.ok) throw new Error(data.error || 'שגיאה')
+                      const ok = (data.results || []).filter(x => x.success).length
+                      toast.success(`נשלח ל-${ok}/${phones.length} נמענים`)
+                      setFlowSendModal(null); setFlowSendPhones('')
+                    } catch (e) { toast.error(e.message) }
+                    setFlowSendBusy(false)
+                  }}>{flowSendBusy ? '...' : 'שלח'}</button>
                 </div>
               </div>
             </div>

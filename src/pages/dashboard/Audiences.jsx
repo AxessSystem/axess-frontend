@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Search, Users, Phone, Tag, X, ShoppingBag, Activity, Clock, Upload, Crown, RefreshCw, Sparkles, CheckCircle, Radio, Scan, AlertTriangle, Ticket, Cake, Send, Calendar, Pencil } from 'lucide-react'
+import { Search, Users, Phone, Tag, X, ShoppingBag, Activity, Clock, Upload, Crown, RefreshCw, Sparkles, CheckCircle, Radio, Scan, AlertTriangle, Ticket, Cake, Send, Calendar, Pencil, Workflow } from 'lucide-react'
 import EngagementScore from '@/components/ui/EngagementScore'
 import EmptyState from '@/components/ui/EmptyState'
 import ImportModal from '@/components/ui/ImportModal'
@@ -442,6 +442,11 @@ export default function Audiences() {
   const [bulkTagToRemove, setBulkTagToRemove] = useState('')
   const [showSaveSegmentModal, setShowSaveSegmentModal] = useState(false)
   const [saveSegmentName, setSaveSegmentName] = useState('')
+
+  const [showFlowDropdown, setShowFlowDropdown] = useState(false)
+  const [flowsList, setFlowsList] = useState([])
+  const [selectedFlowForSend, setSelectedFlowForSend] = useState(null)
+  const [flowSendBusy, setFlowSendBusy] = useState(false)
 
   const [liveHours, setLiveHours] = useState(3)
   const [campaigns, setCampaigns] = useState([])
@@ -1038,6 +1043,34 @@ export default function Audiences() {
             sessionStorage.setItem('campaign_recipients', JSON.stringify([...new Set([...existing, ...phones])]))
             toast.success('נוסף לקמפיין')
           }}>➕ הוסף לקמפיין קיים</button>
+          <div style={{ position: 'relative' }}>
+            <button className="btn-ghost" style={{ display: 'flex', alignItems: 'center', gap: 6 }} onClick={async () => { setShowFlowDropdown(!showFlowDropdown); if (!showFlowDropdown && session?.access_token && businessId) { const r = await fetch(`${API_BASE}/api/whatsapp/flows`, { headers: { Authorization: `Bearer ${session.access_token}`, 'X-Business-Id': businessId } }); const d = r.ok ? await r.json() : {}; setFlowsList((d.flows || []).filter(x => x.meta_status === 'PUBLISHED')); } }}><Workflow size={16} /> שלח Flow</button>
+            {showFlowDropdown && (
+              <>
+                <div style={{ position: 'fixed', inset: 0, zIndex: 150 }} onClick={() => setShowFlowDropdown(false)} />
+                <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: 4, minWidth: 220, background: 'var(--v2-dark-2)', border: '1px solid var(--glass-border)', borderRadius: 'var(--radius-md)', boxShadow: '0 8px 24px rgba(0,0,0,0.4)', zIndex: 151, padding: 6 }}>
+                  {flowsList.length === 0 ? <div style={{ padding: 12, fontSize: 13, color: 'var(--v2-gray-400)' }}>אין Flows מפורסמים. צור בהגדרות → WhatsApp → Flows</div> : flowsList.map(flow => (
+                    <button key={flow.id} type="button" disabled={flowSendBusy} style={{ display: 'block', width: '100%', padding: '10px 12px', textAlign: 'right', borderRadius: 6, border: 'none', background: 'transparent', color: '#fff', cursor: flowSendBusy ? 'not-allowed' : 'pointer', fontSize: 13 }} onClick={async () => {
+                      setShowFlowDropdown(false)
+                      const phones = recipients.map(r => r.phone).filter(Boolean)
+                      if (!phones.length) { toast.error('אין נמענים בסגמנט'); return }
+                      setFlowSendBusy(true)
+                      try {
+                        const r = await fetch(`${API_BASE}/api/whatsapp/flows/${flow.id}/send`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}`, 'X-Business-Id': businessId }, body: JSON.stringify({ recipient_phones: phones }) })
+                        const data = await r.json().catch(() => ({}))
+                        if (!r.ok) throw new Error(data.error || 'שגיאה')
+                        const ok = (data.results || []).filter(x => x.success).length
+                        toast.success(`Flow נשלח ל-${ok}/${phones.length} נמענים`)
+                      } catch (e) { toast.error(e.message || 'שגיאה בשליחה') }
+                      setFlowSendBusy(false)
+                    }}>
+                      {flow.display_name || flow.flow_name}
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
           <ExportButton businessId={businessId} segment={activeSegment} label="📥 ייצוא CSV" />
           <button className="btn-ghost" onClick={() => { setShowBulkTagModal(true); setBulkTagMode('add'); setBulkTag(''); setBulkTagToRemove(''); }}>🏷️ תגיות לסגמנט</button>
           {canSaveAsSegment && (
