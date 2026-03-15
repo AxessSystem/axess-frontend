@@ -800,8 +800,13 @@ export default function DashboardClientLayout() {
             <div style={{ paddingBottom: 32 }}>
               <button
                 onClick={async () => {
-                  window.location.href = '/login'
-                  try { await supabase.auth.signOut() } catch (e) {}
+                  try {
+                    await supabase.auth.signOut()
+                  } catch (e) {
+                    console.error('signOut error:', e)
+                  } finally {
+                    window.location.href = '/login'
+                  }
                 }}
                 style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '10px 16px', background: 'none', border: 'none', color: 'var(--v2-gray-400)', cursor: 'pointer', fontSize: 14 }}
               >
