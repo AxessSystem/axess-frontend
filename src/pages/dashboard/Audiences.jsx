@@ -986,29 +986,58 @@ export default function Audiences() {
 
       <div className="glass-card" style={{ overflow: 'hidden' }}>
         <div style={{ padding: '14px 18px', borderBottom: '1px solid var(--border)' }}>
+          {/* Row 1: search + הכל */}
+          <div className="audience-search-row" style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center' }}>
+            <div className="audience-search-row-1" style={{ flex: '1 1 200px', minWidth: 0, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <input placeholder="🔍 חפש לפי שם או טלפון..." className="form-input input" style={{ flex: 1, minWidth: 180, fontSize: '13px' }} value={search} onChange={e => { setSearch(e.target.value); setPage(1) }} />
+              <button className={activeTag === 'הכל' ? 'btn-primary' : 'btn-ghost'} onClick={() => setActiveTag('הכל')}>הכל</button>
+            </div>
+          </div>
+          {/* Row 2: segment buttons + sort — aligned left */}
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center', justifyContent: 'flex-start', marginTop: 10 }}>
+            <div className="audience-search-row-2-tags" style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+              {ALL_TAGS.filter(t => t !== 'הכל').map(tag => (
+                <button key={tag} onClick={() => { setActiveTag(tag); setPage(1) }} style={{ padding: '6px 12px', borderRadius: 'var(--radius-full)', fontSize: 12, background: activeTag === tag ? 'var(--v2-primary)' : 'rgba(255,255,255,0.04)', color: activeTag === tag ? 'var(--v2-dark)' : 'var(--v2-gray-400)', border: 'none', cursor: 'pointer' }}>{tag}</button>
+              ))}
+            </div>
+            <select className="input audience-search-row-3-sort" style={{ width: 'auto' }} value={sortBy} onChange={e => setSortBy(e.target.value)}>
+              <option value="score">מיין: ציון</option>
+              <option value="campaigns">מיין: קמפיינים</option>
+              <option value="name">מיין: שם</option>
+            </select>
+          </div>
+          {/* Two-line gap */}
+          <div style={{ marginTop: 24 }} />
+          {/* Row 3: count (24px green bold + "אנשי קשר" 14px white) + refresh to the left */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 12 }}>
-            <div style={{ textAlign: 'right', fontSize: 20, fontWeight: 700, color: 'var(--v2-primary)', flex: 1 }}>
-              {loadingRecipients || loading ? 'טוען...' : <><strong>{filtered.length}</strong> לקוחות</>}
+            <div style={{ textAlign: 'right', flex: 1 }}>
+              <span style={{ fontSize: 24, fontWeight: 700, color: 'var(--v2-primary)' }}>{loadingRecipients || loading ? 'טוען...' : filtered.length}</span>
+              <span style={{ fontSize: 14, color: '#fff', marginRight: 6 }}> אנשי קשר</span>
             </div>
             <button type="button" onClick={() => setRefreshTrigger(t => t + 1)} disabled={loadingRecipients} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', fontSize: 13, background: 'var(--v2-dark-3)', border: '1px solid var(--glass-border)', borderRadius: 'var(--radius-md)', color: 'var(--v2-gray-300)', cursor: loadingRecipients ? 'not-allowed' : 'pointer' }} title="רענן">
               <RefreshCw size={14} /> רענן
             </button>
           </div>
-          <div className="audience-actions" style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', overflowX: 'auto', paddingBottom: 8, marginBottom: 12 }}>
-            <button className="btn-primary" onClick={() => {
-              const phones = recipients.map(r => r.phone).filter(Boolean)
-              sessionStorage.setItem('campaign_recipients', JSON.stringify(phones))
-              sessionStorage.setItem('campaign_segment_name', activeSegment)
-              navigate('/dashboard/new-campaign')
-            }}>צור קמפיין</button>
-            <button className="btn-ghost" onClick={() => {
-              const phones = recipients.map(r => r.phone).filter(Boolean)
-              const existing = JSON.parse(sessionStorage.getItem('campaign_recipients') || '[]')
-              sessionStorage.setItem('campaign_recipients', JSON.stringify([...new Set([...existing, ...phones])]))
-              toast.success('נוסף לקמפיין')
-            }}>הוסף לקמפיין קיים</button>
-            <div style={{ position: 'relative', flexShrink: 0 }}>
-              <button className="btn-ghost" style={{ display: 'flex', alignItems: 'center', gap: 6 }} onClick={async () => { setShowFlowDropdown(!showFlowDropdown); if (!showFlowDropdown && session?.access_token && businessId) { const r = await fetch(`${API_BASE}/api/whatsapp/flows`, { headers: { Authorization: `Bearer ${session.access_token}`, 'X-Business-Id': businessId } }); const d = r.ok ? await r.json() : {}; setFlowsList((d.flows || []).filter(x => x.meta_status === 'PUBLISHED')); } }}><Workflow size={16} /> שלח Flow</button>
+          {/* Row 4: vertical actions — Settings-style list */}
+          <div style={{ background: 'var(--card)', padding: '12px 16px', borderRadius: 'var(--radius-md)', marginBottom: 12 }}>
+            <div style={{ padding: '12px 0', borderBottom: '1px solid var(--glass-border)', textAlign: 'right' }}>
+              <button type="button" className="btn-primary" style={{ width: '100%', justifyContent: 'flex-end' }} onClick={() => {
+                const phones = recipients.map(r => r.phone).filter(Boolean)
+                sessionStorage.setItem('campaign_recipients', JSON.stringify(phones))
+                sessionStorage.setItem('campaign_segment_name', activeSegment)
+                navigate('/dashboard/new-campaign')
+              }}>צור קמפיין</button>
+            </div>
+            <div style={{ padding: '12px 0', borderBottom: '1px solid var(--glass-border)', textAlign: 'right' }}>
+              <button type="button" className="btn-ghost" style={{ width: '100%', justifyContent: 'flex-end' }} onClick={() => {
+                const phones = recipients.map(r => r.phone).filter(Boolean)
+                const existing = JSON.parse(sessionStorage.getItem('campaign_recipients') || '[]')
+                sessionStorage.setItem('campaign_recipients', JSON.stringify([...new Set([...existing, ...phones])]))
+                toast.success('נוסף לקמפיין')
+              }}>הוסף לקמפיין קיים</button>
+            </div>
+            <div style={{ padding: '12px 0', borderBottom: '1px solid var(--glass-border)', textAlign: 'right', position: 'relative' }}>
+              <button type="button" className="btn-ghost" style={{ width: '100%', justifyContent: 'flex-end', display: 'flex', alignItems: 'center', gap: 6 }} onClick={async () => { setShowFlowDropdown(!showFlowDropdown); if (!showFlowDropdown && session?.access_token && businessId) { const r = await fetch(`${API_BASE}/api/whatsapp/flows`, { headers: { Authorization: `Bearer ${session.access_token}`, 'X-Business-Id': businessId } }); const d = r.ok ? await r.json() : {}; setFlowsList((d.flows || []).filter(x => x.meta_status === 'PUBLISHED')); } }}><Workflow size={16} /> שלח Flow</button>
               {showFlowDropdown && (
                 <>
                   <div style={{ position: 'fixed', inset: 0, zIndex: 150 }} onClick={() => setShowFlowDropdown(false)} />
@@ -1035,33 +1064,13 @@ export default function Audiences() {
                 </>
               )}
             </div>
-            <ExportButton businessId={businessId} segment={activeSegment} label="ייצוא CSV" />
-            <button className="btn-ghost" onClick={() => { setShowBulkTagModal(true); setBulkTagMode('add'); setBulkTag(''); setBulkTagToRemove(''); }}>תגיות לסגמנט</button>
-            {canSaveAsSegment && (
-              <button className="btn-ghost" onClick={() => { setSaveSegmentName(defaultSaveSegmentName); setShowSaveSegmentModal(true); }}>שמור כסגמנט</button>
-            )}
-          </div>
-          <div className="audience-search-row" style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center' }}>
-            <div className="audience-search-row-1" style={{ flex: '1 1 200px', minWidth: 0, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-              <input placeholder="🔍 חפש לפי שם או טלפון..." className="form-input input" style={{ flex: 1, minWidth: 180, fontSize: '13px' }} value={search} onChange={e => { setSearch(e.target.value); setPage(1) }} />
-              <button className={activeTag === 'הכל' ? 'btn-primary' : 'btn-ghost'} onClick={() => setActiveTag('הכל')}>הכל</button>
+            <div style={{ padding: '12px 0', borderBottom: '1px solid var(--glass-border)', textAlign: 'right' }}>
+              <ExportButton businessId={businessId} segment={activeSegment} label="ייצוא CSV" />
             </div>
-            <div className="audience-search-row-2-tags" style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-              {ALL_TAGS.filter(t => t !== 'הכל').map(tag => (
-                <button key={tag} onClick={() => { setActiveTag(tag); setPage(1) }} style={{ padding: '6px 12px', borderRadius: 'var(--radius-full)', fontSize: 12, background: activeTag === tag ? 'var(--v2-primary)' : 'rgba(255,255,255,0.04)', color: activeTag === tag ? 'var(--v2-dark)' : 'var(--v2-gray-400)', border: 'none', cursor: 'pointer' }}>{tag}</button>
-              ))}
-            </div>
-            <div className="audience-search-row-spacer" />
-            <div className="audience-search-row-3">
-              <div className="audience-search-row-3-count" style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>{(loading || loadingRecipients) ? 'טוען...' : <><strong style={{ color: 'var(--v2-primary)' }}>{filtered.length}</strong> לקוחות</>}</div>
-              <select className="input audience-search-row-3-sort" style={{ width: 'auto' }} value={sortBy} onChange={e => setSortBy(e.target.value)}>
-              <option value="score">מיין: ציון</option>
-              <option value="campaigns">מיין: קמפיינים</option>
-              <option value="name">מיין: שם</option>
-            </select>
+            <div style={{ padding: '12px 0', textAlign: 'right' }}>
+              <button type="button" className="btn-ghost" style={{ width: '100%', justifyContent: 'flex-end' }} onClick={() => { setShowBulkTagModal(true); setBulkTagMode('add'); setBulkTag(''); setBulkTagToRemove(''); }}>תגיות לסגמנט</button>
             </div>
           </div>
-          <div className="audience-search-count-row" style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>{(loading || loadingRecipients) ? 'טוען...' : <><strong style={{ color: 'var(--v2-primary)' }}>{filtered.length}</strong> לקוחות</>}</div>
           {loadError && (
             <div style={{ marginTop: 12, padding: '10px 14px', background: 'rgba(245,158,11,0.12)', border: '1px solid rgba(245,158,11,0.4)', borderRadius: 'var(--radius-md)', color: '#F59E0B', fontSize: 14 }}>
               {loadError}
