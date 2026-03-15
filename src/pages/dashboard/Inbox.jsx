@@ -255,6 +255,12 @@ export default function Inbox({ onUnreadChange }) {
 
   const isSupervisor = role === "owner" || role === "manager";
 
+  const authHeaders = useCallback(() => ({
+    "Content-Type": "application/json",
+    Authorization: `Bearer ${session?.access_token}`,
+    "X-Business-Id": businessId,
+  }), [session?.access_token, businessId]);
+
   useEffect(() => {
     const state = location.state || {};
     if (state.openConversation && !pendingOpenRef.current) {
@@ -293,12 +299,6 @@ export default function Inbox({ onUnreadChange }) {
       if (recipientSearchDebounceRef.current) clearTimeout(recipientSearchDebounceRef.current);
     };
   }, [recipientSearch, session?.access_token, businessId, authHeaders]);
-
-  const authHeaders = useCallback(() => ({
-    "Content-Type": "application/json",
-    Authorization: `Bearer ${session?.access_token}`,
-    "X-Business-Id": businessId,
-  }), [session?.access_token, businessId]);
 
   const apiFetch = useCallback(
     async (path, opts = {}) => {
