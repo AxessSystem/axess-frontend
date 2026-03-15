@@ -428,6 +428,8 @@ export default function Audiences() {
   const [segments, setSegments] = useState({ presets: PRESET_SEGMENTS, saved: [] })
   const [loading, setLoading] = useState(false)
   const [loadingRecipients, setLoadingRecipients] = useState(true)
+  const [loadError, setLoadError] = useState(null)
+  const [refreshTrigger, setRefreshTrigger] = useState(0)
   const [nlQuery, setNlQuery] = useState('')
   const [showSaveModal, setShowSaveModal] = useState(false)
   const [saveName, setSaveName] = useState('')
@@ -478,6 +480,7 @@ export default function Audiences() {
       setLoadingRecipients(false)
       return
     }
+    setLoadError(null)
     setLoadingRecipients(true)
     const headers = { Authorization: `Bearer ${session.access_token}`, 'X-Business-Id': businessId }
     Promise.all([
@@ -500,10 +503,14 @@ export default function Audiences() {
         setSegments({ presets: PRESET_SEGMENTS, saved: sData?.saved || [] })
         setCampaigns(cData?.campaigns || cData || [])
         setEvents(eData?.events || [])
+        setLoadError(null)
       })
-      .catch(err => console.error('[Audiences] fetch error:', err))
+      .catch(err => {
+        console.error('[Audiences] fetch error:', err)
+        setLoadError('שגיאה בטעינת נתונים — נסה לרענן')
+      })
       .finally(() => setLoadingRecipients(false))
-  }, [session?.access_token, businessId])
+  }, [session?.access_token, businessId, refreshTrigger])
 
   const runPreset = async (segment) => {
     setActiveSegment(segment.id)
@@ -979,8 +986,13 @@ export default function Audiences() {
 
       <div className="glass-card" style={{ overflow: 'hidden' }}>
         <div style={{ padding: '14px 18px', borderBottom: '1px solid var(--border)' }}>
-          <div style={{ textAlign: 'right', fontSize: 20, fontWeight: 700, color: 'var(--v2-primary)', marginBottom: 12 }}>
-            {loadingRecipients || loading ? 'טוען...' : <><strong>{filtered.length}</strong> לקוחות</>}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 12 }}>
+            <div style={{ textAlign: 'right', fontSize: 20, fontWeight: 700, color: 'var(--v2-primary)', flex: 1 }}>
+              {loadingRecipients || loading ? 'טוען...' : <><strong>{filtered.length}</strong> לקוחות</>}
+            </div>
+            <button type="button" onClick={() => setRefreshTrigger(t => t + 1)} disabled={loadingRecipients} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', fontSize: 13, background: 'var(--v2-dark-3)', border: '1px solid var(--glass-border)', borderRadius: 'var(--radius-md)', color: 'var(--v2-gray-300)', cursor: loadingRecipients ? 'not-allowed' : 'pointer' }} title="רענן">
+              <RefreshCw size={14} /> רענן
+            </button>
           </div>
           <div className="audience-actions" style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', overflowX: 'auto', paddingBottom: 8, marginBottom: 12 }}>
             <button className="btn-primary" onClick={() => {
@@ -1050,6 +1062,11 @@ export default function Audiences() {
             </div>
           </div>
           <div className="audience-search-count-row" style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>{(loading || loadingRecipients) ? 'טוען...' : <><strong style={{ color: 'var(--v2-primary)' }}>{filtered.length}</strong> לקוחות</>}</div>
+          {loadError && (
+            <div style={{ marginTop: 12, padding: '10px 14px', background: 'rgba(245,158,11,0.12)', border: '1px solid rgba(245,158,11,0.4)', borderRadius: 'var(--radius-md)', color: '#F59E0B', fontSize: 14 }}>
+              {loadError}
+            </div>
+          )}
         </div>
 
         {loadingRecipients ? (
