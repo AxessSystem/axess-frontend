@@ -64,10 +64,10 @@ export default function WebviewCart({ items, onAfterCheckout }) {
         insetInline: 0,
         bottom: 0,
         zIndex: 20,
-        padding: '8px 12px 12px',
+        padding: '8px 10px 10px',
         boxSizing: 'border-box',
         background:
-          'linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.8) 30%, rgba(0,0,0,0.95) 100%)',
+          'linear-gradient(180deg, rgba(15,23,42,0) 0%, rgba(15,23,42,0.75) 35%, rgba(15,23,42,0.98) 100%)',
         direction: 'rtl',
       }}
     >
@@ -75,19 +75,33 @@ export default function WebviewCart({ items, onAfterCheckout }) {
         style={{
           maxWidth: 480,
           margin: '0 auto',
-          background: 'var(--wv-card, #111827)',
-          borderRadius: 16,
-          padding: 10,
+          background: 'rgba(15,23,42,0.82)',
+          borderRadius: '16px 16px 0 0',
+          padding: 12,
           display: 'flex',
           flexDirection: 'column',
-          gap: 8,
-          boxShadow: '0 -6px 16px rgba(0,0,0,0.5)',
+          gap: 10,
+          boxShadow: '0 -20px 40px rgba(15,23,42,0.95)',
+          border: '1px solid rgba(148,163,184,0.35)',
+          backdropFilter: 'blur(14px)',
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <span style={{ fontSize: 13, opacity: 0.85 }}>סל קניות</span>
-          <span style={{ fontSize: 13, fontWeight: 600 }}>
-            {count ? `${count} פריט · ‎₪${total.toFixed(0)}` : 'ריק'}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+          }}
+        >
+          <span style={{ fontSize: 14, opacity: 0.85 }}>סל קניות</span>
+          <span
+            style={{
+              fontSize: 15,
+              fontWeight: 700,
+              color: count ? 'var(--wv-primary, #22C55E)' : 'rgba(148,163,184,0.8)',
+            }}
+          >
+            {count ? `‎₪${total.toFixed(0)}` : 'ריק'}
           </span>
         </div>
         <input
@@ -120,12 +134,12 @@ export default function WebviewCart({ items, onAfterCheckout }) {
           style={{
             width: '100%',
             border: 'none',
-            borderRadius: 999,
-            padding: '9px 12px',
+            borderRadius: 12,
+            padding: '14px 12px',
             background: disabled ? 'rgba(148,163,184,0.3)' : 'var(--wv-primary, #22C55E)',
-            color: disabled ? 'rgba(255,255,255,0.8)' : '#000',
-            fontWeight: 600,
-            fontSize: 14,
+            color: disabled ? 'rgba(226,232,240,0.9)' : '#020617',
+            fontWeight: 700,
+            fontSize: 15,
             cursor: disabled ? 'default' : 'pointer',
           }}
         >

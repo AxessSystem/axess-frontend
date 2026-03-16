@@ -16,7 +16,7 @@ export default function WebviewLayout({ business, children }) {
         minHeight: '100vh',
         background: 'var(--wv-bg, #000)',
         color: 'var(--wv-text, #fff)',
-        fontFamily: 'var(--wv-font, system-ui)',
+        fontFamily: "var(--wv-font, 'Heebo', system-ui, -apple-system, BlinkMacSystemFont, sans-serif)",
         display: 'flex',
         flexDirection: 'column',
         direction: 'rtl',
@@ -28,43 +28,50 @@ export default function WebviewLayout({ business, children }) {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          borderBottom: '1px solid rgba(255,255,255,0.08)',
-          background: 'linear-gradient(90deg, rgba(0,0,0,0.95), rgba(0,0,0,0.7))',
+          borderBottom: '1px solid rgba(148,163,184,0.25)',
+          background: 'var(--wv-bg, #020617)',
           position: 'sticky',
           top: 0,
           zIndex: 10,
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
-          {logoUrl ? (
-            <img
-              src={logoUrl}
-              alt={business?.name || 'עסק'}
-              style={{ width: 32, height: 32, borderRadius: 8, objectFit: 'cover' }}
-            />
-          ) : (
-            <div
-              style={{
-                width: 32,
-                height: 32,
-                borderRadius: 8,
-                background: 'var(--wv-primary, #22C55E)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: '#000',
-                fontWeight: 700,
-                fontSize: 16,
-              }}
-            >
-              {(business?.name || 'A').slice(0, 1)}
-            </div>
-          )}
+          <div
+            style={{
+              width: 36,
+              height: 36,
+              borderRadius: '999px',
+              background: 'radial-gradient(circle at 30% 30%, #bbf7d0, var(--wv-primary, #22C55E))',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              overflow: 'hidden',
+              boxShadow: '0 0 0 1px rgba(15,23,42,0.9), 0 8px 18px rgba(15,23,42,0.85)',
+            }}
+          >
+            {logoUrl ? (
+              <img
+                src={logoUrl}
+                alt={business?.name || 'עסק'}
+                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+              />
+            ) : (
+              <span
+                style={{
+                  fontSize: 18,
+                  fontWeight: 700,
+                  color: '#020617',
+                }}
+              >
+                {(business?.name || 'A').slice(0, 1)}
+              </span>
+            )}
+          </div>
           <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
             <span
               style={{
-                fontSize: 14,
-                fontWeight: 600,
+                fontSize: 18,
+                fontWeight: 700,
                 whiteSpace: 'nowrap',
                 overflow: 'hidden',
                 textOverflow: 'ellipsis',
@@ -72,7 +79,7 @@ export default function WebviewLayout({ business, children }) {
             >
               {business?.name || 'עסק'}
             </span>
-            <span style={{ fontSize: 11, opacity: 0.7 }}>
+            <span style={{ fontSize: 12, opacity: 0.65 }}>
               {business?.business_type === 'hotel'
                 ? 'שירות חדרים'
                 : business?.business_type === 'event'
@@ -88,19 +95,19 @@ export default function WebviewLayout({ business, children }) {
           onClick={handleClose}
           style={{
             border: 'none',
-            background: 'rgba(255,255,255,0.06)',
-            color: 'var(--wv-text, #fff)',
-            borderRadius: 999,
-            padding: '4px 10px',
-            fontSize: 12,
+            background: 'rgba(15,23,42,0.85)',
+            color: 'rgba(248,250,252,0.9)',
+            borderRadius: '999px',
+            width: 32,
+            height: 32,
             display: 'flex',
             alignItems: 'center',
-            gap: 4,
+            justifyContent: 'center',
             cursor: 'pointer',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.45)',
           }}
         >
-          <span style={{ fontSize: 12 }}>✕</span>
-          <span>סגור</span>
+          <span style={{ fontSize: 14 }}>✕</span>
         </button>
       </header>
 

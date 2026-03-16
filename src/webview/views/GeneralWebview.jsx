@@ -17,11 +17,17 @@ export default function GeneralWebview({ business, items }) {
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-      <div style={{ padding: '4px 4px 8px', fontSize: 14, opacity: 0.85 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <div
+        style={{
+          padding: '4px 4px 8px',
+          fontSize: 14,
+          opacity: 0.8,
+        }}
+      >
         בחר/י מההטבות / מוצרים הזמינים אצל {business?.name || 'העסק'}.
       </div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
         {(cartItems || []).map((item) => (
           <div
             key={item.id}
@@ -29,9 +35,11 @@ export default function GeneralWebview({ business, items }) {
               display: 'flex',
               alignItems: 'center',
               gap: 10,
-              padding: 10,
-              borderRadius: 12,
-              background: 'var(--wv-card, #111827)',
+              padding: 16,
+              borderRadius: 16,
+              background: 'rgba(15,23,42,0.85)',
+              border: '1px solid rgba(148,163,184,0.25)',
+              boxShadow: '0 18px 45px rgba(15,23,42,0.75)',
             }}
           >
             {item.image_url && (
@@ -44,63 +52,78 @@ export default function GeneralWebview({ business, items }) {
             <div style={{ flex: 1, minWidth: 0 }}>
               <div
                 style={{
-                  fontSize: 14,
-                  fontWeight: 500,
+                  fontSize: 16,
+                  fontWeight: 700,
                   marginBottom: 4,
                   whiteSpace: 'nowrap',
                   overflow: 'hidden',
                   textOverflow: 'ellipsis',
+                  textAlign: 'right',
                 }}
               >
                 {item.name}
               </div>
               {item.description && (
-                <div style={{ fontSize: 12, opacity: 0.7, marginBottom: 4 }}>
+                <div style={{ fontSize: 13, opacity: 0.7, marginBottom: 6, textAlign: 'right' }}>
                   {item.description}
                 </div>
               )}
-              <div style={{ fontSize: 13, fontWeight: 600 }}>‎₪{Number(item.price || 0).toFixed(0)}</div>
+              <div
+                style={{
+                  fontSize: 16,
+                  fontWeight: 700,
+                  color: 'var(--wv-primary, #22C55E)',
+                  textAlign: 'right',
+                }}
+              >
+                ‎₪{Number(item.price || 0).toFixed(0)}
+              </div>
             </div>
             <div
               style={{
                 display: 'flex',
                 alignItems: 'center',
-                gap: 6,
-                background: 'rgba(15,23,42,0.9)',
-                borderRadius: 999,
-                padding: '4px 6px',
+                gap: 10,
               }}
             >
               <button
                 type="button"
                 onClick={() => updateQuantity(item.id, -1)}
                 style={{
-                  width: 22,
-                  height: 22,
+                  width: 32,
+                  height: 32,
                   borderRadius: '50%',
                   border: 'none',
-                  background: 'rgba(148,163,184,0.3)',
-                  color: '#fff',
-                  fontSize: 14,
+                  background: 'rgba(15,23,42,0.9)',
+                  color: 'rgba(248,250,252,0.85)',
+                  fontSize: 18,
                   cursor: 'pointer',
                 }}
               >
                 -
               </button>
-              <span style={{ minWidth: 20, textAlign: 'center', fontSize: 13 }}>
+              <span
+                style={{
+                  minWidth: 28,
+                  textAlign: 'center',
+                  fontSize: 18,
+                  fontWeight: 700,
+                  color: 'var(--wv-text, #fff)',
+                }}
+              >
                 {Number(item.quantity || 0)}
               </span>
               <button
                 type="button"
                 onClick={() => updateQuantity(item.id, 1)}
                 style={{
-                  width: 22,
-                  height: 22,
+                  width: 32,
+                  height: 32,
                   borderRadius: '50%',
                   border: 'none',
                   background: 'var(--wv-primary, #22C55E)',
                   color: '#000',
-                  fontSize: 14,
+                  fontSize: 18,
                   cursor: 'pointer',
                 }}
               >
