@@ -239,6 +239,8 @@ export default function EventWebview({ business, event }) {
     return `${y}-${m}-${day}`
   }, [])
 
+  const canCheckout = ticketCart.length > 0 && !!recipient?.phone && ticketTotal > 0 && !ticketBusy
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12, direction: 'rtl' }}>
       {event && (
@@ -250,7 +252,15 @@ export default function EventWebview({ business, event }) {
             boxShadow: '0 20px 50px rgba(15,23,42,0.75)',
           }}
         >
-          <div style={{ position: 'relative', height: 200, width: '100%', background: '#020617' }}>
+          <div
+            style={{
+              position: 'relative',
+              height: 260,
+              width: '100vw',
+              marginInlineStart: -16,
+              background: '#020617',
+            }}
+          >
             {event.cover_image_url && (
               <img
                 src={event.cover_image_url}
@@ -285,8 +295,8 @@ export default function EventWebview({ business, event }) {
             >
               <div
                 style={{
-                  fontFamily: "var(--wv-font, 'Heebo', sans-serif)",
-                  fontSize: 24,
+                  fontFamily: 'var(--wv-font, "Heebo", "Arial", sans-serif)',
+                  fontSize: 26,
                   fontWeight: 800,
                   color: '#f9fafb',
                   textShadow: '0 10px 30px rgba(0,0,0,0.8)',
@@ -306,9 +316,13 @@ export default function EventWebview({ business, event }) {
           >
             <div
               style={{
+                background: 'var(--wv-card, #0f172a)',
+                borderRadius: 12,
+                padding: 16,
                 display: 'flex',
-                flexWrap: 'wrap',
-                gap: 10,
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: 8,
                 fontSize: 13,
                 color: 'rgba(226,232,240,0.9)',
               }}
@@ -329,10 +343,10 @@ export default function EventWebview({ business, event }) {
             {event.description && (
               <div
                 style={{
-                  marginTop: 4,
-                  fontSize: 13,
-                  color: 'rgba(148,163,184,0.95)',
-                  lineHeight: 1.6,
+                  marginTop: 8,
+                  fontSize: 14,
+                  color: 'rgba(148,163,184,0.9)',
+                  lineHeight: 1.7,
                 }}
               >
                 {event.description}
@@ -345,13 +359,15 @@ export default function EventWebview({ business, event }) {
       <div
         style={{
           display: 'flex',
-          gap: 6,
-          padding: '2px 2px 6px',
-          overflowX: 'auto',
+          gap: 16,
+          padding: '0 4px',
+          borderBottom: '1px solid rgba(148,163,184,0.3)',
+          background: 'var(--wv-bg, #020617)',
         }}
       >
         {visibleTabs.map((tab) => {
           const Icon = tab.icon
+          const isActive = activeTab === tab.id
           return (
             <button
               key={tab.id}
@@ -359,18 +375,20 @@ export default function EventWebview({ business, event }) {
               onClick={() => setActiveTab(tab.id)}
               style={{
                 border: 'none',
-                borderRadius: 999,
-                padding: '6px 12px',
-                background:
-                  activeTab === tab.id ? 'var(--wv-primary, #22C55E)' : 'rgba(15,23,42,0.9)',
-                color: activeTab === tab.id ? '#020617' : 'var(--wv-text, #fff)',
+                background: 'transparent',
+                padding: '10px 0 8px',
+                margin: 0,
+                color: isActive ? '#f9fafb' : 'rgba(148,163,184,0.9)',
                 fontSize: 13,
-                fontWeight: activeTab === tab.id ? 700 : 500,
+                fontWeight: isActive ? 700 : 500,
                 cursor: 'pointer',
                 whiteSpace: 'nowrap',
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: 6,
+                borderBottom: isActive
+                  ? '2px solid var(--wv-primary, #22C55E)'
+                  : '2px solid transparent',
               }}
             >
               <Icon size={16} />
@@ -406,13 +424,14 @@ export default function EventWebview({ business, event }) {
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div
                     style={{
-                      fontFamily: "var(--wv-font, 'Heebo', sans-serif)",
-                      fontSize: 16,
+                      fontFamily: 'var(--wv-font, "Heebo", "Arial", sans-serif)',
+                      fontSize: 18,
                       fontWeight: 700,
                       marginBottom: 4,
                       whiteSpace: 'nowrap',
                       overflow: 'hidden',
                       textOverflow: 'ellipsis',
+                      textAlign: 'right',
                     }}
                   >
                     {t.name}
@@ -420,16 +439,17 @@ export default function EventWebview({ business, event }) {
                   {t.description && (
                     <div
                       style={{
-                        fontFamily: "var(--wv-font, 'Heebo', sans-serif)",
+                        fontFamily: 'var(--wv-font, "Heebo", "Arial", sans-serif)',
                         fontSize: 13,
-                        color: 'rgba(148,163,184,0.9)',
+                        color: 'rgba(148,163,184,0.8)',
                         marginBottom: 4,
+                        textAlign: 'right',
                       }}
                     >
                       {t.description}
                     </div>
                   )}
-                  <div style={{ fontSize: 14, opacity: 0.9 }}>
+                  <div style={{ fontSize: 13, opacity: 0.9, textAlign: 'right' }}>
                     {typeof t.inventory === 'number' && t.inventory >= 0 && (
                       <span>נשארו {t.inventory} כרטיסים</span>
                     )}
@@ -440,16 +460,17 @@ export default function EventWebview({ business, event }) {
                     display: 'flex',
                     flexDirection: 'column',
                     alignItems: 'flex-end',
-                    gap: 6,
-                    minWidth: 90,
+                    gap: 8,
+                    minWidth: 110,
                   }}
                 >
                   <div
                     style={{
-                      fontFamily: "var(--wv-font, 'Heebo', sans-serif)",
-                      fontSize: 18,
+                      fontFamily: 'var(--wv-font, "Heebo", "Arial", sans-serif)',
+                      fontSize: 20,
                       fontWeight: 800,
                       color: 'var(--wv-primary, #22C55E)',
+                      textAlign: 'right',
                     }}
                   >
                     ‎₪{Number(t.price || 0).toFixed(0)}
@@ -458,7 +479,7 @@ export default function EventWebview({ business, event }) {
                     style={{
                       display: 'flex',
                       alignItems: 'center',
-                      gap: 6,
+                      gap: 8,
                       background: 'rgba(15,23,42,0.9)',
                       borderRadius: 999,
                       padding: '4px 6px',
@@ -468,30 +489,40 @@ export default function EventWebview({ business, event }) {
                       type="button"
                       onClick={() => handleChangeTicketQty(t.id, -1)}
                       style={{
-                        width: 24,
-                        height: 24,
+                        width: 36,
+                        height: 36,
                         borderRadius: '50%',
                         border: 'none',
-                        background: 'rgba(148,163,184,0.35)',
-                        color: '#f9fafb',
-                        fontSize: 14,
+                        background: 'rgba(100,116,139,0.65)',
+                        color: '#e5e7eb',
+                        fontSize: 18,
                         cursor: 'pointer',
                       }}
                     >
                       -
                     </button>
-                    <span style={{ minWidth: 20, textAlign: 'center', fontSize: 13 }}>{qty}</span>
+                    <span
+                      style={{
+                        minWidth: 24,
+                        textAlign: 'center',
+                        fontSize: 18,
+                        fontWeight: 700,
+                        color: '#f9fafb',
+                      }}
+                    >
+                      {qty}
+                    </span>
                     <button
                       type="button"
                       onClick={() => handleChangeTicketQty(t.id, 1)}
                       style={{
-                        width: 24,
-                        height: 24,
+                        width: 36,
+                        height: 36,
                         borderRadius: '50%',
                         border: 'none',
                         background: 'var(--wv-primary, #22C55E)',
                         color: '#020617',
-                        fontSize: 14,
+                        fontSize: 18,
                         cursor: 'pointer',
                       }}
                     >
@@ -503,55 +534,8 @@ export default function EventWebview({ business, event }) {
             )
           })}
 
-          {ticketCart.length > 0 && (
-            <div
-              style={{
-                marginTop: 4,
-                padding: 10,
-                borderRadius: 12,
-                background: 'rgba(15,23,42,0.85)',
-                border: '1px solid rgba(148,163,184,0.4)',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: 8,
-              }}
-            >
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  fontSize: 14,
-                }}
-              >
-                <span>סה״כ</span>
-                <span style={{ fontWeight: 700 }}>‎₪{ticketTotal.toFixed(0)}</span>
-              </div>
-              {ticketError && (
-                <div style={{ fontSize: 12, color: '#fecaca' }}>
-                  {ticketError}
-                </div>
-              )}
-              <button
-                type="button"
-                disabled={ticketBusy}
-                onClick={handleTicketCheckout}
-                style={{
-                  marginTop: 2,
-                  width: '100%',
-                  border: 'none',
-                  borderRadius: 12,
-                  padding: '10px 10px',
-                  background: 'var(--wv-primary, #22C55E)',
-                  color: '#020617',
-                  fontSize: 15,
-                  fontWeight: 700,
-                  cursor: ticketBusy ? 'default' : 'pointer',
-                }}
-              >
-                {ticketBusy ? 'מנתב לתשלום…' : 'לרכישה'}
-              </button>
-            </div>
+          {ticketError && (
+            <div style={{ fontSize: 12, color: '#fecaca', marginTop: 4 }}>{ticketError}</div>
           )}
         </div>
       )}
@@ -854,7 +838,45 @@ export default function EventWebview({ business, event }) {
           </button>
         </form>
       )}
+      {activeTab === 'tickets' && (
+        <div
+          style={{
+            position: 'fixed',
+            bottom: 0,
+            left: 0,
+            right: 0,
+            padding: '12px 16px',
+            background: 'var(--wv-bg, #020617)',
+            borderTop: '1px solid rgba(255,255,255,0.1)',
+            boxSizing: 'border-box',
+          }}
+        >
+          <button
+            type="button"
+            disabled={!canCheckout}
+            onClick={handleTicketCheckout}
+            style={{
+              width: '100%',
+              border: 'none',
+              borderRadius: 12,
+              padding: '12px 10px',
+              background: canCheckout ? 'var(--wv-primary, #22C55E)' : 'rgba(148,163,184,0.4)',
+              color: canCheckout ? '#020617' : 'rgba(226,232,240,0.9)',
+              fontSize: 16,
+              fontWeight: 700,
+              cursor: canCheckout ? 'pointer' : 'default',
+            }}
+          >
+            {ticketBusy
+              ? 'מנתב לתשלום…'
+              : ticketCart.length === 0
+              ? 'בחר כרטיסים'
+              : `לרכישה — ‎₪${ticketTotal.toFixed(0)}`}
+          </button>
+        </div>
+      )}
     </div>
   )
 }
+
 

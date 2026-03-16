@@ -52,7 +52,7 @@ export default function GeneralWebview({ business, items }) {
             <div style={{ flex: 1, minWidth: 0 }}>
               <div
                 style={{
-                  fontFamily: "var(--wv-font, 'Heebo', sans-serif)",
+                  fontFamily: 'var(--wv-font, "Heebo", "Arial", sans-serif)',
                   fontSize: 16,
                   fontWeight: 700,
                   marginBottom: 4,
@@ -67,7 +67,7 @@ export default function GeneralWebview({ business, items }) {
               {item.description && (
                 <div
                   style={{
-                    fontFamily: "var(--wv-font, 'Heebo', sans-serif)",
+                    fontFamily: 'var(--wv-font, "Heebo", "Arial", sans-serif)',
                     fontSize: 13,
                     color: 'rgba(255,255,255,0.6)',
                     marginBottom: 6,

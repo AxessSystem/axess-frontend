@@ -21,7 +21,7 @@ const DEFAULT_BRAND = {
     card: '#1A1A2E',
   },
   logo_url: null,
-  font_family: 'Inter, system-ui, -apple-system, BlinkMacSystemFont, sans-serif',
+  font_family: '"Heebo", "Arial", sans-serif',
 }
 
 function applyBrandToCssVars(brand) {
@@ -33,7 +33,7 @@ function applyBrandToCssVars(brand) {
   root.style.setProperty('--wv-bg', colors.background || DEFAULT_BRAND.colors.background)
   root.style.setProperty('--wv-text', colors.text || DEFAULT_BRAND.colors.text)
   root.style.setProperty('--wv-card', colors.card || DEFAULT_BRAND.colors.card)
-  root.style.setProperty('--wv-font', brand?.font_family || DEFAULT_BRAND.font_family)
+  root.style.setProperty('--wv-font', '"Heebo", "Arial", sans-serif')
 }
 
 export default function WebviewApp() {
@@ -145,7 +145,7 @@ export default function WebviewApp() {
           padding: 24,
           textAlign: 'center',
           direction: 'rtl',
-          fontFamily: 'var(--wv-font, system-ui)',
+          fontFamily: 'var(--wv-font, "Heebo", "Arial", sans-serif)',
         }}
       >
         <div>

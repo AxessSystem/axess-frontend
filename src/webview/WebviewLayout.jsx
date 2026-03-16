@@ -16,7 +16,7 @@ export default function WebviewLayout({ business, children }) {
         minHeight: '100vh',
         background: 'var(--wv-bg, #000)',
         color: 'var(--wv-text, #fff)',
-        fontFamily: "var(--wv-font, 'Heebo', system-ui, -apple-system, BlinkMacSystemFont, sans-serif)",
+        fontFamily: 'var(--wv-font, "Heebo", "Arial", sans-serif)',
         display: 'flex',
         flexDirection: 'column',
         direction: 'rtl',

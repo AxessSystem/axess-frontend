@@ -69,7 +69,7 @@ export default function WebviewPhoneInput() {
           padding: 20,
           border: '1px solid rgba(148,163,184,0.35)',
           boxShadow: '0 24px 60px rgba(0,0,0,0.85)',
-          fontFamily: "var(--wv-font, 'Heebo', system-ui, sans-serif)",
+          fontFamily: 'var(--wv-font, "Heebo", "Arial", sans-serif)',
         }}
       >
         <div style={{ marginBottom: 12 }}>
