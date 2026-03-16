@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom'
 import { API_BASE } from '../config'
 import { useWebview } from '../WebviewContext'
 import ProductCard from '../components/ProductCard'
+import WebviewCart from '../components/WebviewCart'
 
 const TABS = [
   { id: 'menu', label: '🍽️ תפריט' },
@@ -294,48 +295,46 @@ export default function RestaurantWebview() {
           onSubmit={handleTableBooking}
           style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 4 }}
         >
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-            <div>
-              <label style={{ fontSize: 13, marginBottom: 4, display: 'block' }}>תאריך</label>
-              <input
-                type="date"
-                min={todayStr}
-                value={tableDate}
-                onChange={(e) => setTableDate(e.target.value)}
-                style={{
-                  width: '100%',
-                  padding: '8px 10px',
-                  borderRadius: 12,
-                  border: '1px solid rgba(148,163,184,0.5)',
-                  background: 'rgba(15,23,42,0.7)',
-                  color: 'var(--wv-text, #fff)',
-                  fontSize: 13,
-                }}
-              />
-            </div>
-            <div>
-              <label style={{ fontSize: 13, marginBottom: 4, display: 'block' }}>שעה</label>
-              <select
-                value={tableTime}
-                onChange={(e) => setTableTime(e.target.value)}
-                style={{
-                  width: '100%',
-                  padding: '8px 10px',
-                  borderRadius: 12,
-                  border: '1px solid rgba(148,163,184,0.5)',
-                  background: 'rgba(15,23,42,0.7)',
-                  color: 'var(--wv-text, #fff)',
-                  fontSize: 13,
-                }}
-              >
-                <option value="">בחר שעה</option>
-                {timeOptions.map((t) => (
-                  <option key={t} value={t}>
-                    {t}
-                  </option>
-                ))}
-              </select>
-            </div>
+          <div>
+            <label style={{ fontSize: 13, marginBottom: 4, display: 'block' }}>תאריך</label>
+            <input
+              type="date"
+              min={todayStr}
+              value={tableDate}
+              onChange={(e) => setTableDate(e.target.value)}
+              style={{
+                width: '100%',
+                padding: '8px 10px',
+                borderRadius: 12,
+                border: '1px solid rgba(148,163,184,0.5)',
+                background: 'rgba(15,23,42,0.7)',
+                color: 'var(--wv-text, #fff)',
+                fontSize: 13,
+              }}
+            />
+          </div>
+          <div>
+            <label style={{ fontSize: 13, marginBottom: 4, display: 'block' }}>שעה</label>
+            <select
+              value={tableTime}
+              onChange={(e) => setTableTime(e.target.value)}
+              style={{
+                width: '100%',
+                padding: '8px 10px',
+                borderRadius: 12,
+                border: '1px solid rgba(148,163,184,0.5)',
+                background: 'rgba(15,23,42,0.7)',
+                color: 'var(--wv-text, #fff)',
+                fontSize: 13,
+              }}
+            >
+              <option value="">בחר שעה</option>
+              {timeOptions.map((t) => (
+                <option key={t} value={t}>
+                  {t}
+                </option>
+              ))}
+            </select>
           </div>
           <div>
             <label style={{ fontSize: 13, marginBottom: 4, display: 'block' }}>מספר אנשים</label>
@@ -518,6 +517,7 @@ export default function RestaurantWebview() {
           </button>
         </form>
       )}
+      {(activeTab === 'menu' || activeTab === 'preorder') && <WebviewCart items={cart} />}
     </div>
   )
 }
