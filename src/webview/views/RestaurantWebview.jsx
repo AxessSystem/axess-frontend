@@ -4,12 +4,13 @@ import { API_BASE } from '../config'
 import { useWebview } from '../WebviewContext'
 import ProductCard from '../components/ProductCard'
 import WebviewCart from '../components/WebviewCart'
+import { UtensilsCrossed, Calendar, ShoppingCart, Bell } from 'lucide-react'
 
 const TABS = [
-  { id: 'menu', label: '🍽️ תפריט' },
-  { id: 'table', label: '📅 הזמנת שולחן' },
-  { id: 'preorder', label: '🛒 Pre-order' },
-  { id: 'call', label: '🔔 קרא למלצר' },
+  { id: 'menu', label: 'תפריט', icon: UtensilsCrossed },
+  { id: 'table', label: 'הזמנת שולחן', icon: Calendar },
+  { id: 'preorder', label: 'Pre-order', icon: ShoppingCart },
+  { id: 'call', label: 'קרא למלצר', icon: Bell },
 ]
 
 export default function RestaurantWebview() {
@@ -204,27 +205,34 @@ export default function RestaurantWebview() {
           overflowX: 'auto',
         }}
       >
-        {TABS.map((tab) => (
-          <button
-            key={tab.id}
-            type="button"
-            onClick={() => setActiveTab(tab.id)}
-            style={{
-              border: 'none',
-              borderRadius: 999,
-              padding: '6px 12px',
-              background:
-                activeTab === tab.id ? 'var(--wv-primary, #22C55E)' : 'rgba(15,23,42,0.9)',
-              color: activeTab === tab.id ? '#020617' : 'var(--wv-text, #fff)',
-              fontSize: 13,
-              fontWeight: activeTab === tab.id ? 700 : 500,
-              cursor: 'pointer',
-              whiteSpace: 'nowrap',
-            }}
-          >
-            {tab.label}
-          </button>
-        ))}
+        {TABS.map((tab) => {
+          const Icon = tab.icon
+          return (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => setActiveTab(tab.id)}
+              style={{
+                border: 'none',
+                borderRadius: 999,
+                padding: '6px 12px',
+                background:
+                  activeTab === tab.id ? 'var(--wv-primary, #22C55E)' : 'rgba(15,23,42,0.9)',
+                color: activeTab === tab.id ? '#020617' : 'var(--wv-text, #fff)',
+                fontSize: 13,
+                fontWeight: activeTab === tab.id ? 700 : 500,
+                cursor: 'pointer',
+                whiteSpace: 'nowrap',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+              }}
+            >
+              <Icon size={16} />
+              <span>{tab.label}</span>
+            </button>
+          )
+        })}
       </div>
 
       {/* Tab content */}
@@ -514,7 +522,7 @@ export default function RestaurantWebview() {
               cursor: busy ? 'default' : 'pointer',
             }}
           >
-            {busy ? 'שולח...' : '🔔 קרא למלצר'}
+            {busy ? 'שולח...' : 'קרא למלצר'}
           </button>
         </form>
       )}

@@ -1,3 +1,5 @@
+import { UtensilsCrossed } from 'lucide-react'
+
 export default function ProductCard({ item, quantity, onAdd, onRemove }) {
   const q = Number(quantity || 0)
 
@@ -36,7 +38,7 @@ export default function ProductCard({ item, quantity, onAdd, onRemove }) {
             style={{ width: '100%', height: '100%', objectFit: 'cover' }}
           />
         ) : (
-          <span>🍽️</span>
+          <UtensilsCrossed size={20} />
         )}
       </div>
       <div style={{ flex: 1, minWidth: 0 }}>

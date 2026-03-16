@@ -4,6 +4,7 @@ import WebviewLayout from './WebviewLayout'
 import { API_BASE } from './config'
 import { WebviewProvider } from './WebviewContext'
 import WebviewPhoneInput from './components/WebviewPhoneInput'
+import WebviewChatButton from './components/WebviewChatButton'
 import HotelWebview from './views/HotelWebview'
 import EventWebview from './views/EventWebview'
 import RetailWebview from './views/RetailWebview'
@@ -148,7 +149,7 @@ export default function WebviewApp() {
   const mainView = (() => {
     const type = (business.business_type || '').toLowerCase()
     if (type === 'hotel') {
-      return <HotelWebview business={business} items={categorizedItems.hotel.length ? categorizedItems.hotel : items} />
+      return <HotelWebview business={business} items={items} />
     }
     if (type === 'event') {
       return <EventWebview business={business} items={categorizedItems.event.length ? categorizedItems.event : items} extra={context} />
@@ -170,6 +171,7 @@ export default function WebviewApp() {
           <Route path="/" element={mainView} />
           <Route path="success" element={<WebviewSuccess business={business} />} />
         </Routes>
+        <WebviewChatButton business={business} recipient={context?.recipient} />
       </WebviewLayout>
     </WebviewProvider>
   )

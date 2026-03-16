@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useParams, useSearchParams } from 'react-router-dom'
 import { API_BASE } from '../config'
+import { CheckCircle } from 'lucide-react'
 
 export default function WebviewSuccess({ business }) {
   const { slug } = useParams()
@@ -60,7 +61,7 @@ export default function WebviewSuccess({ business }) {
           marginBottom: 4,
         }}
       >
-        <span style={{ fontSize: 30 }}>✅</span>
+        <CheckCircle size={30} color="#22C55E" />
       </div>
       <h1 style={{ fontSize: 20, margin: 0 }}>תודה על ההזמנה!</h1>
       <p style={{ fontSize: 14, opacity: 0.8, margin: 0 }}>
