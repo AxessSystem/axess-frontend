@@ -49,7 +49,21 @@ export default function WebviewApp() {
       setLoading(true)
       setError(null)
       try {
-        const res = await fetch(`${API_BASE}/api/w/${encodeURIComponent(slug)}/context`)
+        const searchParams = new URLSearchParams(window.location.search)
+        const eventId = searchParams.get('event')
+        const phone = searchParams.get('phone')
+        const token = searchParams.get('token')
+
+        const params = new URLSearchParams()
+        if (eventId) params.set('event', eventId)
+        if (phone) params.set('phone', phone)
+        if (token) params.set('token', token)
+
+        const url = `${API_BASE}/api/w/${encodeURIComponent(slug)}/context${
+          params.toString() ? `?${params.toString()}` : ''
+        }`
+
+        const res = await fetch(url)
         if (!res.ok) {
           throw new Error('שגיאה בטעינת הדף')
         }
