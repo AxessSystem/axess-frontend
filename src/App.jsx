@@ -77,6 +77,9 @@ const AdminSMSPage       = lazy(() => import('@/pages/axessAdmin/AdminSMS'))
 const AdminNoticesPage   = lazy(() => import('@/pages/axessAdmin/AdminNotices'))
 const AdminAuditLogPage  = lazy(() => import('@/pages/axessAdmin/AdminAuditLog'))
 
+/* ── Webview bundle (lazy, standalone) ── */
+const WebviewApp = lazy(() => import('./webview/WebviewApp'))
+
 /* ── Loading fallback ── */
 function PageLoader() {
   return (
@@ -149,6 +152,16 @@ export default function App() {
             <Route path="/booking/:id" element={<BookingManagementPage />} />
             <Route path="/g/token/:token" element={<GuestPaymentPage />} />
             <Route path="/scan/:eventSlug" element={<ScanStation />} />
+
+            {/* ── Public Webview (outside dashboard) ── */}
+            <Route
+              path="/w/:slug/*"
+              element={
+                <Suspense fallback={<div style={{ background: '#000', height: '100vh' }} />}>
+                  <WebviewApp />
+                </Suspense>
+              }
+            />
 
             {/* ── Industries ── */}
             <Route path="/industries" element={<Navigate to="/industries/events" replace />} />
