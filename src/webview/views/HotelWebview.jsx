@@ -65,8 +65,9 @@ export default function HotelWebview({ business, items }) {
             <div style={{ flex: 1, minWidth: 0 }}>
               <div
                 style={{
-                  fontSize: 14,
-                  fontWeight: 500,
+                  fontFamily: "var(--wv-font, 'Heebo', sans-serif)",
+                  fontSize: 16,
+                  fontWeight: 700,
                   marginBottom: 4,
                   whiteSpace: 'nowrap',
                   overflow: 'hidden',
@@ -76,7 +77,14 @@ export default function HotelWebview({ business, items }) {
                 {item.name}
               </div>
               {item.description && (
-                <div style={{ fontSize: 12, opacity: 0.7, marginBottom: 4 }}>
+                <div
+                  style={{
+                    fontFamily: "var(--wv-font, 'Heebo', sans-serif)",
+                    fontSize: 13,
+                    color: 'rgba(255,255,255,0.6)',
+                    marginBottom: 4,
+                  }}
+                >
                   {item.description}
                 </div>
               )}
