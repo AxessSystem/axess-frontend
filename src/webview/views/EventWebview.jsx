@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { API_BASE } from '../config'
 import { useWebview } from '../WebviewContext'
-import { Ticket, Armchair, Calendar, CheckCircle } from 'lucide-react'
+import { Ticket, Armchair, Calendar, CheckCircle, MapPin } from 'lucide-react'
 
 const TABS = [
   { id: 'tickets', label: 'כרטיסים', icon: Ticket },
@@ -240,35 +240,105 @@ export default function EventWebview({ business, event }) {
   }, [])
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12, direction: 'rtl' }}>
       {event && (
         <div
           style={{
-            padding: 12,
-            borderRadius: 12,
-            background: 'var(--wv-card, #111827)',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 4,
+            borderRadius: 16,
+            overflow: 'hidden',
+            background: 'var(--wv-card, #0f172a)',
+            boxShadow: '0 20px 50px rgba(15,23,42,0.75)',
           }}
         >
-          <div style={{ fontSize: 16, fontWeight: 700 }}>{event.title}</div>
-          {event.date && (
-            <div style={{ fontSize: 13, opacity: 0.85 }}>
-              תאריך:{' '}
-              {new Date(event.date).toLocaleDateString('he-IL')}
+          <div style={{ position: 'relative', height: 200, width: '100%', background: '#020617' }}>
+            {event.cover_image_url && (
+              <img
+                src={event.cover_image_url}
+                alt={event.title}
+                style={{
+                  position: 'absolute',
+                  inset: 0,
+                  width: '100%',
+                  height: '100%',
+                  objectFit: 'cover',
+                  filter: 'brightness(0.9)',
+                }}
+              />
+            )}
+            <div
+              style={{
+                position: 'absolute',
+                inset: 0,
+                background:
+                  'linear-gradient(to top, rgba(15,23,42,0.95), rgba(15,23,42,0.3), transparent)',
+              }}
+            />
+            <div
+              style={{
+                position: 'absolute',
+                insetInline: 16,
+                bottom: 16,
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 4,
+              }}
+            >
+              <div
+                style={{
+                  fontFamily: "var(--wv-font, 'Heebo', sans-serif)",
+                  fontSize: 24,
+                  fontWeight: 800,
+                  color: '#f9fafb',
+                  textShadow: '0 10px 30px rgba(0,0,0,0.8)',
+                }}
+              >
+                {event.title}
+              </div>
             </div>
-          )}
-          {(event.location || event.venue_name) && (
-            <div style={{ fontSize: 13, opacity: 0.8 }}>
-              מיקום: {event.venue_name || event.location}
+          </div>
+          <div
+            style={{
+              padding: 12,
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 6,
+            }}
+          >
+            <div
+              style={{
+                display: 'flex',
+                flexWrap: 'wrap',
+                gap: 10,
+                fontSize: 13,
+                color: 'rgba(226,232,240,0.9)',
+              }}
+            >
+              {event.date && (
+                <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                  <Calendar size={14} />
+                  <span>{new Date(event.date).toLocaleString('he-IL', { dateStyle: 'medium' })}</span>
+                </div>
+              )}
+              {(event.location || event.venue_name) && (
+                <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                  <MapPin size={14} />
+                  <span>{event.venue_name || event.location}</span>
+                </div>
+              )}
             </div>
-          )}
-          {event.description && (
-            <div style={{ fontSize: 13, opacity: 0.8, marginTop: 4 }}>
-              {event.description}
-            </div>
-          )}
+            {event.description && (
+              <div
+                style={{
+                  marginTop: 4,
+                  fontSize: 13,
+                  color: 'rgba(148,163,184,0.95)',
+                  lineHeight: 1.6,
+                }}
+              >
+                {event.description}
+              </div>
+            )}
+          </div>
         </div>
       )}
 
@@ -324,10 +394,13 @@ export default function EventWebview({ business, event }) {
                 style={{
                   display: 'flex',
                   alignItems: 'center',
-                  gap: 10,
-                  padding: 10,
-                  borderRadius: 12,
-                  background: 'var(--wv-card, #111827)',
+                  gap: 12,
+                  padding: 14,
+                  borderRadius: 16,
+                  background: 'rgba(15,23,42,0.85)',
+                  border: qty > 0 ? '1px solid rgba(34,197,94,0.9)' : '1px solid rgba(148,163,184,0.35)',
+                  boxShadow: qty > 0 ? '0 18px 45px rgba(22,163,74,0.5)' : '0 16px 40px rgba(15,23,42,0.85)',
+                  backdropFilter: 'blur(18px)',
                 }}
               >
                 <div style={{ flex: 1, minWidth: 0 }}>
@@ -344,56 +417,87 @@ export default function EventWebview({ business, event }) {
                   >
                     {t.name}
                   </div>
-                  <div style={{ fontSize: 13, opacity: 0.8 }}>
-                    ‎₪{Number(t.price || 0).toFixed(0)}{' '}
+                  {t.description && (
+                    <div
+                      style={{
+                        fontFamily: "var(--wv-font, 'Heebo', sans-serif)",
+                        fontSize: 13,
+                        color: 'rgba(148,163,184,0.9)',
+                        marginBottom: 4,
+                      }}
+                    >
+                      {t.description}
+                    </div>
+                  )}
+                  <div style={{ fontSize: 14, opacity: 0.9 }}>
                     {typeof t.inventory === 'number' && t.inventory >= 0 && (
-                      <span style={{ marginInlineStart: 4 }}>· נשארו {t.inventory}</span>
+                      <span>נשארו {t.inventory} כרטיסים</span>
                     )}
                   </div>
                 </div>
                 <div
                   style={{
                     display: 'flex',
-                    alignItems: 'center',
+                    flexDirection: 'column',
+                    alignItems: 'flex-end',
                     gap: 6,
-                    background: 'rgba(15,23,42,0.9)',
-                    borderRadius: 999,
-                    padding: '4px 6px',
+                    minWidth: 90,
                   }}
                 >
-                  <button
-                    type="button"
-                    onClick={() => handleChangeTicketQty(t.id, -1)}
+                  <div
                     style={{
-                      width: 22,
-                      height: 22,
-                      borderRadius: '50%',
-                      border: 'none',
-                      background: 'rgba(148,163,184,0.3)',
-                      color: '#fff',
-                      fontSize: 14,
-                      cursor: 'pointer',
+                      fontFamily: "var(--wv-font, 'Heebo', sans-serif)",
+                      fontSize: 18,
+                      fontWeight: 800,
+                      color: 'var(--wv-primary, #22C55E)',
                     }}
                   >
-                    -
-                  </button>
-                  <span style={{ minWidth: 20, textAlign: 'center', fontSize: 13 }}>{qty}</span>
-                  <button
-                    type="button"
-                    onClick={() => handleChangeTicketQty(t.id, 1)}
+                    ‎₪{Number(t.price || 0).toFixed(0)}
+                  </div>
+                  <div
                     style={{
-                      width: 22,
-                      height: 22,
-                      borderRadius: '50%',
-                      border: 'none',
-                      background: 'var(--wv-primary, #22C55E)',
-                      color: '#000',
-                      fontSize: 14,
-                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 6,
+                      background: 'rgba(15,23,42,0.9)',
+                      borderRadius: 999,
+                      padding: '4px 6px',
                     }}
                   >
-                    +
-                  </button>
+                    <button
+                      type="button"
+                      onClick={() => handleChangeTicketQty(t.id, -1)}
+                      style={{
+                        width: 24,
+                        height: 24,
+                        borderRadius: '50%',
+                        border: 'none',
+                        background: 'rgba(148,163,184,0.35)',
+                        color: '#f9fafb',
+                        fontSize: 14,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      -
+                    </button>
+                    <span style={{ minWidth: 20, textAlign: 'center', fontSize: 13 }}>{qty}</span>
+                    <button
+                      type="button"
+                      onClick={() => handleChangeTicketQty(t.id, 1)}
+                      style={{
+                        width: 24,
+                        height: 24,
+                        borderRadius: '50%',
+                        border: 'none',
+                        background: 'var(--wv-primary, #22C55E)',
+                        color: '#020617',
+                        fontSize: 14,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      +
+                    </button>
+                  </div>
                 </div>
               </div>
             )
@@ -445,7 +549,7 @@ export default function EventWebview({ business, event }) {
                   cursor: ticketBusy ? 'default' : 'pointer',
                 }}
               >
-                {ticketBusy ? 'מנתב לתשלום…' : 'לתשלום'}
+                {ticketBusy ? 'מנתב לתשלום…' : 'לרכישה'}
               </button>
             </div>
           )}
