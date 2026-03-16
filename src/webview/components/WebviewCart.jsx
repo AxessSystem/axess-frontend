@@ -60,23 +60,17 @@ export default function WebviewCart({ items, onAfterCheckout }) {
   return (
     <div
       style={{
-        position: 'fixed',
-        insetInline: 0,
-        bottom: 0,
-        zIndex: 20,
-        padding: '8px 10px 10px',
+        width: '100%',
         boxSizing: 'border-box',
-        background:
-          'linear-gradient(180deg, rgba(15,23,42,0) 0%, rgba(15,23,42,0.75) 35%, rgba(15,23,42,0.98) 100%)',
         direction: 'rtl',
       }}
     >
       <div
         style={{
           maxWidth: 480,
-          margin: '0 auto',
+          margin: '12px auto 0',
           background: 'rgba(15,23,42,0.82)',
-          borderRadius: '16px 16px 0 0',
+          borderRadius: 16,
           padding: 12,
           display: 'flex',
           flexDirection: 'column',

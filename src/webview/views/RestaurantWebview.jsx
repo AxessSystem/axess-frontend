@@ -293,9 +293,9 @@ export default function RestaurantWebview() {
       {activeTab === 'table' && (
         <form
           onSubmit={handleTableBooking}
-          style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 4 }}
+          style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 4 }}
         >
-          <div>
+          <div style={{ width: '100%' }}>
             <label style={{ fontSize: 13, marginBottom: 4, display: 'block' }}>תאריך</label>
             <input
               type="date"
@@ -304,6 +304,7 @@ export default function RestaurantWebview() {
               onChange={(e) => setTableDate(e.target.value)}
               style={{
                 width: '100%',
+                maxWidth: '100%',
                 padding: '8px 10px',
                 borderRadius: 12,
                 border: '1px solid rgba(148,163,184,0.5)',
