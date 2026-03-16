@@ -1,10 +1,12 @@
 import { useState, useEffect, useCallback, useRef } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useLocation, useNavigate } from "react-router-dom";
 import {
   MessageSquare, Send, RefreshCw, Search, Plus, X, ChevronLeft, Settings,
   InboxIcon,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { fetchWithAuth, supabase } from "@/lib/supabase";
 import toast from "react-hot-toast";
 
 const API_BASE = import.meta.env.VITE_API_URL || "https://axess-production.up.railway.app";
@@ -270,6 +272,13 @@ export default function Inbox({ onUnreadChange }) {
     "X-Business-Id": businessId,
   }), [session?.access_token, businessId]);
 
+  const queryClient = useQueryClient();
+
+  const onUnauthorized = async () => {
+    await supabase.auth.signOut();
+    navigate("/login");
+  };
+
   useEffect(() => {
     const state = location.state || {};
     if (state.openConversation && !pendingOpenRef.current) {
@@ -321,33 +330,35 @@ export default function Inbox({ onUnreadChange }) {
     [authHeaders]
   );
 
-  const loadConversations = useCallback(
-    async (silent = false) => {
-      if (!session?.access_token || !businessId) return;
-      if (!silent) setLoading(true);
-      try {
-        const params = new URLSearchParams();
-        if (tab === "sms") params.set("channel", "sms");
-        else if (tab === "whatsapp") params.set("channel", "whatsapp");
-        else if (tab === "unassigned") params.set("status", "unassigned");
-        if (search) params.set("search", search);
-        if (agentFilter && isSupervisor) params.set("assigned_to", agentFilter);
-        const res = await apiFetch(`/api/inbox/conversations?${params}`);
-        setConversations(res.conversations || []);
-        const unread = (res.conversations || []).reduce((s, c) => s + (c.unread_count || 0), 0);
-        onUnreadChange?.(unread);
-      } finally {
-        setLoading(false);
-      }
+  const {
+    data: conversationsData,
+    isLoading: conversationsLoading,
+    refetch: refetchConversations,
+  } = useQuery({
+    queryKey: ["inboxConversations", businessId, tab, search, agentFilter],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (tab === "sms") params.set("channel", "sms");
+      else if (tab === "whatsapp") params.set("channel", "whatsapp");
+      else if (tab === "unassigned") params.set("status", "unassigned");
+      if (search) params.set("search", search);
+      if (agentFilter && isSupervisor) params.set("assigned_to", agentFilter);
+      const res = await apiFetch(`/api/inbox/conversations?${params}`);
+      return res;
     },
-    [session?.access_token, businessId, tab, search, agentFilter, isSupervisor, apiFetch, onUnreadChange]
-  );
+    refetchInterval: 10000,
+    enabled: !!session?.access_token && !!businessId,
+    onSuccess: res => {
+      const list = res.conversations || [];
+      setConversations(list);
+      const unread = list.reduce((s, c) => s + (c.unread_count || 0), 0);
+      onUnreadChange?.(unread);
+    },
+  });
 
   useEffect(() => {
-    loadConversations();
-    const t = setInterval(() => loadConversations(true), 10000);
-    return () => clearInterval(t);
-  }, [loadConversations]);
+    setLoading(conversationsLoading);
+  }, [conversationsLoading]);
 
   useEffect(() => {
     if (session?.access_token && businessId) {
@@ -398,7 +409,7 @@ export default function Inbox({ onUnreadChange }) {
       .finally(() => setMessagesLoading(false));
 
     apiFetch(`/api/inbox/conversations/${selectedConv.id}/read`, { method: "PATCH" }).catch(() => {});
-    loadConversations(true);
+    refetchConversations();
   }, [selectedConv?.id, selectedConv?.customer_phone]);
 
   const handleAssign = async (convId, agentId, department) => {
@@ -408,7 +419,7 @@ export default function Inbox({ onUnreadChange }) {
       body: JSON.stringify({ agent_id: agentId || undefined, department: department || undefined }),
     });
     if (!r.ok) throw new Error("שגיאה בהקצאה");
-    loadConversations(true);
+    await refetchConversations();
   };
 
   const handleResolve = async (convId) => {
@@ -418,7 +429,7 @@ export default function Inbox({ onUnreadChange }) {
     });
     if (!r.ok) throw new Error();
     setSelectedConv(null);
-    loadConversations(true);
+    await refetchConversations();
   };
 
   const smsConv = selectedConv && selectedConv.channel === "sms"
@@ -642,7 +653,7 @@ export default function Inbox({ onUnreadChange }) {
                 waSession={(waStatus?.active_sessions_count || 0) > 0}
                 templates={templates}
                 onSent={() => {
-                  loadConversations(true);
+                  refetchConversations();
                   apiFetch(`/api/inbox/customer-messages?customer_phone=${encodeURIComponent(selectedConv.customer_phone)}`).then((d) => setMessages(d.messages || []));
                 }}
                 apiFetch={{ token: session?.access_token, businessId }}
@@ -805,7 +816,7 @@ export default function Inbox({ onUnreadChange }) {
                     setNewMsgMessage("");
                     setNewMsgTemplateName("");
                     setNewMsgTemplateVars({});
-                    await loadConversations(false);
+                    await refetchConversations();
                     setSelectedConv({ id: convId, customer_phone: selectedRecipient.phone, channel: newMsgChannel });
                   } catch (e) {
                     toast.error(e.message);

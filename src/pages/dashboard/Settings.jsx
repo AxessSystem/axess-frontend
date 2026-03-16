@@ -2,7 +2,9 @@ import { useState, useEffect } from 'react'
 import toast from 'react-hot-toast'
 import { motion } from 'framer-motion'
 import { Save, Building, Building2, MessageSquare, CreditCard, Bell, Wallet, User, Link2, Store, Calendar, LayoutGrid, Grid3X3, Megaphone, QrCode, Send, Users, UsersRound, ClipboardList, MessageCircle, MessageCircleMore, FileText, GitBranch, Eye, RefreshCw, Plus, X, Workflow, CheckCircle, Utensils, Ticket, Tag, ShoppingBag } from 'lucide-react'
+import { useQuery } from '@tanstack/react-query'
 import { useAuth } from '@/contexts/AuthContext'
+import { fetchWithAuth, supabase } from '@/lib/supabase'
 
 const API_BASE = import.meta.env.VITE_API_URL || 'https://axess-production.up.railway.app'
 const SMS_LINK_BASE = import.meta.env.VITE_SMS_LINK_BASE || 'https://axss.me'
@@ -240,18 +242,33 @@ function WhatsAppTab({ businessId, session }) {
     'X-Business-Id': businessId,
   })
 
+  const onUnauthorized = async () => {
+    await supabase.auth.signOut()
+    window.location.href = '/login'
+  }
+
+  const { isLoading: waStatusLoading } = useQuery({
+    queryKey: ['whatsappStatus', businessId],
+    queryFn: () =>
+      fetchWithAuth(
+        `${API_BASE}/api/whatsapp/status`,
+        { headers: authHeaders() },
+        session,
+        onUnauthorized,
+      ).then(r => r.json()),
+    staleTime: 1000 * 60 * 2,
+    enabled: !!businessId && !!session?.access_token,
+    onSuccess: data => {
+      setStatus(data || null)
+    },
+    onError: () => {
+      setStatus(null)
+    },
+  })
+
   useEffect(() => {
-    if (!businessId || !session?.access_token) {
-      setLoadingWaStatus(false)
-      return
-    }
-    setLoadingWaStatus(true)
-    fetch(`${API_BASE}/api/whatsapp/status`, { headers: authHeaders() })
-      .then(r => r.ok ? r.json() : {})
-      .then(d => setStatus(d))
-      .catch(() => setStatus(null))
-      .finally(() => setLoadingWaStatus(false))
-  }, [businessId, session?.access_token, waTab])
+    setLoadingWaStatus(waStatusLoading)
+  }, [waStatusLoading])
 
   useEffect(() => {
     if (waTab === 'templates' && businessId && session?.access_token) {

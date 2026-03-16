@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Search, Users, Phone, Tag, X, ShoppingBag, Activity, Clock, Upload, Crown, RefreshCw, Sparkles, CheckCircle, Radio, Scan, AlertTriangle, Ticket, Cake, Send, Calendar, Pencil, Workflow, Plus, Zap, Download } from 'lucide-react'
@@ -7,6 +8,7 @@ import EmptyState from '@/components/ui/EmptyState'
 import ImportModal from '@/components/ui/ImportModal'
 import ExportButton from '@/components/ui/ExportButton'
 import { api } from '@/services/api'
+import { fetchWithAuth, supabase } from '@/lib/supabase'
 import { useAuth } from '@/contexts/AuthContext'
 import toast from 'react-hot-toast'
 
@@ -420,6 +422,7 @@ function CustomerProfileDrawer({ open, onClose, masterRecipientId, businessId, o
 export default function Audiences() {
   const navigate = useNavigate()
   const { session, businessId } = useAuth()
+  const queryClient = useQueryClient()
 
   const [activeSegment, setActiveSegment] = useState('all')
   const [activeCategory, setActiveCategory] = useState('all_cat')
@@ -475,50 +478,97 @@ export default function Audiences() {
     return headers
   }
 
+  const onUnauthorized = async () => {
+    await supabase.auth.signOut()
+    navigate('/login')
+  }
+
+  const {
+    data: recipientsData,
+    isLoading: recipientsLoading,
+    refetch: refreshRecipients,
+  } = useQuery({
+    queryKey: ['recipients', businessId],
+    queryFn: () =>
+      fetchWithAuth(
+        `${API_BASE}/api/admin/recipients`,
+        { headers: h() },
+        session,
+        onUnauthorized
+      ).then(r => r.json()),
+    staleTime: 1000 * 60 * 3,
+    enabled: !!businessId && !!session?.access_token,
+    onSuccess: data => {
+      console.log('[Audiences] recipients loaded:', data?.recipients?.length ?? 0)
+      setRecipients(data?.recipients || [])
+      setLoadError(null)
+    },
+    onError: () => {
+      setLoadError('שגיאה בטעינת נתונים — נסה לרענן')
+    },
+  })
+
+  const { data: segmentsData } = useQuery({
+    queryKey: ['segments', businessId],
+    queryFn: () =>
+      fetchWithAuth(
+        `${API_BASE}/api/admin/segments`,
+        { headers: h() },
+        session,
+        onUnauthorized
+      ).then(r => r.json()),
+    staleTime: 1000 * 60 * 5,
+    enabled: !!businessId && !!session?.access_token,
+    onSuccess: data => {
+      setSegments({ presets: PRESET_SEGMENTS, saved: data?.saved || [] })
+    },
+  })
+
+  const { data: campaignsData } = useQuery({
+    queryKey: ['campaigns', businessId],
+    queryFn: () =>
+      fetchWithAuth(
+        `${API_BASE}/api/admin/campaigns?limit=100&business_id=${businessId}`,
+        { headers: h() },
+        session,
+        onUnauthorized
+      ).then(r => r.json()),
+    staleTime: 1000 * 60 * 3,
+    enabled: !!businessId && !!session?.access_token,
+    onSuccess: data => {
+      setCampaigns(data?.campaigns || data || [])
+    },
+  })
+
+  const { data: eventsData } = useQuery({
+    queryKey: ['events', businessId],
+    queryFn: () =>
+      fetchWithAuth(
+        `${API_BASE}/api/admin/recipients/events-list?business_id=${businessId}`,
+        { headers: h() },
+        session,
+        onUnauthorized
+      ).then(r => r.json()),
+    staleTime: 1000 * 60 * 5,
+    enabled: !!businessId && !!session?.access_token,
+    onSuccess: data => {
+      setEvents(data?.events || data || [])
+    },
+  })
+
   useEffect(() => {
-    if (!session?.access_token || !businessId) {
+    // סנכרון מצב טעינה עם React Query
+    if (!businessId || !session?.access_token) {
       setLoadingRecipients(false)
       return
     }
-    setLoadError(null)
-    setLoadingRecipients(true)
-    const headers = { Authorization: `Bearer ${session.access_token}`, 'X-Business-Id': businessId }
-    Promise.all([
-      fetch(`${API_BASE}/api/admin/recipients`, { headers }),
-      fetch(`${API_BASE}/api/admin/segments`, { headers }),
-      fetch(`${API_BASE}/api/admin/campaigns?limit=100&business_id=${businessId}`, { headers }),
-      fetch(`${API_BASE}/api/admin/recipients/events-list?business_id=${businessId}`, { headers }),
-    ])
-      .then(async ([rRes, sRes, cRes, eRes]) => {
-        if (!rRes.ok) console.error('[Audiences] recipients failed:', rRes.status)
-        if (!sRes.ok) console.error('[Audiences] segments failed:', sRes.status)
-        const [rData, sData, cData, eData] = await Promise.all([
-          rRes.ok ? rRes.json().catch(() => ({})) : {},
-          sRes.ok ? sRes.json().catch(() => ({})) : {},
-          cRes.ok ? cRes.json().catch(() => ({})) : {},
-          eRes.ok ? eRes.json().catch(() => ({})) : {},
-        ])
-        console.log('[Audiences] recipients loaded:', rData?.recipients?.length ?? 0)
-        setRecipients(rData?.recipients || [])
-        setSegments({ presets: PRESET_SEGMENTS, saved: sData?.saved || [] })
-        setCampaigns(cData?.campaigns || cData || [])
-        setEvents(eData?.events || [])
-        setLoadError(null)
-      })
-      .catch(err => {
-        console.error('[Audiences] fetch error:', err)
-        setLoadError('שגיאה בטעינת נתונים — נסה לרענן')
-      })
-      .finally(() => setLoadingRecipients(false))
-  }, [session?.access_token, businessId, refreshTrigger])
+    setLoadingRecipients(recipientsLoading)
+  }, [businessId, session?.access_token, recipientsLoading])
 
   const runPreset = async (segment) => {
     setActiveSegment(segment.id)
     if (segment.id === 'all') {
-      const headers = { Authorization: `Bearer ${session.access_token}`, 'X-Business-Id': businessId }
-      const r = await fetch(`${API_BASE}/api/admin/recipients`, { headers })
-      const d = r.ok ? await r.json() : {}
-      setRecipients(d?.recipients || [])
+      await refreshRecipients()
       setPage(1)
       return
     }
@@ -526,11 +576,16 @@ export default function Audiences() {
     setLoading(true)
     const payload = { filter: segment.id, business_id: businessId }
     if (segment.id === 'live') payload.liveHours = liveHours
-    const r = await fetch(`${API_BASE}/api/admin/segments/historical`, {
-      method: 'POST',
-      headers: h(),
-      body: JSON.stringify(payload),
-    })
+    const r = await fetchWithAuth(
+      `${API_BASE}/api/admin/segments/historical`,
+      {
+        method: 'POST',
+        headers: h(),
+        body: JSON.stringify(payload),
+      },
+      session,
+      onUnauthorized,
+    )
     const data = r.ok ? await r.json() : {}
     setRecipients(data?.recipients || [])
     setPage(1)
@@ -542,7 +597,12 @@ export default function Audiences() {
     setLoading(true)
     setActiveSegment(seg.id)
     const headers = { Authorization: `Bearer ${session.access_token}`, 'X-Business-Id': businessId }
-    const r = await fetch(`${API_BASE}/api/admin/segments/${seg.id}/run`, { method: 'POST', headers })
+    const r = await fetchWithAuth(
+      `${API_BASE}/api/admin/segments/${seg.id}/run`,
+      { method: 'POST', headers },
+      session,
+      onUnauthorized,
+    )
     const data = r.ok ? await r.json() : {}
     setRecipients(data?.recipients || [])
     setPage(1)
@@ -552,11 +612,16 @@ export default function Audiences() {
   const runAI = async () => {
     if (!nlQuery.trim() || !businessId || !session?.access_token) return
     setLoading(true)
-    const r = await fetch(`${API_BASE}/api/admin/segments/ai`, {
-      method: 'POST',
-      headers: h(),
-      body: JSON.stringify({ query: nlQuery }),
-    })
+    const r = await fetchWithAuth(
+      `${API_BASE}/api/admin/segments/ai`,
+      {
+        method: 'POST',
+        headers: h(),
+        body: JSON.stringify({ query: nlQuery }),
+      },
+      session,
+      onUnauthorized,
+    )
     const data = r.ok ? await r.json() : {}
     setRecipients(data?.recipients || [])
     setLastWhereClause(data?.whereClause || '')
@@ -574,11 +639,16 @@ export default function Audiences() {
     setLoading(true)
     const results = await Promise.all(
       selectedEvents.map(ev =>
-        fetch(`${API_BASE}/api/admin/segments/historical`, {
-          method: 'POST',
-          headers: h(),
-          body: JSON.stringify({ filter: 'by_event', eventTitle: ev, business_id: businessId }),
-        }).then(r => r.ok ? r.json() : {})
+        fetchWithAuth(
+          `${API_BASE}/api/admin/segments/historical`,
+          {
+            method: 'POST',
+            headers: h(),
+            body: JSON.stringify({ filter: 'by_event', eventTitle: ev, business_id: businessId }),
+          },
+          session,
+          onUnauthorized,
+        ).then(r => r.ok ? r.json() : {})
       )
     )
     const byPhone = {}
@@ -971,14 +1041,29 @@ export default function Audiences() {
           <div style={{ fontSize: '14px', fontWeight: 600, marginBottom: '8px' }}>💾 לשמור סגמנט זה לשימוש חוזר?</div>
           <div style={{ display: 'flex', gap: '8px' }}>
             <input className="form-input input" style={{ flex: 1 }} placeholder="שם הסגמנט..." value={saveName} onChange={e => setSaveName(e.target.value)} />
-            <button className="btn-primary" onClick={async () => {
-              await fetch(`${API_BASE}/api/admin/segments`, { method: 'POST', headers: h(), body: JSON.stringify({ name: saveName, whereClause: lastWhereClause, createdBy: 'ai', description: nlQuery }) })
-              setShowSaveModal(false)
-              setSaveName('')
-              const r = await fetch(`${API_BASE}/api/admin/segments`, { headers: h() })
-              const d = r.ok ? await r.json() : {}
-              setSegments({ presets: PRESET_SEGMENTS, saved: d?.saved || [] })
-            }}>שמור</button>
+            <button
+              className="btn-primary"
+              onClick={async () => {
+                await fetchWithAuth(
+                  `${API_BASE}/api/admin/segments`,
+                  { method: 'POST', headers: h(), body: JSON.stringify({ name: saveName, whereClause: lastWhereClause, createdBy: 'ai', description: nlQuery }) },
+                  session,
+                  onUnauthorized,
+                )
+                setShowSaveModal(false)
+                setSaveName('')
+                const r = await fetchWithAuth(
+                  `${API_BASE}/api/admin/segments`,
+                  { headers: h() },
+                  session,
+                  onUnauthorized,
+                )
+                const d = r.ok ? await r.json() : {}
+                setSegments({ presets: PRESET_SEGMENTS, saved: d?.saved || [] })
+              }}
+            >
+              שמור
+            </button>
             <button className="btn-ghost" onClick={() => setShowSaveModal(false)}>דלג</button>
           </div>
         </div>
@@ -1014,7 +1099,13 @@ export default function Audiences() {
               <span style={{ fontSize: 24, fontWeight: 700, color: 'var(--v2-primary)' }}>{loadingRecipients || loading ? 'טוען...' : filtered.length}</span>
               <span style={{ fontSize: 14, color: '#fff', marginRight: 6 }}> אנשי קשר</span>
             </div>
-            <button type="button" onClick={() => setRefreshTrigger(t => t + 1)} disabled={loadingRecipients} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', fontSize: 13, background: 'var(--v2-dark-3)', border: '1px solid var(--glass-border)', borderRadius: 'var(--radius-md)', color: 'var(--v2-gray-300)', cursor: loadingRecipients ? 'not-allowed' : 'pointer' }} title="רענן">
+            <button
+              type="button"
+              onClick={() => refreshRecipients()}
+              disabled={loadingRecipients}
+              style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', fontSize: 13, background: 'var(--v2-dark-3)', border: '1px solid var(--glass-border)', borderRadius: 'var(--radius-md)', color: 'var(--v2-gray-300)', cursor: loadingRecipients ? 'not-allowed' : 'pointer' }}
+              title="רענן"
+            >
               <RefreshCw size={14} /> רענן
             </button>
           </div>
@@ -1186,13 +1277,23 @@ export default function Audiences() {
                   } else {
                     body = { name: saveSegmentName.trim(), whereClause: lastWhereClause, description: nlQuery, createdBy: 'ai', recipient_count: recipients.length }
                   }
-                  const r = await fetch(`${API_BASE}/api/admin/segments`, { method: 'POST', headers: h(), body: JSON.stringify(body) })
+                  const r = await fetchWithAuth(
+                    `${API_BASE}/api/admin/segments`,
+                    { method: 'POST', headers: h(), body: JSON.stringify(body) },
+                    session,
+                    onUnauthorized,
+                  )
                   const data = await r.json().catch(() => ({}))
                   if (!r.ok) throw new Error(data.message || data.error || `HTTP ${r.status}`)
                   setShowSaveSegmentModal(false)
                   setSaveSegmentName('')
                   toast.success('הסגמנט נשמר')
-                  const segRes = await fetch(`${API_BASE}/api/admin/segments`, { headers: h() })
+                  const segRes = await fetchWithAuth(
+                    `${API_BASE}/api/admin/segments`,
+                    { headers: h() },
+                    session,
+                    onUnauthorized,
+                  )
                   const segData = segRes.ok ? await segRes.json() : {}
                   setSegments(prev => ({ presets: PRESET_SEGMENTS, saved: segData?.saved || [] }))
                 } catch (e) {
@@ -1240,18 +1341,23 @@ export default function Audiences() {
                 if (!tagVal || ids.length === 0) return
                 try {
                   const endpoint = bulkTagMode === 'add' ? '/api/admin/recipients/bulk-tags' : '/api/admin/recipients/bulk-tags-remove'
-                  const r = await fetch(`${API_BASE}${endpoint}`, {
-                    method: 'PATCH',
-                    headers: h(),
-                    body: JSON.stringify({ tag: tagVal, recipient_ids: ids, business_id: businessId }),
-                  })
+                  const r = await fetchWithAuth(
+                    `${API_BASE}${endpoint}`,
+                    {
+                      method: 'PATCH',
+                      headers: h(),
+                      body: JSON.stringify({ tag: tagVal, recipient_ids: ids, business_id: businessId }),
+                    },
+                    session,
+                    onUnauthorized,
+                  )
                   const data = await r.json().catch(() => ({}))
                   if (!r.ok) throw new Error(data.message || data.error || `HTTP ${r.status}`)
                   setShowBulkTagModal(false)
                   setBulkTag('')
                   setBulkTagToRemove('')
                   toast.success(bulkTagMode === 'add' ? `התגית נוספה ל-${recipients.length} לקוחות` : `התגית הוסרה מ-${recipients.length} לקוחות`)
-                  fetch(`${API_BASE}/api/admin/recipients`, { headers: h() }).then(res => res.ok ? res.json() : {}).then(d => setRecipients(d?.recipients || []))
+                  queryClient.invalidateQueries({ queryKey: ['recipients', businessId] })
                 } catch (e) {
                   toast.error(e.message || 'שגיאה')
                 }
@@ -1263,8 +1369,8 @@ export default function Audiences() {
         )
       })()}
 
-      <CustomerProfileDrawer open={!!selectedCustomerId} onClose={() => setSelectedCustomerId(null)} masterRecipientId={selectedCustomerId} businessId={businessId} onTagUpdate={() => fetch(`${API_BASE}/api/admin/recipients`, { headers: h() }).then(r => r.ok ? r.json() : {}).then(d => setRecipients(d?.recipients || []))} />
-      <ImportModal isOpen={importOpen} onClose={() => setImportOpen(false)} businessId={businessId} onImportDone={() => { fetch(`${API_BASE}/api/admin/recipients`, { headers: h() }).then(r => r.ok ? r.json() : {}).then(d => setRecipients(d?.recipients || [])) }} />
+      <CustomerProfileDrawer open={!!selectedCustomerId} onClose={() => setSelectedCustomerId(null)} masterRecipientId={selectedCustomerId} businessId={businessId} onTagUpdate={() => queryClient.invalidateQueries({ queryKey: ['recipients', businessId] })} />
+      <ImportModal isOpen={importOpen} onClose={() => setImportOpen(false)} businessId={businessId} onImportDone={() => { queryClient.invalidateQueries({ queryKey: ['recipients', businessId] }) }} />
     </div>
   )
 }

@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { Link, Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom'
 import {
   LayoutDashboard, Send, Users, BarChart2, QrCode, Settings,
@@ -414,58 +415,65 @@ export default function DashboardClientLayout() {
   const notificationsBeepedIdsRef = useRef(new Set())
   const notificationsRef = useRef(null)
 
-  useEffect(() => {
-    if (!session?.access_token || !businessId) return
-    const fetchInboxUnread = () => {
-      fetch(`${API_BASE}/api/inbox/unread-count`, {
+  const { data: inboxUnreadData } = useQuery({
+    queryKey: ['inboxUnreadCount', businessId],
+    queryFn: async () => {
+      const res = await fetch(`${API_BASE}/api/inbox/unread-count`, {
         headers: { Authorization: `Bearer ${session.access_token}`, 'X-Business-Id': businessId },
       })
-        .then(r => r.json())
-        .then(data => setInboxUnreadCount(data?.count ?? 0))
-        .catch(() => {})
-    }
-    fetchInboxUnread()
-    const interval = setInterval(fetchInboxUnread, 30000)
-    return () => clearInterval(interval)
-  }, [session?.access_token, businessId])
+      return res.json()
+    },
+    refetchInterval: 30000,
+    enabled: !!businessId && !!session?.access_token,
+    onSuccess: data => {
+      setInboxUnreadCount(data?.count ?? 0)
+    },
+  })
 
-  useEffect(() => {
-    if (!session?.access_token || !businessId) return
-    const playUrgentBeep = () => {
-      try {
-        const ctx = new (window.AudioContext || window.webkitAudioContext)()
-        const osc = ctx.createOscillator()
-        const gain = ctx.createGain()
-        osc.connect(gain)
-        gain.connect(ctx.destination)
-        osc.frequency.value = 800
-        osc.type = 'sine'
-        gain.gain.setValueAtTime(0.15, ctx.currentTime)
-        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.15)
-        osc.start(ctx.currentTime)
-        osc.stop(ctx.currentTime + 0.15)
-      } catch (_) {}
-    }
-    const pollNotifications = () => {
+  const playUrgentBeep = () => {
+    try {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)()
+      const osc = ctx.createOscillator()
+      const gain = ctx.createGain()
+      osc.connect(gain)
+      gain.connect(ctx.destination)
+      osc.frequency.value = 800
+      osc.type = 'sine'
+      gain.gain.setValueAtTime(0.15, ctx.currentTime)
+      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.15)
+      osc.start(ctx.currentTime)
+      osc.stop(ctx.currentTime + 0.15)
+    } catch (_) {}
+  }
+
+  const { data: notificationsData } = useQuery({
+    queryKey: ['notifications', businessId],
+    queryFn: async () => {
       const headers = { Authorization: `Bearer ${session.access_token}`, 'X-Business-Id': businessId }
-      Promise.all([
-        fetch(`${API_BASE}/api/notifications/unread-count`, { headers }).then(r => r.json()).then(d => d?.count ?? 0).catch(() => 0),
-        fetch(`${API_BASE}/api/notifications?limit=5`, { headers }).then(r => r.json()).then(d => Array.isArray(d) ? d : []).catch(() => []),
-      ]).then(([count, list]) => {
-        setNotificationsUnreadCount(count)
-        setRecentNotifications(list)
-        list.forEach(n => {
-          if (!n.is_read && n.priority === 'urgent' && !notificationsBeepedIdsRef.current.has(n.id)) {
-            playUrgentBeep()
-            notificationsBeepedIdsRef.current.add(n.id)
-          }
-        })
+      const [countRes, listRes] = await Promise.all([
+        fetch(`${API_BASE}/api/notifications/unread-count`, { headers }),
+        fetch(`${API_BASE}/api/notifications?limit=5`, { headers }),
+      ])
+      const countJson = await countRes.json().catch(() => ({}))
+      const listJson = await listRes.json().catch(() => [])
+      return {
+        count: countJson?.count ?? 0,
+        list: Array.isArray(listJson) ? listJson : [],
+      }
+    },
+    refetchInterval: 30000,
+    enabled: !!businessId && !!session?.access_token,
+    onSuccess: data => {
+      setNotificationsUnreadCount(data.count)
+      setRecentNotifications(data.list)
+      data.list.forEach(n => {
+        if (!n.is_read && n.priority === 'urgent' && !notificationsBeepedIdsRef.current.has(n.id)) {
+          playUrgentBeep()
+          notificationsBeepedIdsRef.current.add(n.id)
+        }
       })
-    }
-    pollNotifications()
-    const interval = setInterval(pollNotifications, 30000)
-    return () => clearInterval(interval)
-  }, [session?.access_token, businessId])
+    },
+  })
 
   useEffect(() => {
     if (!notificationsDropdownOpen) return
