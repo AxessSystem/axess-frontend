@@ -2,9 +2,12 @@ import { useEffect, useState, useMemo } from 'react'
 import { Routes, Route, useParams, useLocation } from 'react-router-dom'
 import WebviewLayout from './WebviewLayout'
 import { API_BASE } from './config'
+import { WebviewProvider } from './WebviewContext'
+import WebviewPhoneInput from './components/WebviewPhoneInput'
 import HotelWebview from './views/HotelWebview'
 import EventWebview from './views/EventWebview'
 import RetailWebview from './views/RetailWebview'
+import RestaurantWebview from './views/RestaurantWebview'
 import GeneralWebview from './views/GeneralWebview'
 import WebviewSuccess from './components/WebviewSuccess'
 
@@ -153,16 +156,22 @@ export default function WebviewApp() {
     if (type === 'retail') {
       return <RetailWebview business={business} items={categorizedItems} />
     }
+    if (type === 'restaurant') {
+      return <RestaurantWebview />
+    }
     return <GeneralWebview business={business} items={items} />
   })()
 
   return (
-    <WebviewLayout business={business}>
-      <Routes location={location}>
-        <Route path="/" element={mainView} />
-        <Route path="success" element={<WebviewSuccess business={business} />} />
-      </Routes>
-    </WebviewLayout>
+    <WebviewProvider context={{ ...context, business }}>
+      <WebviewLayout business={business}>
+        <WebviewPhoneInput />
+        <Routes location={location}>
+          <Route path="/" element={mainView} />
+          <Route path="success" element={<WebviewSuccess business={business} />} />
+        </Routes>
+      </WebviewLayout>
+    </WebviewProvider>
   )
 }
 
