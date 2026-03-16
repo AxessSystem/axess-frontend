@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react'
 import { Edit3, Trash2 } from 'lucide-react'
 import toast from 'react-hot-toast'
+import { useAuth } from '@/contexts/AuthContext'
 
 const API_BASE = import.meta.env.VITE_API_URL || 'https://axess-production.up.railway.app'
 
 export default function Promoters() {
+  const { businessId } = useAuth()
   const [promoters, setPromoters] = useState([])
   const [loading, setLoading] = useState(true)
   const [addOpen, setAddOpen] = useState(false)
@@ -13,7 +15,6 @@ export default function Promoters() {
   const [phone, setPhone] = useState('')
   const [email, setEmail] = useState('')
   const [instagram, setInstagram] = useState('')
-  const businessId = 'placeholder'
 
   useEffect(() => {
     fetch(`${API_BASE}/api/admin/promoters?business_id=${businessId}`)

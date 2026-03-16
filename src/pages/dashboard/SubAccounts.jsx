@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useAuth } from '@/contexts/AuthContext'
 import { Users, Trophy, Sparkles, GraduationCap, HeartHandshake, Building, Plus } from 'lucide-react'
 import toast from 'react-hot-toast'
 
@@ -23,12 +24,12 @@ const DEPT_LABELS = {
 }
 
 export default function SubAccounts() {
+  const { businessId } = useAuth()
   const [subAccounts, setSubAccounts] = useState([])
   const [loading, setLoading] = useState(true)
   const [modalOpen, setModalOpen] = useState(false)
   const [form, setForm] = useState({ department_name: '', department_type: 'youth', admin_phone: '', admin_email: '' })
   const [submitting, setSubmitting] = useState(false)
-  const businessId = 'placeholder' // TODO: from AuthContext
 
   useEffect(() => {
     if (!businessId) return

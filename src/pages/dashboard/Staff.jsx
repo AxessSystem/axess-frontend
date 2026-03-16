@@ -18,7 +18,7 @@ const ROLES = [
 ]
 
 export default function Staff() {
-  const { session } = useAuth()
+  const { session, businessId } = useAuth()
   const [members, setMembers] = useState([])
   const [loading, setLoading] = useState(true)
   const [addOpen, setAddOpen] = useState(false)
@@ -28,7 +28,6 @@ export default function Staff() {
   const [role, setRole] = useState('viewer')
   const [eventAccess, setEventAccess] = useState('all')
   const [submitting, setSubmitting] = useState(false)
-  const businessId = 'placeholder'
 
   const authHeaders = () => {
     const h = { 'Content-Type': 'application/json', 'X-Business-Id': businessId }
