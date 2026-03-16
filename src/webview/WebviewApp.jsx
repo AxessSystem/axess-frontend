@@ -147,12 +147,18 @@ export default function WebviewApp() {
   }
 
   const mainView = (() => {
+    const hasEvent = !!context?.event
     const type = (business.business_type || '').toLowerCase()
     if (type === 'hotel') {
       return <HotelWebview business={business} items={items} />
     }
-    if (type === 'event') {
-      return <EventWebview business={business} items={categorizedItems.event.length ? categorizedItems.event : items} extra={context} />
+    if (type === 'event' || hasEvent) {
+      return (
+        <EventWebview
+          business={business}
+          event={context?.event || null}
+        />
+      )
     }
     if (type === 'retail') {
       return <RetailWebview business={business} items={categorizedItems} />

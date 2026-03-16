@@ -10,7 +10,7 @@ const TABS = [
   { id: 'checkin', label: 'צ\'ק-אין', icon: CheckCircle },
 ]
 
-export default function EventWebview({ business }) {
+export default function EventWebview({ business, event }) {
   const { items, recipient, trackEvent, business: ctxBiz } = useWebview()
   const effectiveBusiness = business || ctxBiz
 
@@ -241,6 +241,37 @@ export default function EventWebview({ business }) {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      {event && (
+        <div
+          style={{
+            padding: 12,
+            borderRadius: 12,
+            background: 'var(--wv-card, #111827)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 4,
+          }}
+        >
+          <div style={{ fontSize: 16, fontWeight: 700 }}>{event.title}</div>
+          {event.date && (
+            <div style={{ fontSize: 13, opacity: 0.85 }}>
+              תאריך:{' '}
+              {new Date(event.date).toLocaleDateString('he-IL')}
+            </div>
+          )}
+          {(event.location || event.venue_name) && (
+            <div style={{ fontSize: 13, opacity: 0.8 }}>
+              מיקום: {event.venue_name || event.location}
+            </div>
+          )}
+          {event.description && (
+            <div style={{ fontSize: 13, opacity: 0.8, marginTop: 4 }}>
+              {event.description}
+            </div>
+          )}
+        </div>
+      )}
+
       <div
         style={{
           display: 'flex',
