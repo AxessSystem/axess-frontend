@@ -348,17 +348,20 @@ export default function Inbox({ onUnreadChange }) {
     },
     refetchInterval: 10000,
     enabled: !!session?.access_token && !!businessId,
-    onSuccess: res => {
-      const list = res.conversations || [];
-      setConversations(list);
-      const unread = list.reduce((s, c) => s + (c.unread_count || 0), 0);
-      onUnreadChange?.(unread);
-    },
   });
 
   useEffect(() => {
     setLoading(conversationsLoading);
   }, [conversationsLoading]);
+
+  useEffect(() => {
+    if (conversationsData) {
+      const list = conversationsData.conversations || [];
+      setConversations(list);
+      const unread = list.reduce((s, c) => s + (c.unread_count || 0), 0);
+      onUnreadChange?.(unread);
+    }
+  }, [conversationsData, onUnreadChange]);
 
   useEffect(() => {
     if (session?.access_token && businessId) {

@@ -485,6 +485,7 @@ export default function Audiences() {
 
   const {
     data: recipientsData,
+    error: recipientsError,
     isLoading: recipientsLoading,
     refetch: refreshRecipients,
   } = useQuery({
@@ -498,14 +499,6 @@ export default function Audiences() {
       ).then(r => r.json()),
     staleTime: 1000 * 60 * 3,
     enabled: !!businessId && !!session?.access_token,
-    onSuccess: data => {
-      console.log('[Audiences] recipients loaded:', data?.recipients?.length ?? 0)
-      setRecipients(data?.recipients || [])
-      setLoadError(null)
-    },
-    onError: () => {
-      setLoadError('שגיאה בטעינת נתונים — נסה לרענן')
-    },
   })
 
   const { data: segmentsData } = useQuery({
@@ -519,9 +512,6 @@ export default function Audiences() {
       ).then(r => r.json()),
     staleTime: 1000 * 60 * 5,
     enabled: !!businessId && !!session?.access_token,
-    onSuccess: data => {
-      setSegments({ presets: PRESET_SEGMENTS, saved: data?.saved || [] })
-    },
   })
 
   const { data: campaignsData } = useQuery({
@@ -535,9 +525,6 @@ export default function Audiences() {
       ).then(r => r.json()),
     staleTime: 1000 * 60 * 3,
     enabled: !!businessId && !!session?.access_token,
-    onSuccess: data => {
-      setCampaigns(data?.campaigns || data || [])
-    },
   })
 
   const { data: eventsData } = useQuery({
@@ -551,9 +538,6 @@ export default function Audiences() {
       ).then(r => r.json()),
     staleTime: 1000 * 60 * 5,
     enabled: !!businessId && !!session?.access_token,
-    onSuccess: data => {
-      setEvents(data?.events || data || [])
-    },
   })
 
   useEffect(() => {
@@ -564,6 +548,38 @@ export default function Audiences() {
     }
     setLoadingRecipients(recipientsLoading)
   }, [businessId, session?.access_token, recipientsLoading])
+
+  useEffect(() => {
+    if (recipientsData) {
+      console.log('[Audiences] recipients loaded:', recipientsData?.recipients?.length ?? 0)
+      setRecipients(recipientsData?.recipients || [])
+      setLoadError(null)
+    }
+  }, [recipientsData])
+
+  useEffect(() => {
+    if (recipientsError) {
+      setLoadError('שגיאה בטעינת נתונים — נסה לרענן')
+    }
+  }, [recipientsError])
+
+  useEffect(() => {
+    if (segmentsData) {
+      setSegments({ presets: PRESET_SEGMENTS, saved: segmentsData?.saved || [] })
+    }
+  }, [segmentsData])
+
+  useEffect(() => {
+    if (campaignsData) {
+      setCampaigns(campaignsData?.campaigns || campaignsData || [])
+    }
+  }, [campaignsData])
+
+  useEffect(() => {
+    if (eventsData) {
+      setEvents(eventsData?.events || eventsData || [])
+    }
+  }, [eventsData])
 
   const runPreset = async (segment) => {
     setActiveSegment(segment.id)

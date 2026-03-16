@@ -247,7 +247,7 @@ function WhatsAppTab({ businessId, session }) {
     window.location.href = '/login'
   }
 
-  const { isLoading: waStatusLoading } = useQuery({
+  const { data: waStatusData, error: waStatusError, isLoading: waStatusLoading } = useQuery({
     queryKey: ['whatsappStatus', businessId],
     queryFn: () =>
       fetchWithAuth(
@@ -258,17 +258,23 @@ function WhatsAppTab({ businessId, session }) {
       ).then(r => r.json()),
     staleTime: 1000 * 60 * 2,
     enabled: !!businessId && !!session?.access_token,
-    onSuccess: data => {
-      setStatus(data || null)
-    },
-    onError: () => {
-      setStatus(null)
-    },
   })
 
   useEffect(() => {
     setLoadingWaStatus(waStatusLoading)
   }, [waStatusLoading])
+
+  useEffect(() => {
+    if (waStatusData) {
+      setStatus(waStatusData || null)
+    }
+  }, [waStatusData])
+
+  useEffect(() => {
+    if (waStatusError) {
+      setStatus(null)
+    }
+  }, [waStatusError])
 
   useEffect(() => {
     if (waTab === 'templates' && businessId && session?.access_token) {

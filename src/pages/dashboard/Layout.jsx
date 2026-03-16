@@ -425,9 +425,6 @@ export default function DashboardClientLayout() {
     },
     refetchInterval: 30000,
     enabled: !!businessId && !!session?.access_token,
-    onSuccess: data => {
-      setInboxUnreadCount(data?.count ?? 0)
-    },
   })
 
   const playUrgentBeep = () => {
@@ -463,17 +460,26 @@ export default function DashboardClientLayout() {
     },
     refetchInterval: 30000,
     enabled: !!businessId && !!session?.access_token,
-    onSuccess: data => {
-      setNotificationsUnreadCount(data.count)
-      setRecentNotifications(data.list)
-      data.list.forEach(n => {
+  })
+
+  useEffect(() => {
+    if (inboxUnreadData) {
+      setInboxUnreadCount(inboxUnreadData?.count ?? 0)
+    }
+  }, [inboxUnreadData])
+
+  useEffect(() => {
+    if (notificationsData) {
+      setNotificationsUnreadCount(notificationsData.count)
+      setRecentNotifications(notificationsData.list)
+      notificationsData.list.forEach(n => {
         if (!n.is_read && n.priority === 'urgent' && !notificationsBeepedIdsRef.current.has(n.id)) {
           playUrgentBeep()
           notificationsBeepedIdsRef.current.add(n.id)
         }
       })
-    },
-  })
+    }
+  }, [notificationsData])
 
   useEffect(() => {
     if (!notificationsDropdownOpen) return
