@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useParams, useSearchParams } from 'react-router-dom'
+import { API_BASE } from '../config'
 
 export default function WebviewSuccess({ business }) {
   const { slug } = useParams()
@@ -17,7 +18,7 @@ export default function WebviewSuccess({ business }) {
         return
       }
       try {
-        const res = await fetch(`/api/w/${encodeURIComponent(slug)}/order/${encodeURIComponent(orderId)}`)
+        const res = await fetch(`${API_BASE}/api/w/${encodeURIComponent(slug)}/order/${encodeURIComponent(orderId)}`)
         if (!res.ok) throw new Error('שגיאה בטעינת ההזמנה')
         const data = await res.json()
         if (cancelled) return

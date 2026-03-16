@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react'
 import { useParams } from 'react-router-dom'
+import { API_BASE } from '../config'
 
 export default function WebviewCart({ items, onAfterCheckout }) {
   const { slug } = useParams()
@@ -33,7 +34,7 @@ export default function WebviewCart({ items, onAfterCheckout }) {
         items: (items || []).filter((i) => Number(i.quantity || 0) > 0),
         total_amount: total,
       }
-      const res = await fetch(`/api/w/${encodeURIComponent(slug)}/order`, {
+      const res = await fetch(`${API_BASE}/api/w/${encodeURIComponent(slug)}/order`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),

@@ -1,6 +1,7 @@
 import { useEffect, useState, useMemo } from 'react'
 import { Routes, Route, useParams, useLocation } from 'react-router-dom'
 import WebviewLayout from './WebviewLayout'
+import { API_BASE } from './config'
 import HotelWebview from './views/HotelWebview'
 import EventWebview from './views/EventWebview'
 import RetailWebview from './views/RetailWebview'
@@ -44,7 +45,7 @@ export default function WebviewApp() {
       setLoading(true)
       setError(null)
       try {
-        const res = await fetch(`/api/w/${encodeURIComponent(slug)}/context`)
+        const res = await fetch(`${API_BASE}/api/w/${encodeURIComponent(slug)}/context`)
         if (!res.ok) {
           throw new Error('שגיאה בטעינת הדף')
         }
@@ -62,7 +63,7 @@ export default function WebviewApp() {
     if (slug) {
       loadContext()
       // fire-and-forget analytics: opened
-      fetch(`/api/w/${encodeURIComponent(slug)}/session`, {
+      fetch(`${API_BASE}/api/w/${encodeURIComponent(slug)}/session`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ event_type: 'opened' }),
