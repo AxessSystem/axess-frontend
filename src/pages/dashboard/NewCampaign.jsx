@@ -679,6 +679,11 @@ function StepSummary({ onPrev, data, onSubmit, selectedEvent, businessId, authHe
       })
       const sendData = await sendRes.json().catch(() => ({}))
       console.log('[handleSend] POST send — status:', sendRes.status, 'response:', sendData)
+      if (sendRes.status === 402) {
+        setError(`יתרה לא מספיקה — נדרש ₪${sendData.required?.toFixed(2)}, יש לך ₪${sendData.current?.toFixed(2)}`)
+        setSending(false)
+        return
+      }
       if (!sendRes.ok) {
         throw new Error(sendData.error || sendData.details?.[0] || 'שגיאה בשליחת קמפיין')
       }

@@ -412,6 +412,7 @@ export default function DashboardClientLayout() {
   const [notificationsUnreadCount, setNotificationsUnreadCount] = useState(0)
   const [recentNotifications, setRecentNotifications] = useState([])
   const [notificationsDropdownOpen, setNotificationsDropdownOpen] = useState(false)
+  const [balance, setBalance] = useState(null)
   const notificationsBeepedIdsRef = useRef(new Set())
   const notificationsRef = useRef(null)
 
@@ -497,7 +498,20 @@ export default function DashboardClientLayout() {
     } catch { return null }
   })()
   const businessName = profile?.business_name ?? profile?.full_name ?? 'AXESS Admin'
-  const balance = 4_820
+  const isAdmin = isAxessAdmin
+
+  useEffect(() => {
+    if (!session?.access_token || !businessId || isAdmin) return
+    fetch(`${API_BASE}/api/admin/business/balance`, {
+      headers: {
+        'Authorization': `Bearer ${session.access_token}`,
+        'X-Business-Id': businessId,
+      },
+    })
+      .then(r => (r.ok ? r.json() : {}))
+      .then(d => setBalance(d.balance ?? 0))
+      .catch(() => setBalance(0))
+  }, [session?.access_token, businessId, isAdmin])
 
   useEffect(() => {
     if (!businessId) return
@@ -612,7 +626,11 @@ export default function DashboardClientLayout() {
                   lineHeight: 1,
                 }}
               >
-                {balance.toLocaleString('he-IL')}
+                {isAdmin
+                  ? 'Admin'
+                  : balance === null
+                    ? <span style={{ fontSize: 12 }}>טוען…</span>
+                    : `₪${Number(balance || 0).toLocaleString('he-IL')}`}
               </div>
               <div style={{ fontSize: 11, color: 'var(--v2-gray-400)', marginTop: 2 }}>הודעות זמינות</div>
             </div>
@@ -910,6 +928,22 @@ export default function DashboardClientLayout() {
           )
         })}
 
+        {/* ── Low balance banner ── */}
+        {balance !== null && balance < 50 && !isAdmin && (
+          <div style={{
+            background: 'rgba(239,68,68,0.15)',
+            border: '1px solid rgba(239,68,68,0.4)',
+            borderRadius: 8,
+            padding: '8px 16px',
+            fontSize: 13,
+            color: '#FCA5A5',
+            textAlign: 'right',
+            margin: '8px 16px'
+          }}>
+            ⚠️ יתרה נמוכה: ₪{Number(balance || 0).toFixed(2)} — <span style={{cursor:'pointer', textDecoration:'underline'}} onClick={() => navigate('/dashboard/settings?tab=billing')}>טען יתרה</span>
+          </div>
+        )}
+
         {/* ── HEADER ── */}
         <header
           style={{
@@ -996,10 +1030,18 @@ export default function DashboardClientLayout() {
               }}
             >
               <Wallet size={13} style={{ color: 'var(--v2-primary)' }} />
-              <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--v2-primary)' }}>
-                {balance.toLocaleString('he-IL')}
-              </span>
-              <span style={{ fontSize: 11, color: 'var(--v2-gray-400)' }}>הודעות</span>
+              {isAdmin ? (
+                <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--v2-primary)' }}>Admin</span>
+              ) : (
+                <>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--v2-primary)' }}>
+                    {balance === null
+                      ? '...'
+                      : `₪${Number(balance || 0).toLocaleString('he-IL')}`}
+                  </span>
+                  <span style={{ fontSize: 11, color: 'var(--v2-gray-400)' }}>הודעות</span>
+                </>
+              )}
             </div>
 
             {/* Notifications — dropdown with 5 recent + link to full page */}
