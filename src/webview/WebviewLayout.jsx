@@ -1,4 +1,8 @@
+import WebviewToast from './components/WebviewToast'
+import { useWebview } from './WebviewContext'
+
 export default function WebviewLayout({ business, children }) {
+  const { toastMessage, setToastMessage } = useWebview()
   const brand = business?.brand_assets || {}
   const logoUrl = brand.logo_url || null
 
@@ -111,6 +115,13 @@ export default function WebviewLayout({ business, children }) {
         </button>
       </header>
 
+      {toastMessage && (
+        <WebviewToast
+          message={toastMessage}
+          onDismiss={() => setToastMessage(null)}
+          duration={2500}
+        />
+      )}
       <main
         style={{
           flex: 1,
@@ -119,7 +130,7 @@ export default function WebviewLayout({ business, children }) {
           maxWidth: 480,
           width: '100%',
           margin: '0 auto',
-          padding: '8px 8px 72px',
+          padding: '8px 8px 90px',
           boxSizing: 'border-box',
         }}
       >

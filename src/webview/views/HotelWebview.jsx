@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { BellRing, Sparkles, DoorOpen, ClipboardList } from 'lucide-react'
 import { API_BASE } from '../config'
 import { useWebview } from '../WebviewContext'
+import WebviewWhatsAppAccordion from '../components/WebviewWhatsAppAccordion'
 
 const TABS = [
   { id: 'room_service', label: 'שירות חדרים', icon: BellRing },
@@ -250,7 +251,7 @@ export default function HotelWebview({ business, items }) {
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12, paddingBottom: 90 }}>
       <div
         style={{
           display: 'flex',
@@ -674,6 +675,7 @@ export default function HotelWebview({ business, items }) {
           </button>
         </form>
       )}
+      {effectiveBusiness && <WebviewWhatsAppAccordion business={effectiveBusiness} />}
     </div>
   )
 }

@@ -4,7 +4,6 @@ import WebviewLayout from './WebviewLayout'
 import { API_BASE } from './config'
 import { WebviewProvider } from './WebviewContext'
 import WebviewPhoneInput from './components/WebviewPhoneInput'
-import WebviewChatButton from './components/WebviewChatButton'
 import HotelWebview from './views/HotelWebview'
 import EventWebview from './views/EventWebview'
 import RetailWebview from './views/RetailWebview'
@@ -191,7 +190,6 @@ export default function WebviewApp() {
           <Route path="/" element={mainView} />
           <Route path="success" element={<WebviewSuccess business={business} />} />
         </Routes>
-        <WebviewChatButton business={business} recipient={context?.recipient} />
       </WebviewLayout>
     </WebviewProvider>
   )

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { ShoppingBag, ShoppingCart, Package } from 'lucide-react'
 import { API_BASE } from '../config'
 import { useWebview } from '../WebviewContext'
+import WebviewWhatsAppAccordion from '../components/WebviewWhatsAppAccordion'
 
 const TABS = [
   { id: 'catalog', label: 'קטלוג', icon: ShoppingBag },
@@ -190,7 +191,7 @@ export default function RetailWebview({ business, items }) {
   }, [activeTab])
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12, paddingBottom: 90 }}>
       <div
         style={{
           display: 'flex',
@@ -636,6 +637,7 @@ export default function RetailWebview({ business, items }) {
           )}
         </div>
       )}
+      {effectiveBusiness && <WebviewWhatsAppAccordion business={effectiveBusiness} />}
     </div>
   )
 }

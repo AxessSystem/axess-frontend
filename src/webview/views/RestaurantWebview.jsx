@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom'
 import { API_BASE } from '../config'
 import { useWebview } from '../WebviewContext'
 import ProductCard from '../components/ProductCard'
+import WebviewWhatsAppAccordion from '../components/WebviewWhatsAppAccordion'
 import WebviewCart from '../components/WebviewCart'
 import { UtensilsCrossed, Calendar, ShoppingCart, Bell } from 'lucide-react'
 
@@ -15,7 +16,7 @@ const TABS = [
 
 export default function RestaurantWebview() {
   const { slug } = useParams()
-  const { items, cart, addItem, updateQty, recipient, trackEvent } = useWebview()
+  const { items, cart, addItem, updateQty, recipient, trackEvent, business } = useWebview()
   const [activeTab, setActiveTab] = useState('menu')
   const [search, setSearch] = useState('')
 
@@ -195,7 +196,7 @@ export default function RestaurantWebview() {
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12, paddingBottom: 90 }}>
       {/* Tabs */}
       <div
         style={{
@@ -527,6 +528,7 @@ export default function RestaurantWebview() {
         </form>
       )}
       {(activeTab === 'menu' || activeTab === 'preorder') && <WebviewCart items={cart} />}
+      {business && <WebviewWhatsAppAccordion business={business} />}
     </div>
   )
 }

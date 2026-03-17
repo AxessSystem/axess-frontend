@@ -8,6 +8,11 @@ export function WebviewProvider({ children, context }) {
   const [cart, setCart] = useState([])
   const [recipient, setRecipient] = useState(context?.recipient || null)
   const [showPhoneInput, setShowPhoneInput] = useState(!context?.recipient)
+  const [toastMessage, setToastMessage] = useState(null)
+
+  const showToast = (msg) => {
+    setToastMessage(msg)
+  }
 
   // hydrate cart from localStorage
   useEffect(() => {
@@ -96,6 +101,9 @@ export function WebviewProvider({ children, context }) {
     showPhoneInput,
     setShowPhoneInput,
     trackEvent,
+    toastMessage,
+    showToast,
+    setToastMessage,
   }
 
   return <WebviewContext.Provider value={value}>{children}</WebviewContext.Provider>

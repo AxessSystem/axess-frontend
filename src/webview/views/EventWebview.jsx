@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from 'react'
 import { API_BASE } from '../config'
 import { useWebview } from '../WebviewContext'
 import { Ticket, Armchair, Calendar, CheckCircle, MapPin } from 'lucide-react'
+import WebviewAccordion from '../components/WebviewAccordion'
+import WebviewWhatsAppAccordion from '../components/WebviewWhatsAppAccordion'
 
 const TABS = [
   { id: 'tickets', label: 'כרטיסים', icon: Ticket },
@@ -11,7 +13,7 @@ const TABS = [
 ]
 
 export default function EventWebview({ business, event }) {
-  const { items, recipient, trackEvent, business: ctxBiz } = useWebview()
+  const { items, recipient, trackEvent, showToast, business: ctxBiz } = useWebview()
   const effectiveBusiness = business || ctxBiz
 
   const [activeTab, setActiveTab] = useState('tickets')
@@ -40,17 +42,23 @@ export default function EventWebview({ business, event }) {
 
   useEffect(() => {
     if (!slug) return
+    if (event?.ticket_types?.length) {
+      setTicketTypes(event.ticket_types)
+      setLoadingTickets(false)
+      return
+    }
     setLoadingTickets(true)
     fetch(`${API_BASE}/api/w/${encodeURIComponent(slug)}/event/tickets`)
       .then((res) => res.json())
       .then((data) => {
-        setTicketTypes(Array.isArray(data.ticket_types) ? data.ticket_types : [])
+        const types = Array.isArray(data.ticket_types) ? data.ticket_types : []
+        setTicketTypes(types.length ? types : event?.ticket_types || [])
       })
       .catch(() => {
-        setTicketTypes([])
+        setTicketTypes(event?.ticket_types || [])
       })
       .finally(() => setLoadingTickets(false))
-  }, [slug])
+  }, [slug, event?.ticket_types])
 
   useEffect(() => {
     if (!slug) return
@@ -152,7 +160,9 @@ export default function EventWebview({ business, event }) {
       })
       window.location.href = data.payment_url
     } catch (err) {
-      setTicketError(err.message || 'שגיאה ביצירת הזמנה')
+      const msg = err.message || 'שגיאה ביצירת הזמנה'
+      setTicketError(msg)
+      showToast?.(msg)
     } finally {
       setTicketBusy(false)
     }
@@ -162,7 +172,6 @@ export default function EventWebview({ business, event }) {
     e?.preventDefault()
     if (!slug || !recipient?.phone || !tableDate || !tableTime || !tableGuests) return
     setTableBusy(true)
-    setTableStatus(null)
     const selectedUpsells = eventUpsellItems
       .filter((u) => Number(upsellQuantities[u.id] || 0) > 0)
       .map((u) => `${upsellQuantities[u.id]}× ${u.name}`)
@@ -183,14 +192,15 @@ export default function EventWebview({ business, event }) {
       if (!res.ok || !data.success) {
         throw new Error(data.error || 'שגיאה ביצירת הזמנה')
       }
-      setTableStatus({ type: 'success', message: 'הבקשה נשלחה. תקבל/י אישור ב-WhatsApp.' })
+      showToast?.('הבקשה נשלחה. תקבל/י אישור ב-WhatsApp.')
       trackEvent('event_table_booking', {
         date: tableDate,
         time: tableTime,
         guests: tableGuests,
       })
     } catch (err) {
-      setTableStatus({ type: 'error', message: err.message || 'שגיאה ביצירת הזמנה' })
+      const msg = err.message || 'שגיאה ביצירת הזמנה'
+      showToast?.(msg)
     } finally {
       setTableBusy(false)
     }
@@ -219,8 +229,11 @@ export default function EventWebview({ business, event }) {
         name: data.name || 'אורח',
         order_number: data.order_number || null,
       })
+      showToast?.('כניסה אושרה!')
     } catch (err) {
-      setCheckinError(err.message || 'קוד לא תקין')
+      const msg = err.message || 'קוד לא תקין'
+      setCheckinError(msg)
+      showToast?.(msg)
     } finally {
       setCheckinBusy(false)
     }
@@ -241,8 +254,17 @@ export default function EventWebview({ business, event }) {
 
   const canCheckout = ticketCart.length > 0 && !!recipient?.phone && ticketTotal > 0 && !ticketBusy
 
+  const fomo = useMemo(() => {
+    const tt = event?.ticket_types || []
+    const sold = tt.reduce((s, t) => s + parseInt(t.quantity_sold || 0, 10), 0)
+    const total = tt.reduce((s, t) => s + (t.quantity_total ?? 0), 0)
+    return { sold, total, remaining: Math.max(0, total - sold) }
+  }, [event?.ticket_types])
+
+  const showFomo = fomo.sold > 0
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 12, direction: 'rtl' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12, direction: 'rtl', paddingBottom: 90 }}>
       {event && (
         <div
           style={{
@@ -306,55 +328,91 @@ export default function EventWebview({ business, event }) {
               </div>
             </div>
           </div>
-          <div
-            style={{
-              padding: 12,
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 6,
-            }}
-          >
+          {showFomo && (
             <div
               style={{
-                background: 'var(--wv-card, #0f172a)',
-                borderRadius: 12,
-                padding: 16,
+                padding: '12px 16px',
                 display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                gap: 8,
-                fontSize: 13,
-                color: 'rgba(226,232,240,0.9)',
+                flexDirection: 'column',
+                gap: 6,
+                color: 'var(--wv-primary, #22C55E)',
+                fontSize: 14,
+                fontWeight: 600,
               }}
             >
+              <div>🔥 {fomo.sold} אנשים כבר הזמינו</div>
+              <div>⚠️ נשארו {fomo.remaining} מקומות</div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {event && (
+        <div style={{ borderRadius: 16, overflow: 'hidden', background: 'var(--wv-card, #0f172a)' }}>
+          <WebviewAccordion title="מה מחכה לכם בערב?">
+            <div style={{ whiteSpace: 'pre-wrap' }}>
+              {event.description || 'אין תיאור זמין.'}
+            </div>
+          </WebviewAccordion>
+          <WebviewAccordion title="פרטי האירוע">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               {event.date && (
-                <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-                  <Calendar size={14} />
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <Calendar size={16} />
                   <span>{new Date(event.date).toLocaleString('he-IL', { dateStyle: 'medium' })}</span>
                 </div>
               )}
-              {(event.location || event.venue_name) && (
-                <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-                  <MapPin size={14} />
-                  <span>{event.venue_name || event.location}</span>
+              {(event.doors_open || event.date) && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span>🕐</span>
+                  <span>
+                    {new Date(event.doors_open || event.date).toLocaleTimeString('he-IL', {
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })}
+                  </span>
+                </div>
+              )}
+              {(event.venue_address || event.location || event.venue_name) && (
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 6 }}>
+                  <MapPin size={16} style={{ flexShrink: 0, marginTop: 2 }} />
+                  <span>
+                    {event.venue_name && <strong>{event.venue_name}</strong>}
+                    {(event.venue_address || event.location) && (
+                      <span> — {event.venue_address || event.location}</span>
+                    )}
+                  </span>
                 </div>
               )}
             </div>
-            {event.description && (
-              <div
-                style={{
-                  marginTop: 8,
-                  fontSize: 14,
-                  color: 'rgba(148,163,184,0.9)',
-                  lineHeight: 1.7,
-                }}
-              >
-                {event.description}
-              </div>
-            )}
-          </div>
+          </WebviewAccordion>
+          <WebviewAccordion title="תנאים והגבלות">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {event.age_restriction > 0 && (
+                <div>גיל מינימום: {event.age_restriction}+</div>
+              )}
+              {event.dress_code && <div>לבוש: {event.dress_code}</div>}
+              {event.ticket_types?.some((t) => t.terms) && (
+                <div>
+                  {event.ticket_types
+                    .filter((t) => t.terms)
+                    .map((t) => (
+                      <div key={t.id} style={{ marginBottom: 8 }}>
+                        <strong>{t.name}:</strong>
+                        <div style={{ whiteSpace: 'pre-wrap', marginTop: 4 }}>{t.terms}</div>
+                      </div>
+                    ))}
+                </div>
+              )}
+              {!event.age_restriction && !event.dress_code && !event.ticket_types?.some((t) => t.terms) && (
+                <div style={{ opacity: 0.8 }}>אין הגבלות מיוחדות.</div>
+              )}
+            </div>
+          </WebviewAccordion>
         </div>
       )}
+
+      {effectiveBusiness && <WebviewWhatsAppAccordion business={effectiveBusiness} />}
 
       <div
         style={{
@@ -621,16 +679,6 @@ export default function EventWebview({ business, event }) {
               }}
             />
           </div>
-          {tableStatus && (
-            <div
-              style={{
-                fontSize: 13,
-                color: tableStatus.type === 'success' ? '#bbf7d0' : '#fecaca',
-              }}
-            >
-              {tableStatus.message}
-            </div>
-          )}
           <button
             type="submit"
             disabled={tableBusy}

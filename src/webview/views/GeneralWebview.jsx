@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import WebviewCart from '../components/WebviewCart'
+import WebviewWhatsAppAccordion from '../components/WebviewWhatsAppAccordion'
 
 export default function GeneralWebview({ business, items }) {
   const [cartItems, setCartItems] = useState(() =>
@@ -17,7 +18,7 @@ export default function GeneralWebview({ business, items }) {
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12, paddingBottom: 90 }}>
       <div
         style={{
           padding: '4px 4px 8px',
@@ -144,6 +145,7 @@ export default function GeneralWebview({ business, items }) {
       </div>
 
       <WebviewCart items={cartItems} />
+      {business && <WebviewWhatsAppAccordion business={business} />}
     </div>
   )
 }
