@@ -23,7 +23,7 @@ export default function AdminBusinesses() {
       if (search) q.set('search', search)
       if (type) q.set('type', type)
       if (status) q.set('status', status)
-      return fetch(`${API_BASE}/api/axess-admin/businesses?${q}`, { headers }).then(r => {
+      return fetch(`${API_BASE}/api/admin/businesses?${q}`, { headers }).then(r => {
         if (!r.ok) throw new Error('Unauthorized')
         return r.json()
       })
