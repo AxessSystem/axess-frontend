@@ -1,8 +1,14 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import WebviewCart from '../components/WebviewCart'
 import WebviewWhatsAppAccordion from '../components/WebviewWhatsAppAccordion'
+import { useWebview } from '../WebviewContext'
 
 export default function GeneralWebview({ business, items }) {
+  const { trackEvent } = useWebview()
+
+  useEffect(() => {
+    trackEvent('viewed_menu').catch(() => {})
+  }, [trackEvent])
   const [cartItems, setCartItems] = useState(() =>
     (items || []).map((i) => ({ ...i, quantity: 0 })),
   )

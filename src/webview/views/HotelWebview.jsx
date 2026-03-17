@@ -16,6 +16,10 @@ export default function HotelWebview({ business, items }) {
   const effectiveBusiness = business || ctxBiz
   const slug = effectiveBusiness?.slug
 
+  useEffect(() => {
+    trackEvent('viewed_menu').catch(() => {})
+  }, [trackEvent])
+
   const [activeTab, setActiveTab] = useState('room_service')
   const [roomNumber, setRoomNumber] = useState('')
   const [callStatus, setCallStatus] = useState(null)

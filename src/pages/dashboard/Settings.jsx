@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react'
 import toast from 'react-hot-toast'
 import { motion } from 'framer-motion'
-import { Save, Building, Building2, MessageSquare, CreditCard, Bell, Wallet, User, Link2, Store, Calendar, LayoutGrid, Grid3X3, Megaphone, QrCode, Send, Users, UsersRound, ClipboardList, MessageCircle, MessageCircleMore, FileText, GitBranch, Eye, RefreshCw, Plus, X, Workflow, CheckCircle, Utensils, Ticket, Tag, ShoppingBag } from 'lucide-react'
+import { Save, Building, Building2, MessageSquare, CreditCard, Bell, Wallet, User, Link2, Store, Calendar, LayoutGrid, Grid3X3, Megaphone, QrCode, Send, Users, UsersRound, ClipboardList, MessageCircle, MessageCircleMore, FileText, GitBranch, Eye, RefreshCw, Plus, X, Workflow, CheckCircle, Utensils, Ticket, Tag, ShoppingBag, BarChart3 } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
 import { useAuth } from '@/contexts/AuthContext'
+import WebviewAnalytics from '@/webview/WebviewAnalytics'
 import { fetchWithAuth, supabase } from '@/lib/supabase'
 
 const API_BASE = import.meta.env.VITE_API_URL || 'https://axess-production.up.railway.app'
@@ -57,6 +58,7 @@ const TABS = [
   { id: 'sms',           label: 'הגדרות SMS', icon: MessageSquare },
   { id: 'whatsapp',      label: 'WhatsApp Business', icon: MessageCircleMore },
   { id: 'links',         label: 'לינקים',     icon: Link2 },
+  { id: 'webview_analytics', label: 'Analytics Webview', icon: BarChart3 },
   { id: 'payments',      label: 'תשלומים',    icon: Wallet },
   { id: 'billing',       label: 'חיוב',       icon: CreditCard },
   { id: 'notifications', label: 'התראות',     icon: Bell },
@@ -1105,6 +1107,18 @@ export default function Settings() {
       {/* Links Tab */}
       {activeTab === 'links' && (
         <LinksTab businessId={businessId} />
+      )}
+
+      {/* Webview Analytics Tab */}
+      {activeTab === 'webview_analytics' && (
+        <WebviewAnalytics
+          businessId={businessId}
+          authHeaders={() => ({
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session?.access_token}`,
+            'X-Business-Id': businessId,
+          })}
+        />
       )}
 
       {/* Payments Tab */}

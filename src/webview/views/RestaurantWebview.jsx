@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import { useParams } from 'react-router-dom'
 import { API_BASE } from '../config'
 import { useWebview } from '../WebviewContext'
@@ -17,6 +17,11 @@ const TABS = [
 export default function RestaurantWebview() {
   const { slug } = useParams()
   const { items, cart, addItem, updateQty, recipient, trackEvent, business } = useWebview()
+
+  useEffect(() => {
+    trackEvent('viewed_menu').catch(() => {})
+  }, [trackEvent])
+
   const [activeTab, setActiveTab] = useState('menu')
   const [search, setSearch] = useState('')
 

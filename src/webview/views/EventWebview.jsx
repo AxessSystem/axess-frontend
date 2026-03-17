@@ -41,6 +41,10 @@ export default function EventWebview({ business, event }) {
   const slug = effectiveBusiness?.slug
 
   useEffect(() => {
+    trackEvent('viewed_menu').catch(() => {})
+  }, [trackEvent])
+
+  useEffect(() => {
     if (!slug) return
     if (event?.ticket_types?.length) {
       setTicketTypes(event.ticket_types)

@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useMemo, useState } from 'react'
+import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { API_BASE } from './config'
 
 const WebviewContext = createContext(null)
@@ -38,15 +38,42 @@ export function WebviewProvider({ children, context }) {
     }
   }, [slug, cart])
 
+  const openedFired = useRef(false)
+  useEffect(() => {
+    if (slug && !openedFired.current) {
+      openedFired.current = true
+      const params = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : new URLSearchParams()
+      const utm = {
+        utm_source: params.get('utm_source'),
+        utm_medium: params.get('utm_medium'),
+        utm_campaign: params.get('utm_campaign'),
+        utm_content: params.get('utm_content'),
+        referrer_url: typeof document !== 'undefined' ? document.referrer : null,
+      }
+      fetch(`${API_BASE}/api/w/${encodeURIComponent(slug)}/session`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          event_type: 'opened',
+          customer_phone: recipient?.phone || null,
+          metadata: {},
+          ...utm,
+        }),
+      }).catch(() => {})
+    }
+  }, [slug, recipient?.phone])
+
   const addItem = (item) => {
     if (!item) return
     setCart((prev) => {
+      const hadItems = prev.length > 0
       const idx = prev.findIndex((i) => i.id === item.id)
-      if (idx === -1) {
-        return [...prev, { ...item, quantity: 1 }]
+      const next = idx === -1
+        ? [...prev, { ...item, quantity: 1 }]
+        : prev.map((i, j) => j === idx ? { ...i, quantity: Number(i.quantity || 0) + 1 } : i)
+      if (!hadItems && next.length > 0) {
+        trackEvent('started_order').catch(() => {})
       }
-      const next = [...prev]
-      next[idx] = { ...next[idx], quantity: Number(next[idx].quantity || 0) + 1 }
       return next
     })
   }
@@ -73,6 +100,14 @@ export function WebviewProvider({ children, context }) {
   const trackEvent = async (event_type, metadata = {}) => {
     if (!slug || !event_type) return
     try {
+      const params = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : new URLSearchParams()
+      const utm = {
+        utm_source: params.get('utm_source'),
+        utm_medium: params.get('utm_medium'),
+        utm_campaign: params.get('utm_campaign'),
+        utm_content: params.get('utm_content'),
+        referrer_url: typeof document !== 'undefined' ? document.referrer : null,
+      }
       await fetch(`${API_BASE}/api/w/${encodeURIComponent(slug)}/session`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -80,6 +115,7 @@ export function WebviewProvider({ children, context }) {
           event_type,
           customer_phone: recipient?.phone || null,
           metadata,
+          ...utm,
         }),
       })
     } catch {

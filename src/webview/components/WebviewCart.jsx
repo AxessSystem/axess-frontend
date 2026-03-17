@@ -1,8 +1,10 @@
 import { useState, useMemo } from 'react'
 import { useParams } from 'react-router-dom'
 import { API_BASE } from '../config'
+import { useWebview } from '../WebviewContext'
 
 export default function WebviewCart({ items, onAfterCheckout }) {
+  const { trackEvent } = useWebview()
   const { slug } = useParams()
   const [phone, setPhone] = useState('')
   const [submitting, setSubmitting] = useState(false)
@@ -44,6 +46,7 @@ export default function WebviewCart({ items, onAfterCheckout }) {
         throw new Error(data.error || 'שגיאה ביצירת הזמנה')
       }
       const data = await res.json()
+      trackEvent('completed_order', { order_id: data.order_id, total_amount: total }).catch(() => {})
       if (typeof onAfterCheckout === 'function') {
         onAfterCheckout(data)
       }

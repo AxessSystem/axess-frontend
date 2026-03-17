@@ -15,6 +15,10 @@ export default function RetailWebview({ business, items }) {
   const effectiveBusiness = business || ctxBiz
   const slug = effectiveBusiness?.slug
 
+  useEffect(() => {
+    trackEvent('viewed_menu').catch(() => {})
+  }, [trackEvent])
+
   const [activeTab, setActiveTab] = useState('catalog')
   const [search, setSearch] = useState('')
   const [selectedCategory, setSelectedCategory] = useState('all')

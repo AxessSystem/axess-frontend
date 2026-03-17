@@ -77,15 +77,7 @@ export default function WebviewApp() {
         if (!cancelled) setLoading(false)
       }
     }
-    if (slug) {
-      loadContext()
-      // fire-and-forget analytics: opened
-      fetch(`${API_BASE}/api/w/${encodeURIComponent(slug)}/session`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ event_type: 'opened' }),
-      }).catch(() => {})
-    }
+    if (slug) loadContext()
     return () => { cancelled = true }
   }, [slug])
 
