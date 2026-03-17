@@ -32,6 +32,13 @@ const NAV_ITEMS = [
   { icon: Activity, label: 'System Health', path: '/axess-admin/system' },
 ]
 
+const MOBILE_PRIMARY_NAV = [
+  { icon: LayoutDashboard, label: 'סקירה', path: '/axess-admin' },
+  { icon: Building2, label: 'עסקים', path: '/axess-admin/businesses' },
+  { icon: MessageCircle, label: 'WhatsApp', path: '/axess-admin/whatsapp' },
+  { icon: DollarSign, label: 'כספים', path: '/axess-admin/finance' },
+]
+
 function DashLogo({ small = false }) {
   const size = small ? 24 : 28
   return (
@@ -70,7 +77,7 @@ export default function AdminLayout() {
   }
 
   return (
-    <div dir="rtl" style={{ minHeight: '100vh', background: 'var(--v2-dark)', display: 'flex' }}>
+    <div dir="rtl" style={{ minHeight: '100vh', background: 'var(--v2-dark)', display: 'flex', width: '100%', overflowX: 'hidden' }}>
       <aside
         className="hidden lg:flex"
         style={{
@@ -174,9 +181,69 @@ export default function AdminLayout() {
         </>
       )}
 
-      <main style={{ flex: 1, padding: 24, minWidth: 0 }}>
+      <main style={{ flex: 1, padding: 24, minWidth: 0, maxWidth: '100%' }}>
         <Outlet />
       </main>
+
+      {/* Mobile bottom navigation */}
+      <nav
+        className="lg:hidden"
+        style={{
+          position: 'fixed',
+          bottom: 0,
+          left: 0,
+          right: 0,
+          height: 60,
+          background: 'var(--v2-dark-2)',
+          borderTop: '1px solid var(--glass-border)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-around',
+          zIndex: 70,
+        }}
+      >
+        {MOBILE_PRIMARY_NAV.map(item => (
+          <button
+            key={item.path}
+            onClick={() => navigate(item.path)}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: 'var(--v2-gray-400)',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 4,
+              fontSize: 10,
+              cursor: 'pointer',
+              padding: '4px 6px',
+              flex: 1,
+            }}
+          >
+            <item.icon size={20} />
+          </button>
+        ))}
+        <button
+          onClick={() => setSidebarOpen(true)}
+          style={{
+            background: 'none',
+            border: 'none',
+            color: 'var(--v2-gray-400)',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 4,
+            fontSize: 10,
+            cursor: 'pointer',
+            padding: '4px 6px',
+            flex: 1,
+          }}
+        >
+          <Menu size={20} />
+        </button>
+      </nav>
     </div>
   )
 }

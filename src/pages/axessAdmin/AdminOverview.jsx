@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
+import { useState, useEffect } from 'react'
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip } from 'recharts'
 import { useAuth } from '@/contexts/AuthContext'
 import {
@@ -43,6 +44,14 @@ export default function AdminOverview() {
   const today = new Date().toLocaleDateString('he-IL', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
   const headers = session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}
 
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768)
+
+  useEffect(() => {
+    const onResize = () => setIsMobile(window.innerWidth <= 768)
+    window.addEventListener('resize', onResize)
+    return () => window.removeEventListener('resize', onResize)
+  }, [])
+
   const { data } = useQuery({
     queryKey: ['axess-admin-overview', session?.access_token],
     queryFn: () => fetch(`${API_BASE}/api/axess-admin/overview`, { headers }).then(r => {
@@ -86,7 +95,7 @@ export default function AdminOverview() {
   const recentBiz = data?.recent_businesses || []
 
   return (
-    <div dir="rtl" style={{ maxWidth: 1200, margin: '0 auto' }}>
+    <div dir="rtl" style={{ maxWidth: '100%', margin: '0 auto', padding: isMobile ? '12px 12px 24px' : '16px 24px 32px' }}>
       <div style={{ marginBottom: 24, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16 }}>
         <div>
           <h1 style={{ fontWeight: 800, fontSize: 26, color: '#fff' }}>AXESS Admin</h1>
@@ -94,21 +103,45 @@ export default function AdminOverview() {
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 24 }}>
+      <div
+        style={{
+          display: isMobile ? 'flex' : 'grid',
+          flexDirection: isMobile ? 'column' : undefined,
+          gridTemplateColumns: isMobile ? undefined : 'repeat(4, 1fr)',
+          gap: 16,
+          marginBottom: 24,
+        }}
+      >
         <KPICard icon={Building2} label="עסקים פעילים" value={stats?.businesses_active?.toLocaleString?.('he-IL')} color="primary" />
         <KPICard icon={Calendar} label="עסקים חדשים החודש" value={stats?.new_businesses_month?.toLocaleString?.('he-IL')} color="blue" />
         <KPICard icon={MessageSquare} label="SMS שנשלחו היום" value={stats?.sms_today?.toLocaleString?.('he-IL')} color="primary" />
         <KPICard icon={DollarSign} label="הכנסה מהזמנות החודש" value={stats ? `₪${Number(stats.revenue_month || 0).toLocaleString('he-IL')}` : '—'} color="primary" />
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 32 }}>
+      <div
+        style={{
+          display: isMobile ? 'flex' : 'grid',
+          flexDirection: isMobile ? 'column' : undefined,
+          gridTemplateColumns: isMobile ? undefined : 'repeat(4, 1fr)',
+          gap: 16,
+          marginBottom: 32,
+        }}
+      >
         <KPICard icon={Users} label="סך נמענים" value={stats?.total_recipients?.toLocaleString?.('he-IL')} />
         <KPICard icon={AlertTriangle} label="SMS החודש" value={stats?.sms_month?.toLocaleString?.('he-IL')} color="yellow" />
         <KPICard icon={AlertCircle} label="WhatsApp היום" value={stats?.wa_today?.toLocaleString?.('he-IL')} color="red" />
         <KPICard icon={TrendingUp} label="MRR (עסקים פעילים)" value={stats ? `₪${Number(stats.mrr || 0).toLocaleString('he-IL')}` : '—'} />
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, marginBottom: 32 }}>
+      <div
+        style={{
+          display: isMobile ? 'flex' : 'grid',
+          flexDirection: isMobile ? 'column' : undefined,
+          gridTemplateColumns: isMobile ? undefined : '1fr 1fr',
+          gap: 24,
+          marginBottom: 32,
+        }}
+      >
         <div style={{ background: 'var(--v2-dark-2)', border: '1px solid var(--glass-border)', borderRadius: 12, padding: 20 }}>
           <h3 style={{ fontWeight: 700, fontSize: 16, color: '#fff', marginBottom: 16 }}>עסקים חדשים לפי חודש</h3>
           <div style={{ height: 200 }}>

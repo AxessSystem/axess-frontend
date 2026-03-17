@@ -15,6 +15,7 @@ export default function AdminBusinesses() {
   const [status, setStatus] = useState('')
   const [menuOpen, setMenuOpen] = useState(null)
   const [menuPosition, setMenuPosition] = useState({ top: 0, right: 0 })
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768)
   const headers = session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}
 
   const { data: bizData, refetch } = useQuery({
@@ -52,6 +53,12 @@ export default function AdminBusinesses() {
     return () => document.removeEventListener('click', handleClickOutside)
   }, [menuOpen])
 
+  useEffect(() => {
+    const onResize = () => setIsMobile(window.innerWidth <= 768)
+    window.addEventListener('resize', onResize)
+    return () => window.removeEventListener('resize', onResize)
+  }, [])
+
   const handleImpersonate = (biz) => {
     if (!confirm(`להיכנס כ-${biz.name}?`)) return
     try {
@@ -66,7 +73,7 @@ export default function AdminBusinesses() {
   }
 
   return (
-    <div dir="rtl" style={{ maxWidth: 1000 }}>
+    <div dir="rtl" style={{ maxWidth: '100%', padding: isMobile ? 12 : 24 }}>
       <h1 style={{ fontWeight: 800, fontSize: 24, color: '#fff', marginBottom: 24 }}>ניהול עסקים</h1>
 
       <div style={{ display: 'flex', gap: 12, marginBottom: 24, flexWrap: 'wrap' }}>
@@ -110,85 +117,160 @@ export default function AdminBusinesses() {
         </select>
       </div>
 
-      <div style={{ background: 'var(--v2-dark-2)', border: '1px solid var(--glass-border)', borderRadius: 12, overflow: 'hidden' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-          <thead>
-            <tr style={{ borderBottom: '1px solid var(--glass-border)' }}>
-              <th style={{ textAlign: 'right', padding: 12, color: 'var(--v2-gray-400)', fontWeight: 500, fontSize: 13 }}>שם</th>
-              <th style={{ textAlign: 'right', padding: 12, color: 'var(--v2-gray-400)', fontWeight: 500, fontSize: 13 }}>סוג</th>
-              <th style={{ textAlign: 'right', padding: 12, color: 'var(--v2-gray-400)', fontWeight: 500, fontSize: 13 }}>תוכנית</th>
-              <th style={{ textAlign: 'right', padding: 12, color: 'var(--v2-gray-400)', fontWeight: 500, fontSize: 13 }}>חברים</th>
-              <th style={{ textAlign: 'right', padding: 12, color: 'var(--v2-gray-400)', fontWeight: 500, fontSize: 13 }}>אירועים</th>
-              <th style={{ textAlign: 'right', padding: 12, color: 'var(--v2-gray-400)', fontWeight: 500, fontSize: 13 }}>נרשם</th>
-              <th style={{ textAlign: 'right', padding: 12, color: 'var(--v2-gray-400)', fontWeight: 500, fontSize: 13 }}>סטטוס</th>
-              <th style={{ width: 44 }} />
-            </tr>
-          </thead>
-          <tbody>
-            {businesses.map(b => (
-              <tr key={b.id} style={{ borderBottom: '1px solid var(--glass-border)' }}>
-                <td style={{ padding: 12, color: '#fff', fontSize: 14 }}>{b.name || '—'}</td>
-                <td style={{ padding: 12 }}>
-                  <span style={{ background: 'var(--v2-dark-3)', padding: '4px 8px', borderRadius: 6, fontSize: 12, color: 'var(--v2-gray-400)' }}>{b.business_type || '—'}</span>
-                </td>
-                <td style={{ padding: 12, color: 'var(--v2-gray-400)', fontSize: 13 }}>—</td>
-                <td style={{ padding: 12, color: 'var(--v2-gray-400)', fontSize: 13 }}>{b.member_count ?? 0}</td>
-                <td style={{ padding: 12, color: 'var(--v2-gray-400)', fontSize: 13 }}>{b.event_count ?? 0}</td>
-                <td style={{ padding: 12, color: 'var(--v2-gray-400)', fontSize: 13 }}>{b.created_at ? new Date(b.created_at).toLocaleDateString('he-IL') : '—'}</td>
-                <td style={{ padding: 12 }}>
-                  <span style={{
-                    padding: '4px 8px',
-                    borderRadius: 6,
-                    fontSize: 12,
-                    background: b.status === 'active' ? 'rgba(0,195,122,0.2)' : b.status === 'suspended' ? 'rgba(220,38,38,0.2)' : 'var(--v2-dark-3)',
-                    color: b.status === 'active' ? 'var(--v2-primary)' : b.status === 'suspended' ? '#ef4444' : 'var(--v2-gray-400)',
-                  }}>
-                    {b.status || '—'}
-                  </span>
-                </td>
-                <td style={{ padding: 8, position: 'relative' }}>
-                  <button
-                    onClick={(e) => handleMenuOpen(e, b.id)}
-                    style={{ background: 'none', border: 'none', color: 'var(--v2-gray-400)', cursor: 'pointer', padding: 4 }}
-                  >
-                    <MoreVertical size={18} />
+      {isMobile ? (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          {businesses.map(b => (
+            <div
+              key={b.id}
+              style={{
+                background: 'var(--v2-dark-2)',
+                border: '1px solid var(--glass-border)',
+                borderRadius: 12,
+                padding: 12,
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                <div style={{ fontSize: 16, fontWeight: 700, color: '#fff' }}>{b.name || '—'}</div>
+                <button
+                  onClick={(e) => handleMenuOpen(e, b.id)}
+                  style={{ background: 'none', border: 'none', color: 'var(--v2-gray-400)', cursor: 'pointer', padding: 4 }}
+                >
+                  <MoreVertical size={18} />
+                </button>
+              </div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 8, fontSize: 12, color: 'var(--v2-gray-400)' }}>
+                <span style={{ background: 'var(--v2-dark-3)', padding: '4px 8px', borderRadius: 6 }}>
+                  {b.business_type || '—'}
+                </span>
+                <span>חברים: {b.member_count ?? 0}</span>
+                <span>אירועים: {b.event_count ?? 0}</span>
+                <span>נרשם: {b.created_at ? new Date(b.created_at).toLocaleDateString('he-IL') : '—'}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{
+                  padding: '4px 8px',
+                  borderRadius: 6,
+                  fontSize: 12,
+                  background: b.status === 'active' ? 'rgba(0,195,122,0.2)' : b.status === 'suspended' ? 'rgba(220,38,38,0.2)' : 'var(--v2-dark-3)',
+                  color: b.status === 'active' ? 'var(--v2-primary)' : b.status === 'suspended' ? '#ef4444' : 'var(--v2-gray-400)',
+                }}>
+                  {b.status || '—'}
+                </span>
+              </div>
+              {menuOpen === b.id && (
+                <div style={{
+                  position: 'fixed',
+                  top: menuPosition.top,
+                  right: menuPosition.right,
+                  zIndex: 9999,
+                  background: 'var(--card)',
+                  border: '1px solid var(--glass-border)',
+                  borderRadius: 8,
+                  padding: 4,
+                  minWidth: 160,
+                  boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
+                }}>
+                  <button onClick={() => { handleImpersonate(b); setMenuOpen(null); }} style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 12px', background: 'none', border: 'none', color: '#fff', cursor: 'pointer', fontSize: 13, borderRadius: 6 }}>
+                    <Eye size={14} /> כנס כ-{b.name}
                   </button>
-                  {menuOpen === b.id && (
-                    <div style={{
-                      position: 'fixed',
-                      top: menuPosition.top,
-                      right: menuPosition.right,
-                      zIndex: 9999,
-                      background: 'var(--card)',
-                      border: '1px solid var(--glass-border)',
-                      borderRadius: 8,
-                      padding: 4,
-                      minWidth: 160,
-                      boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
-                    }}>
-                      <button onClick={() => { handleImpersonate(b); setMenuOpen(null); }} style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 12px', background: 'none', border: 'none', color: '#fff', cursor: 'pointer', fontSize: 13, borderRadius: 6 }}>
-                        <Eye size={14} /> כנס כ-{b.name}
-                      </button>
-                      <button onClick={() => setMenuOpen(null)} style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 12px', background: 'none', border: 'none', color: 'var(--v2-gray-400)', cursor: 'pointer', fontSize: 13, borderRadius: 6 }}>
-                        <Edit size={14} /> ערוך פרטים
-                      </button>
-                      <button onClick={() => setMenuOpen(null)} style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 12px', background: 'none', border: 'none', color: 'var(--v2-gray-400)', cursor: 'pointer', fontSize: 13, borderRadius: 6 }}>
-                        <BarChart2 size={14} /> סטטיסטיקות
-                      </button>
-                      <button onClick={() => setMenuOpen(null)} style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 12px', background: 'none', border: 'none', color: 'var(--v2-gray-400)', cursor: 'pointer', fontSize: 13, borderRadius: 6 }}>
-                        <AlertTriangle size={14} /> השעה
-                      </button>
-                      <button onClick={() => setMenuOpen(null)} style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 12px', background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: 13, borderRadius: 6 }}>
-                        <Trash2 size={14} /> מחק
-                      </button>
-                    </div>
-                  )}
-                </td>
+                  <button onClick={() => setMenuOpen(null)} style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 12px', background: 'none', border: 'none', color: 'var(--v2-gray-400)', cursor: 'pointer', fontSize: 13, borderRadius: 6 }}>
+                    <Edit size={14} /> ערוך פרטים
+                  </button>
+                  <button onClick={() => setMenuOpen(null)} style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 12px', background: 'none', border: 'none', color: 'var(--v2-gray-400)', cursor: 'pointer', fontSize: 13, borderRadius: 6 }}>
+                    <BarChart2 size={14} /> סטטיסטיקות
+                  </button>
+                  <button onClick={() => setMenuOpen(null)} style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 12px', background: 'none', border: 'none', color: 'var(--v2-gray-400)', cursor: 'pointer', fontSize: 13, borderRadius: 6 }}>
+                    <AlertTriangle size={14} /> השעה
+                  </button>
+                  <button onClick={() => setMenuOpen(null)} style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 12px', background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: 13, borderRadius: 6 }}>
+                    <Trash2 size={14} /> מחק
+                  </button>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div style={{ background: 'var(--v2-dark-2)', border: '1px solid var(--glass-border)', borderRadius: 12, overflow: 'hidden', maxWidth: '100%' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <thead>
+              <tr style={{ borderBottom: '1px solid var(--glass-border)' }}>
+                <th style={{ textAlign: 'right', padding: 12, color: 'var(--v2-gray-400)', fontWeight: 500, fontSize: 13 }}>שם</th>
+                <th style={{ textAlign: 'right', padding: 12, color: 'var(--v2-gray-400)', fontWeight: 500, fontSize: 13 }}>סוג</th>
+                <th style={{ textAlign: 'right', padding: 12, color: 'var(--v2-gray-400)', fontWeight: 500, fontSize: 13 }}>תוכנית</th>
+                <th style={{ textAlign: 'right', padding: 12, color: 'var(--v2-gray-400)', fontWeight: 500, fontSize: 13 }}>חברים</th>
+                <th style={{ textAlign: 'right', padding: 12, color: 'var(--v2-gray-400)', fontWeight: 500, fontSize: 13 }}>אירועים</th>
+                <th style={{ textAlign: 'right', padding: 12, color: 'var(--v2-gray-400)', fontWeight: 500, fontSize: 13 }}>נרשם</th>
+                <th style={{ textAlign: 'right', padding: 12, color: 'var(--v2-gray-400)', fontWeight: 500, fontSize: 13 }}>סטטוס</th>
+                <th style={{ width: 44 }} />
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody>
+              {businesses.map(b => (
+                <tr key={b.id} style={{ borderBottom: '1px solid var(--glass-border)' }}>
+                  <td style={{ padding: 12, color: '#fff', fontSize: 14 }}>{b.name || '—'}</td>
+                  <td style={{ padding: 12 }}>
+                    <span style={{ background: 'var(--v2-dark-3)', padding: '4px 8px', borderRadius: 6, fontSize: 12, color: 'var(--v2-gray-400)' }}>{b.business_type || '—'}</span>
+                  </td>
+                  <td style={{ padding: 12, color: 'var(--v2-gray-400)', fontSize: 13 }}>—</td>
+                  <td style={{ padding: 12, color: 'var(--v2-gray-400)', fontSize: 13 }}>{b.member_count ?? 0}</td>
+                  <td style={{ padding: 12, color: 'var(--v2-gray-400)', fontSize: 13 }}>{b.event_count ?? 0}</td>
+                  <td style={{ padding: 12, color: 'var(--v2-gray-400)', fontSize: 13 }}>{b.created_at ? new Date(b.created_at).toLocaleDateString('he-IL') : '—'}</td>
+                  <td style={{ padding: 12 }}>
+                    <span style={{
+                      padding: '4px 8px',
+                      borderRadius: 6,
+                      fontSize: 12,
+                      background: b.status === 'active' ? 'rgba(0,195,122,0.2)' : b.status === 'suspended' ? 'rgba(220,38,38,0.2)' : 'var(--v2-dark-3)',
+                      color: b.status === 'active' ? 'var(--v2-primary)' : b.status === 'suspended' ? '#ef4444' : 'var(--v2-gray-400)',
+                    }}>
+                      {b.status || '—'}
+                    </span>
+                  </td>
+                  <td style={{ padding: 8, position: 'relative' }}>
+                    <button
+                      onClick={(e) => handleMenuOpen(e, b.id)}
+                      style={{ background: 'none', border: 'none', color: 'var(--v2-gray-400)', cursor: 'pointer', padding: 4 }}
+                    >
+                      <MoreVertical size={18} />
+                    </button>
+                    {menuOpen === b.id && (
+                      <div style={{
+                        position: 'fixed',
+                        top: menuPosition.top,
+                        right: menuPosition.right,
+                        zIndex: 9999,
+                        background: 'var(--card)',
+                        border: '1px solid var(--glass-border)',
+                        borderRadius: 8,
+                        padding: 4,
+                        minWidth: 160,
+                        boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
+                      }}>
+                        <button onClick={() => { handleImpersonate(b); setMenuOpen(null); }} style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 12px', background: 'none', border: 'none', color: '#fff', cursor: 'pointer', fontSize: 13, borderRadius: 6 }}>
+                          <Eye size={14} /> כנס כ-{b.name}
+                        </button>
+                        <button onClick={() => setMenuOpen(null)} style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 12px', background: 'none', border: 'none', color: 'var(--v2-gray-400)', cursor: 'pointer', fontSize: 13, borderRadius: 6 }}>
+                          <Edit size={14} /> ערוך פרטים
+                        </button>
+                        <button onClick={() => setMenuOpen(null)} style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 12px', background: 'none', border: 'none', color: 'var(--v2-gray-400)', cursor: 'pointer', fontSize: 13, borderRadius: 6 }}>
+                          <BarChart2 size={14} /> סטטיסטיקות
+                        </button>
+                        <button onClick={() => setMenuOpen(null)} style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 12px', background: 'none', border: 'none', color: 'var(--v2-gray-400)', cursor: 'pointer', fontSize: 13, borderRadius: 6 }}>
+                          <AlertTriangle size={14} /> השעה
+                        </button>
+                        <button onClick={() => setMenuOpen(null)} style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 12px', background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: 13, borderRadius: 6 }}>
+                          <Trash2 size={14} /> מחק
+                        </button>
+                      </div>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   )
 }
