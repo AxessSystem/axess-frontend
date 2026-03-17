@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { Search, MoreVertical, Eye, Edit, BarChart2, AlertTriangle, Trash2 } from 'lucide-react'
@@ -35,13 +35,22 @@ export default function AdminBusinesses() {
   const businesses = bizData?.businesses || []
 
   const handleMenuOpen = (e, bizId) => {
+    e.stopPropagation()
     const rect = e.currentTarget.getBoundingClientRect()
     setMenuPosition({
-      top: rect.bottom + 8,
+      top: rect.bottom + 4,
       right: window.innerWidth - rect.right,
     })
-    setMenuOpen(bizId)
+    setMenuOpen(menuOpen === bizId ? null : bizId)
   }
+
+  useEffect(() => {
+    const handleClickOutside = () => setMenuOpen(null)
+    if (menuOpen) {
+      document.addEventListener('click', handleClickOutside)
+    }
+    return () => document.removeEventListener('click', handleClickOutside)
+  }, [menuOpen])
 
   const handleImpersonate = (biz) => {
     if (!confirm(`להיכנס כ-${biz.name}?`)) return
