@@ -186,7 +186,6 @@ export function AuthProvider({ children }) {
     : ''
   const isImpersonating = isAxessAdmin && !!impersonateId
   const effectiveBusinessId = isImpersonating ? impersonateId : baseBusinessId
-  const businessId = effectiveBusinessId
 
   return (
     <AuthContext.Provider value={{
@@ -195,7 +194,7 @@ export function AuthProvider({ children }) {
       loading,
       role,
       permissions,
-      businessId,
+      businessId: effectiveBusinessId,
       isAdmin,
       isProducer,
       isAxessAdmin,

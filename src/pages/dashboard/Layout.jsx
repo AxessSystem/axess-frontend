@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Link, Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom'
+import { Link, Outlet, NavLink, useNavigate, useLocation, Navigate } from 'react-router-dom'
 import {
   LayoutDashboard, Send, Users, BarChart2, QrCode, Settings,
   Bell, Menu, X, ChevronDown, Wallet, LogOut, Calendar, Megaphone, UserCheck, Building,
@@ -406,7 +406,7 @@ export default function DashboardClientLayout() {
   const [dismissedNotices, setDismissedNotices] = useState(() => {
     try { return JSON.parse(sessionStorage.getItem('dismissed_notices') || '[]') } catch { return [] }
   })
-  const { role, permissions, businessId, isAxessAdmin, session, profile } = useAuth()
+  const { role, permissions, businessId, isAxessAdmin, isImpersonating, session, profile } = useAuth()
   const navigate = useNavigate()
   const [inboxUnreadCount, setInboxUnreadCount] = useState(0)
   const [notificationsUnreadCount, setNotificationsUnreadCount] = useState(0)
@@ -493,6 +493,10 @@ export default function DashboardClientLayout() {
 
   const businessName = profile?.business_name ?? profile?.full_name ?? 'AXESS Admin'
   const isAdmin = isAxessAdmin
+
+  if (isAxessAdmin && !isImpersonating) {
+    return <Navigate to="/axess-admin" replace />
+  }
 
   useEffect(() => {
     if (!session?.access_token || !businessId || isAdmin) return
