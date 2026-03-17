@@ -1,7 +1,7 @@
 import { lazy, Suspense, useEffect } from 'react'
 import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom'
 import { Toaster } from 'react-hot-toast'
-import { AuthProvider } from '@/contexts/AuthContext'
+import { AuthProvider, useAuth } from '@/contexts/AuthContext'
 
 import AdminRoute from '@/components/guards/AdminRoute'
 import ProducerRoute from '@/components/guards/ProducerRoute'
@@ -105,6 +105,21 @@ function RecoveryRedirectHandler() {
   return null
 }
 
+function RequireAdmin({ children }) {
+  const { isAxessAdmin, loading } = useAuth()
+  if (loading) return <div style={{ background: '#000', height: '100vh' }} />
+  if (!isAxessAdmin) return <Navigate to="/login" replace />
+  return children
+}
+
+function DashboardWrapper() {
+  const { isAxessAdmin } = useAuth()
+  if (isAxessAdmin) {
+    return <Navigate to="/axess-admin" replace />
+  }
+  return <ClientLayout />
+}
+
 export default function App() {
   return (
     <BrowserRouter>
@@ -173,7 +188,7 @@ export default function App() {
             <Route path="/industries/organizations" element={<IndustryOrganizations />} />
 
             {/* ── Client Dashboard ── */}
-            <Route path="/dashboard" element={<ClientLayout />}>
+            <Route path="/dashboard" element={<DashboardWrapper />}>
               <Route index element={<Overview />} />
               <Route path="new-campaign" element={<NewCampaign />} />
               <Route path="audiences" element={<Audiences />} />
@@ -203,7 +218,14 @@ export default function App() {
             </Route>
 
             {/* ── AXESS Admin (platform) ── */}
-            <Route path="/axess-admin" element={<AxessAdminLayout />}>
+            <Route
+              path="/axess-admin"
+              element={
+                <RequireAdmin>
+                  <AxessAdminLayout />
+                </RequireAdmin>
+              }
+            >
               <Route index element={<AdminOverviewPage />} />
               <Route path="businesses" element={<AdminBusinessesPage />} />
               <Route path="sms" element={<AdminSMSPage />} />

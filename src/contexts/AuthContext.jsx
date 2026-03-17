@@ -105,11 +105,16 @@ export function AuthProvider({ children }) {
 
     const load = async () => {
       try {
-        const [profileData, bm] = await Promise.all([
-          fetchProfile(userId),
-          fetchBusinessMember(userId)
-        ])
-        if (!cancelled) {
+        const profileData = await fetchProfile(userId)
+
+        if (cancelled) return
+
+        if (profileData?.is_axess_admin === true) {
+          setProfile(profileData)
+          setBusinessMember(null)
+        } else {
+          const bm = await fetchBusinessMember(userId)
+          if (cancelled) return
           setProfile(profileData)
           setBusinessMember(bm)
         }

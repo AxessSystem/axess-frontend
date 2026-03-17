@@ -41,7 +41,7 @@ export default function AdminLayout() {
 
   useEffect(() => {
     if (loading) return
-    if (!isAxessAdmin) {
+    if (!isAxessAdmin && !loading) {
       navigate('/dashboard', { replace: true })
     }
   }, [isAxessAdmin, loading, navigate])
