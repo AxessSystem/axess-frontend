@@ -56,8 +56,8 @@ export default function AdminBusinesses() {
     if (!confirm(`להיכנס כ-${biz.name}?`)) return
     try {
       sessionStorage.setItem('axess_impersonate', biz.id)
-      sessionStorage.setItem('axess_impersonate_name', biz.name || '')
-      window.open('/dashboard', '_blank')
+      sessionStorage.setItem('axess_impersonate_name', biz.name)
+      window.location.href = '/dashboard'
       toast.success(`מצב Impersonation — ${biz.name}`)
     } catch (e) {
       console.error('impersonate error', e)

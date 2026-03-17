@@ -118,8 +118,8 @@ function RequireAdmin({ children }) {
 }
 
 function DashboardWrapper() {
-  const { isAxessAdmin } = useAuth()
-  if (isAxessAdmin) {
+  const { isAxessAdmin, isImpersonating } = useAuth()
+  if (isAxessAdmin && !isImpersonating) {
     return <Navigate to="/axess-admin" replace />
   }
   return <ClientLayout />

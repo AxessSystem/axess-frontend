@@ -491,12 +491,6 @@ export default function DashboardClientLayout() {
     return () => document.removeEventListener('click', onClose)
   }, [notificationsDropdownOpen])
 
-  const impersonation = (() => {
-    try {
-      const s = sessionStorage.getItem('axess_impersonate')
-      return s ? JSON.parse(s) : null
-    } catch { return null }
-  })()
   const businessName = profile?.business_name ?? profile?.full_name ?? 'AXESS Admin'
   const isAdmin = isAxessAdmin
 
@@ -842,54 +836,26 @@ export default function DashboardClientLayout() {
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
 
         {/* ── Impersonation Banner ── */}
-        {impersonation?.business && (
-          <div
-            style={{
-              position: 'fixed',
-              top: 0,
-              left: 0,
-              right: 0,
-              background: '#DC2626',
-              color: '#fff',
-              padding: '10px 24px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              zIndex: 9999,
-              fontSize: 14,
-            }}
-          >
-            <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <AlertTriangle size={16} />
-              מצב תמיכה — צופה כ: {impersonation.business?.name || 'עסק'}
-            </span>
-            <button
+        {isAxessAdmin && businessId && sessionStorage.getItem('axess_impersonate') && (
+          <div style={{
+            background: 'rgba(239,68,68,0.2)',
+            border: '1px solid rgba(239,68,68,0.5)',
+            padding: '8px 16px',
+            textAlign: 'center',
+            fontSize: 13,
+            color: '#FCA5A5'
+          }}>
+            👁️ מצב צפייה: {sessionStorage.getItem('axess_impersonate_name') || 'עסק'} —
+            <span
+              style={{ cursor: 'pointer', textDecoration: 'underline', marginRight: 8 }}
               onClick={() => {
                 sessionStorage.removeItem('axess_impersonate')
-                const adminToken = sessionStorage.getItem('axess_admin_token')
-                if (adminToken) {
-                  try {
-                    const p = JSON.parse(adminToken)
-                    const at = p?.access_token ?? p?.session?.access_token
-                    const rt = p?.refresh_token ?? p?.session?.refresh_token
-                    if (at && rt) supabase.auth.setSession({ access_token: at, refresh_token: rt })
-                  } catch (_) {}
-                }
-                sessionStorage.removeItem('axess_admin_token')
+                sessionStorage.removeItem('axess_impersonate_name')
                 window.location.href = '/axess-admin'
               }}
-              style={{
-                background: 'rgba(255,255,255,0.2)',
-                border: 'none',
-                color: '#fff',
-                padding: '6px 14px',
-                borderRadius: 8,
-                cursor: 'pointer',
-                fontWeight: 600,
-              }}
             >
-              חזור לאדמין
-            </button>
+              יציאה מצפייה
+            </span>
           </div>
         )}
 

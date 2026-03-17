@@ -185,7 +185,8 @@ export function AuthProvider({ children }) {
     ? window.sessionStorage.getItem('axess_impersonate_name') || ''
     : ''
   const isImpersonating = isAxessAdmin && !!impersonateId
-  const businessId = isImpersonating ? impersonateId : baseBusinessId
+  const effectiveBusinessId = isImpersonating ? impersonateId : baseBusinessId
+  const businessId = effectiveBusinessId
 
   return (
     <AuthContext.Provider value={{
