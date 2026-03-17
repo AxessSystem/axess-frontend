@@ -16,7 +16,7 @@ export default function AdminBusinesses() {
   const [menuOpen, setMenuOpen] = useState(null)
   const headers = session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}
 
-  const { data: businesses = [], refetch } = useQuery({
+  const { data: bizData, refetch } = useQuery({
     queryKey: ['axess-admin-businesses', search, type, status, session?.access_token],
     queryFn: () => {
       const q = new URLSearchParams()
@@ -30,6 +30,8 @@ export default function AdminBusinesses() {
     },
     enabled: !!session?.access_token,
   })
+
+  const businesses = bizData?.businesses || []
 
   const handleImpersonate = (biz) => {
     if (!confirm(`להיכנס כ-${biz.name}?`)) return
