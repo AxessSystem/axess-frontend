@@ -1,8 +1,18 @@
 import { useState } from 'react'
 import { Link, Outlet, NavLink, useNavigate } from 'react-router-dom'
 import {
-  LayoutDashboard, Building2, MessageSquare, Bell, Shield,
-  Menu, X
+  LayoutDashboard,
+  Building2,
+  MessageCircle,
+  DollarSign,
+  MessageSquare,
+  Wrench,
+  Users,
+  Bell,
+  FileText,
+  Activity,
+  Menu,
+  X,
 } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { useEffect } from 'react'
@@ -12,9 +22,14 @@ const API_BASE = import.meta.env.VITE_API_URL || 'https://axess-production.up.ra
 const NAV_ITEMS = [
   { icon: LayoutDashboard, label: 'סקירה', path: '/axess-admin' },
   { icon: Building2, label: 'עסקים', path: '/axess-admin/businesses' },
+  { icon: MessageCircle, label: 'WhatsApp', path: '/axess-admin/whatsapp' },
+  { icon: DollarSign, label: 'כספים', path: '/axess-admin/finance' },
   { icon: MessageSquare, label: 'SMS', path: '/axess-admin/sms' },
+  { icon: Wrench, label: 'תמיכה', path: '/axess-admin/support' },
+  { icon: Users, label: 'משתמשים', path: '/axess-admin/users' },
   { icon: Bell, label: 'הודעות מערכת', path: '/axess-admin/notices' },
-  { icon: Shield, label: 'Audit Log', path: '/axess-admin/audit' },
+  { icon: FileText, label: 'Audit Log', path: '/axess-admin/audit' },
+  { icon: Activity, label: 'System Health', path: '/axess-admin/system' },
 ]
 
 function DashLogo({ small = false }) {

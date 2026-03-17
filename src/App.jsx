@@ -76,6 +76,11 @@ const AdminBusinessesPage = lazy(() => import('@/pages/axessAdmin/AdminBusinesse
 const AdminSMSPage       = lazy(() => import('@/pages/axessAdmin/AdminSMS'))
 const AdminNoticesPage   = lazy(() => import('@/pages/axessAdmin/AdminNotices'))
 const AdminAuditLogPage  = lazy(() => import('@/pages/axessAdmin/AdminAuditLog'))
+const AdminWhatsAppPage  = lazy(() => import('@/pages/axessAdmin/AdminWhatsAppPage'))
+const AdminFinancePage   = lazy(() => import('@/pages/axessAdmin/AdminFinancePage'))
+const AdminSupportPage   = lazy(() => import('@/pages/axessAdmin/AdminSupportPage'))
+const AdminUsersPage     = lazy(() => import('@/pages/axessAdmin/AdminUsersPage'))
+const AdminSystemPage    = lazy(() => import('@/pages/axessAdmin/AdminSystemPage'))
 
 /* ── Webview bundle (lazy, standalone) ── */
 const WebviewApp = lazy(() => import('./webview/WebviewApp'))
@@ -228,9 +233,14 @@ export default function App() {
             >
               <Route index element={<AdminOverviewPage />} />
               <Route path="businesses" element={<AdminBusinessesPage />} />
+              <Route path="whatsapp" element={<AdminWhatsAppPage />} />
+              <Route path="finance" element={<AdminFinancePage />} />
               <Route path="sms" element={<AdminSMSPage />} />
+              <Route path="support" element={<AdminSupportPage />} />
+              <Route path="users" element={<AdminUsersPage />} />
               <Route path="notices" element={<AdminNoticesPage />} />
               <Route path="audit" element={<AdminAuditLogPage />} />
+              <Route path="system" element={<AdminSystemPage />} />
             </Route>
 
             {/* ── Producer ── */}

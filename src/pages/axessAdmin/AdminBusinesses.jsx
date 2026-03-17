@@ -31,20 +31,15 @@ export default function AdminBusinesses() {
     enabled: !!session?.access_token,
   })
 
-  const handleImpersonate = async (biz) => {
-    if (!confirm(`להיכנס לדשבורד של ${biz.name}?`)) return
+  const handleImpersonate = (biz) => {
+    if (!confirm(`להיכנס כ-${biz.name}?`)) return
     try {
-      const r = await fetch(`${API_BASE}/api/axess-admin/impersonate/${biz.id}`, {
-        method: 'POST',
-        headers,
-      })
-      const d = await r.json()
-      if (!r.ok) throw new Error(d.error || 'שגיאה')
-      sessionStorage.setItem('axess_admin_token', JSON.stringify(session))
-      sessionStorage.setItem('axess_impersonate', JSON.stringify({ business: biz }))
-      navigate('/dashboard')
-      toast.success(`מצב תמיכה — ${biz.name}`)
+      sessionStorage.setItem('axess_impersonate', biz.id)
+      sessionStorage.setItem('axess_impersonate_name', biz.name || '')
+      window.open('/dashboard', '_blank')
+      toast.success(`מצב Impersonation — ${biz.name}`)
     } catch (e) {
+      console.error('impersonate error', e)
       toast.error(e.message || 'שגיאה')
     }
   }
@@ -151,7 +146,7 @@ export default function AdminBusinesses() {
                       boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
                     }}>
                       <button onClick={() => { handleImpersonate(b); setMenuOpen(null); }} style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 12px', background: 'none', border: 'none', color: '#fff', cursor: 'pointer', fontSize: 13, borderRadius: 6 }}>
-                        <Eye size={14} /> כנס לדשבורד
+                        <Eye size={14} /> כנס כ-{b.name}
                       </button>
                       <button onClick={() => setMenuOpen(null)} style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 12px', background: 'none', border: 'none', color: 'var(--v2-gray-400)', cursor: 'pointer', fontSize: 13, borderRadius: 6 }}>
                         <Edit size={14} /> ערוך פרטים

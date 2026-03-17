@@ -172,11 +172,20 @@ export function AuthProvider({ children }) {
 
   const role = businessMember?.role ?? null
   const permissions = businessMember?.permissions ?? {}
-  const businessId = businessMember?.businessId ?? null
+  const baseBusinessId = businessMember?.businessId ?? null
   const isAdmin = profile?.role === 'admin'
   const isProducer = profile?.role === 'producer'
   const producerId = profile?.producer_id
   const isAxessAdmin = profile?.is_axess_admin === true
+
+  const impersonateId = typeof window !== 'undefined'
+    ? window.sessionStorage.getItem('axess_impersonate')
+    : null
+  const impersonateName = typeof window !== 'undefined'
+    ? window.sessionStorage.getItem('axess_impersonate_name') || ''
+    : ''
+  const isImpersonating = isAxessAdmin && !!impersonateId
+  const businessId = isImpersonating ? impersonateId : baseBusinessId
 
   return (
     <AuthContext.Provider value={{
@@ -189,6 +198,9 @@ export function AuthProvider({ children }) {
       isAdmin,
       isProducer,
       isAxessAdmin,
+      isImpersonating,
+      impersonateBusinessId: impersonateId,
+      impersonateBusinessName: impersonateName,
       producerId,
       user: session?.user,
       signIn,

@@ -58,6 +58,16 @@ export default function AdminOverview() {
   const u = data?.users || {}
   const r = data?.revenue || {}
 
+  const { data: stats } = useQuery({
+    queryKey: ['axess-admin-overview-stats', session?.access_token],
+    queryFn: () =>
+      fetch(`${API_BASE}/api/admin/overview-stats`, { headers }).then(r => {
+        if (!r.ok) throw new Error('Unauthorized')
+        return r.json()
+      }),
+    enabled: !!session?.access_token,
+  })
+
   const chartBiz = (data?.chart_businesses || []).length
     ? data.chart_businesses
     : Array.from({ length: 12 }, (_, i) => {
@@ -85,17 +95,17 @@ export default function AdminOverview() {
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 24 }}>
-        <KPICard icon={Building2} label="עסקים פעילים" value={b.active?.toLocaleString?.()} color="primary" />
-        <KPICard icon={Calendar} label="אירועים החודש" value={e.this_month?.toLocaleString?.()} color="blue" />
-        <KPICard icon={MessageSquare} label="SMS שנשלחו היום" value={s.sent_today?.toLocaleString?.()} color="primary" />
-        <KPICard icon={DollarSign} label="הכנסה החודש" value={`₪${Number(r.this_month || 0).toLocaleString('he-IL')}`} color="primary" />
+        <KPICard icon={Building2} label="עסקים פעילים" value={stats?.businesses_active?.toLocaleString?.('he-IL')} color="primary" />
+        <KPICard icon={Calendar} label="עסקים חדשים החודש" value={stats?.new_businesses_month?.toLocaleString?.('he-IL')} color="blue" />
+        <KPICard icon={MessageSquare} label="SMS שנשלחו היום" value={stats?.sms_today?.toLocaleString?.('he-IL')} color="primary" />
+        <KPICard icon={DollarSign} label="הכנסה מהזמנות החודש" value={stats ? `₪${Number(stats.revenue_month || 0).toLocaleString('he-IL')}` : '—'} color="primary" />
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 32 }}>
-        <KPICard icon={Users} label="משתמשים חדשים" value={u.new_this_month?.toLocaleString?.()} />
-        <KPICard icon={AlertTriangle} label="עסקים בניסיון" value={b.trial?.toLocaleString?.()} color="yellow" />
-        <KPICard icon={AlertCircle} label="שגיאות SMS" value={data?.sms_errors ?? '0'} color="red" />
-        <KPICard icon={TrendingUp} label="MRR" value={`₪${Number(r.mrr || 0).toLocaleString('he-IL')}`} />
+        <KPICard icon={Users} label="סך נמענים" value={stats?.total_recipients?.toLocaleString?.('he-IL')} />
+        <KPICard icon={AlertTriangle} label="SMS החודש" value={stats?.sms_month?.toLocaleString?.('he-IL')} color="yellow" />
+        <KPICard icon={AlertCircle} label="WhatsApp היום" value={stats?.wa_today?.toLocaleString?.('he-IL')} color="red" />
+        <KPICard icon={TrendingUp} label="MRR (עסקים פעילים)" value={stats ? `₪${Number(stats.mrr || 0).toLocaleString('he-IL')}` : '—'} />
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, marginBottom: 32 }}>
