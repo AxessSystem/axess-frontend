@@ -494,10 +494,6 @@ export default function DashboardClientLayout() {
   const businessName = profile?.business_name ?? profile?.full_name ?? 'AXESS Admin'
   const isAdmin = isAxessAdmin
 
-  if (isAxessAdmin && !isImpersonating) {
-    return <Navigate to="/axess-admin" replace />
-  }
-
   useEffect(() => {
     if (!session?.access_token || !businessId || isAdmin) return
     fetch(`${API_BASE}/api/admin/business/balance`, {
@@ -551,6 +547,10 @@ export default function DashboardClientLayout() {
   const SETTINGS_PATH = '/dashboard/settings'
   const MAIN_NAV = NAV_ITEMS.filter(i => i.path !== SETTINGS_PATH)
   const SETTINGS_ITEM = NAV_ITEMS.find(i => i.path === SETTINGS_PATH)
+
+  if (isAxessAdmin && !isImpersonating) {
+    return <Navigate to="/axess-admin" replace />
+  }
 
   return (
     <div
