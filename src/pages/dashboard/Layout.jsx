@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { useQuery } from '@tanstack/react-query'
-import { Link, Outlet, NavLink, useNavigate, useLocation, Navigate } from 'react-router-dom'
+import { Link, Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom'
 import {
   LayoutDashboard, Send, Users, BarChart2, QrCode, Settings,
   Bell, Menu, X, ChevronDown, Wallet, LogOut, Calendar, Megaphone, UserCheck, Building,
@@ -406,81 +405,67 @@ export default function DashboardClientLayout() {
   const [dismissedNotices, setDismissedNotices] = useState(() => {
     try { return JSON.parse(sessionStorage.getItem('dismissed_notices') || '[]') } catch { return [] }
   })
-  const { role, permissions, businessId, isAxessAdmin, isImpersonating, session, profile } = useAuth()
+  const { role, permissions, businessId, isAxessAdmin, session, profile } = useAuth()
   const navigate = useNavigate()
   const [inboxUnreadCount, setInboxUnreadCount] = useState(0)
   const [notificationsUnreadCount, setNotificationsUnreadCount] = useState(0)
   const [recentNotifications, setRecentNotifications] = useState([])
   const [notificationsDropdownOpen, setNotificationsDropdownOpen] = useState(false)
-  const [balance, setBalance] = useState(null)
   const notificationsBeepedIdsRef = useRef(new Set())
   const notificationsRef = useRef(null)
 
-  const { data: inboxUnreadData } = useQuery({
-    queryKey: ['inboxUnreadCount', businessId],
-    queryFn: async () => {
-      const res = await fetch(`${API_BASE}/api/inbox/unread-count`, {
+  useEffect(() => {
+    if (!session?.access_token || !businessId) return
+    const fetchInboxUnread = () => {
+      fetch(`${API_BASE}/api/inbox/unread-count`, {
         headers: { Authorization: `Bearer ${session.access_token}`, 'X-Business-Id': businessId },
       })
-      return res.json()
-    },
-    refetchInterval: 30000,
-    enabled: !!businessId && !!session?.access_token,
-  })
-
-  const playUrgentBeep = () => {
-    try {
-      const ctx = new (window.AudioContext || window.webkitAudioContext)()
-      const osc = ctx.createOscillator()
-      const gain = ctx.createGain()
-      osc.connect(gain)
-      gain.connect(ctx.destination)
-      osc.frequency.value = 800
-      osc.type = 'sine'
-      gain.gain.setValueAtTime(0.15, ctx.currentTime)
-      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.15)
-      osc.start(ctx.currentTime)
-      osc.stop(ctx.currentTime + 0.15)
-    } catch (_) {}
-  }
-
-  const { data: notificationsData } = useQuery({
-    queryKey: ['notifications', businessId],
-    queryFn: async () => {
-      const headers = { Authorization: `Bearer ${session.access_token}`, 'X-Business-Id': businessId }
-      const [countRes, listRes] = await Promise.all([
-        fetch(`${API_BASE}/api/notifications/unread-count`, { headers }),
-        fetch(`${API_BASE}/api/notifications?limit=5`, { headers }),
-      ])
-      const countJson = await countRes.json().catch(() => ({}))
-      const listJson = await listRes.json().catch(() => [])
-      return {
-        count: countJson?.count ?? 0,
-        list: Array.isArray(listJson) ? listJson : [],
-      }
-    },
-    refetchInterval: 30000,
-    enabled: !!businessId && !!session?.access_token,
-  })
-
-  useEffect(() => {
-    if (inboxUnreadData) {
-      setInboxUnreadCount(inboxUnreadData?.count ?? 0)
+        .then(r => r.json())
+        .then(data => setInboxUnreadCount(data?.count ?? 0))
+        .catch(() => {})
     }
-  }, [inboxUnreadData])
+    fetchInboxUnread()
+    const interval = setInterval(fetchInboxUnread, 30000)
+    return () => clearInterval(interval)
+  }, [session?.access_token, businessId])
 
   useEffect(() => {
-    if (notificationsData) {
-      setNotificationsUnreadCount(notificationsData.count)
-      setRecentNotifications(notificationsData.list)
-      notificationsData.list.forEach(n => {
-        if (!n.is_read && n.priority === 'urgent' && !notificationsBeepedIdsRef.current.has(n.id)) {
-          playUrgentBeep()
-          notificationsBeepedIdsRef.current.add(n.id)
-        }
+    if (!session?.access_token || !businessId) return
+    const playUrgentBeep = () => {
+      try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)()
+        const osc = ctx.createOscillator()
+        const gain = ctx.createGain()
+        osc.connect(gain)
+        gain.connect(ctx.destination)
+        osc.frequency.value = 800
+        osc.type = 'sine'
+        gain.gain.setValueAtTime(0.15, ctx.currentTime)
+        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.15)
+        osc.start(ctx.currentTime)
+        osc.stop(ctx.currentTime + 0.15)
+      } catch (_) {}
+    }
+    const pollNotifications = () => {
+      const headers = { Authorization: `Bearer ${session.access_token}`, 'X-Business-Id': businessId }
+      Promise.all([
+        fetch(`${API_BASE}/api/notifications/unread-count`, { headers }).then(r => r.json()).then(d => d?.count ?? 0).catch(() => 0),
+        fetch(`${API_BASE}/api/notifications?limit=5`, { headers }).then(r => r.json()).then(d => Array.isArray(d) ? d : []).catch(() => []),
+      ]).then(([count, list]) => {
+        setNotificationsUnreadCount(count)
+        setRecentNotifications(list)
+        list.forEach(n => {
+          if (!n.is_read && n.priority === 'urgent' && !notificationsBeepedIdsRef.current.has(n.id)) {
+            playUrgentBeep()
+            notificationsBeepedIdsRef.current.add(n.id)
+          }
+        })
       })
     }
-  }, [notificationsData])
+    pollNotifications()
+    const interval = setInterval(pollNotifications, 30000)
+    return () => clearInterval(interval)
+  }, [session?.access_token, businessId])
 
   useEffect(() => {
     if (!notificationsDropdownOpen) return
@@ -491,21 +476,14 @@ export default function DashboardClientLayout() {
     return () => document.removeEventListener('click', onClose)
   }, [notificationsDropdownOpen])
 
+  const impersonation = (() => {
+    try {
+      const s = sessionStorage.getItem('axess_impersonate')
+      return s ? JSON.parse(s) : null
+    } catch { return null }
+  })()
   const businessName = profile?.business_name ?? profile?.full_name ?? 'AXESS Admin'
-  const isAdmin = isAxessAdmin
-
-  useEffect(() => {
-    if (!session?.access_token || !businessId || isAdmin) return
-    fetch(`${API_BASE}/api/admin/business/balance`, {
-      headers: {
-        'Authorization': `Bearer ${session.access_token}`,
-        'X-Business-Id': businessId,
-      },
-    })
-      .then(r => (r.ok ? r.json() : {}))
-      .then(d => setBalance(d.balance ?? 0))
-      .catch(() => setBalance(0))
-  }, [session?.access_token, businessId, isAdmin])
+  const balance = 4_820
 
   useEffect(() => {
     if (!businessId) return
@@ -547,10 +525,6 @@ export default function DashboardClientLayout() {
   const SETTINGS_PATH = '/dashboard/settings'
   const MAIN_NAV = NAV_ITEMS.filter(i => i.path !== SETTINGS_PATH)
   const SETTINGS_ITEM = NAV_ITEMS.find(i => i.path === SETTINGS_PATH)
-
-  if (isAxessAdmin && !isImpersonating) {
-    return <Navigate to="/axess-admin" replace />
-  }
 
   return (
     <div
@@ -624,11 +598,7 @@ export default function DashboardClientLayout() {
                   lineHeight: 1,
                 }}
               >
-                {isAdmin
-                  ? 'Admin'
-                  : balance === null
-                    ? <span style={{ fontSize: 12 }}>טוען…</span>
-                    : `₪${Number(balance || 0).toLocaleString('he-IL')}`}
+                {balance.toLocaleString('he-IL')}
               </div>
               <div style={{ fontSize: 11, color: 'var(--v2-gray-400)', marginTop: 2 }}>הודעות זמינות</div>
             </div>
@@ -840,26 +810,54 @@ export default function DashboardClientLayout() {
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
 
         {/* ── Impersonation Banner ── */}
-        {isAxessAdmin && businessId && sessionStorage.getItem('axess_impersonate') && (
-          <div style={{
-            background: 'rgba(239,68,68,0.2)',
-            border: '1px solid rgba(239,68,68,0.5)',
-            padding: '8px 16px',
-            textAlign: 'center',
-            fontSize: 13,
-            color: '#FCA5A5'
-          }}>
-            👁️ מצב צפייה: {sessionStorage.getItem('axess_impersonate_name') || 'עסק'} —
-            <span
-              style={{ cursor: 'pointer', textDecoration: 'underline', marginRight: 8 }}
+        {impersonation?.business && (
+          <div
+            style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              right: 0,
+              background: '#DC2626',
+              color: '#fff',
+              padding: '10px 24px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              zIndex: 9999,
+              fontSize: 14,
+            }}
+          >
+            <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <AlertTriangle size={16} />
+              מצב תמיכה — צופה כ: {impersonation.business?.name || 'עסק'}
+            </span>
+            <button
               onClick={() => {
                 sessionStorage.removeItem('axess_impersonate')
-                sessionStorage.removeItem('axess_impersonate_name')
+                const adminToken = sessionStorage.getItem('axess_admin_token')
+                if (adminToken) {
+                  try {
+                    const p = JSON.parse(adminToken)
+                    const at = p?.access_token ?? p?.session?.access_token
+                    const rt = p?.refresh_token ?? p?.session?.refresh_token
+                    if (at && rt) supabase.auth.setSession({ access_token: at, refresh_token: rt })
+                  } catch (_) {}
+                }
+                sessionStorage.removeItem('axess_admin_token')
                 window.location.href = '/axess-admin'
               }}
+              style={{
+                background: 'rgba(255,255,255,0.2)',
+                border: 'none',
+                color: '#fff',
+                padding: '6px 14px',
+                borderRadius: 8,
+                cursor: 'pointer',
+                fontWeight: 600,
+              }}
             >
-              יציאה מצפייה
-            </span>
+              חזור לאדמין
+            </button>
           </div>
         )}
 
@@ -897,22 +895,6 @@ export default function DashboardClientLayout() {
             </div>
           )
         })}
-
-        {/* ── Low balance banner ── */}
-        {balance !== null && balance < 50 && !isAdmin && (
-          <div style={{
-            background: 'rgba(239,68,68,0.15)',
-            border: '1px solid rgba(239,68,68,0.4)',
-            borderRadius: 8,
-            padding: '8px 16px',
-            fontSize: 13,
-            color: '#FCA5A5',
-            textAlign: 'right',
-            margin: '8px 16px'
-          }}>
-            ⚠️ יתרה נמוכה: ₪{Number(balance || 0).toFixed(2)} — <span style={{cursor:'pointer', textDecoration:'underline'}} onClick={() => navigate('/dashboard/settings?tab=billing')}>טען יתרה</span>
-          </div>
-        )}
 
         {/* ── HEADER ── */}
         <header
@@ -1000,18 +982,10 @@ export default function DashboardClientLayout() {
               }}
             >
               <Wallet size={13} style={{ color: 'var(--v2-primary)' }} />
-              {isAdmin ? (
-                <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--v2-primary)' }}>Admin</span>
-              ) : (
-                <>
-                  <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--v2-primary)' }}>
-                    {balance === null
-                      ? '...'
-                      : `₪${Number(balance || 0).toLocaleString('he-IL')}`}
-                  </span>
-                  <span style={{ fontSize: 11, color: 'var(--v2-gray-400)' }}>הודעות</span>
-                </>
-              )}
+              <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--v2-primary)' }}>
+                {balance.toLocaleString('he-IL')}
+              </span>
+              <span style={{ fontSize: 11, color: 'var(--v2-gray-400)' }}>הודעות</span>
             </div>
 
             {/* Notifications — dropdown with 5 recent + link to full page */}
