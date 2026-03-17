@@ -14,6 +14,7 @@ export default function AdminBusinesses() {
   const [type, setType] = useState('')
   const [status, setStatus] = useState('')
   const [menuOpen, setMenuOpen] = useState(null)
+  const [menuPosition, setMenuPosition] = useState({ top: 0, right: 0 })
   const headers = session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}
 
   const { data: bizData, refetch } = useQuery({
@@ -32,6 +33,15 @@ export default function AdminBusinesses() {
   })
 
   const businesses = bizData?.businesses || []
+
+  const handleMenuOpen = (e, bizId) => {
+    const rect = e.currentTarget.getBoundingClientRect()
+    setMenuPosition({
+      top: rect.bottom + 8,
+      right: window.innerWidth - rect.right,
+    })
+    setMenuOpen(bizId)
+  }
 
   const handleImpersonate = (biz) => {
     if (!confirm(`להיכנס כ-${biz.name}?`)) return
@@ -129,23 +139,23 @@ export default function AdminBusinesses() {
                 </td>
                 <td style={{ padding: 8, position: 'relative' }}>
                   <button
-                    onClick={() => setMenuOpen(menuOpen === b.id ? null : b.id)}
+                    onClick={(e) => handleMenuOpen(e, b.id)}
                     style={{ background: 'none', border: 'none', color: 'var(--v2-gray-400)', cursor: 'pointer', padding: 4 }}
                   >
                     <MoreVertical size={18} />
                   </button>
                   {menuOpen === b.id && (
                     <div style={{
-                      position: 'absolute',
-                      left: 8,
-                      top: '100%',
-                      background: 'var(--v2-dark-3)',
+                      position: 'fixed',
+                      top: menuPosition.top,
+                      right: menuPosition.right,
+                      zIndex: 9999,
+                      background: 'var(--card)',
                       border: '1px solid var(--glass-border)',
                       borderRadius: 8,
                       padding: 4,
-                      zIndex: 10,
                       minWidth: 160,
-                      boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
+                      boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
                     }}>
                       <button onClick={() => { handleImpersonate(b); setMenuOpen(null); }} style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 12px', background: 'none', border: 'none', color: '#fff', cursor: 'pointer', fontSize: 13, borderRadius: 6 }}>
                         <Eye size={14} /> כנס כ-{b.name}
