@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useAuth } from '@/contexts/AuthContext'
 
 const API_BASE = import.meta.env.VITE_API_URL || 'https://axess-production.up.railway.app'
 
@@ -104,6 +105,7 @@ function DataTable({ data, loading, error }) {
 }
 
 export default function AdminWebviewPage() {
+  const { session } = useAuth()
   const [activeTab, setActiveTab] = useState('pages')
   const [state, setState] = useState({
     pages: { data: [], loading: false, error: null },
@@ -131,7 +133,12 @@ export default function AdminWebviewPage() {
       [tabId]: { ...prev[tabId], loading: true, error: null },
     }))
 
+    const headers = session?.access_token
+      ? { Authorization: `Bearer ${session.access_token}` }
+      : {}
+
     fetch(`${API_BASE}${tab.endpoint}`, {
+      headers,
       credentials: 'include',
     })
       .then(async res => {
