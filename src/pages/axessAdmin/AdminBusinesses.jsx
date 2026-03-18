@@ -623,11 +623,13 @@ export default function AdminBusinesses() {
                   }}
                 >
                   <option value="">בחר סוג</option>
-                  <option value="restaurant">מסעדה</option>
-                  <option value="hotel">מלון</option>
-                  <option value="retail">חנויות / Retail</option>
+                  <option value="restaurant">מסעדה / בר / קפה</option>
+                  <option value="hotel">מלון / אירוח</option>
+                  <option value="retail">חנות / Retail</option>
                   <option value="event">אולם אירועים / אירוע</option>
                   <option value="gym">חדר כושר / סטודיו</option>
+                  <option value="municipal">עירייה / מוסד</option>
+                  <option value="general">כללי</option>
                 </select>
               </div>
               <div>
