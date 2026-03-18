@@ -62,6 +62,11 @@ export default function AdminLayout() {
   const navigate = useNavigate()
 
   useEffect(() => {
+    sessionStorage.removeItem('axess_impersonate');
+    sessionStorage.removeItem('axess_impersonate_name');
+  }, []);
+
+  useEffect(() => {
     if (loading) return
     if (!isAxessAdmin && !loading) {
       navigate('/dashboard', { replace: true })
