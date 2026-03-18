@@ -118,11 +118,13 @@ function RequireAdmin({ children }) {
 }
 
 function DashboardWrapper() {
-  const { isAxessAdmin, isImpersonating } = useAuth()
+  const { isAxessAdmin } = useAuth();
+  const isImpersonating = !!sessionStorage.getItem('axess_impersonate');
+  
   if (isAxessAdmin && !isImpersonating) {
-    return <Navigate to="/axess-admin" replace />
+    return <Navigate to="/axess-admin" replace />;
   }
-  return <ClientLayout />
+  return <ClientLayout />;
 }
 
 export default function App() {
