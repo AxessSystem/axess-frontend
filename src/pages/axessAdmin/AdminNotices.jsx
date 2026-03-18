@@ -1,180 +1,214 @@
-import { useState } from 'react'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Plus, X } from 'lucide-react'
+import { useQuery } from '@tanstack/react-query'
+import { useNavigate } from 'react-router-dom'
 import { useAuth } from '@/contexts/AuthContext'
-import toast from 'react-hot-toast'
 
 const API_BASE = import.meta.env.VITE_API_URL || 'https://axess-production.up.railway.app'
 
+const typeIcon = {
+  error: '❌',
+  action: '📋',
+  payment: '💳',
+  performance: '⚠️',
+  success: '✅',
+}
+
+const typeColor = {
+  error: '#fecaca',
+  action: '#bfdbfe',
+  payment: '#bbf7d0',
+  performance: '#fef08a',
+  success: '#bbf7d0',
+}
+
+function formatRelativeTime(dateStr) {
+  if (!dateStr) return ''
+  const date = new Date(dateStr)
+  if (Number.isNaN(date.getTime())) return ''
+
+  const diffMs = Date.now() - date.getTime()
+  const diffSec = Math.round(diffMs / 1000)
+
+  if (diffSec < 60) return 'לפני רגע'
+  const diffMin = Math.round(diffSec / 60)
+  if (diffMin < 60) return `לפני ${diffMin} ד׳`
+  const diffH = Math.round(diffMin / 60)
+  if (diffH < 24) return `לפני ${diffH} ש׳`
+  const diffD = Math.round(diffH / 24)
+  return `לפני ${diffD} ימים`
+}
+
 export default function AdminNotices() {
   const { session } = useAuth()
-  const qc = useQueryClient()
-  const [modalOpen, setModalOpen] = useState(false)
-  const [form, setForm] = useState({ title: '', message: '', type: 'info', target: 'all', expires_at: '' })
-  const headers = session?.access_token ? { Authorization: `Bearer ${session.access_token}`, 'Content-Type': 'application/json' } : {}
+  const navigate = useNavigate()
 
-  const { data: notices = [] } = useQuery({
-    queryKey: ['axess-admin-notices', session?.access_token],
-    queryFn: () => fetch(`${API_BASE}/api/axess-admin/notices`, { headers }).then(r => {
-      if (!r.ok) throw new Error('Unauthorized')
-      return r.json()
-    }),
+  const headers = session?.access_token
+    ? { Authorization: `Bearer ${session.access_token}`, 'Content-Type': 'application/json' }
+    : {}
+
+  const { data, refetch } = useQuery({
+    queryKey: ['adminNotifications', session?.access_token],
+    queryFn: () => fetch(`${API_BASE}/api/admin/notifications`, { headers }).then(r => r.json()),
     enabled: !!session?.access_token,
   })
 
-  const createMut = useMutation({
-    mutationFn: (body) => fetch(`${API_BASE}/api/axess-admin/notices`, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify(body),
-    }),
-    onSuccess: () => {
-      qc.invalidateQueries(['axess-admin-notices'])
-      setModalOpen(false)
-      setForm({ title: '', message: '', type: 'info', target: 'all', expires_at: '' })
-      toast.success('הודעה נוצרה')
-    },
-    onError: (e) => toast.error(e.message || 'שגיאה'),
-  })
+  const notifications = data?.notifications || []
 
-  const deleteMut = useMutation({
-    mutationFn: (id) => fetch(`${API_BASE}/api/axess-admin/notices/${id}`, { method: 'DELETE', headers }),
-    onSuccess: () => {
-      qc.invalidateQueries(['axess-admin-notices'])
-      toast.success('הודעה הוסרה')
-    },
-  })
+  const markAllRead = () =>
+    fetch(`${API_BASE}/api/admin/notifications/read-all`, {
+      method: 'PATCH',
+      headers,
+    }).then(() => refetch())
+
+  const handleRowClick = (n) => {
+    fetch(`${API_BASE}/api/admin/notifications/${n.id}/read`, {
+      method: 'PATCH',
+      headers,
+    }).then(() => {
+      refetch()
+      if (n.action_url) {
+        navigate(n.action_url)
+      }
+    })
+  }
 
   return (
-    <div dir="rtl" style={{ maxWidth: 700 }}>
+    <div dir="rtl" style={{ maxWidth: 720 }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
-        <h1 style={{ fontWeight: 800, fontSize: 24, color: '#fff' }}>הודעות מערכת</h1>
-        <button
-          onClick={() => setModalOpen(true)}
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 8,
-            background: 'var(--v2-primary)',
-            color: 'var(--v2-dark)',
-            border: 'none',
-            padding: '10px 16px',
-            borderRadius: 8,
-            fontWeight: 600,
-            cursor: 'pointer',
-          }}
-        >
-          <Plus size={18} /> הודעה חדשה
-        </button>
-      </div>
-
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-        {notices.map(n => (
-          <div
-            key={n.id}
+        <h1 style={{ fontWeight: 800, fontSize: 24, color: '#fff' }}>התראות אדמין</h1>
+        {notifications.length > 0 && (
+          <button
+            onClick={markAllRead}
             style={{
-              background: 'var(--v2-dark-2)',
+              borderRadius: 999,
               border: '1px solid var(--glass-border)',
-              borderRadius: 12,
-              padding: 16,
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'flex-start',
+              background: 'transparent',
+              color: '#fff',
+              padding: '8px 14px',
+              fontSize: 13,
+              cursor: 'pointer',
             }}
           >
-            <div>
-              <div style={{ fontWeight: 700, fontSize: 16, color: '#fff' }}>{n.title}</div>
-              <div style={{ color: 'var(--v2-gray-400)', fontSize: 14, marginTop: 4 }}>{n.message}</div>
-              <div style={{ marginTop: 8, display: 'flex', gap: 8 }}>
-                <span style={{ fontSize: 12, color: 'var(--v2-gray-400)' }}>סוג: {n.type}</span>
-                <span style={{ fontSize: 12, color: 'var(--v2-gray-400)' }}>קהל: {n.target}</span>
-              </div>
-            </div>
+            סמן הכל כנקרא
+          </button>
+        )}
+      </div>
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        {notifications.map((n) => {
+          const color = typeColor[n.type] || '#e5e7eb'
+          const icon = typeIcon[n.type] || 'ℹ️'
+          const isUnread = !n.read_at
+          const businessName = n.business_name || n.business?.name || ''
+
+          return (
             <button
-              onClick={() => deleteMut.mutate(n.id)}
-              style={{ background: 'none', border: 'none', color: 'var(--v2-gray-400)', cursor: 'pointer', padding: 4 }}
+              key={n.id}
+              onClick={() => handleRowClick(n)}
+              style={{
+                width: '100%',
+                textAlign: 'right',
+                background: isUnread ? 'rgba(15,23,42,0.85)' : 'var(--v2-dark-2)',
+                border: isUnread ? '1px solid rgba(96,165,250,0.6)' : '1px solid var(--glass-border)',
+                borderRadius: 12,
+                padding: 14,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 12,
+                cursor: 'pointer',
+              }}
             >
-              <X size={18} />
+              <div
+                style={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: '999px',
+                  background: color,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: 18,
+                }}
+              >
+                {icon}
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                  <div
+                    style={{
+                      fontWeight: isUnread ? 700 : 500,
+                      fontSize: 15,
+                      color: '#fff',
+                      whiteSpace: 'nowrap',
+                      textOverflow: 'ellipsis',
+                      overflow: 'hidden',
+                    }}
+                  >
+                    {n.title}
+                  </div>
+                  {businessName && (
+                    <span
+                      style={{
+                        fontSize: 11,
+                        padding: '2px 8px',
+                        borderRadius: 999,
+                        background: 'rgba(148,163,184,0.2)',
+                        color: 'var(--v2-gray-200)',
+                      }}
+                    >
+                      {businessName}
+                    </span>
+                  )}
+                  {isUnread && (
+                    <span
+                      style={{
+                        marginRight: 'auto',
+                        fontSize: 11,
+                        padding: '2px 8px',
+                        borderRadius: 999,
+                        background: '#22c55e',
+                        color: '#022c22',
+                        fontWeight: 700,
+                      }}
+                    >
+                      חדש
+                    </span>
+                  )}
+                </div>
+                <div
+                  style={{
+                    fontSize: 13,
+                    color: 'var(--v2-gray-300)',
+                    whiteSpace: 'nowrap',
+                    textOverflow: 'ellipsis',
+                    overflow: 'hidden',
+                  }}
+                >
+                  {n.message}
+                </div>
+              </div>
+              <div style={{ fontSize: 11, color: 'var(--v2-gray-400)', marginInlineStart: 8 }}>
+                {formatRelativeTime(n.created_at || n.inserted_at)}
+              </div>
             </button>
-          </div>
-        ))}
-      </div>
+          )
+        })}
 
-      {modalOpen && (
-        <div
-          style={{
-            position: 'fixed',
-            inset: 0,
-            background: 'rgba(0,0,0,0.6)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 100,
-          }}
-          onClick={() => setModalOpen(false)}
-        >
+        {notifications.length === 0 && (
           <div
-            onClick={e => e.stopPropagation()}
             style={{
-              background: 'var(--v2-dark-2)',
-              border: '1px solid var(--glass-border)',
-              borderRadius: 16,
               padding: 24,
-              width: '100%',
-              maxWidth: 440,
+              borderRadius: 16,
+              border: '1px dashed var(--glass-border)',
+              background: 'rgba(15,23,42,0.6)',
+              color: 'var(--v2-gray-300)',
+              textAlign: 'center',
+              fontSize: 14,
             }}
           >
-            <h3 style={{ fontWeight: 700, fontSize: 18, color: '#fff', marginBottom: 16 }}>הודעה חדשה</h3>
-            <input
-              value={form.title}
-              onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
-              placeholder="כותרת"
-              style={{ width: '100%', padding: 10, marginBottom: 12, borderRadius: 8, border: '1px solid var(--glass-border)', background: 'var(--v2-dark-3)', color: '#fff' }}
-            />
-            <textarea
-              value={form.message}
-              onChange={e => setForm(f => ({ ...f, message: e.target.value }))}
-              placeholder="הודעה"
-              rows={4}
-              style={{ width: '100%', padding: 10, marginBottom: 12, borderRadius: 8, border: '1px solid var(--glass-border)', background: 'var(--v2-dark-3)', color: '#fff', resize: 'vertical' }}
-            />
-            <select
-              value={form.type}
-              onChange={e => setForm(f => ({ ...f, type: e.target.value }))}
-              style={{ width: '100%', padding: 10, marginBottom: 12, borderRadius: 8, border: '1px solid var(--glass-border)', background: 'var(--v2-dark-3)', color: '#fff' }}
-            >
-              <option value="info">info</option>
-              <option value="warning">warning</option>
-              <option value="maintenance">maintenance</option>
-            </select>
-            <select
-              value={form.target}
-              onChange={e => setForm(f => ({ ...f, target: e.target.value }))}
-              style={{ width: '100%', padding: 10, marginBottom: 12, borderRadius: 8, border: '1px solid var(--glass-border)', background: 'var(--v2-dark-3)', color: '#fff' }}
-            >
-              <option value="all">כולם</option>
-              <option value="type:club">מועדונים</option>
-              <option value="type:municipal">רשויות</option>
-            </select>
-            <input
-              type="datetime-local"
-              value={form.expires_at}
-              onChange={e => setForm(f => ({ ...f, expires_at: e.target.value }))}
-              placeholder="תוקף"
-              style={{ width: '100%', padding: 10, marginBottom: 16, borderRadius: 8, border: '1px solid var(--glass-border)', background: 'var(--v2-dark-3)', color: '#fff' }}
-            />
-            <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
-              <button onClick={() => setModalOpen(false)} style={{ padding: '10px 16px', background: 'transparent', border: '1px solid var(--glass-border)', borderRadius: 8, color: '#fff', cursor: 'pointer' }}>ביטול</button>
-              <button
-                onClick={() => createMut.mutate({ ...form, expires_at: form.expires_at || null })}
-                style={{ padding: '10px 16px', background: 'var(--v2-primary)', color: 'var(--v2-dark)', border: 'none', borderRadius: 8, fontWeight: 600, cursor: 'pointer' }}
-              >
-                שמור
-              </button>
-            </div>
+            אין כרגע התראות במערכת.
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   )
 }

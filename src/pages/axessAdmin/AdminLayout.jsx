@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { Link, Outlet, NavLink, useNavigate } from 'react-router-dom'
 import {
   LayoutDashboard,
@@ -60,8 +61,19 @@ function DashLogo({ small = false }) {
 
 export default function AdminLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
-  const { isAxessAdmin, loading } = useAuth()
+  const { isAxessAdmin, loading, session } = useAuth()
   const navigate = useNavigate()
+
+  const headers = session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}
+
+  const { data: notifData } = useQuery({
+    queryKey: ['adminUnreadCount'],
+    queryFn: () => fetch(`${API_BASE}/api/admin/notifications/unread-count`, { headers }).then(r => r.json()),
+    refetchInterval: 30000,
+    enabled: !!session?.access_token,
+  })
+
+  const unreadCount = notifData?.count || 0
 
   useEffect(() => {
     sessionStorage.removeItem('axess_impersonate');
@@ -189,6 +201,45 @@ export default function AdminLayout() {
       )}
 
       <main style={{ flex: 1, padding: 24, minWidth: 0, maxWidth: '100%' }}>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            marginBottom: 24,
+          }}
+        >
+          <DashLogo small />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div
+              style={{ position: 'relative', cursor: 'pointer' }}
+              onClick={() => navigate('/axess-admin/notices')}
+            >
+              <Bell size={20} color="var(--v2-gray-400)" />
+              {unreadCount > 0 && (
+                <span
+                  style={{
+                    position: 'absolute',
+                    top: -6,
+                    right: -6,
+                    background: '#EF4444',
+                    color: 'white',
+                    borderRadius: '50%',
+                    width: 18,
+                    height: 18,
+                    fontSize: 11,
+                    fontWeight: 700,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  {unreadCount > 9 ? '9+' : unreadCount}
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
         <Outlet />
       </main>
 
