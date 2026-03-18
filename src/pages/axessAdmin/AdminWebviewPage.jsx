@@ -149,7 +149,6 @@ export default function AdminWebviewPage() {
         return res.json()
       })
       .then(json => {
-        console.log('[AdminWebview] data:', json)
         let data = []
         if (tabId === 'pages') data = json?.pages || []
         else if (tabId === 'orders') data = json?.orders || []
