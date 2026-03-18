@@ -150,7 +150,12 @@ export default function AdminWebviewPage() {
       })
       .then(json => {
         console.log('[AdminWebview] data:', json)
-        const data = Array.isArray(json) ? json : json?.data || []
+        let data = []
+        if (tabId === 'pages') data = json?.pages || []
+        else if (tabId === 'orders') data = json?.orders || []
+        else if (tabId === 'analytics') data = json?.analytics || []
+        else data = Array.isArray(json) ? json : []
+
         setState(prev => ({
           ...prev,
           [tabId]: { data, loading: false, error: null },
