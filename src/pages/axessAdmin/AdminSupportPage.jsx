@@ -114,8 +114,10 @@ export default function AdminSupportPage() {
     const item = health[key] || {}
     const status = item.status || 'unknown'
     const ok = status === 'ok'
-    const bg = ok ? 'rgba(22,163,74,0.15)' : 'rgba(239,68,68,0.15)'
-    const color = ok ? '#bbf7d0' : '#fecaca'
+    const notConfigured = status === 'not_configured'
+    const bg = ok ? 'rgba(22,163,74,0.15)' : notConfigured ? 'rgba(234,179,8,0.15)' : 'rgba(239,68,68,0.15)'
+    const color = ok ? '#bbf7d0' : notConfigured ? '#fef08a' : '#fecaca'
+    const statusText = ok ? '✅ תקין' : notConfigured ? '⚠️ לא מוגדר' : '❌ שגיאה'
     const label = SERVICE_LABELS[key] || key
 
     return (
@@ -142,7 +144,7 @@ export default function AdminSupportPage() {
               color,
             }}
           >
-            {ok ? 'תקין' : 'שגיאה'}
+            {statusText}
           </span>
         </div>
         {item.latency_ms != null && (
