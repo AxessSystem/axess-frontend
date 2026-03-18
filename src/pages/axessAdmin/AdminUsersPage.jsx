@@ -81,6 +81,27 @@ export default function AdminUsersPage() {
     return logs.filter((log) => String(log.action || '').toLowerCase() === actionFilter.toLowerCase())
   }, [logs, actionFilter])
 
+  const resetPasswordMutation = useMutation({
+    mutationFn: async (user) => {
+      const res = await fetch(`${API_BASE}/api/admin/users/${user.id}/reset-password`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ email: user.email }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to send reset link')
+      }
+      return data
+    },
+    onSuccess: () => {
+      alert('קישור reset נשלח למייל המשתמש')
+    },
+    onError: (e) => {
+      alert(e.message || 'שגיאה בשליחת reset password')
+    },
+  })
+
   const renderStatusBadge = (isActive) => {
     const key = isActive ? 'active' : 'inactive'
     const cfg = STATUS_COLORS[key]
@@ -202,6 +223,9 @@ export default function AdminUsersPage() {
                       תאריך הצטרפות
                     </th>
                     <th style={{ width: 120 }} />
+                    <th style={{ width: 140, textAlign: 'right', paddingInlineEnd: 10, color: 'var(--v2-gray-300)', fontWeight: 500 }}>
+                      Reset Password
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
@@ -249,6 +273,23 @@ export default function AdminUsersPage() {
                             }}
                           >
                             {isActive ? 'השבת משתמש' : 'הפעל משתמש'}
+                          </button>
+                        </td>
+                        <td style={{ padding: '8px 10px', textAlign: 'left' }}>
+                          <button
+                            onClick={() => resetPasswordMutation.mutate(u)}
+                            disabled={resetPasswordMutation.isLoading}
+                            style={{
+                              padding: '6px 10px',
+                              borderRadius: 999,
+                              border: '1px solid var(--glass-border)',
+                              background: 'var(--v2-dark-3)',
+                              color: '#fff',
+                              fontSize: 11,
+                              cursor: 'pointer',
+                            }}
+                          >
+                            Reset Password
                           </button>
                         </td>
                       </tr>
