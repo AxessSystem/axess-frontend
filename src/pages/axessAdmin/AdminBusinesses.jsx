@@ -21,11 +21,13 @@ export default function AdminBusinesses() {
   const [showAddMemberModal, setShowAddMemberModal] = useState(false)
   const [showResetPasswordModal, setShowResetPasswordModal] = useState(false)
   const [selectedBusiness, setSelectedBusiness] = useState(null)
+  const [selectedBiz, setSelectedBiz] = useState(null)
 
   const [newBizName, setNewBizName] = useState('')
   const [newBizType, setNewBizType] = useState('')
   const [newBizPhone, setNewBizPhone] = useState('')
   const [newBizSender, setNewBizSender] = useState('')
+  const [newBizEmail, setNewBizEmail] = useState('')
 
   const [editName, setEditName] = useState('')
   const [editSlug, setEditSlug] = useState('')
@@ -71,6 +73,7 @@ export default function AdminBusinesses() {
     setNewBizType('')
     setNewBizPhone('')
     setNewBizSender('')
+    setNewBizEmail('')
     setShowCreateModal(true)
   }
 
@@ -82,6 +85,7 @@ export default function AdminBusinesses() {
     setEditStatus(biz.status || '')
     setShowEditModal(true)
     setMenuOpen(null)
+    setSelectedBiz(null)
   }
 
   const handleOpenAddMember = (biz) => {
@@ -90,6 +94,7 @@ export default function AdminBusinesses() {
     setMemberRole('owner')
     setShowAddMemberModal(true)
     setMenuOpen(null)
+    setSelectedBiz(null)
   }
 
   const handleOpenResetPassword = (biz) => {
@@ -97,6 +102,32 @@ export default function AdminBusinesses() {
     setResetEmail('')
     setShowResetPasswordModal(true)
     setMenuOpen(null)
+    setSelectedBiz(null)
+  }
+
+  const handleToggleStatus = async (biz) => {
+    const nextStatus = biz.status === 'active' ? 'suspended' : 'active'
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/businesses/${biz.id}/edit`, {
+        method: 'PATCH',
+        headers: {
+          ...headers,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          status: nextStatus,
+        }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        throw new Error(data.error || 'שגיאה בעדכון סטטוס עסק')
+      }
+      toast.success(nextStatus === 'active' ? 'העסק הופעל' : 'העסק הושבת')
+      setSelectedBiz(null)
+      refetch()
+    } catch (err) {
+      toast.error(err.message || 'שגיאה בעדכון סטטוס עסק')
+    }
   }
 
   const handleCreateBusiness = async (e) => {
@@ -117,6 +148,7 @@ export default function AdminBusinesses() {
           business_type: newBizType || null,
           phone: newBizPhone || null,
           sender_name: newBizSender || null,
+          email: newBizEmail || null,
         }),
       })
       if (!res.ok) {
@@ -406,65 +438,128 @@ export default function AdminBusinesses() {
             </thead>
             <tbody>
               {businesses.map(b => (
-                <tr key={b.id} style={{ borderBottom: '1px solid var(--glass-border)' }}>
-                  <td style={{ padding: 12, color: '#fff', fontSize: 14 }}>{b.name || '—'}</td>
-                  <td style={{ padding: 12 }}>
-                    <span style={{ background: 'var(--v2-dark-3)', padding: '4px 8px', borderRadius: 6, fontSize: 12, color: 'var(--v2-gray-400)' }}>{b.business_type || '—'}</span>
-                  </td>
-                  <td style={{ padding: 12, color: 'var(--v2-gray-400)', fontSize: 13 }}>—</td>
-                  <td style={{ padding: 12, color: 'var(--v2-gray-400)', fontSize: 13 }}>{b.member_count ?? 0}</td>
-                  <td style={{ padding: 12, color: 'var(--v2-gray-400)', fontSize: 13 }}>{b.event_count ?? 0}</td>
-                  <td style={{ padding: 12, color: 'var(--v2-gray-400)', fontSize: 13 }}>{b.created_at ? new Date(b.created_at).toLocaleDateString('he-IL') : '—'}</td>
-                  <td style={{ padding: 12 }}>
-                    <span style={{
-                      padding: '4px 8px',
-                      borderRadius: 6,
-                      fontSize: 12,
-                      background: b.status === 'active' ? 'rgba(0,195,122,0.2)' : b.status === 'suspended' ? 'rgba(220,38,38,0.2)' : 'var(--v2-dark-3)',
-                      color: b.status === 'active' ? 'var(--v2-primary)' : b.status === 'suspended' ? '#ef4444' : 'var(--v2-gray-400)',
-                    }}>
-                      {b.status || '—'}
-                    </span>
-                  </td>
-                  <td style={{ padding: 8, position: 'relative' }}>
-                    <button
-                      onClick={(e) => handleMenuOpen(e, b.id)}
-                      style={{ background: 'none', border: 'none', color: 'var(--v2-gray-400)', cursor: 'pointer', padding: 4 }}
-                    >
-                      <MoreVertical size={18} />
-                    </button>
-                    {menuOpen === b.id && (
-                      <div style={{
-                        position: 'fixed',
-                        top: menuPosition.top,
-                        right: menuPosition.right,
-                        zIndex: 9999,
-                        background: 'var(--card)',
-                        border: '1px solid var(--glass-border)',
-                        borderRadius: 8,
-                        padding: 4,
-                        minWidth: 160,
-                        boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
+                <>
+                  <tr key={b.id} style={{ borderBottom: '1px solid var(--glass-border)' }}>
+                    <td style={{ padding: 12, color: '#fff', fontSize: 14 }}>{b.name || '—'}</td>
+                    <td style={{ padding: 12 }}>
+                      <span style={{ background: 'var(--v2-dark-3)', padding: '4px 8px', borderRadius: 6, fontSize: 12, color: 'var(--v2-gray-400)' }}>{b.business_type || '—'}</span>
+                    </td>
+                    <td style={{ padding: 12, color: 'var(--v2-gray-400)', fontSize: 13 }}>—</td>
+                    <td style={{ padding: 12, color: 'var(--v2-gray-400)', fontSize: 13 }}>{b.member_count ?? 0}</td>
+                    <td style={{ padding: 12, color: 'var(--v2-gray-400)', fontSize: 13 }}>{b.event_count ?? 0}</td>
+                    <td style={{ padding: 12, color: 'var(--v2-gray-400)', fontSize: 13 }}>{b.created_at ? new Date(b.created_at).toLocaleDateString('he-IL') : '—'}</td>
+                    <td style={{ padding: 12 }}>
+                      <span style={{
+                        padding: '4px 8px',
+                        borderRadius: 6,
+                        fontSize: 12,
+                        background: b.status === 'active' ? 'rgba(0,195,122,0.2)' : b.status === 'suspended' ? 'rgba(220,38,38,0.2)' : 'var(--v2-dark-3)',
+                        color: b.status === 'active' ? 'var(--v2-primary)' : b.status === 'suspended' ? '#ef4444' : 'var(--v2-gray-400)',
                       }}>
-                        <button onClick={() => { handleImpersonate(b); setMenuOpen(null); }} style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 12px', background: 'none', border: 'none', color: '#fff', cursor: 'pointer', fontSize: 13, borderRadius: 6 }}>
-                          <Eye size={14} /> כנס כ-{b.name}
-                        </button>
-                        <button onClick={() => handleOpenEdit(b)} style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 12px', background: 'none', border: 'none', color: 'var(--v2-gray-400)', cursor: 'pointer', fontSize: 13, borderRadius: 6 }}>
-                          <Edit size={14} /> ערוך פרטים
-                        </button>
-                        <button onClick={() => handleOpenAddMember(b)} style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 12px', background: 'none', border: 'none', color: 'var(--v2-gray-400)', cursor: 'pointer', fontSize: 13, borderRadius: 6 }}>
-                          <BarChart2 size={14} /> הוסף משתמש
-                        </button>
-                        <button onClick={() => handleOpenResetPassword(b)} style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 12px', background: 'none', border: 'none', color: 'var(--v2-gray-400)', cursor: 'pointer', fontSize: 13, borderRadius: 6 }}>
-                          <AlertTriangle size={14} /> Reset Password
-                        </button>
-                        <button onClick={() => setMenuOpen(null)} style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 12px', background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: 13, borderRadius: 6 }}>
-                          <Trash2 size={14} /> מחק
-                        </button>
-                      </div>
-                    )}
-                  </td>
-                </tr>
+                        {b.status || '—'}
+                      </span>
+                    </td>
+                    <td style={{ padding: 8, position: 'relative', textAlign: 'left' }}>
+                      <button
+                        onClick={() => setSelectedBiz(selectedBiz === b.id ? null : b.id)}
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          color: 'var(--v2-gray-400)',
+                          cursor: 'pointer',
+                          padding: 4,
+                        }}
+                      >
+                        <MoreVertical size={18} />
+                      </button>
+                    </td>
+                  </tr>
+                  {selectedBiz === b.id && (
+                    <tr>
+                      <td
+                        colSpan={8}
+                        style={{
+                          background: 'rgba(255,255,255,0.03)',
+                          padding: '8px 16px',
+                          borderBottom: '1px solid var(--glass-border)',
+                        }}
+                      >
+                        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-start' }}>
+                          <button
+                            onClick={() => handleImpersonate(b)}
+                            style={{
+                              padding: '6px 12px',
+                              borderRadius: 999,
+                              border: '1px solid var(--glass-border)',
+                              background: 'var(--v2-dark-3)',
+                              color: '#fff',
+                              fontSize: 12,
+                              cursor: 'pointer',
+                            }}
+                          >
+                            👁️ כנס כ-{b.name}
+                          </button>
+                          <button
+                            onClick={() => handleOpenEdit(b)}
+                            style={{
+                              padding: '6px 12px',
+                              borderRadius: 999,
+                              border: '1px solid var(--glass-border)',
+                              background: 'var(--v2-dark-3)',
+                              color: '#fff',
+                              fontSize: 12,
+                              cursor: 'pointer',
+                            }}
+                          >
+                            ✏️ ערוך פרטים
+                          </button>
+                          <button
+                            onClick={() => handleOpenAddMember(b)}
+                            style={{
+                              padding: '6px 12px',
+                              borderRadius: 999,
+                              border: '1px solid var(--glass-border)',
+                              background: 'var(--v2-dark-3)',
+                              color: '#fff',
+                              fontSize: 12,
+                              cursor: 'pointer',
+                            }}
+                          >
+                            👤 הוסף משתמש
+                          </button>
+                          <button
+                            onClick={() => handleOpenResetPassword(b)}
+                            style={{
+                              padding: '6px 12px',
+                              borderRadius: 999,
+                              border: '1px solid var(--glass-border)',
+                              background: 'var(--v2-dark-3)',
+                              color: '#fff',
+                              fontSize: 12,
+                              cursor: 'pointer',
+                            }}
+                          >
+                            🔑 Reset Password
+                          </button>
+                          <button
+                            onClick={() => handleToggleStatus(b)}
+                            style={{
+                              padding: '6px 12px',
+                              borderRadius: 999,
+                              border: '1px solid var(--glass-border)',
+                              background: 'var(--v2-dark-3)',
+                              color: b.status === 'active' ? '#fca5a5' : '#bbf7d0',
+                              fontSize: 12,
+                              cursor: 'pointer',
+                            }}
+                          >
+                            {b.status === 'active' ? '⏸️ השבת' : '▶️ הפעל'}
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                </>
               ))}
             </tbody>
           </table>
@@ -558,6 +653,24 @@ export default function AdminBusinesses() {
                   value={newBizSender}
                   onChange={(e) => setNewBizSender(e.target.value)}
                   placeholder="שם שיופיע כשולח ב-SMS"
+                  style={{
+                    width: '100%',
+                    padding: '8px 10px',
+                    borderRadius: 8,
+                    border: '1px solid var(--glass-border)',
+                    background: 'var(--v2-dark-3)',
+                    color: '#fff',
+                    fontSize: 14,
+                  }}
+                />
+              </div>
+              <div>
+                <label style={{ display: 'block', marginBottom: 4, fontSize: 13, color: 'var(--v2-gray-300)' }}>מייל בעל העסק</label>
+                <input
+                  type="email"
+                  placeholder="מייל בעל העסק"
+                  value={newBizEmail}
+                  onChange={e => setNewBizEmail(e.target.value)}
                   style={{
                     width: '100%',
                     padding: '8px 10px',
