@@ -137,6 +137,11 @@ export default function AdminRecipientDrawer({ open, onClose, recipient, onDelet
 
   const timeline = profile?.timeline || []
 
+  const smsHistory = timeline.filter((t) => {
+    const type = t?.event_type || t?.type || ''
+    return String(type).startsWith('sms')
+  })
+
   const engagementHistory = timeline
 
   const businessChips = recipient?.businesses || []
@@ -381,6 +386,42 @@ export default function AdminRecipientDrawer({ open, onClose, recipient, onDelet
                     </div>
                   ) : (
                     <div style={{ fontSize: 12, color: 'var(--v2-gray-400)' }}>אין היסטוריה</div>
+                  )}
+                </div>
+
+                {/* SMS History */}
+                <div style={{ background: 'var(--v2-dark-3)', border: '1px solid var(--glass-border)', borderRadius: 'var(--radius-md)', padding: 16 }}>
+                  <div style={{ fontSize: 12, fontWeight: 800, color: 'var(--v2-gray-400)', marginBottom: 10 }}>
+                    היסטוריית SMS
+                  </div>
+                  {smsHistory.length ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 0, maxHeight: 170, overflowY: 'auto' }}>
+                      {smsHistory.slice(0, 12).map((item, i) => (
+                        <div key={`${item.created_at || i}-${i}`} style={{ display: 'flex', gap: 10, padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,.06)' }}>
+                          <div
+                            style={{
+                              width: 8,
+                              height: 8,
+                              borderRadius: '50%',
+                              marginTop: 5,
+                              flexShrink: 0,
+                              background: 'var(--v2-primary)',
+                            }}
+                          />
+                          <div style={{ flex: 1 }}>
+                            <div style={{ fontSize: 13, fontWeight: 700, color: '#fff' }}>
+                              {EVENT_LABELS[item.event_type] || item.event_type || 'SMS'}
+                            </div>
+                            {item.note && <div style={{ fontSize: 12, color: 'var(--v2-gray-400)' }}>{item.note}</div>}
+                            <div style={{ fontSize: 11, color: 'var(--v2-gray-500)' }}>
+                              {formatRelativeTime(item.created_at || item.date)}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div style={{ fontSize: 12, color: 'var(--v2-gray-400)' }}>אין נתוני SMS</div>
                   )}
                 </div>
 
