@@ -49,25 +49,11 @@ function engagementBadgeColor(score) {
   return { bg: 'var(--v2-dark-3)', border: 'var(--glass-border)', fg: 'var(--v2-gray-400)' }
 }
 
-function extractAttribution(profile) {
-  // We don't have a dedicated attribution endpoint for platform admin here,
-  // so we try to surface relevant fields that may exist in mr.custom_data.
-  const c = profile?.custom_data || {}
-  const candidates = {
-    first_touch_source: c.first_touch_source,
-    first_touch_medium: c.first_touch_medium,
-    first_touch_campaign: c.first_touch_campaign,
-    last_touch_source: c.last_touch_source,
-    last_touch_medium: c.last_touch_medium,
-    last_touch_campaign: c.last_touch_campaign,
-    utm_source: c.utm_source,
-    utm_medium: c.utm_medium,
-    utm_campaign: c.utm_campaign,
-  }
-
-  return Object.entries(candidates)
-    .filter(([, v]) => v != null && String(v).trim() !== '')
-    .map(([k, v]) => ({ key: k, value: v }))
+function formatMoneyILS(v) {
+  if (v == null || v === '') return '₪—'
+  const num = Number(v)
+  if (Number.isNaN(num)) return '₪—'
+  return `₪${num.toLocaleString('he-IL')}`
 }
 
 const EVENT_LABELS = {
@@ -86,6 +72,7 @@ export default function AdminRecipientDrawer({ open, onClose, recipient, onDelet
   const [error, setError] = useState(null)
   const [profile, setProfile] = useState(null)
   const [orders, setOrders] = useState([])
+  const [attributionRows, setAttributionRows] = useState([])
 
   const headers = useMemo(() => {
     return session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}
@@ -101,6 +88,7 @@ export default function AdminRecipientDrawer({ open, onClose, recipient, onDelet
     setError(null)
     setProfile(null)
     setOrders([])
+    setAttributionRows([])
 
     const load = async () => {
       try {
@@ -115,6 +103,16 @@ export default function AdminRecipientDrawer({ open, onClose, recipient, onDelet
         const filtered = (ordersJson?.orders || []).filter((o) => String(o.master_recipient_id) === String(recipientId))
         filtered.sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0))
         if (!cancelled) setOrders(filtered.slice(0, 15))
+
+        // Attribution: first/last touch + conversion per business
+        try {
+          const attrRes = await fetch(`${API_BASE}/api/admin/recipients/${recipientId}/attribution`, { headers })
+          const attrJson = await attrRes.json().catch(() => ({}))
+          if (!attrRes.ok) throw new Error(attrJson.message || attrJson.error || `HTTP ${attrRes.status}`)
+          if (!cancelled) setAttributionRows(attrJson?.attribution || [])
+        } catch (attrErr) {
+          if (!cancelled) setAttributionRows([])
+        }
       } catch (e) {
         if (!cancelled) setError(e.message || 'Failed to load')
       } finally {
@@ -132,8 +130,6 @@ export default function AdminRecipientDrawer({ open, onClose, recipient, onDelet
   const fullName = [recipient?.first_name, recipient?.last_name].filter(Boolean).join(' ') || '—'
   const score = recipient?.engagement_score ?? profile?.counters?.engagement_score ?? 0
   const badge = engagementBadgeColor(score)
-  const attrList = extractAttribution(profile)
-  const attributionSubtitle = profile?.counters?.last_active ? `פעילות אחרונה: ${formatDate(profile.counters.last_active)}` : null
 
   const timeline = profile?.timeline || []
 
@@ -432,15 +428,44 @@ export default function AdminRecipientDrawer({ open, onClose, recipient, onDelet
                     <div style={{ fontSize: 12, fontWeight: 800, color: 'var(--v2-gray-400)' }}>מאיפה הגיע</div>
                   </div>
 
-                  {attrList.length ? (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                      {attrList.map((a) => (
-                        <div key={a.key} style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 12 }}>
-                          <div style={{ fontSize: 12, color: 'var(--v2-gray-500)' }}>{a.key}</div>
-                          <div style={{ fontSize: 12, color: '#fff', wordBreak: 'break-word', textAlign: 'left' }}>{String(a.value)}</div>
+                  {attributionRows.length ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                      {attributionRows.map((a, idx) => (
+                        <div
+                          key={`${a.business_id || 'x'}-${idx}`}
+                          style={{
+                            padding: 12,
+                            borderRadius: 12,
+                            border: '1px solid rgba(255,255,255,0.06)',
+                            background: 'rgba(255,255,255,0.03)',
+                          }}
+                        >
+                          {a.business_name && (
+                            <div style={{ fontSize: 12, fontWeight: 900, color: '#fff', marginBottom: 8 }}>
+                              {a.business_name}
+                            </div>
+                          )}
+
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                            <div style={{ fontSize: 12, color: 'var(--v2-gray-500)' }}>
+                              first_touch_source: <span style={{ color: '#fff' }}>{a.first_touch_source || '—'}</span> · {formatDate(a.first_touch_at)}
+                            </div>
+                            <div style={{ fontSize: 12, color: 'var(--v2-gray-500)' }}>
+                              last_touch_source: <span style={{ color: '#fff' }}>{a.last_touch_source || '—'}</span> · {formatDate(a.last_touch_at)}
+                            </div>
+                            <div style={{ fontSize: 12, color: 'var(--v2-gray-500)' }}>
+                              converted:{' '}
+                              <span style={{ color: a.converted ? 'var(--v2-primary)' : '#ef4444', fontWeight: 900 }}>
+                                {a.converted ? '✅' : '❌'}
+                              </span>
+                            </div>
+                            <div style={{ fontSize: 12, color: 'var(--v2-gray-500)' }}>
+                              conversion_value:{' '}
+                              <span style={{ color: '#fff', fontWeight: 800 }}>{formatMoneyILS(a.conversion_value)}</span>
+                            </div>
+                          </div>
                         </div>
                       ))}
-                      {attributionSubtitle && <div style={{ fontSize: 12, color: 'var(--v2-gray-500)', marginTop: 6 }}>{attributionSubtitle}</div>}
                     </div>
                   ) : (
                     <div style={{ fontSize: 12, color: 'var(--v2-gray-400)' }}>אין נתוני attribution זמינים</div>
