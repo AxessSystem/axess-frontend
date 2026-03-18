@@ -75,6 +75,7 @@ const AdminOverviewPage  = lazy(() => import('@/pages/axessAdmin/AdminOverview')
 const AdminBusinessesPage = lazy(() => import('@/pages/axessAdmin/AdminBusinesses'))
 const AdminSMSPage       = lazy(() => import('@/pages/axessAdmin/AdminSMS'))
 const AdminNoticesPage   = lazy(() => import('@/pages/axessAdmin/AdminNotices'))
+const AdminAlertsPage   = lazy(() => import('@/pages/axessAdmin/AdminAlertsPage'))
 const AdminAuditLogPage  = lazy(() => import('@/pages/axessAdmin/AdminAuditLog'))
 const AdminWhatsAppPage  = lazy(() => import('@/pages/axessAdmin/AdminWhatsAppPage'))
 const AdminFinancePage   = lazy(() => import('@/pages/axessAdmin/AdminFinancePage'))
@@ -241,6 +242,7 @@ export default function App() {
               <Route path="sms" element={<AdminSMSPage />} />
               <Route path="support" element={<AdminSupportPage />} />
               <Route path="users" element={<AdminUsersPage />} />
+              <Route path="alerts" element={<AdminAlertsPage />} />
               <Route path="notices" element={<AdminNoticesPage />} />
               <Route path="audit" element={<AdminAuditLogPage />} />
               <Route path="system" element={<AdminSystemPage />} />

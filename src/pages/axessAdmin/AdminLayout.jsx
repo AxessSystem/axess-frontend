@@ -10,6 +10,7 @@ import {
   Wrench,
   Users,
   Bell,
+  AlertCircle,
   FileText,
   Activity,
   Menu,
@@ -30,6 +31,7 @@ const NAV_ITEMS = [
   { icon: Wrench, label: 'תמיכה', path: '/axess-admin/support' },
   { icon: Users, label: 'משתמשים', path: '/axess-admin/users' },
   { icon: Bell, label: 'הודעות מערכת', path: '/axess-admin/notices' },
+  { icon: AlertCircle, label: 'התראות', path: '/axess-admin/alerts' },
   { icon: FileText, label: 'Audit Log', path: '/axess-admin/audit' },
   { icon: Activity, label: 'System Health', path: '/axess-admin/system' },
   { icon: Globe, label: 'Webview', path: '/axess-admin/webview' },
@@ -213,7 +215,7 @@ export default function AdminLayout() {
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <div
               style={{ position: 'relative', cursor: 'pointer' }}
-              onClick={() => navigate('/axess-admin/notices')}
+              onClick={() => navigate('/axess-admin/alerts')}
             >
               <Bell size={20} color="var(--v2-gray-400)" />
               {unreadCount > 0 && (
