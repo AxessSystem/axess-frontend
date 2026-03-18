@@ -13,6 +13,7 @@ import {
   Activity,
   Menu,
   X,
+  Globe,
 } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { useEffect } from 'react'
@@ -30,6 +31,7 @@ const NAV_ITEMS = [
   { icon: Bell, label: 'הודעות מערכת', path: '/axess-admin/notices' },
   { icon: FileText, label: 'Audit Log', path: '/axess-admin/audit' },
   { icon: Activity, label: 'System Health', path: '/axess-admin/system' },
+  { icon: Globe, label: 'Webview', path: '/axess-admin/webview' },
 ]
 
 const MOBILE_PRIMARY_NAV = [

@@ -81,6 +81,7 @@ const AdminFinancePage   = lazy(() => import('@/pages/axessAdmin/AdminFinancePag
 const AdminSupportPage   = lazy(() => import('@/pages/axessAdmin/AdminSupportPage'))
 const AdminUsersPage     = lazy(() => import('@/pages/axessAdmin/AdminUsersPage'))
 const AdminSystemPage    = lazy(() => import('@/pages/axessAdmin/AdminSystemPage'))
+const AdminWebviewPage   = lazy(() => import('@/pages/axessAdmin/AdminWebviewPage'))
 
 /* ── Webview bundle (lazy, standalone) ── */
 const WebviewApp = lazy(() => import('./webview/WebviewApp'))
@@ -243,6 +244,7 @@ export default function App() {
               <Route path="notices" element={<AdminNoticesPage />} />
               <Route path="audit" element={<AdminAuditLogPage />} />
               <Route path="system" element={<AdminSystemPage />} />
+              <Route path="webview" element={<AdminWebviewPage />} />
             </Route>
 
             {/* ── Producer ── */}
