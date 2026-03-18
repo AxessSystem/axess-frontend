@@ -149,6 +149,7 @@ export default function AdminWebviewPage() {
         return res.json()
       })
       .then(json => {
+        console.log('[AdminWebview] data:', json)
         const data = Array.isArray(json) ? json : json?.data || []
         setState(prev => ({
           ...prev,
