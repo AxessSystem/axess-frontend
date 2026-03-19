@@ -195,6 +195,15 @@ export default function AdminRecipientDrawer({ open, onClose, recipient, onDelet
           subtitle: `${bd.business_name ?? '—'} (היסטורי)`,
         }))
       ),
+      ...(fullProfile?.historicEvents || []).map((e) => ({
+        type: 'historic_event',
+        icon: '🎪',
+        date: e.date || e.event_date || e.created_at,
+        title: e.event_name || e.name || e.title || 'אירוע',
+        subtitle: `${e.business_name} (היסטורי)`,
+        amount: e.total_spent || e.amount || null,
+        status: e.scan_status,
+      })),
     ]
     return raw.sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0))
   }, [fullProfile])
