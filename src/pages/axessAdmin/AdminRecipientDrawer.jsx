@@ -197,12 +197,14 @@ export default function AdminRecipientDrawer({ open, onClose, recipient, onDelet
       ),
       ...(fullProfile?.historicEvents || []).map((e) => ({
         type: 'historic_event',
-        icon: '🎪',
+        icon: null,
         date: e.date || e.event_date || e.created_at,
-        title: e.event_name || e.name || e.title || 'אירוע',
-        subtitle: `${e.business_name} (היסטורי)`,
+        title: e.event_name || e.name || e.title || 'ללא שם',
+        subtitle: e.business_name,
+        payment_method: e.payment_method || e.ticket_type,
+        scan_status: e.scan_status,
+        promoter: e.promoter_name || e.promoter || null,
         amount: e.total_spent || e.amount || null,
-        status: e.scan_status,
       })),
     ]
     return raw.sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0))
@@ -350,26 +352,45 @@ export default function AdminRecipientDrawer({ open, onClose, recipient, onDelet
                         paddingBottom: 16,
                       }}
                     >
-                      {activityTimeline.map((item, i) => (
-                        <div
-                          key={`${item.type}-${item.date}-${i}`}
-                          style={{
-                            minWidth: 160,
-                            background: 'var(--wv-card, rgba(255,255,255,0.05))',
-                            border: '1px solid var(--glass-border)',
-                            borderRadius: 12,
-                            padding: 12,
-                            flexShrink: 0,
-                          }}
-                        >
-                          <div style={{ fontSize: 20 }}>{item.icon}</div>
-                          <div style={{ fontSize: 13, fontWeight: 600, marginTop: 4 }}>{item.title}</div>
-                          <div style={{ fontSize: 11, color: 'var(--v2-gray-400)', marginTop: 2 }}>{item.subtitle}</div>
-                          <div style={{ fontSize: 10, color: 'var(--v2-gray-500)', marginTop: 4 }}>
-                            {item.date ? formatDate(item.date) : '—'}
+                      {activityTimeline.map((item, i) =>
+                        item.type === 'historic_event' ? (
+                          <div
+                            key={`${item.type}-${item.date}-${i}`}
+                            style={{ minWidth: 200, background: 'var(--v2-dark-3)', border: '1px solid var(--glass-border)', borderRadius: 12, padding: 12, flexShrink: 0 }}
+                          >
+                            <div style={{ fontSize: 13, fontWeight: 700, color: 'white', marginBottom: 6 }}>{item.title}</div>
+                            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', fontSize: 11 }}>
+                              {item.date && <span>📅 {new Date(item.date).toLocaleDateString('he-IL')}</span>}
+                              {item.scan_status && (
+                                <span>{item.scan_status === 'Scanned' ? '✅ נסרק' : '🔴 לא נסרק'}</span>
+                              )}
+                              {item.payment_method && <span>💳 {item.payment_method}</span>}
+                              {item.promoter && <span>👤 {item.promoter}</span>}
+                              {item.amount && <span style={{ color: 'var(--v2-primary)' }}>₪{item.amount}</span>}
+                            </div>
+                            <div style={{ fontSize: 10, color: 'var(--v2-gray-500)', marginTop: 4 }}>{item.subtitle}</div>
                           </div>
-                        </div>
-                      ))}
+                        ) : (
+                          <div
+                            key={`${item.type}-${item.date}-${i}`}
+                            style={{
+                              minWidth: 160,
+                              background: 'var(--wv-card, rgba(255,255,255,0.05))',
+                              border: '1px solid var(--glass-border)',
+                              borderRadius: 12,
+                              padding: 12,
+                              flexShrink: 0,
+                            }}
+                          >
+                            <div style={{ fontSize: 20 }}>{item.icon}</div>
+                            <div style={{ fontSize: 13, fontWeight: 600, marginTop: 4 }}>{item.title}</div>
+                            <div style={{ fontSize: 11, color: 'var(--v2-gray-400)', marginTop: 2 }}>{item.subtitle}</div>
+                            <div style={{ fontSize: 10, color: 'var(--v2-gray-500)', marginTop: 4 }}>
+                              {item.date ? formatDate(item.date) : '—'}
+                            </div>
+                          </div>
+                        )
+                      )}
                     </div>
                   </div>
                 )}
