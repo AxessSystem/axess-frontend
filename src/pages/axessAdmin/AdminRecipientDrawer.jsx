@@ -154,7 +154,7 @@ export default function AdminRecipientDrawer({ open, onClose, recipient, onDelet
 
   const waSeen = !!recipient?.wa_first_seen
 
-  const timeline = useMemo(() => {
+  const activityTimeline = useMemo(() => {
     const raw = [
       ...(fullProfile?.orders || []).map((o) => ({
         type: 'order',
@@ -328,7 +328,7 @@ export default function AdminRecipientDrawer({ open, onClose, recipient, onDelet
                 )}
 
                 {/* ציר זמן פעילות מלא */}
-                {fullProfile && timeline.length > 0 && (
+                {fullProfile && activityTimeline.length > 0 && (
                   <div style={{ background: 'var(--v2-dark-3)', border: '1px solid var(--glass-border)', borderRadius: 'var(--radius-md)', padding: 16 }}>
                     <div style={{ fontSize: 12, fontWeight: 800, color: 'var(--v2-gray-400)', marginBottom: 10 }}>ציר זמן פעילות מלא</div>
                     <div
@@ -340,7 +340,7 @@ export default function AdminRecipientDrawer({ open, onClose, recipient, onDelet
                         paddingBottom: 16,
                       }}
                     >
-                      {timeline.map((item, i) => (
+                      {activityTimeline.map((item, i) => (
                         <div
                           key={`${item.type}-${item.date}-${i}`}
                           style={{
