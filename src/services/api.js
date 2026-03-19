@@ -7,16 +7,32 @@ const BASE = import.meta.env.VITE_API_URL || 'https://axess-production.up.railwa
 async function apiFetch(path, options = {}, retries = 2) {
   const url = `${BASE}${path}`
 
-  // קבל session מ-supabase
   const {
     data: { session },
   } = await supabase.auth.getSession()
-  const authHeaders = session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}
+  const authHeaders = session?.access_token
+    ? { Authorization: `Bearer ${session.access_token}` }
+    : {}
+
+  // קבל businessId מ-sessionStorage או מה-session
+  const impersonateId = sessionStorage.getItem('axess_impersonate')
+  let businessId = null
+  if (impersonateId) {
+    try {
+      businessId = JSON.parse(impersonateId)?.business?.id
+    } catch {}
+  }
+  if (!businessId) {
+    businessId = session?.user?.user_metadata?.business_id
+  }
+
+  const businessHeaders = businessId ? { 'X-Business-Id': businessId } : {}
 
   const config = {
     headers: {
       'Content-Type': 'application/json',
       ...authHeaders,
+      ...businessHeaders,
       ...options.headers,
     },
     ...options,
