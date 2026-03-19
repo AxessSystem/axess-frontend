@@ -105,6 +105,7 @@ export default function AdminRecipientDrawer({ open, onClose, recipient, onDelet
         if (!profileRes.ok) throw new Error(profileJson.message || profileJson.error || 'Failed to load profile')
         if (!cancelled) setProfile(profileJson)
 
+        console.log('[Drawer] fullRes.ok:', fullRes.ok, fullRes.status)
         const fullJson = await fullRes.json().catch(() => ({}))
         if (!cancelled && fullRes.ok) {
           setFullProfile(fullJson)
