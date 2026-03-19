@@ -73,6 +73,7 @@ export default function AdminRecipientDrawer({ open, onClose, recipient, onDelet
   const [profile, setProfile] = useState(null)
   const [orders, setOrders] = useState([])
   const [attributionRows, setAttributionRows] = useState([])
+  const [fullProfile, setFullProfile] = useState(null)
 
   const headers = useMemo(() => {
     return session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}
@@ -89,30 +90,38 @@ export default function AdminRecipientDrawer({ open, onClose, recipient, onDelet
     setProfile(null)
     setOrders([])
     setAttributionRows([])
+    setFullProfile(null)
 
     const load = async () => {
       try {
-        const profileRes = await fetch(`${API_BASE}/api/admin/customer-profile/${recipientId}`, { headers })
+        const [profileRes, fullRes, ordersRes, attrRes] = await Promise.all([
+          fetch(`${API_BASE}/api/admin/customer-profile/${recipientId}`, { headers }),
+          fetch(`${API_BASE}/api/admin/recipients/${recipientId}/full-profile`, { headers }),
+          fetch(`${API_BASE}/api/admin/webview/orders`, { headers }),
+          fetch(`${API_BASE}/api/admin/recipients/${recipientId}/attribution`, { headers }),
+        ])
+
         const profileJson = await profileRes.json().catch(() => ({}))
         if (!profileRes.ok) throw new Error(profileJson.message || profileJson.error || 'Failed to load profile')
         if (!cancelled) setProfile(profileJson)
 
-        const ordersRes = await fetch(`${API_BASE}/api/admin/webview/orders`, { headers })
-        const ordersJson = await ordersRes.json().catch(() => ({}))
-        if (!ordersRes.ok) throw new Error(ordersJson.message || ordersJson.error || 'Failed to load orders')
-        const filtered = (ordersJson?.orders || []).filter((o) => String(o.master_recipient_id) === String(recipientId))
-        filtered.sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0))
-        if (!cancelled) setOrders(filtered.slice(0, 15))
-
-        // Attribution: first/last touch + conversion per business
-        try {
-          const attrRes = await fetch(`${API_BASE}/api/admin/recipients/${recipientId}/attribution`, { headers })
-          const attrJson = await attrRes.json().catch(() => ({}))
-          if (!attrRes.ok) throw new Error(attrJson.message || attrJson.error || `HTTP ${attrRes.status}`)
-          if (!cancelled) setAttributionRows(attrJson?.attribution || [])
-        } catch (attrErr) {
-          if (!cancelled) setAttributionRows([])
+        const fullJson = await fullRes.json().catch(() => ({}))
+        if (!cancelled && fullRes.ok) {
+          setFullProfile(fullJson)
+          setOrders((fullJson?.orders || []).slice(0, 15))
         }
+
+        if (!cancelled && !fullRes.ok) {
+          const ordersJson = await ordersRes.json().catch(() => ({}))
+          if (ordersRes.ok) {
+            const filtered = (ordersJson?.orders || []).filter((o) => String(o.master_recipient_id) === String(recipientId))
+            filtered.sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0))
+            setOrders(filtered.slice(0, 15))
+          }
+        }
+
+        const attrJson = await attrRes.json().catch(() => ({}))
+        if (!cancelled && attrRes.ok) setAttributionRows(attrJson?.attribution || [])
       } catch (e) {
         if (!cancelled) setError(e.message || 'Failed to load')
       } finally {
@@ -250,6 +259,57 @@ export default function AdminRecipientDrawer({ open, onClose, recipient, onDelet
                   </div>
                 </div>
 
+                {/* Customer 360 Summary */}
+                {fullProfile && (
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10 }}>
+                    <div style={{ background: 'var(--v2-dark-3)', border: '1px solid var(--glass-border)', borderRadius: 'var(--radius-md)', padding: 12, textAlign: 'center' }}>
+                      <div style={{ fontSize: 11, color: 'var(--v2-gray-400)', marginBottom: 4 }}>LTV</div>
+                      <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--v2-primary)' }}>
+                        {formatMoneyILS(fullProfile.ltv?.webview_ltv)}
+                      </div>
+                    </div>
+                    <div style={{ background: 'var(--v2-dark-3)', border: '1px solid var(--glass-border)', borderRadius: 'var(--radius-md)', padding: 12, textAlign: 'center' }}>
+                      <div style={{ fontSize: 11, color: 'var(--v2-gray-400)', marginBottom: 4 }}>הזמנות</div>
+                      <div style={{ fontSize: 16, fontWeight: 800, color: '#fff' }}>{fullProfile.ltv?.webview_orders_count ?? fullProfile.orders?.length ?? 0}</div>
+                    </div>
+                    <div style={{ background: 'var(--v2-dark-3)', border: '1px solid var(--glass-border)', borderRadius: 'var(--radius-md)', padding: 12, textAlign: 'center' }}>
+                      <div style={{ fontSize: 11, color: 'var(--v2-gray-400)', marginBottom: 4 }}>ביקורים</div>
+                      <div style={{ fontSize: 16, fontWeight: 800, color: '#fff' }}>{fullProfile.sessions?.length ?? 0}</div>
+                    </div>
+                    <div style={{ background: 'var(--v2-dark-3)', border: '1px solid var(--glass-border)', borderRadius: 'var(--radius-md)', padding: 12, textAlign: 'center' }}>
+                      <div style={{ fontSize: 11, color: 'var(--v2-gray-400)', marginBottom: 4 }}>SMS</div>
+                      <div style={{ fontSize: 16, fontWeight: 800, color: '#fff' }}>{fullProfile.sms?.length ?? 0}</div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Event history */}
+                {fullProfile?.events?.length > 0 && (
+                  <div style={{ background: 'var(--v2-dark-3)', border: '1px solid var(--glass-border)', borderRadius: 'var(--radius-md)', padding: 16 }}>
+                    <div style={{ fontSize: 12, fontWeight: 800, color: 'var(--v2-gray-400)', marginBottom: 10 }}>היסטוריית אירועים</div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 10, maxHeight: 220, overflowY: 'auto' }}>
+                      {fullProfile.events.map((ev) => (
+                        <div
+                          key={ev.id}
+                          style={{
+                            padding: '10px 12px',
+                            borderRadius: 10,
+                            background: 'rgba(255,255,255,0.03)',
+                            border: '1px solid rgba(255,255,255,0.06)',
+                          }}
+                        >
+                          <div style={{ fontSize: 13, fontWeight: 800, color: '#fff', marginBottom: 4 }}>{ev.event_title || 'אירוע'}</div>
+                          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', fontSize: 12, color: 'var(--v2-gray-400)' }}>
+                            <span>{formatDate(ev.event_date)}</span>
+                            <span>{ev.status || '—'}</span>
+                            {ev.total_amount != null && <span>{formatMoneyILS(ev.total_amount)}</span>}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 {/* Businesses + tags */}
                 <div style={{ background: 'var(--v2-dark-3)', border: '1px solid var(--glass-border)', borderRadius: 'var(--radius-md)', padding: 16 }}>
                   <div style={{ fontSize: 12, fontWeight: 800, color: 'var(--v2-gray-400)', marginBottom: 10 }}>עסקים ותגיות</div>
@@ -343,6 +403,33 @@ export default function AdminRecipientDrawer({ open, onClose, recipient, onDelet
                   )}
                 </div>
 
+                {/* Webview activity: sessions */}
+                {fullProfile?.sessions?.length > 0 && (
+                  <div style={{ background: 'var(--v2-dark-3)', border: '1px solid var(--glass-border)', borderRadius: 'var(--radius-md)', padding: 16 }}>
+                    <div style={{ fontSize: 12, fontWeight: 800, color: 'var(--v2-gray-400)', marginBottom: 10 }}>פעילות Webview — ביקורים</div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 200, overflowY: 'auto' }}>
+                      {fullProfile.sessions.slice(0, 15).map((s) => (
+                        <div
+                          key={s.id}
+                          style={{
+                            padding: '10px 12px',
+                            borderRadius: 10,
+                            background: 'rgba(255,255,255,0.03)',
+                            border: '1px solid rgba(255,255,255,0.06)',
+                          }}
+                        >
+                          <div style={{ fontSize: 12, fontWeight: 700, color: '#fff', marginBottom: 4 }}>{s.business_name || '—'}</div>
+                          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', fontSize: 11, color: 'var(--v2-gray-400)' }}>
+                            <span>{formatDate(s.created_at)}</span>
+                            {s.utm_source && <span>מקור: {s.utm_source}</span>}
+                            {s.event_type && <span>פעולה: {s.event_type}</span>}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 {/* Engagement / SMS timeline */}
                 <div style={{ background: 'var(--v2-dark-3)', border: '1px solid var(--glass-border)', borderRadius: 'var(--radius-md)', padding: 16 }}>
                   <div style={{ fontSize: 12, fontWeight: 800, color: 'var(--v2-gray-400)', marginBottom: 10 }}>היסטוריה</div>
@@ -420,6 +507,69 @@ export default function AdminRecipientDrawer({ open, onClose, recipient, onDelet
                     <div style={{ fontSize: 12, color: 'var(--v2-gray-400)' }}>אין נתוני SMS</div>
                   )}
                 </div>
+
+                {/* SMS history from API (campaigns) */}
+                {fullProfile?.sms?.length > 0 && (
+                  <div style={{ background: 'var(--v2-dark-3)', border: '1px solid var(--glass-border)', borderRadius: 'var(--radius-md)', padding: 16 }}>
+                    <div style={{ fontSize: 12, fontWeight: 800, color: 'var(--v2-gray-400)', marginBottom: 10 }}>SMS — קמפיינים</div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 180, overflowY: 'auto' }}>
+                      {fullProfile.sms.map((s) => (
+                        <div
+                          key={s.id}
+                          style={{
+                            padding: '10px 12px',
+                            borderRadius: 10,
+                            background: 'rgba(255,255,255,0.03)',
+                            border: '1px solid rgba(255,255,255,0.06)',
+                          }}
+                        >
+                          <div style={{ fontSize: 12, fontWeight: 700, color: '#fff', marginBottom: 4 }}>{s.campaign_name || 'קמפיין'}</div>
+                          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', fontSize: 11, color: 'var(--v2-gray-400)' }}>
+                            <span>{formatDate(s.created_at)}</span>
+                            <span>סטטוס: {s.status || '—'}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Historical data (business_data) */}
+                {fullProfile?.bizData?.length > 0 && (
+                  <div style={{ background: 'var(--v2-dark-3)', border: '1px solid var(--glass-border)', borderRadius: 'var(--radius-md)', padding: 16 }}>
+                    <div style={{ fontSize: 12, fontWeight: 800, color: 'var(--v2-gray-400)', marginBottom: 10 }}>נתונים היסטוריים (ייבוא CSV)</div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 12, maxHeight: 240, overflowY: 'auto' }}>
+                      {fullProfile.bizData.map((br, idx) => (
+                        <div
+                          key={`${br.business_name}-${idx}`}
+                          style={{
+                            padding: 12,
+                            borderRadius: 10,
+                            background: 'rgba(255,255,255,0.03)',
+                            border: '1px solid rgba(255,255,255,0.06)',
+                          }}
+                        >
+                          <div style={{ fontSize: 12, fontWeight: 800, color: '#fff', marginBottom: 8 }}>{br.business_name || 'עסק'}</div>
+                          {br.business_type && <div style={{ fontSize: 11, color: 'var(--v2-gray-400)', marginBottom: 6 }}>סוג: {br.business_type}</div>}
+                          {Array.isArray(br.tags) && br.tags.length > 0 && (
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 8 }}>
+                              {br.tags.map((t) => (
+                                <span key={`${t}`} style={{ fontSize: 10, padding: '2px 8px', borderRadius: 9999, background: 'rgba(0,195,122,0.15)', color: 'var(--v2-primary)' }}>{t}</span>
+                              ))}
+                            </div>
+                          )}
+                          {br.business_data && typeof br.business_data === 'object' && Object.keys(br.business_data).length > 0 && (
+                            <div style={{ fontSize: 11, color: 'var(--v2-gray-400)' }}>
+                              {Object.entries(br.business_data).map(([k, v]) => (
+                                <div key={k} style={{ marginBottom: 2 }}><span style={{ color: 'var(--v2-gray-500)' }}>{k}:</span> {String(v)}</div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 {/* Attribution */}
                 <div style={{ background: 'var(--v2-dark-3)', border: '1px solid var(--glass-border)', borderRadius: 'var(--radius-md)', padding: 16 }}>
