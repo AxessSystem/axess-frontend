@@ -154,6 +154,50 @@ export default function AdminRecipientDrawer({ open, onClose, recipient, onDelet
 
   const waSeen = !!recipient?.wa_first_seen
 
+  const timeline = useMemo(() => {
+    const raw = [
+      ...(fullProfile?.orders || []).map((o) => ({
+        type: 'order',
+        icon: '🛒',
+        date: o.created_at,
+        title: `הזמנה #${o.order_number ?? o.id}`,
+        subtitle: `₪${o.total_amount ?? 0} — ${o.business_name ?? '—'}`,
+        status: o.status,
+      })),
+      ...(fullProfile?.events || []).map((e) => ({
+        type: 'event',
+        icon: '🎫',
+        date: e.created_at,
+        title: e.event_title ?? 'אירוע',
+        subtitle: e.total_amount != null ? `₪${e.total_amount}` : '',
+      })),
+      ...(fullProfile?.bookings || []).map((b) => ({
+        type: 'booking',
+        icon: '📅',
+        date: b.created_at,
+        title: `הזמנת שולחן ל-${b.guests ?? '?'} אנשים`,
+        subtitle: b.business_name ?? '—',
+      })),
+      ...(fullProfile?.sms || []).map((s) => ({
+        type: 'sms',
+        icon: '📱',
+        date: s.created_at,
+        title: s.campaign_name || 'SMS',
+        subtitle: s.status ?? '—',
+      })),
+      ...(fullProfile?.bizData || []).flatMap((bd) =>
+        (Array.isArray(bd.business_data?.events_attended) ? bd.business_data.events_attended : []).map((e) => ({
+          type: 'external_event',
+          icon: '🎪',
+          date: e.date,
+          title: e.name ?? '—',
+          subtitle: `${bd.business_name ?? '—'} (היסטורי)`,
+        }))
+      ),
+    ]
+    return raw.sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0))
+  }, [fullProfile])
+
   if (!open) return null
 
   return (
@@ -279,6 +323,43 @@ export default function AdminRecipientDrawer({ open, onClose, recipient, onDelet
                     <div style={{ background: 'var(--v2-dark-3)', border: '1px solid var(--glass-border)', borderRadius: 'var(--radius-md)', padding: 12, textAlign: 'center' }}>
                       <div style={{ fontSize: 11, color: 'var(--v2-gray-400)', marginBottom: 4 }}>SMS</div>
                       <div style={{ fontSize: 16, fontWeight: 800, color: '#fff' }}>{fullProfile.sms?.length ?? 0}</div>
+                    </div>
+                  </div>
+                )}
+
+                {/* ציר זמן פעילות מלא */}
+                {fullProfile && timeline.length > 0 && (
+                  <div style={{ background: 'var(--v2-dark-3)', border: '1px solid var(--glass-border)', borderRadius: 'var(--radius-md)', padding: 16 }}>
+                    <div style={{ fontSize: 12, fontWeight: 800, color: 'var(--v2-gray-400)', marginBottom: 10 }}>ציר זמן פעילות מלא</div>
+                    <div
+                      style={{
+                        display: 'flex',
+                        overflowX: 'auto',
+                        gap: 12,
+                        padding: '8px 4px',
+                        paddingBottom: 16,
+                      }}
+                    >
+                      {timeline.map((item, i) => (
+                        <div
+                          key={`${item.type}-${item.date}-${i}`}
+                          style={{
+                            minWidth: 160,
+                            background: 'var(--wv-card, rgba(255,255,255,0.05))',
+                            border: '1px solid var(--glass-border)',
+                            borderRadius: 12,
+                            padding: 12,
+                            flexShrink: 0,
+                          }}
+                        >
+                          <div style={{ fontSize: 20 }}>{item.icon}</div>
+                          <div style={{ fontSize: 13, fontWeight: 600, marginTop: 4 }}>{item.title}</div>
+                          <div style={{ fontSize: 11, color: 'var(--v2-gray-400)', marginTop: 2 }}>{item.subtitle}</div>
+                          <div style={{ fontSize: 10, color: 'var(--v2-gray-500)', marginTop: 4 }}>
+                            {item.date ? formatDate(item.date) : '—'}
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   </div>
                 )}
