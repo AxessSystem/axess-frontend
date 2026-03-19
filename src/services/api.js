@@ -1,13 +1,22 @@
 import toast from 'react-hot-toast'
+import { supabase } from '@/lib/supabase'
 
 const BASE = import.meta.env.VITE_API_URL || 'https://axess-production.up.railway.app'
 
 /* ── Generic fetch with retry + error handling ── */
 async function apiFetch(path, options = {}, retries = 2) {
   const url = `${BASE}${path}`
+
+  // קבל session מ-supabase
+  const {
+    data: { session },
+  } = await supabase.auth.getSession()
+  const authHeaders = session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}
+
   const config = {
     headers: {
       'Content-Type': 'application/json',
+      ...authHeaders,
       ...options.headers,
     },
     ...options,
