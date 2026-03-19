@@ -198,8 +198,8 @@ export default function AdminRecipientDrawer({ open, onClose, recipient, onDelet
       ...(fullProfile?.historicEvents || []).map((e) => ({
         type: 'historic_event',
         icon: null,
-        date: e.date || e.event_date || e.created_at,
-        title: e.event_name || e.name || e.title || 'ללא שם',
+        date: e.purchase_date || e.event_date || e.date || e.created_at,
+        title: e.event_title || e.event_name || e.name || 'ללא שם',
         subtitle: e.business_name,
         payment_method: e.payment_method || e.ticket_type,
         scan_status: e.scan_status,
