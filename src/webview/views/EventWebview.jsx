@@ -616,8 +616,17 @@ export default function EventWebview({ business, event }) {
 
       {activeTab === 'table' && (
         <form
+          className="webview-form"
           onSubmit={handleTableBooking}
-          style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 4 }}
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 12,
+            marginTop: 4,
+            width: '100%',
+            overflow: 'hidden',
+            boxSizing: 'border-box',
+          }}
         >
           <div style={{ width: '100%' }}>
             <label style={{ fontSize: 13, marginBottom: 4, display: 'block' }}>תאריך</label>
@@ -859,8 +868,17 @@ export default function EventWebview({ business, event }) {
 
       {activeTab === 'checkin' && (
         <form
+          className="webview-form"
           onSubmit={handleCheckin}
-          style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 4 }}
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 10,
+            marginTop: 4,
+            width: '100%',
+            overflow: 'hidden',
+            boxSizing: 'border-box',
+          }}
         >
           <label style={{ fontSize: 13, marginBottom: 2 }}>קוד כרטיס / קופון</label>
           <input

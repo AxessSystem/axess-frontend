@@ -294,7 +294,15 @@ export default function HotelWebview({ business, items }) {
         })}
       </div>
 
-      <div style={{ padding: '8px 4px' }}>
+      <div
+        className="webview-form"
+        style={{
+          padding: '8px 4px',
+          width: '100%',
+          overflow: 'hidden',
+          boxSizing: 'border-box',
+        }}
+      >
         <label style={{ display: 'block', fontSize: 13, marginBottom: 6 }}>
           מספר חדר
         </label>
@@ -460,8 +468,17 @@ export default function HotelWebview({ business, items }) {
 
       {activeTab === 'spa' && (
         <form
+          className="webview-form"
           onSubmit={handleSpaBooking}
-          style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 4 }}
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 10,
+            marginTop: 4,
+            width: '100%',
+            overflow: 'hidden',
+            boxSizing: 'border-box',
+          }}
         >
           <div>
             <label style={{ fontSize: 13, marginBottom: 4, display: 'block' }}>תאריך</label>
@@ -560,8 +577,17 @@ export default function HotelWebview({ business, items }) {
 
       {activeTab === 'late_checkout' && (
         <form
+          className="webview-form"
           onSubmit={handleLateCheckout}
-          style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 4 }}
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 10,
+            marginTop: 4,
+            width: '100%',
+            overflow: 'hidden',
+            boxSizing: 'border-box',
+          }}
         >
           <div>
             <label style={{ fontSize: 13, marginBottom: 4, display: 'block' }}>
@@ -630,8 +656,17 @@ export default function HotelWebview({ business, items }) {
 
       {activeTab === 'requests' && (
         <form
+          className="webview-form"
           onSubmit={handleSpecialRequest}
-          style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 4 }}
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 10,
+            marginTop: 4,
+            width: '100%',
+            overflow: 'hidden',
+            boxSizing: 'border-box',
+          }}
         >
           <label style={{ fontSize: 13, marginBottom: 2 }}>בקשה מיוחדת</label>
           <textarea

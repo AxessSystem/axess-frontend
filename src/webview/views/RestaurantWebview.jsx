@@ -339,8 +339,17 @@ export default function RestaurantWebview({
 
       {activeTab === 'table' && (
         <form
+          className="webview-form"
           onSubmit={handleTableBooking}
-          style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 4 }}
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 12,
+            marginTop: 4,
+            width: '100%',
+            overflow: 'hidden',
+            boxSizing: 'border-box',
+          }}
         >
           <div style={{ width: '100%' }}>
             <label style={{ fontSize: 13, marginBottom: 4, display: 'block' }}>תאריך</label>
@@ -464,8 +473,17 @@ export default function RestaurantWebview({
 
       {activeTab === 'preorder' && (
         <form
+          className="webview-form"
           onSubmit={handlePreorder}
-          style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 4 }}
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 10,
+            marginTop: 4,
+            width: '100%',
+            overflow: 'hidden',
+            boxSizing: 'border-box',
+          }}
         >
           <div>
             <label style={{ fontSize: 13, marginBottom: 4, display: 'block' }}>
@@ -521,8 +539,17 @@ export default function RestaurantWebview({
 
       {activeTab === 'call' && (
         <form
+          className="webview-form"
           onSubmit={handleCallWaiter}
-          style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 4 }}
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 10,
+            marginTop: 4,
+            width: '100%',
+            overflow: 'hidden',
+            boxSizing: 'border-box',
+          }}
         >
           <div>
             <label style={{ fontSize: 13, marginBottom: 4, display: 'block' }}>

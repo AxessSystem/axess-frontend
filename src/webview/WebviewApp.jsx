@@ -10,6 +10,7 @@ import RetailWebview from './views/RetailWebview'
 import RestaurantWebview from './views/RestaurantWebview'
 import GeneralWebview from './views/GeneralWebview'
 import WebviewSuccess from './components/WebviewSuccess'
+import './webview.css'
 
 const DEFAULT_BRAND = {
   colors: {
@@ -33,6 +34,7 @@ function applyBrandToCssVars(brand) {
   root.style.setProperty('--wv-text', colors.text || DEFAULT_BRAND.colors.text)
   root.style.setProperty('--wv-card', colors.card || DEFAULT_BRAND.colors.card)
   root.style.setProperty('--wv-font', '"Heebo", "Arial", sans-serif')
+  root.style.setProperty('--webview-input-width', '100%')
 }
 
 export default function WebviewApp() {
