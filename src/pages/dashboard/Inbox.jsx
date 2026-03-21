@@ -398,7 +398,7 @@ export default function Inbox({ onUnreadChange }) {
         {
           event: "INSERT",
           schema: "public",
-          table: "inbox_messages",
+          table: "conversation_logs",
           filter: `conversation_id=eq.${activeConversationId}`,
         },
         () => {
