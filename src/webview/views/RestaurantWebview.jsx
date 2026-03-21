@@ -14,6 +14,22 @@ const TABS = [
   { id: 'call', label: 'קרא למלצר', icon: Bell },
 ]
 
+const timeOptions = [
+  '11:00',
+  '12:00',
+  '13:00',
+  '14:00',
+  '15:00',
+  '16:00',
+  '17:00',
+  '18:00',
+  '19:00',
+  '20:00',
+  '21:00',
+  '22:00',
+  '23:00',
+]
+
 export default function RestaurantWebview({
   business: businessProp,
   items: itemsProp,
@@ -89,24 +105,40 @@ export default function RestaurantWebview({
     })
   }, [allItems, selectedCategory, search])
 
-  const timeOptions = useMemo(() => {
-    const opts = []
-    for (let h = 12; h <= 23; h++) {
-      for (const m of [0, 30]) {
-        const label = `${String(h).padStart(2, '0')}:${m === 0 ? '00' : '30'}`
-        opts.push(label)
-      }
-    }
-    return opts
-  }, [])
+  const fieldStyle = useMemo(
+    () => ({
+      padding: '10px 12px',
+      fontSize: 14,
+      borderRadius: 8,
+      width: '100%',
+      maxWidth: '100%',
+      boxSizing: 'border-box',
+      border: '1px solid rgba(148,163,184,0.5)',
+      background: 'rgba(15,23,42,0.7)',
+      color: 'var(--wv-text, #fff)',
+    }),
+    [],
+  )
 
-  const todayStr = useMemo(() => {
-    const d = new Date()
-    const y = d.getFullYear()
-    const m = String(d.getMonth() + 1).padStart(2, '0')
-    const day = String(d.getDate()).padStart(2, '0')
-    return `${y}-${m}-${day}`
-  }, [])
+  const dateOptions = useMemo(
+    () =>
+      Array.from({ length: 30 }, (_, i) => {
+        const d = new Date()
+        d.setDate(d.getDate() + i)
+        const y = d.getFullYear()
+        const m = String(d.getMonth() + 1).padStart(2, '0')
+        const day = String(d.getDate()).padStart(2, '0')
+        return {
+          value: `${y}-${m}-${day}`,
+          label: d.toLocaleDateString('he-IL', {
+            weekday: 'short',
+            day: 'numeric',
+            month: 'numeric',
+          }),
+        }
+      }),
+    [],
+  )
 
   const qtyForItem = (id) => cart.find((i) => i.id === id)?.quantity || 0
 
@@ -353,40 +385,25 @@ export default function RestaurantWebview({
         >
           <div style={{ width: '100%' }}>
             <label style={{ fontSize: 13, marginBottom: 4, display: 'block' }}>תאריך</label>
-            <input
-              type="date"
-              min={todayStr}
+            <select
               value={tableDate}
               onChange={(e) => setTableDate(e.target.value)}
-              style={{
-                padding: '10px 12px',
-                fontSize: 14,
-                borderRadius: 8,
-                width: '100%',
-                maxWidth: '100%',
-                boxSizing: 'border-box',
-                border: '1px solid rgba(148,163,184,0.5)',
-                background: 'rgba(15,23,42,0.7)',
-                color: 'var(--wv-text, #fff)',
-              }}
-            />
+              style={fieldStyle}
+            >
+              <option value="">בחר תאריך</option>
+              {dateOptions.map((d) => (
+                <option key={d.value} value={d.value}>
+                  {d.label}
+                </option>
+              ))}
+            </select>
           </div>
           <div>
             <label style={{ fontSize: 13, marginBottom: 4, display: 'block' }}>שעה</label>
             <select
               value={tableTime}
               onChange={(e) => setTableTime(e.target.value)}
-              style={{
-                padding: '10px 12px',
-                fontSize: 14,
-                borderRadius: 8,
-                width: '100%',
-                maxWidth: '100%',
-                boxSizing: 'border-box',
-                border: '1px solid rgba(148,163,184,0.5)',
-                background: 'rgba(15,23,42,0.7)',
-                color: 'var(--wv-text, #fff)',
-              }}
+              style={fieldStyle}
             >
               <option value="">בחר שעה</option>
               {timeOptions.map((t) => (
@@ -489,22 +506,18 @@ export default function RestaurantWebview({
             <label style={{ fontSize: 13, marginBottom: 4, display: 'block' }}>
               שעת הגעה משוערת
             </label>
-            <input
-              type="time"
+            <select
               value={preorderTime}
               onChange={(e) => setPreorderTime(e.target.value)}
-              style={{
-                padding: '10px 12px',
-                fontSize: 14,
-                borderRadius: 8,
-                width: '100%',
-                maxWidth: '100%',
-                boxSizing: 'border-box',
-                border: '1px solid rgba(148,163,184,0.5)',
-                background: 'rgba(15,23,42,0.7)',
-                color: 'var(--wv-text, #fff)',
-              }}
-            />
+              style={fieldStyle}
+            >
+              <option value="">בחר שעה</option>
+              {timeOptions.map((t) => (
+                <option key={t} value={t}>
+                  {t}
+                </option>
+              ))}
+            </select>
           </div>
           {callStatus && (
             <div
