@@ -63,21 +63,23 @@ export function AuthProvider({ children }) {
     }
     init()
 
-    const handleVisibilityChange = async () => {
+    const handleVisibility = async () => {
       if (document.visibilityState === 'visible') {
-        const { data: { session } } = await supabase.auth.refreshSession()
+        const { data: { session } } = await supabase.auth.getSession()
         if (session) {
           setSession(session)
         } else {
-          const { data: { session: s } } = await supabase.auth.getSession()
-          setSession(s)
+          const { data } = await supabase.auth.refreshSession()
+          if (data?.session) {
+            setSession(data.session)
+          }
         }
       }
     }
-    document.addEventListener('visibilitychange', handleVisibilityChange)
+    document.addEventListener('visibilitychange', handleVisibility)
 
     return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange)
+      document.removeEventListener('visibilitychange', handleVisibility)
     }
   }, [])
 
@@ -136,30 +138,6 @@ export function AuthProvider({ children }) {
     load()
     return () => { cancelled = true }
   }, [session?.user?.id, fetchProfile, fetchBusinessMember])
-
-  useEffect(() => {
-    const interval = setInterval(async () => {
-      const { data, error } = await supabase.auth.refreshSession()
-      if (error) {
-        console.warn('[auth] refresh failed:', error.message)
-      }
-    }, 50 * 60 * 1000)
-
-    return () => clearInterval(interval)
-  }, [])
-
-  useEffect(() => {
-    const handleVisibility = async () => {
-      if (document.visibilityState === 'visible') {
-        const { data: { session } } = await supabase.auth.getSession()
-        if (!session) {
-          await supabase.auth.refreshSession()
-        }
-      }
-    }
-    document.addEventListener('visibilitychange', handleVisibility)
-    return () => document.removeEventListener('visibilitychange', handleVisibility)
-  }, [])
 
   const signIn = async (email, password) => {
     const { data, error } = await supabase.auth.signInWithPassword({ email, password })
