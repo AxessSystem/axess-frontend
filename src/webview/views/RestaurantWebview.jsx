@@ -14,9 +14,27 @@ const TABS = [
   { id: 'call', label: 'קרא למלצר', icon: Bell },
 ]
 
-export default function RestaurantWebview() {
+export default function RestaurantWebview({
+  business: businessProp,
+  items: itemsProp,
+  categorizedItems: categorizedItemsProp,
+  recipient: recipientProp,
+  event: eventProp,
+} = {}) {
   const { slug } = useParams()
-  const { items, cart, addItem, updateQty, recipient, trackEvent, business } = useWebview()
+  const {
+    items: itemsCtx,
+    cart,
+    addItem,
+    updateQty,
+    recipient: recipientCtx,
+    trackEvent,
+    business: businessCtx,
+  } = useWebview()
+
+  const business = businessProp ?? businessCtx
+  const recipient = recipientCtx ?? recipientProp ?? null
+  const event = eventProp ?? null
 
   useEffect(() => {
     trackEvent('viewed_menu').catch(() => {})
@@ -36,7 +54,20 @@ export default function RestaurantWebview() {
   const [busy, setBusy] = useState(false)
   const [callStatus, setCallStatus] = useState(null)
 
-  const allItems = Array.isArray(items) ? items : items?.retail || items?.general || []
+  const items = itemsProp ?? itemsCtx
+
+  const allItems = useMemo(() => {
+    let list = Array.isArray(items) ? items : items?.retail || items?.general || []
+    if (!list.length && categorizedItemsProp) {
+      list = [
+        ...(categorizedItemsProp.hotel || []),
+        ...(categorizedItemsProp.event || []),
+        ...(categorizedItemsProp.retail || []),
+        ...(categorizedItemsProp.general || []),
+      ]
+    }
+    return list
+  }, [items, categorizedItemsProp])
 
   const categories = useMemo(() => {
     const set = new Set()
@@ -251,13 +282,15 @@ export default function RestaurantWebview() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               style={{
-                flex: 1,
-                padding: '8px 10px',
-                borderRadius: 999,
+                padding: '10px 12px',
+                fontSize: 14,
+                borderRadius: 8,
+                width: '100%',
+                maxWidth: '100%',
+                boxSizing: 'border-box',
                 border: '1px solid rgba(148,163,184,0.5)',
                 background: 'rgba(15,23,42,0.8)',
                 color: 'var(--wv-text, #fff)',
-                fontSize: 13,
               }}
             />
           </div>
@@ -317,14 +350,15 @@ export default function RestaurantWebview() {
               value={tableDate}
               onChange={(e) => setTableDate(e.target.value)}
               style={{
+                padding: '10px 12px',
+                fontSize: 14,
+                borderRadius: 8,
                 width: '100%',
                 maxWidth: '100%',
-                padding: '8px 10px',
-                borderRadius: 12,
+                boxSizing: 'border-box',
                 border: '1px solid rgba(148,163,184,0.5)',
                 background: 'rgba(15,23,42,0.7)',
                 color: 'var(--wv-text, #fff)',
-                fontSize: 13,
               }}
             />
           </div>
@@ -334,13 +368,15 @@ export default function RestaurantWebview() {
               value={tableTime}
               onChange={(e) => setTableTime(e.target.value)}
               style={{
+                padding: '10px 12px',
+                fontSize: 14,
+                borderRadius: 8,
                 width: '100%',
-                padding: '8px 10px',
-                borderRadius: 12,
+                maxWidth: '100%',
+                boxSizing: 'border-box',
                 border: '1px solid rgba(148,163,184,0.5)',
                 background: 'rgba(15,23,42,0.7)',
                 color: 'var(--wv-text, #fff)',
-                fontSize: 13,
               }}
             >
               <option value="">בחר שעה</option>
@@ -357,13 +393,15 @@ export default function RestaurantWebview() {
               value={tableGuests}
               onChange={(e) => setTableGuests(Number(e.target.value))}
               style={{
+                padding: '10px 12px',
+                fontSize: 14,
+                borderRadius: 8,
                 width: '100%',
-                padding: '8px 10px',
-                borderRadius: 12,
+                maxWidth: '100%',
+                boxSizing: 'border-box',
                 border: '1px solid rgba(148,163,184,0.5)',
                 background: 'rgba(15,23,42,0.7)',
                 color: 'var(--wv-text, #fff)',
-                fontSize: 13,
               }}
             >
               {Array.from({ length: 12 }).map((_, i) => (
@@ -380,13 +418,15 @@ export default function RestaurantWebview() {
               value={tableNotes}
               onChange={(e) => setTableNotes(e.target.value)}
               style={{
+                padding: '10px 12px',
+                fontSize: 14,
+                borderRadius: 8,
                 width: '100%',
-                padding: '8px 10px',
-                borderRadius: 12,
+                maxWidth: '100%',
+                boxSizing: 'border-box',
                 border: '1px solid rgba(148,163,184,0.5)',
                 background: 'rgba(15,23,42,0.7)',
                 color: 'var(--wv-text, #fff)',
-                fontSize: 13,
                 resize: 'vertical',
               }}
             />
@@ -436,13 +476,15 @@ export default function RestaurantWebview() {
               value={preorderTime}
               onChange={(e) => setPreorderTime(e.target.value)}
               style={{
+                padding: '10px 12px',
+                fontSize: 14,
+                borderRadius: 8,
                 width: '100%',
-                padding: '8px 10px',
-                borderRadius: 12,
+                maxWidth: '100%',
+                boxSizing: 'border-box',
                 border: '1px solid rgba(148,163,184,0.5)',
                 background: 'rgba(15,23,42,0.7)',
                 color: 'var(--wv-text, #fff)',
-                fontSize: 13,
               }}
             />
           </div>
@@ -491,13 +533,15 @@ export default function RestaurantWebview() {
               value={callMessage}
               onChange={(e) => setCallMessage(e.target.value)}
               style={{
+                padding: '10px 12px',
+                fontSize: 14,
+                borderRadius: 8,
                 width: '100%',
-                padding: '8px 10px',
-                borderRadius: 12,
+                maxWidth: '100%',
+                boxSizing: 'border-box',
                 border: '1px solid rgba(148,163,184,0.5)',
                 background: 'rgba(15,23,42,0.7)',
                 color: 'var(--wv-text, #fff)',
-                fontSize: 13,
                 resize: 'vertical',
               }}
             />

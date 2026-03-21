@@ -243,13 +243,15 @@ export default function RetailWebview({ business, items }) {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               style={{
+                padding: '10px 12px',
+                fontSize: 14,
+                borderRadius: 8,
                 width: '100%',
-                padding: '8px 10px',
-                borderRadius: 999,
+                maxWidth: '100%',
+                boxSizing: 'border-box',
                 border: '1px solid rgba(148,163,184,0.5)',
                 background: 'rgba(15,23,42,0.8)',
                 color: 'var(--wv-text, #fff)',
-                fontSize: 13,
               }}
             />
           </div>
@@ -448,13 +450,15 @@ export default function RetailWebview({ business, items }) {
                 onChange={(e) => setAddress(e.target.value)}
                 rows={2}
                 style={{
+                  padding: '10px 12px',
+                  fontSize: 14,
+                  borderRadius: 8,
                   width: '100%',
-                  padding: '8px 10px',
-                  borderRadius: 12,
+                  maxWidth: '100%',
+                  boxSizing: 'border-box',
                   border: '1px solid rgba(148,163,184,0.5)',
                   background: 'rgba(15,23,42,0.7)',
                   color: 'var(--wv-text, #fff)',
-                  fontSize: 13,
                   resize: 'vertical',
                 }}
               />
@@ -478,12 +482,16 @@ export default function RetailWebview({ business, items }) {
                 placeholder="הכנס/י קוד קופון"
                 style={{
                   flex: 1,
-                  padding: '8px 10px',
-                  borderRadius: 999,
+                  minWidth: 0,
+                  padding: '10px 12px',
+                  fontSize: 14,
+                  borderRadius: 8,
+                  width: '100%',
+                  maxWidth: '100%',
+                  boxSizing: 'border-box',
                   border: '1px solid rgba(148,163,184,0.5)',
                   background: 'rgba(15,23,42,0.7)',
                   color: 'var(--wv-text, #fff)',
-                  fontSize: 13,
                 }}
               />
               <button

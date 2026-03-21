@@ -304,13 +304,15 @@ export default function HotelWebview({ business, items }) {
           value={roomNumber}
           onChange={(e) => setRoomNumber(e.target.value)}
           style={{
-            width: '100%',
             padding: '10px 12px',
-            borderRadius: 12,
+            fontSize: 14,
+            borderRadius: 8,
+            width: '100%',
+            maxWidth: '100%',
+            boxSizing: 'border-box',
             border: '1px solid rgba(148,163,184,0.5)',
             background: 'rgba(15,23,42,0.7)',
             color: 'var(--wv-text, #fff)',
-            fontSize: 14,
             outline: 'none',
           }}
         />
@@ -468,13 +470,15 @@ export default function HotelWebview({ business, items }) {
               value={spaDate}
               onChange={(e) => setSpaDate(e.target.value)}
               style={{
+                padding: '10px 12px',
+                fontSize: 14,
+                borderRadius: 8,
                 width: '100%',
-                padding: '8px 10px',
-                borderRadius: 12,
+                maxWidth: '100%',
+                boxSizing: 'border-box',
                 border: '1px solid rgba(148,163,184,0.5)',
                 background: 'rgba(15,23,42,0.7)',
                 color: 'var(--wv-text, #fff)',
-                fontSize: 13,
               }}
             />
           </div>
@@ -485,13 +489,15 @@ export default function HotelWebview({ business, items }) {
               value={spaTime}
               onChange={(e) => setSpaTime(e.target.value)}
               style={{
+                padding: '10px 12px',
+                fontSize: 14,
+                borderRadius: 8,
                 width: '100%',
-                padding: '8px 10px',
-                borderRadius: 12,
+                maxWidth: '100%',
+                boxSizing: 'border-box',
                 border: '1px solid rgba(148,163,184,0.5)',
                 background: 'rgba(15,23,42,0.7)',
                 color: 'var(--wv-text, #fff)',
-                fontSize: 13,
               }}
             />
           </div>
@@ -504,13 +510,15 @@ export default function HotelWebview({ business, items }) {
               value={spaNotes}
               onChange={(e) => setSpaNotes(e.target.value)}
               style={{
+                padding: '10px 12px',
+                fontSize: 14,
+                borderRadius: 8,
                 width: '100%',
-                padding: '8px 10px',
-                borderRadius: 12,
+                maxWidth: '100%',
+                boxSizing: 'border-box',
                 border: '1px solid rgba(148,163,184,0.5)',
                 background: 'rgba(15,23,42,0.7)',
                 color: 'var(--wv-text, #fff)',
-                fontSize: 13,
                 resize: 'vertical',
               }}
             />
@@ -563,13 +571,15 @@ export default function HotelWebview({ business, items }) {
               value={lateTime}
               onChange={(e) => setLateTime(e.target.value)}
               style={{
+                padding: '10px 12px',
+                fontSize: 14,
+                borderRadius: 8,
                 width: '100%',
-                padding: '8px 10px',
-                borderRadius: 12,
+                maxWidth: '100%',
+                boxSizing: 'border-box',
                 border: '1px solid rgba(148,163,184,0.5)',
                 background: 'rgba(15,23,42,0.7)',
                 color: 'var(--wv-text, #fff)',
-                fontSize: 13,
               }}
             >
               <option value="">בחר שעה</option>
@@ -630,13 +640,15 @@ export default function HotelWebview({ business, items }) {
             onChange={(e) => setRequestText(e.target.value)}
             placeholder="כתוב/י כאן כל בקשה או הערה שתרצה להעביר לקבלה"
             style={{
+              padding: '10px 12px',
+              fontSize: 14,
+              borderRadius: 8,
               width: '100%',
-              padding: '8px 10px',
-              borderRadius: 12,
+              maxWidth: '100%',
+              boxSizing: 'border-box',
               border: '1px solid rgba(148,163,184,0.5)',
               background: 'rgba(15,23,42,0.7)',
               color: 'var(--wv-text, #fff)',
-              fontSize: 13,
               resize: 'vertical',
             }}
           />

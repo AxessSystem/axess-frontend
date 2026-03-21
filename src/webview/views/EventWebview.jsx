@@ -12,6 +12,18 @@ const TABS = [
   { id: 'checkin', label: 'צ\'ק-אין', icon: CheckCircle },
 ]
 
+const timeOptions = [
+  '11:00',
+  '12:00',
+  '13:00',
+  '14:00',
+  '19:00',
+  '20:00',
+  '21:00',
+  '22:00',
+  '23:00',
+]
+
 export default function EventWebview({ business, event }) {
   const { items, recipient, trackEvent, showToast, business: ctxBiz } = useWebview()
   const effectiveBusiness = business || ctxBiz
@@ -615,33 +627,42 @@ export default function EventWebview({ business, event }) {
               value={tableDate}
               onChange={(e) => setTableDate(e.target.value)}
               style={{
+                padding: '10px 12px',
+                fontSize: 14,
+                borderRadius: 8,
                 width: '100%',
                 maxWidth: '100%',
-                padding: '8px 10px',
-                borderRadius: 12,
+                boxSizing: 'border-box',
                 border: '1px solid rgba(148,163,184,0.5)',
                 background: 'rgba(15,23,42,0.7)',
                 color: 'var(--wv-text, #fff)',
-                fontSize: 13,
               }}
             />
           </div>
           <div>
             <label style={{ fontSize: 13, marginBottom: 4, display: 'block' }}>שעה</label>
-            <input
-              type="time"
+            <select
               value={tableTime}
               onChange={(e) => setTableTime(e.target.value)}
               style={{
+                padding: '10px 12px',
+                fontSize: 14,
+                borderRadius: 8,
                 width: '100%',
-                padding: '8px 10px',
-                borderRadius: 12,
+                maxWidth: '100%',
+                boxSizing: 'border-box',
                 border: '1px solid rgba(148,163,184,0.5)',
                 background: 'rgba(15,23,42,0.7)',
                 color: 'var(--wv-text, #fff)',
-                fontSize: 13,
               }}
-            />
+            >
+              <option value="">בחר שעה</option>
+              {timeOptions.map((t) => (
+                <option key={t} value={t}>
+                  {t}
+                </option>
+              ))}
+            </select>
           </div>
           <div>
             <label style={{ fontSize: 13, marginBottom: 4, display: 'block' }}>מספר אנשים</label>
@@ -649,13 +670,15 @@ export default function EventWebview({ business, event }) {
               value={tableGuests}
               onChange={(e) => setTableGuests(Number(e.target.value))}
               style={{
+                padding: '10px 12px',
+                fontSize: 14,
+                borderRadius: 8,
                 width: '100%',
-                padding: '8px 10px',
-                borderRadius: 12,
+                maxWidth: '100%',
+                boxSizing: 'border-box',
                 border: '1px solid rgba(148,163,184,0.5)',
                 background: 'rgba(15,23,42,0.7)',
                 color: 'var(--wv-text, #fff)',
-                fontSize: 13,
               }}
             >
               {Array.from({ length: 20 }).map((_, i) => (
@@ -672,13 +695,15 @@ export default function EventWebview({ business, event }) {
               value={tableNotes}
               onChange={(e) => setTableNotes(e.target.value)}
               style={{
+                padding: '10px 12px',
+                fontSize: 14,
+                borderRadius: 8,
                 width: '100%',
-                padding: '8px 10px',
-                borderRadius: 12,
+                maxWidth: '100%',
+                boxSizing: 'border-box',
                 border: '1px solid rgba(148,163,184,0.5)',
                 background: 'rgba(15,23,42,0.7)',
                 color: 'var(--wv-text, #fff)',
-                fontSize: 13,
                 resize: 'vertical',
               }}
             />
@@ -844,13 +869,15 @@ export default function EventWebview({ business, event }) {
             onChange={(e) => setCheckinCode(e.target.value)}
             placeholder="הקלד/י את הקוד המופיע בכרטיס"
             style={{
+              padding: '10px 12px',
+              fontSize: 14,
+              borderRadius: 8,
               width: '100%',
-              padding: '8px 10px',
-              borderRadius: 12,
+              maxWidth: '100%',
+              boxSizing: 'border-box',
               border: '1px solid rgba(148,163,184,0.5)',
               background: 'rgba(15,23,42,0.7)',
               color: 'var(--wv-text, #fff)',
-              fontSize: 13,
             }}
           />
           {checkinError && (
