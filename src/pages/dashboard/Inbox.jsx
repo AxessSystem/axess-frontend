@@ -245,8 +245,6 @@ export default function Inbox({ onUnreadChange }) {
   const [search, setSearch] = useState("");
   const [agentFilter, setAgentFilter] = useState("");
   const [selectedConv, setSelectedConv] = useState(null);
-  const [messages, setMessages] = useState([]);
-  const [messagesLoading, setMessagesLoading] = useState(false);
   const [waStatus, setWaStatus] = useState(null);
   const [templates, setTemplates] = useState([]);
   const [staff, setStaff] = useState([]);
@@ -335,7 +333,7 @@ export default function Inbox({ onUnreadChange }) {
     isLoading: conversationsLoading,
     refetch: refetchConversations,
   } = useQuery({
-    queryKey: ["inboxConversations", businessId, tab, search, agentFilter],
+    queryKey: ["conversations", businessId, tab, search, agentFilter],
     queryFn: async () => {
       const params = new URLSearchParams();
       if (tab === "sms") params.set("channel", "sms");
@@ -346,9 +344,73 @@ export default function Inbox({ onUnreadChange }) {
       const res = await apiFetch(`/api/inbox/conversations?${params}`);
       return res;
     },
-    refetchInterval: 10000,
     enabled: !!session?.access_token && !!businessId,
   });
+
+  const activeConversationId = selectedConv?.id ?? null;
+
+  const {
+    data: messages = [],
+    isLoading: messagesLoading,
+  } = useQuery({
+    queryKey: ["messages", activeConversationId],
+    queryFn: async () => {
+      const d = await apiFetch(
+        `/api/inbox/customer-messages?customer_phone=${encodeURIComponent(selectedConv.customer_phone)}`,
+      );
+      return d.messages || [];
+    },
+    enabled: !!activeConversationId && !!selectedConv?.customer_phone,
+  });
+
+  useEffect(() => {
+    if (!businessId) return;
+
+    const channel = supabase
+      .channel(`inbox:${businessId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "inbox_conversations",
+          filter: `business_id=eq.${businessId}`,
+        },
+        (payload) => {
+          console.log("[realtime] inbox change:", payload);
+          queryClient.invalidateQueries({ queryKey: ["conversations", businessId] });
+        },
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [businessId, queryClient]);
+
+  useEffect(() => {
+    if (!businessId || !activeConversationId) return;
+
+    const msgChannel = supabase
+      .channel(`messages:${businessId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "inbox_messages",
+          filter: `conversation_id=eq.${activeConversationId}`,
+        },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ["messages", activeConversationId] });
+        },
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(msgChannel);
+    };
+  }, [businessId, activeConversationId, queryClient]);
 
   useEffect(() => {
     setLoading(conversationsLoading);
@@ -401,19 +463,10 @@ export default function Inbox({ onUnreadChange }) {
   }, [conversations, loading, navigate, location.pathname]);
 
   useEffect(() => {
-    if (!selectedConv) {
-      setMessages([]);
-      return;
-    }
-    setMessagesLoading(true);
-    apiFetch(`/api/inbox/customer-messages?customer_phone=${encodeURIComponent(selectedConv.customer_phone)}`)
-      .then((d) => setMessages(d.messages || []))
-      .catch(() => setMessages([]))
-      .finally(() => setMessagesLoading(false));
-
+    if (!selectedConv) return;
     apiFetch(`/api/inbox/conversations/${selectedConv.id}/read`, { method: "PATCH" }).catch(() => {});
     refetchConversations();
-  }, [selectedConv?.id, selectedConv?.customer_phone]);
+  }, [selectedConv?.id, selectedConv?.customer_phone, apiFetch, refetchConversations]);
 
   const handleAssign = async (convId, agentId, department) => {
     const r = await fetch(`${API_BASE}/api/inbox/conversations/${convId}/assign`, {
@@ -657,7 +710,7 @@ export default function Inbox({ onUnreadChange }) {
                 templates={templates}
                 onSent={() => {
                   refetchConversations();
-                  apiFetch(`/api/inbox/customer-messages?customer_phone=${encodeURIComponent(selectedConv.customer_phone)}`).then((d) => setMessages(d.messages || []));
+                  queryClient.invalidateQueries({ queryKey: ["messages", selectedConv.id] });
                 }}
                 apiFetch={{ token: session?.access_token, businessId }}
               />
