@@ -5,21 +5,30 @@ const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
-export async function fetchWithAuth(url, options = {}, session, onUnauthorized) {
-  const response = await fetch(url, options)
-  if (response.status === 401) {
-    const { data: { session: newSession } } = await supabase.auth.refreshSession()
-    if (newSession) {
-      const newOptions = {
-        ...options,
-        headers: {
-          ...options.headers,
-          Authorization: `Bearer ${newSession.access_token}`,
-        },
-      }
-      return fetch(url, newOptions)
-    }
-    onUnauthorized?.()
+export async function fetchWithAuth(url, options = {}, _session, onUnauthorized) {
+  const { data: { session } } = await supabase.auth.getSession()
+
+  const makeRequest = async (token) => {
+    return fetch(url, {
+      ...options,
+      headers: {
+        ...options.headers,
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+    })
   }
-  return response
+
+  let res = await makeRequest(session?.access_token)
+
+  if (res.status === 401) {
+    const { data: refreshed } = await supabase.auth.refreshSession()
+    if (refreshed?.session?.access_token) {
+      res = await makeRequest(refreshed.session.access_token)
+    } else {
+      onUnauthorized?.()
+    }
+  }
+
+  return res
 }

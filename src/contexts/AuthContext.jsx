@@ -63,17 +63,6 @@ export function AuthProvider({ children }) {
     }
     init()
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        setSession(session)
-        if (!session?.user) {
-          setProfile(null)
-          setBusinessMember(null)
-        }
-        setLoading(false)
-      }
-    )
-
     const handleVisibilityChange = async () => {
       if (document.visibilityState === 'visible') {
         const { data: { session } } = await supabase.auth.refreshSession()
@@ -88,9 +77,24 @@ export function AuthProvider({ children }) {
     document.addEventListener('visibilitychange', handleVisibilityChange)
 
     return () => {
-      subscription.unsubscribe()
       document.removeEventListener('visibilitychange', handleVisibilityChange)
     }
+  }, [])
+
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        console.log('[auth] state change:', event, !!session)
+        if (event === 'TOKEN_REFRESHED' || event === 'SIGNED_IN') {
+          setSession(session)
+        } else if (event === 'SIGNED_OUT') {
+          setSession(null)
+          setProfile(null)
+          setBusinessMember(null)
+        }
+      },
+    )
+    return () => subscription.unsubscribe()
   }, [])
 
   useEffect(() => {
