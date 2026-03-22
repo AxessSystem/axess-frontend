@@ -3,7 +3,7 @@ import toast from 'react-hot-toast'
 import { motion } from 'framer-motion'
 import {
   Palette, Package, Settings2, Link2, Save, Pencil, Trash2, Plus, ChevronUp, ChevronDown,
-  Copy, ExternalLink, Download,
+  Copy, ExternalLink, Download, MessageCircle,
 } from 'lucide-react'
 import { QRCodeSVG } from 'qrcode.react'
 import { useAuth } from '@/contexts/AuthContext'
@@ -32,7 +32,31 @@ const TABS = [
   { id: 'items', label: 'פריטים', icon: Package },
   { id: 'settings', label: 'הגדרות', icon: Settings2 },
   { id: 'links', label: 'לינקים', icon: Link2 },
+  { id: 'wa', label: 'WA & הודעות', icon: MessageCircle },
 ]
+
+const AUTO_MESSAGES = [
+  { key: 'order_confirmation', label: 'אישור הזמנה', description: 'נשלח אוטומטית אחרי כל הזמנה' },
+  { key: 'ticket_qr', label: 'כרטיס כניסה QR', description: 'נשלח אחרי רכישת כרטיס לאירוע' },
+  { key: 'booking_reminder', label: 'תזכורת הזמנת שולחן', description: 'נשלח יום לפני ההזמנה' },
+  { key: 'table_confirmation', label: 'אישור הזמנת שולחן', description: 'נשלח מיד אחרי ההזמנה' },
+]
+
+function componentsPreviewText(components) {
+  if (!components) return '—'
+  const arr = Array.isArray(components) ? components : []
+  const body = arr.find((c) => (c.type || '').toUpperCase() === 'BODY')
+  const t = body?.text || arr.map((c) => c.text).filter(Boolean)[0]
+  if (!t) return '—'
+  return t.length > 160 ? `${t.slice(0, 160)}…` : t
+}
+
+function statusBadgeStyle(metaStatus) {
+  const s = String(metaStatus || 'PENDING').toUpperCase()
+  if (s === 'APPROVED') return { bg: 'rgba(34,197,94,0.2)', color: '#4ade80', label: 'approved' }
+  if (s === 'REJECTED') return { bg: 'rgba(248,113,113,0.2)', color: '#f87171', label: 'rejected' }
+  return { bg: 'rgba(234,179,8,0.2)', color: '#fbbf24', label: 'pending' }
+}
 
 const BUSINESS_TYPE_OPTIONS = [
   { value: 'club', label: 'מועדון / מסיבה' },
@@ -109,6 +133,13 @@ export default function WebviewSettings() {
   const [savingSettings, setSavingSettings] = useState(false)
   const qrRef = useRef(null)
 
+  const [waLoading, setWaLoading] = useState(false)
+  const [waTemplates, setWaTemplates] = useState([])
+  const [waLibrary, setWaLibrary] = useState([])
+  const [waAutoMessages, setWaAutoMessages] = useState([])
+  const [waLibraryModal, setWaLibraryModal] = useState(false)
+  const [waAdopting, setWaAdopting] = useState(null)
+
   const onUnauthorized = useCallback(async () => {
     await supabase.auth.signOut()
     window.location.href = '/login'
@@ -160,6 +191,97 @@ export default function WebviewSettings() {
   useEffect(() => {
     load()
   }, [load])
+
+  const loadWaSettings = useCallback(async () => {
+    if (!businessId || !session?.access_token) return
+    setWaLoading(true)
+    try {
+      const r = await fetchWithAuth(
+        `${API_BASE}/api/webview/wa-settings`,
+        { headers: authHeaders() },
+        session,
+        onUnauthorized,
+      )
+      const data = await r.json()
+      if (!r.ok) throw new Error(data.error || 'שגיאה בטעינת WA')
+      setWaTemplates(data.templates || [])
+      setWaLibrary(data.library || [])
+      setWaAutoMessages(data.autoMessages || [])
+    } catch (e) {
+      toast.error(e.message || 'שגיאה בטעינת WA')
+    } finally {
+      setWaLoading(false)
+    }
+  }, [businessId, session, authHeaders, onUnauthorized])
+
+  useEffect(() => {
+    if (tab === 'wa' && businessId && session?.access_token) {
+      loadWaSettings()
+    }
+  }, [tab, businessId, session?.access_token, loadWaSettings])
+
+  const isAutoEnabled = (key) => {
+    const row = waAutoMessages.find((m) => m.key === key)
+    if (!row) return true
+    return !!row.enabled
+  }
+
+  const toggleAutoMessage = async (key, nextEnabled) => {
+    try {
+      const r = await fetchWithAuth(
+        `${API_BASE}/api/webview/wa-auto-message`,
+        {
+          method: 'PATCH',
+          headers: authHeaders(),
+          body: JSON.stringify({ key, enabled: nextEnabled }),
+        },
+        session,
+        onUnauthorized,
+      )
+      const data = await r.json()
+      if (!r.ok) throw new Error(data.error || 'שגיאה בשמירה')
+      setWaAutoMessages((prev) => {
+        const i = prev.findIndex((m) => m.key === key)
+        if (i >= 0) return prev.map((m) => (m.key === key ? { ...m, enabled: nextEnabled } : m))
+        return [...prev, { key, enabled: nextEnabled, template_id: null }]
+      })
+      toast.success('נשמר')
+    } catch (e) {
+      toast.error(e.message)
+    }
+  }
+
+  const adoptFromLibrary = async (libraryId) => {
+    setWaAdopting(libraryId)
+    try {
+      const r = await fetchWithAuth(
+        `${API_BASE}/api/webview/wa-template-from-library`,
+        {
+          method: 'POST',
+          headers: authHeaders(),
+          body: JSON.stringify({ library_id: libraryId }),
+        },
+        session,
+        onUnauthorized,
+      )
+      const data = await r.json()
+      if (!r.ok) throw new Error(data.error || 'שגיאה ביצירת תבנית')
+      if (data.template) setWaTemplates((prev) => [data.template, ...prev])
+      toast.success('נוספה תבנית לעסק')
+      setWaLibraryModal(false)
+    } catch (e) {
+      toast.error(e.message)
+    } finally {
+      setWaAdopting(null)
+    }
+  }
+
+  const libraryByCategory = waLibrary.reduce((acc, row) => {
+    const c = row.category || 'אחר'
+    if (!acc[c]) acc[c] = []
+    acc[c].push(row)
+    return acc
+  }, {})
 
   const publicUrl = business?.slug ? `${PUBLIC_WEBVIEW_ORIGIN}/w/${business.slug}` : ''
 
@@ -409,7 +531,7 @@ export default function WebviewSettings() {
           הגדרות Webview
         </h1>
         <p style={{ color: 'var(--v2-gray-400)', marginBottom: 24, fontSize: 14 }}>
-          עיצוב, פריטי upsell, פרטי עסק ולינק ציבורי
+          עיצוב, פריטי upsell, פרטי עסק, לינק ציבורי והודעות WhatsApp
         </p>
 
         <div
@@ -719,7 +841,209 @@ export default function WebviewSettings() {
             )}
           </motion.div>
         )}
+
+        {tab === 'wa' && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+            {waLoading ? (
+              <div style={{ ...cardStyle, color: 'var(--v2-gray-400)' }}>טוען הגדרות WhatsApp…</div>
+            ) : (
+              <>
+            <div style={cardStyle}>
+              <h2 style={sectionH2}>הודעות שירות אוטומטיות</h2>
+              <p style={{ color: 'var(--v2-gray-400)', fontSize: 14, marginBottom: 16 }}>
+                שליטה בהודעות מערכת שנשלחות ללקוחות אוטומטית
+              </p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                {AUTO_MESSAGES.map((am) => (
+                  <div
+                    key={am.key}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: 16,
+                      padding: 14,
+                      border: '1px solid var(--glass-border)',
+                      borderRadius: 10,
+                      flexWrap: 'wrap',
+                    }}
+                  >
+                    <div>
+                      <div style={{ fontWeight: 600, color: '#fff', marginBottom: 4 }}>{am.label}</div>
+                      <div style={{ fontSize: 13, color: 'var(--v2-gray-400)' }}>{am.description}</div>
+                    </div>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+                      <span style={{ fontSize: 13, color: 'var(--v2-gray-400)' }}>{isAutoEnabled(am.key) ? 'פעיל' : 'כבוי'}</span>
+                      <input
+                        type="checkbox"
+                        checked={isAutoEnabled(am.key)}
+                        onChange={() => toggleAutoMessage(am.key, !isAutoEnabled(am.key))}
+                      />
+                    </label>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div style={cardStyle}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12, marginBottom: 16 }}>
+                <h2 style={{ ...sectionH2, marginBottom: 0 }}>Templates פעילים</h2>
+                <button type="button" className="btn-primary" onClick={() => setWaLibraryModal(true)}>
+                  <Plus size={18} style={{ marginLeft: 8 }} />
+                  הוסף מספרייה
+                </button>
+              </div>
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
+                  <thead>
+                    <tr style={{ borderBottom: '1px solid var(--glass-border)' }}>
+                      <th style={{ textAlign: 'right', padding: 12 }}>שם</th>
+                      <th style={{ textAlign: 'right', padding: 12 }}>קטגוריה</th>
+                      <th style={{ textAlign: 'right', padding: 12 }}>סטטוס</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {waTemplates.map((t) => {
+                      const st = statusBadgeStyle(t.meta_status)
+                      return (
+                        <tr key={t.id} style={{ borderBottom: '1px solid var(--glass-border)' }}>
+                          <td style={{ padding: 12 }}>{t.display_name || t.template_name}</td>
+                          <td style={{ padding: 12 }}>{t.category || '—'}</td>
+                          <td style={{ padding: 12 }}>
+                            <span
+                              style={{
+                                display: 'inline-block',
+                                padding: '4px 10px',
+                                borderRadius: 8,
+                                fontSize: 12,
+                                fontWeight: 600,
+                                background: st.bg,
+                                color: st.color,
+                              }}
+                            >
+                              {st.label}
+                            </span>
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+                {waTemplates.length === 0 && (
+                  <p style={{ color: 'var(--v2-gray-400)', padding: 24, textAlign: 'center' }}>
+                    אין תבניות — הוסף מספריית AXESS
+                  </p>
+                )}
+              </div>
+            </div>
+
+            <div
+              style={{
+                background: 'rgba(234,179,8,0.1)',
+                border: '1px solid rgba(234,179,8,0.3)',
+                borderRadius: 12,
+                padding: 16,
+                textAlign: 'center',
+              }}
+            >
+              <p style={{ color: '#fff', fontWeight: 600, marginBottom: 8 }}>🔗 חבר את המספר WhatsApp שלך</p>
+              <p style={{ fontSize: 13, color: 'var(--v2-gray-400)', marginBottom: 16 }}>
+                חיבור מספר עצמאי יאפשר שליחת קמפיינים שיווקיים ישירות מהמספר שלך
+              </p>
+              <button type="button" disabled style={{ opacity: 0.5, padding: '10px 20px', borderRadius: 8, cursor: 'not-allowed' }}>
+                בקרוב
+              </button>
+            </div>
+              </>
+            )}
+          </motion.div>
+        )}
       </motion.div>
+
+      {waLibraryModal && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.75)',
+            zIndex: 110,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 16,
+          }}
+          onClick={() => setWaLibraryModal(false)}
+        >
+          <div
+            style={{
+              background: 'var(--v2-dark-2)',
+              borderRadius: 12,
+              border: '1px solid var(--glass-border)',
+              padding: 24,
+              maxWidth: 560,
+              width: '100%',
+              maxHeight: '85vh',
+              overflow: 'auto',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 style={{ marginBottom: 8, color: '#fff' }}>ספריית תבניות AXESS</h3>
+            <p style={{ fontSize: 13, color: 'var(--v2-gray-400)', marginBottom: 20 }}>בחר תבנית ליצירת עותק לעסק (סטטוס PENDING עד אישור ב-Meta)</p>
+            {Object.keys(libraryByCategory).length === 0 && !waLoading && (
+              <p style={{ color: 'var(--v2-gray-400)' }}>אין פריטים בספרייה</p>
+            )}
+            {Object.entries(libraryByCategory).map(([cat, rows]) => (
+              <div key={cat} style={{ marginBottom: 24 }}>
+                <div style={{ fontWeight: 700, color: 'var(--v2-primary)', marginBottom: 10, fontSize: 13 }}>{cat}</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  {rows.map((lib) => (
+                    <div
+                      key={lib.id}
+                      style={{
+                        padding: 14,
+                        border: '1px solid var(--glass-border)',
+                        borderRadius: 10,
+                        background: 'var(--card)',
+                      }}
+                    >
+                      <div style={{ fontWeight: 600, color: '#fff', marginBottom: 6 }}>{lib.display_name_he || lib.template_name}</div>
+                      {lib.description_he && (
+                        <div style={{ fontSize: 13, color: 'var(--v2-gray-400)', marginBottom: 8 }}>{lib.description_he}</div>
+                      )}
+                      <div
+                        style={{
+                          fontSize: 13,
+                          color: 'var(--v2-gray-300)',
+                          marginBottom: 10,
+                          padding: 10,
+                          background: 'rgba(0,0,0,0.25)',
+                          borderRadius: 8,
+                          whiteSpace: 'pre-wrap',
+                          direction: 'ltr',
+                          textAlign: 'left',
+                        }}
+                      >
+                        {componentsPreviewText(lib.components)}
+                      </div>
+                      <button
+                        type="button"
+                        className="btn-primary"
+                        disabled={waAdopting === lib.id}
+                        onClick={() => adoptFromLibrary(lib.id)}
+                      >
+                        {waAdopting === lib.id ? 'יוצר…' : 'בחר'}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+            <button type="button" onClick={() => setWaLibraryModal(false)} style={{ ...secondaryBtnStyle, marginTop: 8 }}>
+              סגור
+            </button>
+          </div>
+        </div>
+      )}
 
       {itemModal && (
         <div
