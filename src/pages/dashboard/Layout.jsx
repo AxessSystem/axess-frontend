@@ -3,7 +3,7 @@ import { Link, Outlet, NavLink, useNavigate, useLocation } from 'react-router-do
 import {
   LayoutDashboard, Send, Users, BarChart2, QrCode, Settings,
   Bell, Menu, X, ChevronDown, Wallet, LogOut, Calendar, Megaphone, UserCheck, Building,
-  Info, AlertTriangle, Wrench, MessageSquare
+  Info, AlertTriangle, Wrench, MessageSquare, Smartphone,
 } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { supabase } from '@/lib/supabase'
@@ -39,6 +39,7 @@ const NAV_SHORTCUTS = {
 const ALL_NAV_ITEMS = [
   { icon: LayoutDashboard, label: 'סקירה כללית', path: '/dashboard', permission: null, roles: null },
   { icon: MessageSquare,   label: 'אינבוקס',       path: '/dashboard/inbox', permission: null, roles: null },
+  { icon: Smartphone,      label: 'Webview',       path: '/dashboard/webview', permission: null, roles: null },
   { icon: Send,            label: 'קמפיין חדש',  path: '/dashboard/new-campaign', permission: 'can_send_campaigns', roles: null },
   { icon: Users,           label: 'קהלים',        path: '/dashboard/audiences', permission: null, roles: null },
   { icon: Calendar,        label: 'אירועים',      path: '/dashboard/events', permission: 'can_edit_events', roles: null },
@@ -69,6 +70,7 @@ function getVisibleNavItems(role, permissions, businessConfig) {
     '/dashboard/staff': 'staff',
     '/dashboard/validators': 'validators',
     '/dashboard/inbox': 'inbox',
+    '/dashboard/webview': 'webview',
     '/dashboard/reports': 'reports',
     '/dashboard/settings': 'settings',
     '/dashboard/sub-accounts': 'sub_accounts',
@@ -80,6 +82,7 @@ function getVisibleNavItems(role, permissions, businessConfig) {
       if (item.path === '/dashboard') return true
       if (item.path === '/dashboard/settings') return true
       if (item.path === '/dashboard/inbox') return true
+      if (item.path === '/dashboard/webview') return true
       const key = pathToNavKey[item.path]
       return key ? allowedPaths.includes(key) : allowedPaths.some(p => item.path.includes(p))
     })
