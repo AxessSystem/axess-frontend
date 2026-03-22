@@ -9,6 +9,8 @@ import {
   Ticket,
   Layers,
   Send,
+  Pencil,
+  Copy,
 } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { fetchWithAuth, supabase } from '@/lib/supabase'
@@ -32,21 +34,87 @@ const ASSET_TYPES = [
   { type: 'combined', label: 'משולב', icon: Layers, color: '#A78BFA' },
 ]
 
-const DEMO_WEBVIEW = {
-  id: 'demo-webview',
-  type: 'webview',
-  name: 'דף Webview — קפה רוטשילד',
-  status: 'active',
-  stats: {
-    visits: 342,
-    orders: 28,
-    revenue: 4680,
+const DEMO_ASSETS = [
+  {
+    id: '00000000-0000-0000-0000-000000000001',
+    type: 'combined',
+    name: 'נכס משולב — דוגמה',
+    status: 'active',
+    stats: { sms_sent: 420, wa_replies: 88, webview_visits: 1200 },
   },
-  magic_link: 'axess.pro/w/קפה-רוטשילד',
-  source_name: 'קפה-רוטשילד',
+  {
+    id: '00000000-0000-0000-0000-000000000002',
+    type: 'webview',
+    name: 'דף Webview — קפה רוטשילד',
+    status: 'active',
+    stats: { visits: 342, orders: 28, revenue: 4680 },
+    magic_link: 'axess.pro/w/קפה-רוטשילד',
+    source_name: 'קפה-רוטשילד',
+  },
+  {
+    id: '00000000-0000-0000-0000-000000000003',
+    type: 'sms_campaign',
+    name: 'קמפיין SMS — דוגמה',
+    status: 'active',
+    stats: { sent: 850, opened: 620, clicked: 180 },
+  },
+  {
+    id: '00000000-0000-0000-0000-000000000004',
+    type: 'event',
+    name: 'אירוע — דוגמה',
+    status: 'active',
+    stats: { tickets_sold: 145, revenue: 12500 },
+  },
+  {
+    id: '00000000-0000-0000-0000-000000000005',
+    type: 'validator',
+    name: 'כרטיס כניסה — דוגמה',
+    status: 'active',
+    stats: { scanned: 98, total: 145 },
+  },
+  {
+    id: '00000000-0000-0000-0000-000000000006',
+    type: 'whatsapp',
+    name: 'קמפיין WA — דוגמה',
+    status: 'active',
+    stats: { sent: 320, delivered: 298, replied: 45 },
+  },
+  {
+    id: '00000000-0000-0000-0000-000000000007',
+    type: 'scan_station',
+    name: 'עמדת סריקה — דוגמה',
+    status: 'active',
+    stats: { scanned_today: 34, total_scanned: 892 },
+  },
+]
+
+const DEMO_ASSET_IDS = new Set(DEMO_ASSETS.map((a) => a.id))
+
+const STAT_LABELS = {
+  visits: 'ביקורים',
+  orders: 'הזמנות',
+  revenue: 'הכנסות',
+  sent: 'נשלחו',
+  opened: 'נפתחו',
+  clicked: 'קליקים',
+  tickets_sold: 'כרטיסים',
+  scanned: 'נסרקו',
+  total: 'סה״כ',
+  delivered: 'נמסרו',
+  replied: 'השיבו',
+  scanned_today: 'סריקות היום',
+  total_scanned: 'סה״כ סריקות',
+  sms_sent: 'SMS נשלחו',
+  wa_replies: 'תשובות WA',
+  webview_visits: 'ביקורי Webview',
 }
 
-const DEMO_ASSETS = [DEMO_WEBVIEW]
+function formatStatValue(key, value) {
+  const n = Number(value)
+  if (Number.isNaN(n)) return String(value)
+  if (key === 'revenue') return `₪${n.toLocaleString('he-IL')}`
+  return n.toLocaleString('he-IL')
+}
 
 function typeMeta(t) {
   return ASSET_TYPES.find((x) => x.type === t) || {
@@ -148,6 +216,7 @@ export default function Assets() {
               const Icon = meta.icon
               const st = assetStatusBadgeStyle(asset.status)
               const stats = asset.stats && typeof asset.stats === 'object' ? asset.stats : {}
+              const isDemo = DEMO_ASSET_IDS.has(asset.id)
               return (
                 <motion.div
                   key={asset.id}
@@ -220,7 +289,7 @@ export default function Assets() {
                       )}
                     </div>
                   )}
-                  {(stats.visits != null || stats.orders != null || stats.revenue != null) && (
+                  {Object.keys(stats).length > 0 && (
                     <div
                       style={{
                         display: 'flex',
@@ -232,23 +301,48 @@ export default function Assets() {
                         color: 'var(--v2-gray-400)',
                       }}
                     >
-                      {stats.visits != null && (
-                        <span>
-                          ביקורים: <strong style={{ color: '#fff' }}>{Number(stats.visits).toLocaleString('he-IL')}</strong>
+                      {Object.entries(stats).map(([k, v]) => (
+                        <span key={k}>
+                          {STAT_LABELS[k] || k}:{' '}
+                          <strong style={{ color: '#fff' }}>{formatStatValue(k, v)}</strong>
                         </span>
-                      )}
-                      {stats.orders != null && (
-                        <span>
-                          הזמנות: <strong style={{ color: '#fff' }}>{Number(stats.orders).toLocaleString('he-IL')}</strong>
-                        </span>
-                      )}
-                      {stats.revenue != null && (
-                        <span>
-                          הכנסות: <strong style={{ color: '#fff' }}>₪{Number(stats.revenue).toLocaleString('he-IL')}</strong>
-                        </span>
-                      )}
+                      ))}
                     </div>
                   )}
+                  <div
+                    style={{
+                      display: 'flex',
+                      gap: 8,
+                      marginTop: 12,
+                      paddingTop: 12,
+                      borderTop: '1px solid var(--glass-border)',
+                    }}
+                  >
+                    <button
+                      type="button"
+                      disabled={isDemo}
+                      title={isDemo ? 'זוהי דוגמה' : undefined}
+                      style={{
+                        ...demoActionBtnStyle,
+                        opacity: isDemo ? 0.45 : 1,
+                        cursor: isDemo ? 'not-allowed' : 'pointer',
+                      }}
+                    >
+                      <Pencil size={16} />
+                    </button>
+                    <button
+                      type="button"
+                      disabled={isDemo}
+                      title={isDemo ? 'זוהי דוגמה' : undefined}
+                      style={{
+                        ...demoActionBtnStyle,
+                        opacity: isDemo ? 0.45 : 1,
+                        cursor: isDemo ? 'not-allowed' : 'pointer',
+                      }}
+                    >
+                      <Copy size={16} />
+                    </button>
+                  </div>
                 </motion.div>
               )
             })}
@@ -257,4 +351,15 @@ export default function Assets() {
       </motion.div>
     </div>
   )
+}
+
+const demoActionBtnStyle = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  padding: '8px 12px',
+  borderRadius: 8,
+  border: '1px solid var(--glass-border)',
+  background: 'rgba(255,255,255,0.05)',
+  color: 'var(--v2-gray-300)',
 }
