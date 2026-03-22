@@ -86,6 +86,18 @@ const DEMO_ASSETS = [
     status: 'active',
     stats: { scanned_today: 34, total_scanned: 892 },
   },
+  {
+    id: '00000000-0000-0000-0000-000000000008',
+    type: 'coupon',
+    name: 'קופון הנחה 20% — דוגמה',
+    status: 'active',
+    stats: {
+      issued: 250,
+      redeemed: 87,
+      expired: 12,
+    },
+    magic_link: 'axess.pro/c/coupon-demo',
+  },
 ]
 
 const DEMO_ASSET_IDS = new Set(DEMO_ASSETS.map((a) => a.id))
