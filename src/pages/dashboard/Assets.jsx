@@ -138,6 +138,7 @@ export default function Assets() {
   const { session, businessId } = useAuth()
   const [loading, setLoading] = useState(true)
   const [assets, setAssets] = useState([])
+  const [activeType, setActiveType] = useState(null)
 
   const onUnauthorized = useCallback(async () => {
     await supabase.auth.signOut()
@@ -182,7 +183,8 @@ export default function Assets() {
     load()
   }, [load])
 
-  const displayList = assets
+  const displayAssets = assets
+  const filteredAssets = activeType ? displayAssets.filter((a) => a.type === activeType) : displayAssets
 
   return (
     <div dir="rtl" style={{ padding: '24px', maxWidth: 1100, margin: '0 auto' }}>
@@ -201,6 +203,58 @@ export default function Assets() {
         <p style={{ color: 'var(--v2-gray-400)', marginBottom: 8, fontSize: 14 }}>
           ניהול מרכזי לקמפיינים, Webview, אירועים ועוד
         </p>
+        <div
+          style={{
+            display: 'flex',
+            gap: 8,
+            overflowX: 'auto',
+            padding: '8px 0',
+            marginBottom: 16,
+          }}
+        >
+          <button
+            type="button"
+            onClick={() => setActiveType(null)}
+            style={{
+              padding: '6px 16px',
+              borderRadius: 20,
+              border: '1px solid var(--glass-border)',
+              background: activeType === null ? 'var(--primary)' : 'var(--card)',
+              color: activeType === null ? '#fff' : 'var(--text)',
+              cursor: 'pointer',
+              whiteSpace: 'nowrap',
+              fontSize: 13,
+            }}
+          >
+            הכל
+          </button>
+          {ASSET_TYPES.map((t) => {
+            const TypeIcon = t.icon
+            return (
+              <button
+                key={t.type}
+                type="button"
+                onClick={() => setActiveType(activeType === t.type ? null : t.type)}
+                style={{
+                  padding: '6px 16px',
+                  borderRadius: 20,
+                  border: `1px solid ${activeType === t.type ? t.color : 'var(--glass-border)'}`,
+                  background: activeType === t.type ? `${t.color}33` : 'var(--card)',
+                  color: activeType === t.type ? t.color : 'var(--text)',
+                  cursor: 'pointer',
+                  whiteSpace: 'nowrap',
+                  fontSize: 13,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                }}
+              >
+                <TypeIcon size={14} />
+                {t.label}
+              </button>
+            )
+          })}
+        </div>
         {loading ? (
           <div style={{ ...cardStyle, color: 'var(--v2-gray-400)' }}>טוען נכסים…</div>
         ) : (
@@ -211,7 +265,7 @@ export default function Assets() {
               gap: 16,
             }}
           >
-            {displayList.map((asset, idx) => {
+            {filteredAssets.map((asset, idx) => {
               const meta = typeMeta(asset.type)
               const Icon = meta.icon
               const st = assetStatusBadgeStyle(asset.status)
