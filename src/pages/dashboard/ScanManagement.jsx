@@ -69,6 +69,30 @@ function stationScanUrl(station) {
   return `${PUBLIC_ORIGIN}/scan/${station.event_slug}?token=${encodeURIComponent(station.token)}`
 }
 
+function formatExpiresDate(expiresAt) {
+  if (!expiresAt) return 'ללא הגבלת זמן'
+  return new Date(expiresAt).toLocaleString('he-IL', { dateStyle: 'short', timeStyle: 'short' })
+}
+
+/** מספר ל-wa.me (972XXXXXXXXX) */
+function digitsForWa(phone) {
+  const d = String(phone || '').replace(/\D/g, '')
+  if (!d) return ''
+  if (d.startsWith('972')) return d
+  if (d.startsWith('0')) return `972${d.slice(1)}`
+  return `972${d}`
+}
+
+function scannerWaUrl(station) {
+  const link = stationScanUrl(station)
+  if (!link || !station?.scanner_phone) return null
+  const name = (station.scanner_name || '').trim() || 'שלום'
+  const msg = `שלום ${name}! הנה הלינק לעמדת הסריקה שלך:\n${link}\n\nתקף עד: ${formatExpiresDate(station.expires_at)}`
+  const num = digitsForWa(station.scanner_phone)
+  if (!num) return null
+  return `https://wa.me/${num}?text=${encodeURIComponent(msg)}`
+}
+
 function stationStatus(station) {
   if (!station.is_active) return { label: 'כבוי', color: '#888' }
   if (station.expires_at && new Date(station.expires_at) < new Date()) {
@@ -153,6 +177,8 @@ export default function ScanManagement() {
   const [formName, setFormName] = useState('')
   const [formEventId, setFormEventId] = useState('')
   const [formExpire, setFormExpire] = useState('24')
+  const [formScannerName, setFormScannerName] = useState('')
+  const [formScannerPhone, setFormScannerPhone] = useState('')
 
   const onUnauthorized = useCallback(async () => {
     await supabase.auth.signOut()
@@ -227,6 +253,8 @@ export default function ScanManagement() {
     setFormName('')
     setFormEventId('')
     setFormExpire('24')
+    setFormScannerName('')
+    setFormScannerPhone('')
     setModalOpen(true)
   }
 
@@ -246,6 +274,8 @@ export default function ScanManagement() {
         event_id: formEventId,
         never_expires: formExpire === 'never',
         expires_hours: formExpire === 'never' ? 'never' : Number(formExpire),
+        scannerName: formScannerName.trim() || undefined,
+        scannerPhone: formScannerPhone.trim() || undefined,
       }
       const r = await fetchWithAuth(
         `${API_BASE}/api/scan-stations`,
@@ -255,9 +285,19 @@ export default function ScanManagement() {
       )
       const data = await r.json()
       if (!r.ok) throw new Error(data.error || 'שגיאה')
+      const station = data.station
       toast.success('נוצרה עמדה')
       setModalOpen(false)
       await loadStations()
+
+      const link = station ? stationScanUrl(station) : null
+      const phone = formScannerPhone.trim()
+      if (link && phone) {
+        const scannerName = formScannerName.trim() || 'שלום'
+        const waMessage = `שלום ${scannerName}! הנה הלינק לעמדת הסריקה שלך:\n${link}\n\nתקף עד: ${formatExpiresDate(station?.expires_at)}`
+        const waUrl = `https://wa.me/${digitsForWa(phone)}?text=${encodeURIComponent(waMessage)}`
+        window.open(waUrl, '_blank', 'noopener,noreferrer')
+      }
     } catch (e) {
       toast.error(e.message || 'שגיאה')
     } finally {
@@ -274,14 +314,17 @@ export default function ScanManagement() {
     navigator.clipboard.writeText(u).then(() => toast.success('הועתק'))
   }
 
-  const waShare = (station) => {
-    const u = stationScanUrl(station)
-    if (!u) {
-      toast.error('אין לינק')
+  const waResendToScanner = (station) => {
+    const url = scannerWaUrl(station)
+    if (url) {
+      window.open(url, '_blank', 'noopener,noreferrer')
       return
     }
-    const text = `עמדת סריקה — ${station.name}\n${u}`
-    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank', 'noopener,noreferrer')
+    if (!stationScanUrl(station)) {
+      toast.error('אין לינק — חסר אירוע')
+      return
+    }
+    toast.error('לא הוגדר טלפון סורק — הוסיפו ביצירת עמדה או עדכנו במסד')
   }
 
   const deactivateStation = async (id) => {
@@ -371,6 +414,20 @@ export default function ScanManagement() {
                         <div style={{ fontSize: 13, color: 'var(--v2-gray-400)', marginTop: 4 }}>
                           {s.event_title || 'ללא אירוע'}
                         </div>
+                        {(s.scanner_name || s.scanner_phone) && (
+                          <div style={{ fontSize: 13, color: 'var(--v2-gray-400)', marginTop: 8, lineHeight: 1.5 }}>
+                            {s.scanner_name ? (
+                              <div>
+                                סורק: <strong style={{ color: '#fff' }}>{s.scanner_name}</strong>
+                              </div>
+                            ) : null}
+                            {s.scanner_phone ? (
+                              <div dir="ltr" style={{ textAlign: 'right' }}>
+                                טלפון: <strong style={{ color: '#fff' }}>{s.scanner_phone}</strong>
+                              </div>
+                            ) : null}
+                          </div>
+                        )}
                       </div>
                       <span style={{ fontWeight: 700, fontSize: 13, color: st.color }}>{st.label}</span>
                     </div>
@@ -395,8 +452,8 @@ export default function ScanManagement() {
                       <button type="button" style={btnGhost} onClick={() => copyStationLink(s)}>
                         📋 העתק לינק
                       </button>
-                      <button type="button" style={btnGhost} onClick={() => waShare(s)}>
-                        📱 שלח ב-WA
+                      <button type="button" style={btnGhost} onClick={() => waResendToScanner(s)}>
+                        📱 שלח שוב ב-WA
                       </button>
                       <button
                         type="button"
@@ -490,6 +547,30 @@ export default function ScanManagement() {
                     </option>
                   ))}
                 </select>
+              </label>
+              <label style={{ display: 'block', marginBottom: 14 }}>
+                <span style={{ display: 'block', fontSize: 13, color: 'var(--v2-gray-400)', marginBottom: 6 }}>
+                  שם הסורק (אופציונלי)
+                </span>
+                <input
+                  style={inputStyle}
+                  placeholder="שם הסורק (למשל: יוסי שומר)"
+                  value={formScannerName}
+                  onChange={(e) => setFormScannerName(e.target.value)}
+                />
+              </label>
+              <label style={{ display: 'block', marginBottom: 14 }}>
+                <span style={{ display: 'block', fontSize: 13, color: 'var(--v2-gray-400)', marginBottom: 6 }}>
+                  טלפון הסורק (אופציונלי)
+                </span>
+                <input
+                  type="tel"
+                  style={inputStyle}
+                  placeholder="050-0000000"
+                  value={formScannerPhone}
+                  onChange={(e) => setFormScannerPhone(e.target.value)}
+                  dir="ltr"
+                />
               </label>
               <label style={{ display: 'block', marginBottom: 20 }}>
                 <span style={{ display: 'block', fontSize: 13, color: 'var(--v2-gray-400)', marginBottom: 6 }}>תוקף</span>
