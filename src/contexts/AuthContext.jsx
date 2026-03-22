@@ -93,6 +93,38 @@ export function AuthProvider({ children }) {
   }, [])
 
   useEffect(() => {
+    // iOS Safari — pageshow מופעל כשחוזרים מרקע
+    const handlePageShow = async (e) => {
+      // e.persisted = true כשהדף נטען מ-cache (BFCache) ב-iOS
+      if (e.persisted || document.visibilityState === 'visible') {
+        console.log('[auth] pageshow/resume — refreshing session');
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session) {
+          setSession(session);
+        } else {
+          const { data } = await supabase.auth.refreshSession();
+          if (data?.session) {
+            setSession(data.session);
+          } else {
+            // session מת לגמרי — ניתוק
+            setSession(null);
+            setProfile(null);
+            setBusinessMember(null);
+          }
+        }
+      }
+    };
+
+    window.addEventListener('pageshow', handlePageShow);
+    window.addEventListener('focus', handlePageShow);
+
+    return () => {
+      window.removeEventListener('pageshow', handlePageShow);
+      window.removeEventListener('focus', handlePageShow);
+    };
+  }, []);
+
+  useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         console.log('[auth] state change:', event, !!session)
