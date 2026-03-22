@@ -53,7 +53,16 @@ export function AuthProvider({ children }) {
 
   useEffect(() => {
     const init = async () => {
-      const { data: { session } } = await supabase.auth.getSession()
+      const { data: { session: initialSession }, error } = await supabase.auth.getSession()
+      let session = initialSession
+      if (error || !session) {
+        const { data: refreshed } = await supabase.auth.refreshSession()
+        if (!refreshed?.session) {
+          setLoading(false)
+          return
+        }
+        session = refreshed.session
+      }
       setSession(session)
       if (!session?.user) {
         setProfile(null)

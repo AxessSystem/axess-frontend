@@ -31,8 +31,10 @@ export async function fetchWithAuth(url, options = {}, _session, onUnauthorized)
     const { data: refreshed } = await supabase.auth.refreshSession()
     if (refreshed?.session?.access_token) {
       res = await makeRequest(refreshed.session.access_token)
-    } else {
-      onUnauthorized?.()
+    }
+    if (res.status === 401) {
+      await supabase.auth.signOut()
+      window.location.href = '/login'
     }
   }
 
