@@ -9,6 +9,8 @@ import { fetchWithAuth, supabase } from '@/lib/supabase'
 const API_BASE = import.meta.env.VITE_API_URL || 'https://axess-production.up.railway.app'
 const PUBLIC_ORIGIN = (import.meta.env.VITE_PUBLIC_SITE_URL || 'https://axess.pro').replace(/\/$/, '')
 
+const GENERAL_SLUG = 'general'
+
 const cardStyle = {
   background: 'var(--card)',
   border: '1px solid var(--glass-border)',
@@ -65,8 +67,9 @@ const KIND_LABELS = {
 }
 
 function stationScanUrl(station) {
-  if (!station?.event_slug || !station?.token) return null
-  return `${PUBLIC_ORIGIN}/scan/${station.event_slug}?token=${encodeURIComponent(station.token)}`
+  if (!station?.token) return null
+  const slug = station.event_slug || GENERAL_SLUG
+  return `${PUBLIC_ORIGIN}/scan/${slug}?token=${encodeURIComponent(station.token)}`
 }
 
 function formatExpiresDate(expiresAt) {
@@ -83,14 +86,49 @@ function digitsForWa(phone) {
   return `972${d}`
 }
 
-function scannerWaUrl(station) {
+function parseScanners(station) {
+  const raw = station?.scanners
+  if (Array.isArray(raw)) {
+    return raw.map((s) => ({
+      name: typeof s?.name === 'string' ? s.name : '',
+      phone: typeof s?.phone === 'string' ? s.phone : '',
+    }))
+  }
+  if (typeof raw === 'string') {
+    try {
+      const p = JSON.parse(raw)
+      if (Array.isArray(p)) {
+        return p.map((s) => ({
+          name: typeof s?.name === 'string' ? s.name : '',
+          phone: typeof s?.phone === 'string' ? s.phone : '',
+        }))
+      }
+    } catch {
+      return []
+    }
+  }
+  return []
+}
+
+function waUrlForScanner(station, sc) {
   const link = stationScanUrl(station)
-  if (!link || !station?.scanner_phone) return null
-  const name = (station.scanner_name || '').trim() || 'שלום'
+  if (!link || !String(sc?.phone || '').trim()) return null
+  const name = String(sc.name || '').trim() || 'שלום'
   const msg = `שלום ${name}! הנה הלינק לעמדת הסריקה שלך:\n${link}\n\nתקף עד: ${formatExpiresDate(station.expires_at)}`
-  const num = digitsForWa(station.scanner_phone)
+  const num = digitsForWa(sc.phone)
   if (!num) return null
   return `https://wa.me/${num}?text=${encodeURIComponent(msg)}`
+}
+
+async function openWaForScannersSequentially(station, scannerList) {
+  const withPhone = scannerList.filter((s) => String(s.phone || '').trim())
+  for (const sc of withPhone) {
+    const u = waUrlForScanner(station, sc)
+    if (u) {
+      window.open(u, '_blank', 'noopener,noreferrer')
+      await new Promise((r) => setTimeout(r, 450))
+    }
+  }
 }
 
 function stationStatus(station) {
@@ -177,8 +215,11 @@ export default function ScanManagement() {
   const [formName, setFormName] = useState('')
   const [formEventId, setFormEventId] = useState('')
   const [formExpire, setFormExpire] = useState('24')
-  const [formScannerName, setFormScannerName] = useState('')
-  const [formScannerPhone, setFormScannerPhone] = useState('')
+  const [scanners, setScanners] = useState([{ name: '', phone: '' }])
+
+  const [editStation, setEditStation] = useState(null)
+  const [editScanners, setEditScanners] = useState([])
+  const [savingEdit, setSavingEdit] = useState(false)
 
   const onUnauthorized = useCallback(async () => {
     await supabase.auth.signOut()
@@ -253,9 +294,40 @@ export default function ScanManagement() {
     setFormName('')
     setFormEventId('')
     setFormExpire('24')
-    setFormScannerName('')
-    setFormScannerPhone('')
+    setScanners([{ name: '', phone: '' }])
     setModalOpen(true)
+  }
+
+  const openEditScanners = (station) => {
+    const list = parseScanners(station)
+    setEditStation(station)
+    setEditScanners(list.length ? list.map((s) => ({ ...s })) : [{ name: '', phone: '' }])
+  }
+
+  const saveEditScanners = async () => {
+    if (!editStation) return
+    setSavingEdit(true)
+    try {
+      const r = await fetchWithAuth(
+        `${API_BASE}/api/scan-stations/${editStation.id}`,
+        {
+          method: 'PATCH',
+          headers: authHeaders(),
+          body: JSON.stringify({ scanners: editScanners }),
+        },
+        session,
+        onUnauthorized,
+      )
+      const data = await r.json()
+      if (!r.ok) throw new Error(data.error || 'שגיאה')
+      toast.success('נשמר')
+      setEditStation(null)
+      await loadStations()
+    } catch (e) {
+      toast.error(e.message || 'שגיאה')
+    } finally {
+      setSavingEdit(false)
+    }
   }
 
   const createStation = async () => {
@@ -263,19 +335,14 @@ export default function ScanManagement() {
       toast.error('נא למלא שם עמדה')
       return
     }
-    if (!formEventId) {
-      toast.error('נא לבחור אירוע')
-      return
-    }
     setSaving(true)
     try {
       const body = {
         name: formName.trim(),
-        event_id: formEventId,
+        event_id: formEventId || null,
         never_expires: formExpire === 'never',
         expires_hours: formExpire === 'never' ? 'never' : Number(formExpire),
-        scannerName: formScannerName.trim() || undefined,
-        scannerPhone: formScannerPhone.trim() || undefined,
+        scanners,
       }
       const r = await fetchWithAuth(
         `${API_BASE}/api/scan-stations`,
@@ -290,14 +357,8 @@ export default function ScanManagement() {
       setModalOpen(false)
       await loadStations()
 
-      const link = station ? stationScanUrl(station) : null
-      const phone = formScannerPhone.trim()
-      if (link && phone) {
-        const scannerName = formScannerName.trim() || 'שלום'
-        const waMessage = `שלום ${scannerName}! הנה הלינק לעמדת הסריקה שלך:\n${link}\n\nתקף עד: ${formatExpiresDate(station?.expires_at)}`
-        const waUrl = `https://wa.me/${digitsForWa(phone)}?text=${encodeURIComponent(waMessage)}`
-        window.open(waUrl, '_blank', 'noopener,noreferrer')
-      }
+      const merged = { ...station, scanners: station.scanners ?? scanners }
+      await openWaForScannersSequentially(merged, scanners)
     } catch (e) {
       toast.error(e.message || 'שגיאה')
     } finally {
@@ -308,23 +369,10 @@ export default function ScanManagement() {
   const copyStationLink = (station) => {
     const u = stationScanUrl(station)
     if (!u) {
-      toast.error('אין לינק — חסר אירוע')
+      toast.error('אין לינק')
       return
     }
     navigator.clipboard.writeText(u).then(() => toast.success('הועתק'))
-  }
-
-  const waResendToScanner = (station) => {
-    const url = scannerWaUrl(station)
-    if (url) {
-      window.open(url, '_blank', 'noopener,noreferrer')
-      return
-    }
-    if (!stationScanUrl(station)) {
-      toast.error('אין לינק — חסר אירוע')
-      return
-    }
-    toast.error('לא הוגדר טלפון סורק — הוסיפו ביצירת עמדה או עדכנו במסד')
   }
 
   const deactivateStation = async (id) => {
@@ -355,6 +403,14 @@ export default function ScanManagement() {
     fontSize: 14,
     cursor: 'pointer',
   })
+
+  const scannerRowStyle = {
+    display: 'grid',
+    gridTemplateColumns: '1fr 1fr auto',
+    gap: 8,
+    alignItems: 'center',
+    marginBottom: 10,
+  }
 
   return (
     <div dir="rtl" style={{ padding: 24, maxWidth: 900, margin: '0 auto' }}>
@@ -406,26 +462,31 @@ export default function ScanManagement() {
               {stations.map((s) => {
                 const st = stationStatus(s)
                 const link = stationScanUrl(s)
+                const scList = parseScanners(s)
                 return (
                   <motion.div key={s.id} layout style={cardStyle}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
                       <div>
                         <div style={{ fontWeight: 800, fontSize: 17, color: '#fff' }}>{s.name}</div>
                         <div style={{ fontSize: 13, color: 'var(--v2-gray-400)', marginTop: 4 }}>
-                          {s.event_title || 'ללא אירוע'}
+                          {s.event_title || 'ללא שיוך לאירוע (כללי)'}
                         </div>
-                        {(s.scanner_name || s.scanner_phone) && (
-                          <div style={{ fontSize: 13, color: 'var(--v2-gray-400)', marginTop: 8, lineHeight: 1.5 }}>
-                            {s.scanner_name ? (
-                              <div>
-                                סורק: <strong style={{ color: '#fff' }}>{s.scanner_name}</strong>
-                              </div>
-                            ) : null}
-                            {s.scanner_phone ? (
-                              <div dir="ltr" style={{ textAlign: 'right' }}>
-                                טלפון: <strong style={{ color: '#fff' }}>{s.scanner_phone}</strong>
-                              </div>
-                            ) : null}
+                        {scList.length > 0 && (
+                          <div style={{ fontSize: 13, color: 'var(--v2-gray-400)', marginTop: 8, lineHeight: 1.6 }}>
+                            <div style={{ fontWeight: 700, color: 'var(--v2-gray-400)', marginBottom: 4 }}>סורקים</div>
+                            <ul style={{ margin: 0, paddingRight: 18 }}>
+                              {scList.map((sc, i) => (
+                                <li key={i}>
+                                  {sc.name || '(ללא שם)'}
+                                  {sc.phone ? (
+                                    <span dir="ltr" style={{ display: 'inline-block', marginRight: 6 }}>
+                                      {' '}
+                                      · {sc.phone}
+                                    </span>
+                                  ) : null}
+                                </li>
+                              ))}
+                            </ul>
                           </div>
                         )}
                       </div>
@@ -452,8 +513,8 @@ export default function ScanManagement() {
                       <button type="button" style={btnGhost} onClick={() => copyStationLink(s)}>
                         📋 העתק לינק
                       </button>
-                      <button type="button" style={btnGhost} onClick={() => waResendToScanner(s)}>
-                        📱 שלח שוב ב-WA
+                      <button type="button" style={btnGhost} onClick={() => openEditScanners(s)}>
+                        ✏️ ערוך סורקים
                       </button>
                       <button
                         type="button"
@@ -515,7 +576,9 @@ export default function ScanManagement() {
               dir="rtl"
               style={{
                 width: '100%',
-                maxWidth: 420,
+                maxWidth: 480,
+                maxHeight: '90vh',
+                overflow: 'auto',
                 background: 'var(--card)',
                 border: '1px solid var(--glass-border)',
                 borderRadius: 12,
@@ -540,7 +603,7 @@ export default function ScanManagement() {
               <label style={{ display: 'block', marginBottom: 14 }}>
                 <span style={{ display: 'block', fontSize: 13, color: 'var(--v2-gray-400)', marginBottom: 6 }}>אירוע</span>
                 <select style={inputStyle} value={formEventId} onChange={(e) => setFormEventId(e.target.value)}>
-                  <option value="">— בחרו —</option>
+                  <option value="">ללא שיוך לאירוע (כללי)</option>
                   {events.map((ev) => (
                     <option key={ev.id} value={ev.id}>
                       {ev.title || ev.slug}
@@ -548,30 +611,56 @@ export default function ScanManagement() {
                   ))}
                 </select>
               </label>
-              <label style={{ display: 'block', marginBottom: 14 }}>
-                <span style={{ display: 'block', fontSize: 13, color: 'var(--v2-gray-400)', marginBottom: 6 }}>
-                  שם הסורק (אופציונלי)
-                </span>
-                <input
-                  style={inputStyle}
-                  placeholder="שם הסורק (למשל: יוסי שומר)"
-                  value={formScannerName}
-                  onChange={(e) => setFormScannerName(e.target.value)}
-                />
-              </label>
-              <label style={{ display: 'block', marginBottom: 14 }}>
-                <span style={{ display: 'block', fontSize: 13, color: 'var(--v2-gray-400)', marginBottom: 6 }}>
-                  טלפון הסורק (אופציונלי)
-                </span>
-                <input
-                  type="tel"
-                  style={inputStyle}
-                  placeholder="050-0000000"
-                  value={formScannerPhone}
-                  onChange={(e) => setFormScannerPhone(e.target.value)}
-                  dir="ltr"
-                />
-              </label>
+
+              <div style={{ marginBottom: 14 }}>
+                <span style={{ display: 'block', fontSize: 13, color: 'var(--v2-gray-400)', marginBottom: 8 }}>סורקים</span>
+                {scanners.map((row, idx) => (
+                  <div key={idx} style={{ ...scannerRowStyle, gridTemplateColumns: '1fr 1fr auto auto' }}>
+                    <input
+                      style={inputStyle}
+                      placeholder="שם הסורק"
+                      value={row.name}
+                      onChange={(e) => {
+                        const next = [...scanners]
+                        next[idx] = { ...next[idx], name: e.target.value }
+                        setScanners(next)
+                      }}
+                    />
+                    <input
+                      type="tel"
+                      style={inputStyle}
+                      placeholder="050-0000000"
+                      value={row.phone}
+                      dir="ltr"
+                      onChange={(e) => {
+                        const next = [...scanners]
+                        next[idx] = { ...next[idx], phone: e.target.value }
+                        setScanners(next)
+                      }}
+                    />
+                    {scanners.length > 1 ? (
+                      <button
+                        type="button"
+                        style={{ ...btnGhost, padding: '8px 10px' }}
+                        onClick={() => setScanners(scanners.filter((_, i) => i !== idx))}
+                        aria-label="הסר סורק"
+                      >
+                        ✕
+                      </button>
+                    ) : (
+                      <span style={{ width: 36 }} />
+                    )}
+                  </div>
+                ))}
+                <button
+                  type="button"
+                  style={{ ...btnGhost, marginTop: 4 }}
+                  onClick={() => setScanners([...scanners, { name: '', phone: '' }])}
+                >
+                  + הוסף סורק
+                </button>
+              </div>
+
               <label style={{ display: 'block', marginBottom: 20 }}>
                 <span style={{ display: 'block', fontSize: 13, color: 'var(--v2-gray-400)', marginBottom: 6 }}>תוקף</span>
                 <select style={inputStyle} value={formExpire} onChange={(e) => setFormExpire(e.target.value)}>
@@ -584,6 +673,131 @@ export default function ScanManagement() {
               </label>
               <button type="button" style={{ ...btnPrimary, width: '100%', justifyContent: 'center' }} disabled={saving} onClick={createStation}>
                 {saving ? 'יוצר…' : 'צור עמדה'}
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {editStation && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            style={{
+              position: 'fixed',
+              inset: 0,
+              background: 'rgba(0,0,0,0.7)',
+              zIndex: 205,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: 16,
+            }}
+            onClick={() => !savingEdit && setEditStation(null)}
+          >
+            <motion.div
+              initial={{ scale: 0.96 }}
+              animate={{ scale: 1 }}
+              exit={{ scale: 0.96 }}
+              onClick={(e) => e.stopPropagation()}
+              dir="rtl"
+              style={{
+                width: '100%',
+                maxWidth: 520,
+                maxHeight: '90vh',
+                overflow: 'auto',
+                background: 'var(--card)',
+                border: '1px solid var(--glass-border)',
+                borderRadius: 12,
+                padding: 24,
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                <span style={{ fontWeight: 800, fontSize: 17, color: '#fff' }}>עריכת סורקים — {editStation.name}</span>
+                <button type="button" style={{ ...btnGhost, padding: 6 }} onClick={() => setEditStation(null)}>
+                  <X size={22} />
+                </button>
+              </div>
+              <p style={{ fontSize: 13, color: 'var(--v2-gray-400)', marginBottom: 14 }}>
+                שם וטלפון לכל סורק. &quot;שלח WA&quot; שולח את לינק העמדה לטלפון שצוין.
+              </p>
+              {editScanners.map((row, idx) => (
+                <div
+                  key={idx}
+                  style={{
+                    marginBottom: 12,
+                    padding: 12,
+                    borderRadius: 10,
+                    border: '1px solid var(--glass-border)',
+                    background: 'var(--v2-dark-2)',
+                  }}
+                >
+                  <div style={{ fontSize: 12, color: 'var(--v2-gray-400)', marginBottom: 8 }}>סורק {idx + 1}</div>
+                  <div style={{ ...scannerRowStyle, gridTemplateColumns: '1fr 1fr', marginBottom: 8 }}>
+                    <input
+                      style={inputStyle}
+                      placeholder="שם"
+                      value={row.name}
+                      onChange={(e) => {
+                        const next = [...editScanners]
+                        next[idx] = { ...next[idx], name: e.target.value }
+                        setEditScanners(next)
+                      }}
+                    />
+                    <input
+                      type="tel"
+                      style={inputStyle}
+                      placeholder="טלפון"
+                      value={row.phone}
+                      dir="ltr"
+                      onChange={(e) => {
+                        const next = [...editScanners]
+                        next[idx] = { ...next[idx], phone: e.target.value }
+                        setEditScanners(next)
+                      }}
+                    />
+                  </div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                    <button
+                      type="button"
+                      style={btnGhost}
+                      disabled={!row.phone?.trim()}
+                      onClick={() => {
+                        const u = waUrlForScanner(editStation, row)
+                        if (u) window.open(u, '_blank', 'noopener,noreferrer')
+                        else toast.error('נא למלא טלפון תקין')
+                      }}
+                    >
+                      📱 שלח WA לסורק
+                    </button>
+                    {editScanners.length > 1 ? (
+                      <button
+                        type="button"
+                        style={{ ...btnGhost, color: '#f87171' }}
+                        onClick={() => setEditScanners(editScanners.filter((_, i) => i !== idx))}
+                      >
+                        הסר סורק
+                      </button>
+                    ) : null}
+                  </div>
+                </div>
+              ))}
+              <button
+                type="button"
+                style={{ ...btnGhost, marginBottom: 16 }}
+                onClick={() => setEditScanners([...editScanners, { name: '', phone: '' }])}
+              >
+                + הוסף סורק חדש
+              </button>
+              <button
+                type="button"
+                style={{ ...btnPrimary, width: '100%', justifyContent: 'center' }}
+                disabled={savingEdit}
+                onClick={saveEditScanners}
+              >
+                {savingEdit ? 'שומר…' : 'שמור'}
               </button>
             </motion.div>
           </motion.div>
