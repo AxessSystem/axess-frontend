@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { ArrowRight, Calendar, Loader2, MapPin, X } from 'lucide-react'
-import toast from 'react-hot-toast'
+import { ArrowRight, Calendar, Loader2, MapPin } from 'lucide-react'
 import { MUNI_CATEGORIES } from './MuniPortal'
+import SmartRegistrationModal from '../components/SmartRegistration/SmartRegistrationModal'
 
 const API_BASE = import.meta.env.VITE_API_URL || 'https://axess-production.up.railway.app'
 
@@ -31,10 +31,6 @@ function formatWhen(iso) {
   }
 }
 
-function storageKey(city) {
-  return `muni_resident_${city}`
-}
-
 export default function MuniEventPage() {
   const { citySlug, eventSlug } = useParams()
   const [business, setBusiness] = useState(null)
@@ -43,11 +39,6 @@ export default function MuniEventPage() {
   const [loading, setLoading] = useState(true)
   const [err, setErr] = useState(null)
   const [modalOpen, setModalOpen] = useState(false)
-  const [phone, setPhone] = useState('')
-  const [otp, setOtp] = useState('')
-  const [verifyStep, setVerifyStep] = useState('idle')
-  const [resident, setResident] = useState(null)
-  const [trackLoading, setTrackLoading] = useState(false)
 
   const cssVars = useMemo(() => brandVars(business), [business])
 
@@ -89,80 +80,6 @@ export default function MuniEventPage() {
   useEffect(() => {
     load()
   }, [load])
-
-  useEffect(() => {
-    if (!citySlug) return
-    try {
-      const raw = sessionStorage.getItem(storageKey(citySlug))
-      if (raw) setResident(JSON.parse(raw))
-    } catch {
-      setResident(null)
-    }
-  }, [citySlug])
-
-  const openModal = () => {
-    setModalOpen(true)
-    setVerifyStep('idle')
-    setOtp('')
-    if (resident?.phone) setPhone(resident.phone)
-  }
-
-  const sendOtpMock = async () => {
-    if (!phone.trim()) {
-      toast.error('נא להזין מספר נייד')
-      return
-    }
-    setVerifyStep('sent')
-    toast.success('נשלח קוד (דמו)')
-  }
-
-  const verifyOtpMock = async () => {
-    setTrackLoading(true)
-    try {
-      const r = await fetch(`${API_BASE}/api/portal/${encodeURIComponent(citySlug)}/verify-resident`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone: phone.trim(), otp: otp.trim() }),
-      })
-      const data = await r.json().catch(() => ({}))
-      if (!r.ok) throw new Error(data.error || 'אימות נכשל')
-      const rec = { phone: phone.trim(), verifiedAt: Date.now(), ...data }
-      setResident(rec)
-      sessionStorage.setItem(storageKey(citySlug), JSON.stringify(rec))
-      setVerifyStep('verified')
-      toast.success('זוהיתם בהצלחה')
-    } catch (e) {
-      toast.error(e.message || 'שגיאה')
-    } finally {
-      setTrackLoading(false)
-    }
-  }
-
-  const continueExternal = async () => {
-    if (!externalUrl) return
-    setTrackLoading(true)
-    try {
-      const r = await fetch(`${API_BASE}/api/portal/${encodeURIComponent(citySlug)}/track`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          event_id: event.id,
-          external_url: externalUrl,
-          external_platform: 'portal',
-          phone: resident?.phone || phone.trim() || null,
-          sub_account_id: event.sub_account_id || null,
-        }),
-      })
-      const data = await r.json().catch(() => ({}))
-      if (!r.ok) throw new Error(data.error || 'מעקב נכשל')
-      if (data.redirect_url) window.location.href = data.redirect_url
-      else toast.error('לא התקבל קישור מעקב')
-    } catch (e) {
-      toast.error(e.message || 'שגיאה')
-    } finally {
-      setTrackLoading(false)
-    }
-  }
 
   if (loading) {
     return (
@@ -310,7 +227,7 @@ export default function MuniEventPage() {
         )}
 
         <div style={{ marginTop: 32, display: 'flex', flexDirection: 'column', gap: 12 }}>
-          <button type="button" className="muni-event-btn" onClick={openModal}>
+          <button type="button" className="muni-event-btn" onClick={() => setModalOpen(true)}>
             הרשמה
           </button>
           {!externalUrl && (
@@ -325,107 +242,16 @@ export default function MuniEventPage() {
         </div>
       </main>
 
-      {modalOpen && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="muni-modal-title"
-          style={{
-            position: 'fixed',
-            inset: 0,
-            background: 'rgba(15,23,42,0.45)',
-            display: 'flex',
-            alignItems: 'flex-end',
-            justifyContent: 'center',
-            zIndex: 1000,
-            padding: 0,
-          }}
-        >
-          <div
-            style={{
-              background: '#fff',
-              width: '100%',
-              maxWidth: 520,
-              maxHeight: '90vh',
-              overflow: 'auto',
-              borderRadius: '20px 20px 0 0',
-              padding: 24,
-              boxShadow: '0 -8px 32px rgba(0,0,0,0.12)',
-            }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-              <h2 id="muni-modal-title" style={{ margin: 0, fontSize: '1.35rem', fontWeight: 800 }}>
-                הרשמה לאירוע
-              </h2>
-              <button
-                type="button"
-                onClick={() => setModalOpen(false)}
-                aria-label="סגור"
-                style={{ border: 'none', background: 'transparent', cursor: 'pointer', padding: 8 }}
-              >
-                <X size={28} />
-              </button>
-            </div>
-
-            {externalUrl ? (
-              <div style={{ fontSize: '1.15rem', lineHeight: 1.6 }}>
-                <p>ההמשך מתבצע באתר חיצוני. נזהה אתכם לפי הנייד לצורכי מעקב (אופציונלי).</p>
-                {resident?.phone ? (
-                  <p style={{ fontWeight: 700 }}>מזוהים כ: {resident.phone}</p>
-                ) : (
-                  <>
-                    <label htmlFor="muni-phone" style={{ display: 'block', marginTop: 16, fontWeight: 700 }}>
-                      נייד
-                    </label>
-                    <input
-                      id="muni-phone"
-                      type="tel"
-                      autoComplete="tel"
-                      value={phone}
-                      onChange={(e) => setPhone(e.target.value)}
-                      style={{ width: '100%', minHeight: 48, fontSize: '1.2rem', marginTop: 8, padding: '0 12px', borderRadius: 12, border: '2px solid #e2e8f0' }}
-                    />
-                    {verifyStep === 'idle' && (
-                      <button type="button" className="muni-event-btn" style={{ width: '100%', marginTop: 16 }} onClick={sendOtpMock}>
-                        זהה עם הנייד (דמו)
-                      </button>
-                    )}
-                    {verifyStep === 'sent' && (
-                      <>
-                        <label htmlFor="muni-otp" style={{ display: 'block', marginTop: 16, fontWeight: 700 }}>
-                          קוד אימות (דמו)
-                        </label>
-                        <input
-                          id="muni-otp"
-                          inputMode="numeric"
-                          value={otp}
-                          onChange={(e) => setOtp(e.target.value)}
-                          style={{ width: '100%', minHeight: 48, fontSize: '1.2rem', marginTop: 8, padding: '0 12px', borderRadius: 12, border: '2px solid #e2e8f0' }}
-                        />
-                        <button type="button" className="muni-event-btn" style={{ width: '100%', marginTop: 16 }} onClick={verifyOtpMock} disabled={trackLoading}>
-                          אמת והמשך
-                        </button>
-                      </>
-                    )}
-                  </>
-                )}
-                {(resident?.phone || verifyStep === 'verified') && (
-                  <button type="button" className="muni-event-btn" style={{ width: '100%', marginTop: 20 }} onClick={continueExternal} disabled={trackLoading}>
-                    {trackLoading ? 'מעביר…' : 'מעבר לאתר ההרשמה'}
-                  </button>
-                )}
-              </div>
-            ) : (
-              <div style={{ fontSize: '1.15rem', lineHeight: 1.7 }}>
-                <p>ההרשמה והתשלום המאובטחים מתבצעים בדף ייעודי במערכת.</p>
-                <Link to={`/e/${event.slug}`} className="muni-event-btn" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', textDecoration: 'none', width: '100%', marginTop: 20 }} onClick={() => setModalOpen(false)}>
-                  פתח דף הרשמה
-                </Link>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
+      <SmartRegistrationModal
+        open={modalOpen}
+        onClose={() => setModalOpen(false)}
+        citySlug={citySlug}
+        event={event}
+        ticketTypes={ticketTypes}
+        externalUrl={externalUrl}
+        apiBase={API_BASE}
+        cssVars={cssVars}
+      />
     </div>
   )
 }
