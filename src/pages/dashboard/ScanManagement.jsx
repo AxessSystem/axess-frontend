@@ -9,8 +9,6 @@ import { fetchWithAuth, supabase } from '@/lib/supabase'
 const API_BASE = import.meta.env.VITE_API_URL || 'https://axess-production.up.railway.app'
 const PUBLIC_ORIGIN = (import.meta.env.VITE_PUBLIC_SITE_URL || 'https://axess.pro').replace(/\/$/, '')
 
-const GENERAL_SLUG = 'general'
-
 const cardStyle = {
   background: 'var(--card)',
   border: '1px solid var(--glass-border)',
@@ -67,9 +65,9 @@ const KIND_LABELS = {
 }
 
 function stationScanUrl(station) {
-  if (!station?.token) return null
-  const slug = station.event_slug || GENERAL_SLUG
-  return `${PUBLIC_ORIGIN}/scan/${slug}?token=${encodeURIComponent(station.token)}`
+  if (!station?.token || !station.event_slug) return null
+  const t = station.object_type || 'event'
+  return `${PUBLIC_ORIGIN}/scan/${encodeURIComponent(station.event_slug)}?token=${encodeURIComponent(station.token)}&type=${encodeURIComponent(t)}`
 }
 
 function formatExpiresDate(expiresAt) {
@@ -205,7 +203,7 @@ export default function ScanManagement() {
   const [tab, setTab] = useState('stations')
   const [stations, setStations] = useState([])
   const [library, setLibrary] = useState([])
-  const [events, setEvents] = useState([])
+  const [objects, setObjects] = useState([])
   const [loading, setLoading] = useState(true)
   const [libLoading, setLibLoading] = useState(false)
   const [modalOpen, setModalOpen] = useState(false)
@@ -213,7 +211,8 @@ export default function ScanManagement() {
   const [saving, setSaving] = useState(false)
 
   const [formName, setFormName] = useState('')
-  const [formEventId, setFormEventId] = useState('')
+  const [objectType, setObjectType] = useState('')
+  const [objectId, setObjectId] = useState('')
   const [formExpire, setFormExpire] = useState('24')
   const [scanners, setScanners] = useState([{ name: '', phone: '' }])
 
@@ -263,15 +262,30 @@ export default function ScanManagement() {
     }
   }, [businessId, session, authHeaders, onUnauthorized])
 
-  const loadEvents = useCallback(async () => {
-    if (!businessId) return
-    const r = await fetch(
-      `${API_BASE}/api/admin/events?business_id=${encodeURIComponent(businessId)}`,
-      { headers: { Authorization: `Bearer ${session?.access_token}` } },
-    )
-    const rows = await r.json()
-    if (Array.isArray(rows)) setEvents(rows)
-  }, [businessId, session?.access_token])
+  const fetchObjects = useCallback(
+    async (type) => {
+      if (!type || !businessId || !session?.access_token) return
+      try {
+        const r = await fetchWithAuth(
+          `${API_BASE}/api/scan-stations/objects?type=${encodeURIComponent(type)}`,
+          { headers: authHeaders() },
+          session,
+          onUnauthorized,
+        )
+        const data = await r.json()
+        if (!r.ok) {
+          toast.error(data.error || 'שגיאה')
+          setObjects([])
+          return
+        }
+        setObjects(Array.isArray(data.objects) ? data.objects : [])
+      } catch (e) {
+        toast.error(e.message || 'שגיאה')
+        setObjects([])
+      }
+    },
+    [businessId, session, authHeaders, onUnauthorized],
+  )
 
   useEffect(() => {
     if (!businessId || !session?.access_token) {
@@ -279,10 +293,10 @@ export default function ScanManagement() {
       return
     }
     setLoading(true)
-    Promise.all([loadStations(), loadEvents()])
+    loadStations()
       .catch((e) => toast.error(e.message || 'שגיאה בטעינה'))
       .finally(() => setLoading(false))
-  }, [businessId, session?.access_token, loadStations, loadEvents])
+  }, [businessId, session?.access_token, loadStations])
 
   useEffect(() => {
     if (tab === 'library' && businessId && session?.access_token) {
@@ -292,7 +306,9 @@ export default function ScanManagement() {
 
   const openModal = () => {
     setFormName('')
-    setFormEventId('')
+    setObjectType('')
+    setObjectId('')
+    setObjects([])
     setFormExpire('24')
     setScanners([{ name: '', phone: '' }])
     setModalOpen(true)
@@ -335,11 +351,16 @@ export default function ScanManagement() {
       toast.error('נא למלא שם עמדה')
       return
     }
+    if (!objectType || !objectId) {
+      toast.error('נא לבחור סוג אובייקט ואובייקט ספציפי')
+      return
+    }
     setSaving(true)
     try {
       const body = {
         name: formName.trim(),
-        event_id: formEventId || null,
+        object_type: objectType,
+        object_id: objectId,
         never_expires: formExpire === 'never',
         expires_hours: formExpire === 'never' ? 'never' : Number(formExpire),
         scanners,
@@ -469,7 +490,16 @@ export default function ScanManagement() {
                       <div>
                         <div style={{ fontWeight: 800, fontSize: 17, color: '#fff' }}>{s.name}</div>
                         <div style={{ fontSize: 13, color: 'var(--v2-gray-400)', marginTop: 4 }}>
-                          {s.event_title || 'ללא שיוך לאירוע (כללי)'}
+                          <span>
+                            {s.object_type === 'event'
+                              ? '🎫'
+                              : s.object_type === 'validator'
+                                ? '✅'
+                                : s.object_type === 'coupon'
+                                  ? '🎟️'
+                                  : '🎫'}{' '}
+                            {s.object_name || s.event_title || s.event_slug || '—'}
+                          </span>
                         </div>
                         {scList.length > 0 && (
                           <div style={{ fontSize: 13, color: 'var(--v2-gray-400)', marginTop: 8, lineHeight: 1.6 }}>
@@ -601,16 +631,46 @@ export default function ScanManagement() {
                 />
               </label>
               <label style={{ display: 'block', marginBottom: 14 }}>
-                <span style={{ display: 'block', fontSize: 13, color: 'var(--v2-gray-400)', marginBottom: 6 }}>אירוע</span>
-                <select style={inputStyle} value={formEventId} onChange={(e) => setFormEventId(e.target.value)}>
-                  <option value="">ללא שיוך לאירוע (כללי)</option>
-                  {events.map((ev) => (
-                    <option key={ev.id} value={ev.id}>
-                      {ev.title || ev.slug}
-                    </option>
-                  ))}
+                <span style={{ display: 'block', fontSize: 13, color: 'var(--v2-gray-400)', marginBottom: 6 }}>סוג אובייקט</span>
+                <select
+                  style={inputStyle}
+                  value={objectType}
+                  onChange={(e) => {
+                    const v = e.target.value
+                    setObjectType(v)
+                    setObjectId('')
+                    fetchObjects(v)
+                  }}
+                >
+                  <option value="">בחר סוג</option>
+                  <option value="event">🎫 אירוע</option>
+                  <option value="validator">✅ Validator</option>
+                  <option value="coupon">🎟️ קופון</option>
                 </select>
               </label>
+              {objectType ? (
+                <label style={{ display: 'block', marginBottom: 14 }}>
+                  <span style={{ display: 'block', fontSize: 13, color: 'var(--v2-gray-400)', marginBottom: 6 }}>
+                    {objectType === 'event' ? 'אירוע' : objectType === 'validator' ? 'Validator' : 'קופון'}
+                  </span>
+                  <select
+                    style={inputStyle}
+                    value={objectId}
+                    onChange={(e) => setObjectId(e.target.value)}
+                    required
+                  >
+                    <option value="">
+                      בחר {objectType === 'event' ? 'אירוע' : objectType === 'validator' ? 'Validator' : 'קופון'}
+                    </option>
+                    {objects.map((o) => (
+                      <option key={o.id} value={o.id}>
+                        {o.name || o.slug || o.id}
+                        {o.date ? ` — ${new Date(o.date).toLocaleDateString('he-IL')}` : ''}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              ) : null}
 
               <div style={{ marginBottom: 14 }}>
                 <span style={{ display: 'block', fontSize: 13, color: 'var(--v2-gray-400)', marginBottom: 8 }}>סורקים</span>

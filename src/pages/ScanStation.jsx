@@ -120,6 +120,7 @@ export default function ScanStation() {
   const { eventSlug } = useParams()
   const [searchParams] = useSearchParams()
   const token = searchParams.get('token')
+  const stationType = searchParams.get('type') || 'event'
 
   const [eventInfo, setEventInfo] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -139,7 +140,9 @@ export default function ScanStation() {
       setLoading(false)
       return
     }
-    fetch(`${API_BASE}/scan/${eventSlug}?token=${encodeURIComponent(token)}`)
+    fetch(
+      `${API_BASE}/scan/${encodeURIComponent(eventSlug)}?token=${encodeURIComponent(token)}&type=${encodeURIComponent(stationType)}`,
+    )
       .then(r => r.json())
       .then(data => {
         if (data.error) {
@@ -154,7 +157,7 @@ export default function ScanStation() {
         setInvalidLink(true)
         setLoading(false)
       })
-  }, [eventSlug, token])
+  }, [eventSlug, token, stationType])
 
   useEffect(() => {
     if (!eventInfo || result) return
@@ -208,10 +211,10 @@ export default function ScanStation() {
 
   const verifyQr = async qrData => {
     try {
-      const res = await fetch(`${API_BASE}/scan/${eventSlug}/verify`, {
+      const res = await fetch(`${API_BASE}/scan/${encodeURIComponent(eventSlug)}/verify`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ qr_data: qrData, token }),
+        body: JSON.stringify({ qr_data: qrData, token, type: stationType }),
       })
       const data = await res.json()
 
