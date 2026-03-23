@@ -93,6 +93,10 @@ const AdminWebviewPage   = lazy(() => import('@/pages/axessAdmin/AdminWebviewPag
 /* ── Webview bundle (lazy, standalone) ── */
 const WebviewApp = lazy(() => import('./webview/WebviewApp'))
 
+/* ── מוניציפלי / פורטל עירוני (ציבורי) — event לפני :deptSlug ── */
+const MuniPortal = lazy(() => import('@/portal/MuniPortal'))
+const MuniEventPage = lazy(() => import('@/portal/MuniEventPage'))
+
 /* ── Loading fallback ── */
 function PageLoader() {
   return (
@@ -183,6 +187,10 @@ export default function App() {
             <Route path="/booking/:id" element={<BookingManagementPage />} />
             <Route path="/g/token/:token" element={<GuestPaymentPage />} />
             <Route path="/scan/:eventSlug" element={<ScanStation />} />
+
+            <Route path="/muni/:citySlug/event/:eventSlug" element={<MuniEventPage />} />
+            <Route path="/muni/:citySlug/:deptSlug" element={<MuniPortal />} />
+            <Route path="/muni/:citySlug" element={<MuniPortal />} />
 
             {/* ── Public Webview (outside dashboard) ── */}
             <Route
