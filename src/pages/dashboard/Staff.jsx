@@ -55,6 +55,20 @@ const PERMISSION_LABELS = {
   can_scan_tickets: 'סריקת כרטיסים',
 }
 
+/** הרשאות לפי תפקיד — מודאל הזמנה בלבד */
+const ROLE_PERMISSIONS = {
+  manager: { can_view_inbox: true, can_reply_inbox: true, can_view_campaigns: true, can_create_campaigns: true, can_send_campaigns: true, can_view_events: true, can_manage_events: true, can_view_audiences: true, can_manage_audiences: true, can_view_reports: true },
+  inbox_agent: { can_view_inbox: true, can_reply_inbox: true },
+  event_producer: { can_view_events: true, can_manage_events: true, can_scan: true },
+  campaign_manager: { can_view_campaigns: true, can_create_campaigns: true, can_send_campaigns: true, can_view_audiences: true },
+  scanner: { can_scan: true },
+  analyst: { can_view_reports: true, can_view_audiences: true, can_view_campaigns: true, can_view_events: true },
+  coordinator: { can_view_events: true, can_manage_events: true, can_scan: true, can_view_audiences: true },
+  division_head: { can_view_inbox: true, can_reply_inbox: true, can_view_campaigns: true, can_create_campaigns: true, can_send_campaigns: true, can_view_events: true, can_manage_events: true, can_scan: true, can_view_audiences: true, can_manage_audiences: true, can_view_reports: true, can_export_data: true, can_manage_sub_accounts: true },
+  department_manager: { can_view_inbox: true, can_reply_inbox: true, can_view_events: true, can_manage_events: true, can_scan: true, can_view_audiences: true, can_manage_audiences: true, can_view_reports: true, can_approve_registrations: true },
+  external_auditor: { can_view_reports: true, can_view_events: true },
+}
+
 const ALL_PERMISSION_KEYS = Array.from(
   new Set(ROLE_PRESETS.flatMap((r) => Object.keys(r.permissions || {})).concat(Object.keys(PERMISSION_LABELS)))
 ).filter((k) => PERMISSION_LABELS[k])
@@ -175,29 +189,32 @@ export default function Staff() {
     if (tab === 2) loadLogs()
   }, [tab, loadLogs])
 
-  const presetForInvite = useMemo(() => ROLE_PRESETS.find((r) => r.value === inviteRole), [inviteRole])
-
-  useEffect(() => {
-    if (inviteCustomMode) return
-    const p = ROLE_PRESETS.find((r) => r.value === inviteRole)
-    setInviteCustomPerms({ ...(p?.permissions || {}) })
-  }, [inviteRole, inviteCustomMode])
+  const onInviteRoleChange = (role) => {
+    setInviteRole(role)
+    setInviteCustomPerms(ROLE_PERMISSIONS[role] || {})
+    setInviteCustomMode(false)
+  }
 
   const openInvite = () => {
     setInviteName('')
     setInviteEmail('')
     setInvitePhone('')
-    setInviteRole('coordinator')
+    setInviteRole('')
     setInviteCustomRole('')
     setInviteSubIds([])
     setInviteValidMode('forever')
     setInviteValidDate('')
     setInviteCustomMode(false)
+    setInviteCustomPerms({})
     setLastInviteLink('')
     setInviteOpen(true)
   }
 
   const handleInviteSubmit = async (mode) => {
+    if (!inviteRole) {
+      toast.error('בחר תפקיד')
+      return
+    }
     if (!inviteEmail.trim() && !invitePhone.trim()) {
       toast.error('הכנס מייל או טלפון')
       return
@@ -635,12 +652,30 @@ export default function Staff() {
               </div>
               <div>
                 <label className="label">תפקיד</label>
-                <select className="input" value={inviteRole} onChange={(e) => setInviteRole(e.target.value)}>
-                  {ROLE_PRESETS.map((r) => (
-                    <option key={r.value} value={r.value}>
-                      {r.label}
-                    </option>
-                  ))}
+                <select
+                  value={inviteRole}
+                  onChange={(e) => onInviteRoleChange(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '10px 12px',
+                    borderRadius: 8,
+                    border: '1px solid var(--glass-border)',
+                    background: 'var(--card)',
+                    color: 'var(--text)',
+                    fontSize: 14,
+                  }}
+                >
+                  <option value="">בחר תפקיד</option>
+                  <option value="manager">מנהל</option>
+                  <option value="inbox_agent">נציג שירות</option>
+                  <option value="event_producer">מפיק אירועים</option>
+                  <option value="campaign_manager">מנהל קמפיינים</option>
+                  <option value="scanner">סורק</option>
+                  <option value="analyst">אנליסט</option>
+                  <option value="coordinator">רכז</option>
+                  <option value="division_head">מנהל אגף</option>
+                  <option value="department_manager">מנהל מחלקה</option>
+                  <option value="external_auditor">צופה חיצוני</option>
                 </select>
               </div>
               <div>
@@ -649,20 +684,41 @@ export default function Staff() {
               </div>
               <div>
                 <label className="label" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <input type="checkbox" checked={inviteCustomMode} onChange={(e) => setInviteCustomMode(e.target.checked)} />
+                  <input
+                    type="checkbox"
+                    checked={inviteCustomMode}
+                    onChange={(e) => {
+                      const v = e.target.checked
+                      setInviteCustomMode(v)
+                      if (!v && inviteRole) setInviteCustomPerms({ ...ROLE_PERMISSIONS[inviteRole] })
+                    }}
+                  />
                   התאמה אישית של הרשאות
                 </label>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 8, opacity: inviteCustomMode ? 1 : 0.45, pointerEvents: inviteCustomMode ? 'auto' : 'none' }}>
-                  {Object.keys(presetForInvite?.permissions || {}).map((key) => (
-                    <label key={key} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13 }}>
-                      <input
-                        type="checkbox"
-                        checked={!!inviteCustomPerms[key]}
-                        onChange={(e) => setInviteCustomPerms((prev) => ({ ...prev, [key]: e.target.checked }))}
-                      />
-                      {PERMISSION_LABELS[key] || key}
-                    </label>
-                  ))}
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: '1fr 1fr',
+                    gap: 8,
+                    marginTop: 8,
+                    opacity: inviteCustomMode ? 1 : 0.5,
+                  }}
+                >
+                  {inviteRole
+                    ? Object.keys(ROLE_PERMISSIONS[inviteRole] || {}).map((key) => (
+                        <label key={key} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13 }}>
+                          <input
+                            type="checkbox"
+                            checked={!!inviteCustomPerms[key]}
+                            disabled={!inviteCustomMode}
+                            onChange={(e) => setInviteCustomPerms((prev) => ({ ...prev, [key]: e.target.checked }))}
+                          />
+                          {PERMISSION_LABELS[key] || key}
+                        </label>
+                      ))
+                    : (
+                      <span style={{ fontSize: 13, color: 'var(--v2-gray-400)', gridColumn: '1 / -1' }}>בחר תפקיד כדי לראות הרשאות</span>
+                    )}
                 </div>
               </div>
               {subAccounts.length > 0 && (
