@@ -17,6 +17,7 @@ import Privacy from '@/pages/Privacy'
 import Validator from '@/pages/Validator'
 import ScanStation from '@/pages/ScanStation'
 import Join from '@/pages/Join'
+import InviteAccept from '@/pages/InviteAccept'
 
 /* ── New AXESS pages (lazy) ── */
 const Onboarding      = lazy(() => import('@/pages/Onboarding'))
@@ -167,6 +168,7 @@ export default function App() {
             <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/join" element={<Join />} />
             <Route path="/join/:token" element={<Join />} />
+            <Route path="/invite/:token" element={<InviteAccept />} />
             <Route path="/onboarding" element={<Onboarding />} />
             <Route path="/about" element={<About />} />
             <Route path="/pricing" element={<Pricing />} />

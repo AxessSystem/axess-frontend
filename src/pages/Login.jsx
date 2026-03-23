@@ -143,6 +143,12 @@ export default function Login() {
 
   useEffect(() => {
     if (session && !authLoading) {
+      const pendingInvite = sessionStorage.getItem('axess_invite_token')
+      if (pendingInvite) {
+        sessionStorage.removeItem('axess_invite_token')
+        navigate(`/invite/${encodeURIComponent(pendingInvite)}`, { replace: true })
+        return
+      }
       const params = new URLSearchParams(window.location.search)
       const joinToken = params.get('join_token')
       if (joinToken) {
