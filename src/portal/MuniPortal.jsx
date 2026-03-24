@@ -26,10 +26,10 @@ import {
 const API_BASE = import.meta.env.VITE_API_URL || 'https://axess-production.up.railway.app'
 
 export const COLORS = {
-  primary: '#0a1628',
+  primary: '#020c3d',
   accent: '#00C37A',
   background: '#ffffff',
-  text: '#0a1628',
+  text: '#020c3d',
   textLight: '#6b7280',
   border: '#e5e7eb',
   cardBg: '#ffffff',
@@ -78,7 +78,7 @@ export const MUNI_CATEGORIES = [
 
 const categoryLabel = (v) => MUNI_CATEGORIES.find((c) => c.value === v)?.label || v || 'אחר'
 
-const font = "'Heebo', system-ui, sans-serif"
+const font = "'Open Sans Hebrew', 'Open Sans', system-ui, sans-serif"
 
 function formatDate(iso) {
   if (!iso) return 'תאריך יוכרז'
@@ -136,6 +136,7 @@ function EventCard({ ev, citySlug, isMobile }) {
   const navigate = useNavigate()
   const img = ev.cover_image_url || ev.image_url
   const cp = cardPrice(ev)
+  const imgH = isMobile ? 200 : 387
   return (
     <div
       role="link"
@@ -161,25 +162,41 @@ function EventCard({ ev, citySlug, isMobile }) {
       }}
       className="muni-portal-card"
     >
-      {img ? (
-        <img
-          src={img}
-          alt=""
-          style={{ width: '100%', height: isMobile ? 180 : 220, objectFit: 'cover', display: 'block' }}
-        />
-      ) : (
+      <div
+        style={{
+          position: 'relative',
+          width: '100%',
+          height: imgH,
+          borderRadius: 5,
+          overflow: 'hidden',
+        }}
+      >
+        {img ? (
+          <img src={img} alt="" style={{ width: '100%', height: imgH, objectFit: 'cover', display: 'block' }} />
+        ) : (
+          <div
+            style={{
+              width: '100%',
+              height: imgH,
+              background: `linear-gradient(135deg, ${COLORS.primary}, #01061f)`,
+            }}
+          />
+        )}
         <div
+          aria-hidden
           style={{
-            width: '100%',
-            height: isMobile ? 180 : 220,
-            background: `linear-gradient(135deg, ${COLORS.primary}, #1a3050)`,
+            position: 'absolute',
+            inset: 0,
+            background: 'rgba(0,0,0,0.2)',
+            borderRadius: 5,
+            pointerEvents: 'none',
           }}
         />
-      )}
+      </div>
       <div style={{ padding: '12px 14px', background: '#fff' }}>
         <h3
           style={{
-            fontFamily: 'Heebo, sans-serif',
+            fontFamily: font,
             fontWeight: 700,
             fontSize: 15,
             color: COLORS.primary,
@@ -254,6 +271,7 @@ export default function MuniPortal() {
 
   const isDesktop = useIsDesktop()
   const isMobile = !isDesktop
+  const heroBannerH = isMobile ? 280 : 480
 
   const next30Days = useMemo(() => {
     const out = []
@@ -679,16 +697,23 @@ export default function MuniPortal() {
                 }}
                 style={{ cursor: 'pointer' }}
               >
-                <div style={{ position: 'relative', height: 400, overflow: 'hidden', background: COLORS.primary }}>
+                <div style={{ position: 'relative', height: heroBannerH, overflow: 'hidden', background: COLORS.primary }}>
                   {slide.cover_image_url || slide.image_url ? (
                     <img
                       key={slide.id}
                       src={slide.cover_image_url || slide.image_url}
                       alt=""
-                      style={{ width: '100%', height: 400, objectFit: 'cover', display: 'block' }}
+                      style={{ width: '100%', height: heroBannerH, objectFit: 'cover', display: 'block' }}
                     />
                   ) : (
-                    <div key={slide.id} style={{ width: '100%', height: 400, background: `linear-gradient(135deg, ${COLORS.primary}, #1a3050)` }} />
+                    <div
+                      key={slide.id}
+                      style={{
+                        width: '100%',
+                        height: heroBannerH,
+                        background: `linear-gradient(135deg, ${COLORS.primary}, #01061f)`,
+                      }}
+                    />
                   )}
                   <button
                     type="button"
@@ -756,7 +781,7 @@ export default function MuniPortal() {
                 >
                   <h2
                     style={{
-                      fontFamily: 'Heebo, sans-serif',
+                      fontFamily: font,
                       fontWeight: 800,
                       fontSize: 24,
                       color: COLORS.primary,
@@ -792,7 +817,7 @@ export default function MuniPortal() {
                       color: '#fff',
                       borderRadius: 25,
                       padding: '10px 24px',
-                      fontFamily: 'Heebo, sans-serif',
+                      fontFamily: font,
                       fontWeight: 700,
                       display: 'inline-block',
                       fontSize: 15,
@@ -830,8 +855,8 @@ export default function MuniPortal() {
           ) : (
             <div
               style={{
-                height: 200,
-                background: `linear-gradient(135deg, ${COLORS.primary} 0%, #050d18 100%)`,
+                height: heroBannerH,
+                background: `linear-gradient(135deg, ${COLORS.primary} 0%, #01061f 100%)`,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -1185,8 +1210,8 @@ export default function MuniPortal() {
                       }
                     : {
                         display: 'grid',
-                        gridTemplateColumns: '1fr 1fr',
-                        gap: 16,
+                        gridTemplateColumns: 'repeat(2, 1fr)',
+                        gap: 24,
                         paddingBottom: 0,
                       }
                 }
@@ -1285,7 +1310,7 @@ export default function MuniPortal() {
               }}
             >
               Powered by
-              <span style={{ color: COLORS.accent, fontWeight: 700, fontFamily: 'Heebo, sans-serif' }}>AXESS</span>
+              <span style={{ color: COLORS.accent, fontWeight: 700, fontFamily: font }}>AXESS</span>
             </a>
           </div>
         </div>
