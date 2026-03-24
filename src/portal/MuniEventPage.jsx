@@ -220,8 +220,7 @@ export default function MuniEventPage() {
         border: `1px solid ${COLORS.border}`,
         borderRadius: 16,
         padding: 20,
-        boxShadow: '0 8px 28px rgba(26,58,92,0.08)',
-        ...(isDesktop ? { position: 'sticky', top: 88, alignSelf: 'start' } : {}),
+        boxShadow: '0 8px 28px rgba(10,22,40,0.1)',
       }}
     >
       <h2 style={{ margin: '0 0 16px', fontSize: 20, fontWeight: 800, color: COLORS.text }}>כרטיסים</h2>
@@ -358,16 +357,15 @@ export default function MuniEventPage() {
     </aside>
   )
 
-  const detailsBlock = (
-    <div>
-      <h1 style={{ fontSize: 'clamp(1.5rem, 4vw, 2rem)', fontWeight: 900, margin: '0 0 8px', color: COLORS.text, lineHeight: 1.25 }}>
+  const titleSection = (
+    <div style={{ marginBottom: 24 }}>
+      <h1 style={{ fontSize: 'clamp(1.6rem, 4.5vw, 2.1rem)', fontWeight: 900, margin: '0 0 12px', color: COLORS.text, lineHeight: 1.2 }}>
         {event.title}
       </h1>
-      <p style={{ fontSize: 15, color: COLORS.textLight, margin: '0 0 16px' }}>קטגוריה: {categoryLabel(event.event_category)}</p>
-      {event.dept_name && <p style={{ fontSize: 15, color: COLORS.textLight, margin: '0 0 12px' }}>מחלקה: {event.dept_name}</p>}
-
+      <p style={{ fontSize: 14, color: COLORS.textLight, margin: '0 0 8px' }}>קטגוריה: {categoryLabel(event.event_category)}</p>
+      {event.dept_name && <p style={{ fontSize: 14, color: COLORS.textLight, margin: '0 0 12px' }}>מחלקה: {event.dept_name}</p>}
       {when && (
-        <p style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 17, margin: '12px 0', color: COLORS.text }}>
+        <p style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 18, margin: '10px 0', color: COLORS.text, fontWeight: 700 }}>
           <Calendar size={22} aria-hidden style={{ color: COLORS.accent }} />
           {when.line}
         </p>
@@ -377,29 +375,36 @@ export default function MuniEventPage() {
           href={event.location_url || `https://maps.google.com/?q=${encodeURIComponent(event.location)}`}
           target="_blank"
           rel="noopener noreferrer"
-          style={{ display: 'inline-flex', alignItems: 'center', gap: 10, fontSize: 17, color: COLORS.primary, fontWeight: 700 }}
+          style={{ display: 'inline-flex', alignItems: 'center', gap: 10, fontSize: 18, color: COLORS.primary, fontWeight: 800 }}
         >
           <MapPin size={22} aria-hidden style={{ color: COLORS.accent }} />
           {event.location}
         </a>
       )}
+    </div>
+  )
 
-      <div style={{ height: 1, background: COLORS.accent, margin: '28px 0', opacity: 0.85 }} />
+  const descriptionSection =
+    plainDesc || rich ? (
+      <div style={{ marginTop: 8 }}>
+        <div style={{ height: 1, background: COLORS.accent, margin: '0 0 24px', opacity: 0.9 }} />
+        {plainDesc && (
+          <p style={{ fontSize: 17, lineHeight: 1.75, color: COLORS.text, margin: '0 0 16px', whiteSpace: 'pre-wrap' }}>{plainDesc}</p>
+        )}
+        {rich &&
+          (isProbablyHtml(rich) ? (
+            <div
+              dir="rtl"
+              style={{ fontSize: 17, lineHeight: 1.75, color: COLORS.text }}
+              dangerouslySetInnerHTML={{ __html: rich }}
+            />
+          ) : (
+            <div style={{ fontSize: 17, lineHeight: 1.75, color: COLORS.text, whiteSpace: 'pre-wrap' }}>{rich}</div>
+          ))}
+      </div>
+    ) : null
 
-      {plainDesc && (
-        <p style={{ fontSize: 17, lineHeight: 1.75, color: COLORS.text, margin: '0 0 16px', whiteSpace: 'pre-wrap' }}>{plainDesc}</p>
-      )}
-      {rich &&
-        (isProbablyHtml(rich) ? (
-          <div
-            dir="rtl"
-            style={{ fontSize: 17, lineHeight: 1.75, color: COLORS.text }}
-            dangerouslySetInnerHTML={{ __html: rich }}
-          />
-        ) : (
-          <div style={{ fontSize: 17, lineHeight: 1.75, color: COLORS.text, whiteSpace: 'pre-wrap' }}>{rich}</div>
-        ))}
-
+  const faqSection = (
       <section aria-labelledby="faq-h" style={{ marginTop: 36 }}>
         <h2 id="faq-h" style={{ fontSize: 22, fontWeight: 800, margin: '0 0 16px', color: COLORS.text }}>
           שאלות נפוצות
@@ -438,8 +443,10 @@ export default function MuniEventPage() {
           })}
         </ul>
       </section>
+  )
 
-      {(deptPhone || contact.whatsapp || contact.email) && (
+  const contactSection =
+    deptPhone || contact.whatsapp || contact.email ? (
         <section aria-labelledby="contact-heading" style={{ marginTop: 36 }}>
           <h2 id="contact-heading" style={{ fontSize: 22, fontWeight: 800, margin: '0 0 16px', color: COLORS.text }}>
             צור קשר
@@ -509,9 +516,7 @@ export default function MuniEventPage() {
             )}
           </div>
         </section>
-      )}
-    </div>
-  )
+    ) : null
 
   return (
     <div dir="rtl" lang="he" style={{ minHeight: '100vh', background: COLORS.background, color: COLORS.text, fontFamily: font }}>
@@ -520,19 +525,25 @@ export default function MuniEventPage() {
         .muni-event-btn { min-height: 52px; padding: 0 22px; border-radius: 14px; font-size: 1.05rem; font-weight: 800; border: none; cursor: pointer; background: ${COLORS.primary}; color: #fff; font-family: ${font}; }
         .muni-event-btn:focus-visible { outline: 3px solid rgba(0,195,122,0.45); outline-offset: 2px; }
         .muni-event-secondary { background: #fff; color: ${COLORS.primary}; border: 2px solid ${COLORS.primary}; }
+        .muni-portal-header { display: flex !important; flex-direction: column; width: 100%; }
+        .muni-portal-header-inner { display: flex !important; width: 100%; }
         .sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);border:0}
       `}</style>
 
       <header
+        className="muni-portal-header"
         style={{
           position: 'sticky',
           top: 0,
-          zIndex: 30,
-          background: COLORS.background,
-          boxShadow: '0 1px 8px rgba(26,58,92,0.08)',
+          zIndex: 100,
+          background: '#fff',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
         }}
       >
-        <div style={{ maxWidth: 1100, margin: '0 auto', padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 14 }}>
+        <div
+          className="muni-portal-header-inner"
+          style={{ maxWidth: 1100, margin: '0 auto', padding: '12px 16px', alignItems: 'center', gap: 14 }}
+        >
           <Link to={`/muni/${citySlug}`} style={{ display: 'flex', alignItems: 'center', gap: 8, textDecoration: 'none', color: COLORS.text, fontSize: 16, fontWeight: 700 }}>
             <ArrowRight size={22} aria-hidden />
             חזרה
@@ -548,36 +559,23 @@ export default function MuniEventPage() {
             alt=""
             style={{
               width: '100%',
-              height: isDesktop ? 450 : 300,
+              height: isDesktop ? 400 : 300,
               objectFit: 'cover',
               display: 'block',
               borderRadius: 0,
             }}
           />
         ) : (
-          <div style={{ width: '100%', height: isDesktop ? 450 : 300, background: `linear-gradient(135deg, ${COLORS.primary}, #2d5a8a)` }} />
+          <div style={{ width: '100%', height: isDesktop ? 400 : 300, background: `linear-gradient(135deg, ${COLORS.primary}, #1a3050)` }} />
         )}
       </div>
 
       <div style={{ maxWidth: 1100, margin: '0 auto', padding: '24px 16px 100px' }}>
-        {isDesktop ? (
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'minmax(280px, 340px) minmax(0, 1fr)',
-              gap: 28,
-              alignItems: 'start',
-            }}
-          >
-            {ticketPanel}
-            {detailsBlock}
-          </div>
-        ) : (
-          <>
-            {detailsBlock}
-            <div style={{ marginTop: 28 }}>{ticketPanel}</div>
-          </>
-        )}
+        {titleSection}
+        {ticketPanel}
+        {descriptionSection}
+        {faqSection}
+        {contactSection}
 
         {!externalUrl && (
           <div style={{ marginTop: 24 }}>
