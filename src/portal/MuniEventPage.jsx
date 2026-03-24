@@ -62,6 +62,23 @@ function formatEventWhen(iso) {
   }
 }
 
+function formatDate(iso) {
+  if (!iso) return '—'
+  try {
+    const d = new Date(iso)
+    return d.toLocaleDateString('he-IL', {
+      weekday: 'long',
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    })
+  } catch {
+    return '—'
+  }
+}
+
 function isProbablyHtml(s) {
   return typeof s === 'string' && /<\/?[a-z][\s\S]*>/i.test(s)
 }
@@ -109,7 +126,17 @@ export default function MuniEventPage() {
   const [err, setErr] = useState(null)
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [step, setStep] = useState('tickets')
-  const [creditOpen, setCreditOpen] = useState(false)
+  const [paymentMethod, setPaymentMethod] = useState(null)
+  const [formData, setFormData] = useState({
+    full_name: '',
+    id_number: '',
+    phone: '',
+    email: '',
+    birth_date: '',
+    gender: '',
+  })
+  const [errors, setErrors] = useState({})
+  const [agreedTerms, setAgreedTerms] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
   const [quantities, setQuantities] = useState({})
   const [openFaq, setOpenFaq] = useState(() => ({}))
@@ -195,7 +222,8 @@ export default function MuniEventPage() {
   useEffect(() => {
     if (!hasAnyTickets) {
       setStep('tickets')
-      setCreditOpen(false)
+      setPaymentMethod(null)
+      setErrors({})
       return
     }
     setStep((s) => (s === 'tickets' ? 'details' : s))
@@ -290,6 +318,53 @@ export default function MuniEventPage() {
     }
     window.open(externalUrl, '_blank', 'noopener,noreferrer')
   }
+
+  const validateDetails = () => {
+    const newErrors = {}
+    const required = ['full_name', 'id_number', 'phone', 'email', 'birth_date', 'gender']
+    required.forEach((field) => {
+      const v = formData[field]
+      if (!v || String(v).trim() === '') {
+        newErrors[field] = true
+      }
+    })
+    registrationFields.forEach((field) => {
+      const fid = String(field.id)
+      if (field.required && (!formData[fid] || String(formData[fid]).trim() === '')) {
+        newErrors[fid] = true
+      }
+    })
+    if (!agreedTerms) newErrors.terms = true
+    setErrors(newErrors)
+    if (Object.keys(newErrors).length > 0) {
+      const firstKey = Object.keys(newErrors)[0]
+      document.getElementById(`field-${firstKey}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      return false
+    }
+    return true
+  }
+
+  const handleContinue = () => {
+    if (!validateDetails()) return
+    if (totalPrice === 0) {
+      setStep('success')
+    } else {
+      setPaymentMethod(null)
+      setStep('payment')
+    }
+  }
+
+  const getInputStyle = (fieldId) => ({
+    width: '100%',
+    padding: '10px 12px',
+    borderRadius: 8,
+    border: `1px solid ${errors[fieldId] ? '#ef4444' : '#e5e7eb'}`,
+    fontFamily: 'Heebo',
+    fontSize: 14,
+    outline: 'none',
+    boxSizing: 'border-box',
+    background: errors[fieldId] ? '#fef2f2' : '#fff',
+  })
 
   const ticketDrawerInner = (
     <>
@@ -505,7 +580,7 @@ export default function MuniEventPage() {
                 <div style={{ textAlign: 'center', color: '#9ca3af', fontSize: 13, marginBottom: 12 }}>או</div>
 
                 {REG_DETAILS_FIELDS.map((field) => (
-                  <div key={field.id} style={{ marginBottom: 12 }}>
+                  <div key={field.id} id={`field-${field.id}`} style={{ marginBottom: 12 }}>
                     <label
                       style={{
                         fontSize: 13,
@@ -518,7 +593,14 @@ export default function MuniEventPage() {
                       {field.label} *
                     </label>
                     {field.type === 'select' ? (
-                      <select style={inputStyle} defaultValue="">
+                      <select
+                        style={getInputStyle(field.id)}
+                        value={formData[field.id] || ''}
+                        onChange={(e) => {
+                          setFormData((prev) => ({ ...prev, [field.id]: e.target.value }))
+                          if (errors[field.id]) setErrors((prev) => ({ ...prev, [field.id]: false }))
+                        }}
+                      >
                         <option value="">בחר...</option>
                         {field.options.map((o) => (
                           <option key={o} value={o}>
@@ -527,46 +609,84 @@ export default function MuniEventPage() {
                         ))}
                       </select>
                     ) : (
-                      <input type={field.type} style={inputStyle} />
+                      <input
+                        type={field.type}
+                        style={getInputStyle(field.id)}
+                        value={formData[field.id] || ''}
+                        onChange={(e) => {
+                          setFormData((prev) => ({ ...prev, [field.id]: e.target.value }))
+                          if (errors[field.id]) setErrors((prev) => ({ ...prev, [field.id]: false }))
+                        }}
+                      />
+                    )}
+                    {errors[field.id] && (
+                      <span style={{ color: '#ef4444', fontSize: 12, display: 'block', marginTop: 4 }}>שדה חובה</span>
                     )}
                   </div>
                 ))}
 
-                {registrationFields.map((field) => (
-                  <div key={field.id} style={{ marginBottom: 12 }}>
-                    <label
-                      style={{
-                        fontSize: 13,
-                        fontWeight: 600,
-                        color: '#374151',
-                        display: 'block',
-                        marginBottom: 4,
-                      }}
-                    >
-                      {field.label} {field.required && '*'}
-                    </label>
-                    <input type={field.type || 'text'} style={inputStyle} />
-                  </div>
-                ))}
+                {registrationFields.map((field) => {
+                  const fid = String(field.id)
+                  return (
+                    <div key={fid} id={`field-${fid}`} style={{ marginBottom: 12 }}>
+                      <label
+                        style={{
+                          fontSize: 13,
+                          fontWeight: 600,
+                          color: '#374151',
+                          display: 'block',
+                          marginBottom: 4,
+                        }}
+                      >
+                        {field.label} {field.required && '*'}
+                      </label>
+                      <input
+                        type={field.type || 'text'}
+                        style={getInputStyle(fid)}
+                        value={formData[fid] || ''}
+                        onChange={(e) => {
+                          setFormData((prev) => ({ ...prev, [fid]: e.target.value }))
+                          if (errors[fid]) setErrors((prev) => ({ ...prev, [fid]: false }))
+                        }}
+                      />
+                      {errors[fid] && (
+                        <span style={{ color: '#ef4444', fontSize: 12, display: 'block', marginTop: 4 }}>שדה חובה</span>
+                      )}
+                    </div>
+                  )
+                })}
 
                 <div style={{ marginTop: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
                   <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8, fontSize: 13, cursor: 'pointer' }}>
                     <input type="checkbox" style={{ marginTop: 2 }} />
                     <span>זהה אותי תמיד — הרשמה חד פעמית לכל האירועים</span>
                   </label>
-                  <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8, fontSize: 13, cursor: 'pointer' }}>
-                    <input type="checkbox" required style={{ marginTop: 2 }} />
-                    <span>
-                      קראתי ואני מסכים/ה ל
-                      <a href="#" style={{ color: '#0a1628', textDecoration: 'underline' }}>
-                        תקנון
-                      </a>{' '}
-                      ול
-                      <a href="#" style={{ color: '#0a1628', textDecoration: 'underline' }}>
-                        מדיניות הביטולים
-                      </a>
-                    </span>
-                  </label>
+                  <div id="field-terms">
+                    <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8, fontSize: 13, cursor: 'pointer' }}>
+                      <input
+                        type="checkbox"
+                        checked={agreedTerms}
+                        onChange={(e) => {
+                          setAgreedTerms(e.target.checked)
+                          if (errors.terms) setErrors((prev) => ({ ...prev, terms: false }))
+                        }}
+                        style={{ marginTop: 2 }}
+                      />
+                      <span>
+                        קראתי ואני מסכים/ה ל
+                        <a href="#" style={{ color: '#0a1628', textDecoration: 'underline' }}>
+                          תקנון
+                        </a>{' '}
+                        ול
+                        <a href="#" style={{ color: '#0a1628', textDecoration: 'underline' }}>
+                          מדיניות הביטולים
+                        </a>
+                      </span>
+                    </label>
+                    {errors.terms && (
+                      <span style={{ color: '#ef4444', fontSize: 12, display: 'block', marginTop: 4 }}>יש לאשר את התקנון</span>
+                    )}
+                  </div>
                   <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8, fontSize: 13, cursor: 'pointer' }}>
                     <input type="checkbox" style={{ marginTop: 2 }} />
                     <span>אני מאשר/ת קבלת עדכונים על אירועים חדשים</span>
@@ -575,10 +695,7 @@ export default function MuniEventPage() {
 
                 <button
                   type="button"
-                  onClick={() => {
-                    if (totalPrice === 0) setStep('success')
-                    else setStep('payment')
-                  }}
+                  onClick={handleContinue}
                   style={{
                     width: '100%',
                     background: '#0a1628',
@@ -635,35 +752,77 @@ export default function MuniEventPage() {
                 <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
                   <button
                     type="button"
+                    onClick={() => setPaymentMethod((m) => (m === 'apple' ? null : 'apple'))}
                     style={{
                       flex: 1,
                       padding: '12px',
                       borderRadius: 8,
-                      border: '1px solid #e5e7eb',
-                      background: '#fff',
-                      fontWeight: 700,
+                      border: paymentMethod === 'apple' ? '2px solid #fff' : '1px solid #e5e7eb',
+                      background: '#000',
                       cursor: 'pointer',
-                      fontSize: 14,
-                      fontFamily: font,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
                     }}
+                    aria-pressed={paymentMethod === 'apple'}
                   >
-                    🍎 Apple Pay
+                    <svg width="50" height="20" viewBox="0 0 50 20" fill="white" aria-hidden>
+                      <text x="0" y="15" fontFamily="'-apple-system', sans-serif" fontSize="13" fontWeight="500" fill="white">
+                        Pay
+                      </text>
+                      <path
+                        d="M6 4C6.8 2.8 7.2 1.4 7 0 5.8 0.1 4.4 0.8 3.5 1.9 2.7 2.9 2.2 4.3 2.5 5.6 3.8 5.7 5.1 5 6 4Z"
+                        fill="white"
+                      />
+                    </svg>
                   </button>
                   <button
                     type="button"
+                    onClick={() => setPaymentMethod((m) => (m === 'google' ? null : 'google'))}
                     style={{
                       flex: 1,
                       padding: '12px',
                       borderRadius: 8,
-                      border: '1px solid #e5e7eb',
+                      border: paymentMethod === 'google' ? '2px solid #4285F4' : '1px solid #e5e7eb',
                       background: '#fff',
-                      fontWeight: 700,
                       cursor: 'pointer',
-                      fontSize: 14,
-                      fontFamily: font,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 4,
                     }}
+                    aria-pressed={paymentMethod === 'google'}
                   >
-                    G Pay
+                    <svg width="41" height="17" viewBox="0 0 41 17" aria-hidden>
+                      <path
+                        d="M19.526 2.635v4.083h2.518c.6 0 1.096-.202 1.488-.605.403-.402.605-.882.605-1.437 0-.544-.202-1.018-.605-1.422-.392-.413-.888-.62-1.488-.62h-2.518zm0 5.52v4.736h-1.504V1.198h3.99c1.013 0 1.873.337 2.582 1.012.72.675 1.08 1.497 1.08 2.466 0 .991-.36 1.819-1.08 2.482-.697.652-1.559.978-2.583.978h-2.485z"
+                        fill="#EA4335"
+                      />
+                      <path
+                        d="M27.379 4.57c1.134 0 2.028.302 2.68.906.652.605.978 1.437.978 2.494v5.02h-1.437v-1.13h-.067c-.63.93-1.466 1.394-2.509 1.394-.89 0-1.638-.264-2.243-.793-.605-.529-.907-1.19-.907-1.985 0-.84.318-1.508.954-2.004.636-.505 1.483-.757 2.54-.757 1.008 0 1.836.185 2.484.555v-.39c0-.59-.235-1.09-.706-1.5-.47-.41-1.02-.615-1.65-.615-.95 0-1.702.4-2.256 1.2l-1.32-.83c.768-1.1 1.92-1.652 3.46-1.652zm-2.088 6.137c0 .396.168.727.504.995.336.268.74.402 1.212.402.655 0 1.232-.244 1.732-.73.5-.487.75-1.057.75-1.712-.47-.37-1.126-.555-1.97-.555-.613 0-1.12.148-1.523.445-.4.297-.705.685-.705 1.155z"
+                        fill="#FBBC05"
+                      />
+                      <path
+                        d="M38.71 4.82L34.362 15h-1.56l1.69-3.66-2.998-6.52h1.644l2.155 4.96h.034l2.088-4.96z"
+                        fill="#34A853"
+                      />
+                      <path
+                        d="M13.45 7.737c0-.464-.04-.91-.116-1.34H6.9v2.545h3.67c-.158.854-.638 1.578-1.36 2.063v1.71h2.203c1.29-1.19 2.037-2.943 2.037-4.978z"
+                        fill="#4285F4"
+                      />
+                      <path
+                        d="M6.9 13.5c1.84 0 3.382-.61 4.51-1.655l-2.203-1.71c-.61.41-1.39.65-2.308.65-1.777 0-3.284-1.2-3.822-2.81H.81v1.765C1.93 12.04 4.228 13.5 6.9 13.5z"
+                        fill="#34A853"
+                      />
+                      <path
+                        d="M3.078 7.975c-.137-.41-.215-.847-.215-1.3s.078-.89.215-1.3V3.61H.81C.295 4.63 0 5.78 0 6.675c0 .896.295 2.045.81 3.065l2.268-1.765z"
+                        fill="#FBBC05"
+                      />
+                      <path
+                        d="M6.9 2.56c1.003 0 1.902.345 2.608 1.02l1.957-1.957C10.28 .54 8.74 0 6.9 0 4.228 0 1.93 1.46.81 3.61l2.268 1.766C3.616 3.76 5.123 2.56 6.9 2.56z"
+                        fill="#EA4335"
+                      />
+                    </svg>
                   </button>
                 </div>
 
@@ -674,7 +833,7 @@ export default function MuniEventPage() {
                 <div style={{ border: '1px solid #e5e7eb', borderRadius: 8, overflow: 'hidden' }}>
                   <button
                     type="button"
-                    onClick={() => setCreditOpen(!creditOpen)}
+                    onClick={() => setPaymentMethod((m) => (m === 'credit' ? null : 'credit'))}
                     style={{
                       width: '100%',
                       padding: '14px 16px',
@@ -690,10 +849,10 @@ export default function MuniEventPage() {
                     }}
                   >
                     <span>💳 כרטיס אשראי</span>
-                    <span>{creditOpen ? '▲' : '▼'}</span>
+                    <span>{paymentMethod === 'credit' ? '▲' : '▼'}</span>
                   </button>
 
-                  {creditOpen && (
+                  {paymentMethod === 'credit' && (
                     <div style={{ padding: '16px', borderTop: '1px solid #e5e7eb', background: '#fff' }}>
                       <div style={{ marginBottom: 12 }}>
                         <label style={labelStyle}>שם בעל הכרטיס</label>
@@ -725,28 +884,73 @@ export default function MuniEventPage() {
                         <input type="checkbox" />
                         <span>אני לא רובוט</span>
                       </label>
-
-                      <button
-                        type="button"
-                        onClick={() => setStep('success')}
-                        style={{
-                          width: '100%',
-                          background: '#0a1628',
-                          color: '#fff',
-                          border: 'none',
-                          borderRadius: 25,
-                          padding: '14px',
-                          fontFamily: 'Heebo',
-                          fontWeight: 700,
-                          fontSize: 16,
-                          cursor: 'pointer',
-                        }}
-                      >
-                        ביצוע תשלום — ₪{totalPrice.toFixed(0)}
-                      </button>
                     </div>
                   )}
                 </div>
+
+                {paymentMethod === 'apple' && (
+                  <button
+                    type="button"
+                    onClick={() => setStep('success')}
+                    style={{
+                      width: '100%',
+                      marginTop: 16,
+                      background: '#000',
+                      color: '#fff',
+                      border: 'none',
+                      borderRadius: 25,
+                      padding: '14px',
+                      fontFamily: 'Heebo',
+                      fontWeight: 700,
+                      fontSize: 16,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    שלם עם Apple Pay — ₪{totalPrice.toFixed(0)}
+                  </button>
+                )}
+                {paymentMethod === 'google' && (
+                  <button
+                    type="button"
+                    onClick={() => setStep('success')}
+                    style={{
+                      width: '100%',
+                      marginTop: 16,
+                      background: '#fff',
+                      color: '#0a1628',
+                      border: '1px solid #e5e7eb',
+                      borderRadius: 25,
+                      padding: '14px',
+                      fontFamily: 'Heebo',
+                      fontWeight: 700,
+                      fontSize: 16,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    שלם עם Google Pay — ₪{totalPrice.toFixed(0)}
+                  </button>
+                )}
+                {paymentMethod === 'credit' && (
+                  <button
+                    type="button"
+                    onClick={() => setStep('success')}
+                    style={{
+                      width: '100%',
+                      marginTop: 16,
+                      background: '#0a1628',
+                      color: '#fff',
+                      border: 'none',
+                      borderRadius: 25,
+                      padding: '14px',
+                      fontFamily: 'Heebo',
+                      fontWeight: 700,
+                      fontSize: 16,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    ביצוע תשלום — ₪{totalPrice.toFixed(0)}
+                  </button>
+                )}
               </div>
             )}
 
@@ -758,11 +962,27 @@ export default function MuniEventPage() {
                   background: '#f0fdf4',
                   borderRadius: 12,
                   border: '1px solid #bbf7d0',
-                  textAlign: 'center',
                 }}
               >
-                <p style={{ fontWeight: 800, fontSize: 18, color: '#166534', margin: '0 0 8px' }}>ההרשמה הושלמה בהצלחה</p>
-                <p style={{ fontSize: 14, color: '#15803d', margin: 0 }}>תודה! נשלח אליכם עדכון בהמשך.</p>
+                <div style={{ textAlign: 'center', padding: '32px 20px' }}>
+                  <div style={{ fontSize: 64, marginBottom: 16 }}>🎫</div>
+                  <h2
+                    style={{
+                      fontFamily: 'Heebo',
+                      fontWeight: 800,
+                      fontSize: 22,
+                      color: '#0a1628',
+                      marginBottom: 8,
+                      marginTop: 0,
+                    }}
+                  >
+                    הכרטיס שלך לאירוע בדרך אליך!
+                  </h2>
+                  <p style={{ color: '#6b7280', fontSize: 15, margin: 0 }}>{event.title}</p>
+                  <p style={{ color: '#6b7280', fontSize: 14, marginTop: 8, marginBottom: 0 }}>
+                    📅 {formatDate(event.date)} | 📍 {event.location || '—'}
+                  </p>
+                </div>
               </div>
             )}
           </div>
