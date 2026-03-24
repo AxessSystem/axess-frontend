@@ -1,6 +1,27 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
-import { Loader2, Menu, X } from 'lucide-react'
+import {
+  BookOpen,
+  Calendar,
+  ChevronLeft,
+  ChevronRight,
+  Coffee,
+  Filter,
+  Heart,
+  Layers,
+  Loader2,
+  MapPin,
+  Menu,
+  Mic2,
+  Music,
+  Search,
+  Star,
+  Sun,
+  Tag,
+  User,
+  Users,
+  X,
+} from 'lucide-react'
 
 const API_BASE = import.meta.env.VITE_API_URL || 'https://axess-production.up.railway.app'
 
@@ -12,6 +33,29 @@ export const COLORS = {
   textLight: '#6b7280',
   border: '#e5e7eb',
   cardBg: '#ffffff',
+}
+
+const CATEGORY_ICON_COMPONENTS = {
+  festival: Star,
+  show: Music,
+  standup: Mic2,
+  workshop: BookOpen,
+  family: Heart,
+  seminar: Users,
+  party: Sun,
+  lecture: Layers,
+  art_class: Layers,
+  holiday: Sun,
+  summer: Sun,
+  draft_ceremony: Users,
+  discharge_ceremony: Users,
+  activity: Coffee,
+  other: Tag,
+}
+
+function CategoryPillIcon({ value }) {
+  const Cmp = CATEGORY_ICON_COMPONENTS[value] || Tag
+  return <Cmp size={15} aria-hidden strokeWidth={2} />
 }
 
 export const MUNI_CATEGORIES = [
@@ -92,7 +136,6 @@ function EventCard({ ev, citySlug, isMobile }) {
   const navigate = useNavigate()
   const img = ev.cover_image_url || ev.image_url
   const cp = cardPrice(ev)
-  const w = 300
   return (
     <div
       role="link"
@@ -105,9 +148,9 @@ function EventCard({ ev, citySlug, isMobile }) {
         }
       }}
       style={{
-        width: isMobile ? '100%' : w,
-        maxWidth: isMobile ? '100%' : w,
-        flex: isMobile ? 'none' : `0 0 ${w}px`,
+        width: isMobile ? 'calc(100vw - 48px)' : '100%',
+        minWidth: isMobile ? 280 : 'unset',
+        maxWidth: isMobile ? 'calc(100vw - 48px)' : '100%',
         borderRadius: 12,
         overflow: 'hidden',
         border: `1px solid ${COLORS.border}`,
@@ -119,9 +162,19 @@ function EventCard({ ev, citySlug, isMobile }) {
       className="muni-portal-card"
     >
       {img ? (
-        <img src={img} alt="" style={{ width: '100%', height: 160, objectFit: 'cover', display: 'block' }} />
+        <img
+          src={img}
+          alt=""
+          style={{ width: '100%', height: isMobile ? 180 : 220, objectFit: 'cover', display: 'block' }}
+        />
       ) : (
-        <div style={{ width: '100%', height: 160, background: `linear-gradient(135deg, ${COLORS.primary}, #1a3050)` }} />
+        <div
+          style={{
+            width: '100%',
+            height: isMobile ? 180 : 220,
+            background: `linear-gradient(135deg, ${COLORS.primary}, #1a3050)`,
+          }}
+        />
       )}
       <div style={{ padding: '12px 14px', background: '#fff' }}>
         <h3
@@ -137,8 +190,14 @@ function EventCard({ ev, citySlug, isMobile }) {
           {ev.title}
         </h3>
         <div style={{ fontSize: 13, color: COLORS.textLight, display: 'flex', flexDirection: 'column', gap: 3 }}>
-          <span>📅 {formatDayDate(ev.date)}</span>
-          <span>📍 {ev.location || '—'}</span>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+            <Calendar size={14} color={COLORS.textLight} aria-hidden />
+            {formatDayDate(ev.date)}
+          </span>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+            <MapPin size={14} color={COLORS.textLight} aria-hidden />
+            {ev.location || '—'}
+          </span>
         </div>
         <div style={{ marginTop: 8 }}>
           {cp.free ? (
@@ -195,6 +254,31 @@ export default function MuniPortal() {
 
   const isDesktop = useIsDesktop()
   const isMobile = !isDesktop
+
+  const next30Days = useMemo(() => {
+    const out = []
+    const base = new Date()
+    base.setHours(12, 0, 0, 0)
+    for (let i = 0; i < 30; i++) {
+      const d = new Date(base)
+      d.setDate(d.getDate() + i)
+      const value = d.toISOString().slice(0, 10)
+      const label = d.toLocaleDateString('he-IL', { weekday: 'short', day: 'numeric', month: 'short' })
+      out.push({ value, label })
+    }
+    return out
+  }, [])
+
+  const filterSelectBase = {
+    minHeight: 44,
+    padding: '0 12px',
+    borderRadius: 10,
+    border: `1px solid ${COLORS.border}`,
+    fontFamily: font,
+    fontSize: 14,
+    flex: '0 0 auto',
+    boxSizing: 'border-box',
+  }
 
   useEffect(() => {
     setSearchDraft(qSearch)
@@ -503,8 +587,12 @@ export default function MuniPortal() {
                 fontSize: 14,
                 cursor: 'pointer',
                 fontFamily: font,
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
               }}
             >
+              <User size={18} aria-hidden />
               התחבר
             </button>
           </div>
@@ -628,7 +716,7 @@ export default function MuniPortal() {
                       justifyContent: 'center',
                     }}
                   >
-                    ›
+                    <ChevronRight size={18} aria-hidden />
                   </button>
                   <button
                     type="button"
@@ -656,7 +744,7 @@ export default function MuniPortal() {
                       justifyContent: 'center',
                     }}
                   >
-                    ‹
+                    <ChevronLeft size={18} aria-hidden />
                   </button>
                 </div>
                 <div
@@ -687,10 +775,13 @@ export default function MuniPortal() {
                       flexWrap: 'wrap',
                     }}
                   >
-                    <span>📅 {formatDate(slide.date)}</span>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                      <Calendar size={14} color={COLORS.textLight} aria-hidden />
+                      {formatDate(slide.date)}
+                    </span>
                     <span style={{ color: COLORS.accent }}>|</span>
-                    <span>
-                      📍{' '}
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                      <MapPin size={14} color={COLORS.textLight} aria-hidden />
                       {[slide.location, eventCity(slide)].filter(Boolean).join(', ') || '—'}
                     </span>
                   </div>
@@ -806,8 +897,12 @@ export default function MuniPortal() {
               cursor: 'pointer',
               fontFamily: font,
               flexShrink: 0,
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 8,
             }}
           >
+            <Search size={16} aria-hidden />
             חיפוש
           </button>
         </form>
@@ -821,38 +916,44 @@ export default function MuniPortal() {
             overflowX: 'auto',
             WebkitOverflowScrolling: 'touch',
             paddingBottom: 4,
+            alignItems: 'center',
           }}
         >
-          <input
-            type="date"
+          <Filter size={18} color={COLORS.textLight} aria-hidden style={{ flex: '0 0 auto' }} />
+          <select
             value={draftDateFrom}
             onChange={(e) => setDraftDateFrom(e.target.value)}
             style={{
-              minHeight: 44,
-              padding: '0 10px',
-              borderRadius: 10,
-              border: `1px solid ${COLORS.border}`,
-              fontFamily: font,
-              fontSize: 14,
-              flex: '0 0 auto',
+              ...filterSelectBase,
+              minWidth: 148,
+              color: draftDateFrom ? COLORS.text : '#9ca3af',
             }}
             aria-label="בחירת תאריך התחלה"
-          />
-          <input
-            type="date"
+          >
+            <option value="">בחר תאריך התחלה</option>
+            {next30Days.map((d) => (
+              <option key={d.value} value={d.value}>
+                {d.label}
+              </option>
+            ))}
+          </select>
+          <select
             value={draftDateTo}
             onChange={(e) => setDraftDateTo(e.target.value)}
             style={{
-              minHeight: 44,
-              padding: '0 10px',
-              borderRadius: 10,
-              border: `1px solid ${COLORS.border}`,
-              fontFamily: font,
-              fontSize: 14,
-              flex: '0 0 auto',
+              ...filterSelectBase,
+              minWidth: 140,
+              color: draftDateTo ? COLORS.text : '#9ca3af',
             }}
             aria-label="בחירת תאריך סיום"
-          />
+          >
+            <option value="">בחר תאריך סיום</option>
+            {next30Days.map((d) => (
+              <option key={`to-${d.value}`} value={d.value}>
+                {d.label}
+              </option>
+            ))}
+          </select>
           <select
             value={draftCategory}
             onChange={(e) => setDraftCategory(e.target.value)}
@@ -972,8 +1073,12 @@ export default function MuniPortal() {
               fontFamily: font,
               cursor: 'pointer',
               fontSize: 14,
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
             }}
           >
+            <Tag size={15} aria-hidden />
             הכל
           </button>
           {MUNI_CATEGORIES.map((c) => (
@@ -992,8 +1097,12 @@ export default function MuniPortal() {
                 fontFamily: font,
                 cursor: 'pointer',
                 fontSize: 14,
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
               }}
             >
+              <CategoryPillIcon value={c.value} />
               {c.label}
             </button>
           ))}
@@ -1025,10 +1134,19 @@ export default function MuniPortal() {
               >
                 <Link
                   to={`${portalListPath}?category=${encodeURIComponent(key)}`}
-                  style={{ fontSize: 18, fontWeight: 800, color: COLORS.text, textDecoration: 'none' }}
+                  style={{
+                    fontSize: 18,
+                    fontWeight: 800,
+                    color: COLORS.text,
+                    textDecoration: 'none',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 6,
+                  }}
                   id={`muni-cat-${key}`}
                 >
-                  {label} ←
+                  <ChevronLeft size={18} aria-hidden />
+                  {label}
                 </Link>
                 <span
                   role="button"
@@ -1040,26 +1158,41 @@ export default function MuniPortal() {
                       navigate(`${portalListPath}?category=${encodeURIComponent(key)}`)
                     }
                   }}
-                  style={{ cursor: 'pointer', color: COLORS.accent, fontWeight: 700, fontSize: 15 }}
+                  style={{
+                    cursor: 'pointer',
+                    color: COLORS.accent,
+                    fontWeight: 700,
+                    fontSize: 15,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 4,
+                  }}
                 >
-                  הצג הכל ›
+                  הצג הכל
+                  <ChevronRight size={18} aria-hidden />
                 </span>
               </div>
               <div
                 style={
                   isMobile
-                    ? { display: 'grid', gridTemplateColumns: '1fr', gap: 16 }
-                    : {
+                    ? {
                         display: 'flex',
-                        gap: 16,
+                        flexDirection: 'row',
                         overflowX: 'auto',
+                        gap: 16,
                         paddingBottom: 8,
                         WebkitOverflowScrolling: 'touch',
+                      }
+                    : {
+                        display: 'grid',
+                        gridTemplateColumns: '1fr 1fr',
+                        gap: 16,
+                        paddingBottom: 0,
                       }
                 }
               >
                 {items.map((ev) => (
-                  <div key={ev.id} style={isMobile ? { width: '100%' } : { flex: '0 0 auto' }}>
+                  <div key={ev.id} style={{ width: isMobile ? 'auto' : '100%', flexShrink: isMobile ? 0 : undefined }}>
                     <EventCard ev={ev} citySlug={citySlug} isMobile={isMobile} />
                   </div>
                 ))}

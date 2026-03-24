@@ -42,9 +42,11 @@ const REG_DETAILS_FIELDS = [
   { id: 'id_number', label: 'מספר ת"ז', type: 'text', required: true },
   { id: 'phone', label: 'מספר נייד', type: 'tel', required: true },
   { id: 'email', label: 'כתובת דוא"ל', type: 'email', required: true },
-  { id: 'birth_date', label: 'תאריך לידה', type: 'date', required: true },
+  { id: 'birth_date', label: 'תאריך לידה', type: 'birth_parts', required: true },
   { id: 'gender', label: 'מין', type: 'select', options: ['זכר', 'נקבה', 'אחר'], required: true },
 ]
+
+const HEBREW_MONTHS = ['ינואר', 'פברואר', 'מרץ', 'אפריל', 'מאי', 'יוני', 'יולי', 'אוגוסט', 'ספטמבר', 'אוקטובר', 'נובמבר', 'דצמבר']
 
 const font = "'Heebo', system-ui, sans-serif"
 
@@ -132,7 +134,9 @@ export default function MuniEventPage() {
     id_number: '',
     phone: '',
     email: '',
-    birth_date: '',
+    birth_day: '',
+    birth_month: '',
+    birth_year: '',
     gender: '',
   })
   const [errors, setErrors] = useState({})
@@ -217,17 +221,18 @@ export default function MuniEventPage() {
 
   const totalPrice = totalPay
 
-  const showInlineCheckout = !externalUrl && ticketTypes.length > 0
+  const showInlineCheckout = !externalUrl
 
   useEffect(() => {
-    if (!hasAnyTickets) {
+    if (!showInlineCheckout) return
+    if (ticketTypes.length > 0 && !hasAnyTickets) {
       setStep('tickets')
       setPaymentMethod(null)
       setErrors({})
       return
     }
     setStep((s) => (s === 'tickets' ? 'details' : s))
-  }, [hasAnyTickets])
+  }, [hasAnyTickets, showInlineCheckout, ticketTypes.length])
 
   const allFree = useMemo(
     () => ticketTypes.length > 0 && ticketTypes.every((tt) => Number(tt.price || 0) === 0),
@@ -321,13 +326,19 @@ export default function MuniEventPage() {
 
   const validateDetails = () => {
     const newErrors = {}
-    const required = ['full_name', 'id_number', 'phone', 'email', 'birth_date', 'gender']
+    const required = ['full_name', 'id_number', 'phone', 'email', 'gender']
     required.forEach((field) => {
       const v = formData[field]
       if (!v || String(v).trim() === '') {
         newErrors[field] = true
       }
     })
+    const bd = formData.birth_day
+    const bm = formData.birth_month
+    const by = formData.birth_year
+    if (!bd || !bm || !by || String(bd).trim() === '' || String(bm).trim() === '' || String(by).trim() === '') {
+      newErrors.birth_date = true
+    }
     registrationFields.forEach((field) => {
       const fid = String(field.id)
       if (field.required && (!formData[fid] || String(formData[fid]).trim() === '')) {
@@ -497,35 +508,11 @@ export default function MuniEventPage() {
           </button>
         )}
 
-        {!externalUrl && ticketTypes.length === 0 && event.slug && (
-          <Link
-            to={`/e/${event.slug}`}
-            onClick={() => setDrawerOpen(false)}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              width: '100%',
-              minHeight: 50,
-              borderRadius: 12,
-              border: 'none',
-              background: COLORS.primary,
-              color: '#fff',
-              fontWeight: 800,
-              fontSize: 17,
-              textDecoration: 'none',
-              fontFamily: font,
-            }}
-          >
-            פתח דף הרשמה
-          </Link>
-        )}
-
-        {showInlineCheckout && !hasAnyTickets && (
+        {showInlineCheckout && ticketTypes.length > 0 && !hasAnyTickets && (
           <p style={{ fontSize: 13, color: COLORS.textLight, marginTop: 8, textAlign: 'center' }}>בחרו לפחות כרטיס אחד</p>
         )}
 
-        {showInlineCheckout && hasAnyTickets && (
+        {showInlineCheckout && (hasAnyTickets || ticketTypes.length === 0) && (
           <div
             style={{
               marginTop: 16,
@@ -579,51 +566,117 @@ export default function MuniEventPage() {
 
                 <div style={{ textAlign: 'center', color: '#9ca3af', fontSize: 13, marginBottom: 12 }}>או</div>
 
-                {REG_DETAILS_FIELDS.map((field) => (
-                  <div key={field.id} id={`field-${field.id}`} style={{ marginBottom: 12 }}>
-                    <label
-                      style={{
-                        fontSize: 13,
-                        fontWeight: 600,
-                        color: '#374151',
-                        display: 'block',
-                        marginBottom: 4,
-                      }}
-                    >
-                      {field.label} *
-                    </label>
-                    {field.type === 'select' ? (
-                      <select
-                        style={getInputStyle(field.id)}
-                        value={formData[field.id] || ''}
-                        onChange={(e) => {
-                          setFormData((prev) => ({ ...prev, [field.id]: e.target.value }))
-                          if (errors[field.id]) setErrors((prev) => ({ ...prev, [field.id]: false }))
+                {REG_DETAILS_FIELDS.map((field) =>
+                  field.type === 'birth_parts' ? (
+                    <div key={field.id} style={{ marginBottom: 12 }}>
+                      <label
+                        style={{
+                          fontSize: 13,
+                          fontWeight: 600,
+                          color: '#374151',
+                          display: 'block',
+                          marginBottom: 4,
                         }}
                       >
-                        <option value="">בחר...</option>
-                        {field.options.map((o) => (
-                          <option key={o} value={o}>
-                            {o}
-                          </option>
-                        ))}
-                      </select>
-                    ) : (
-                      <input
-                        type={field.type}
-                        style={getInputStyle(field.id)}
-                        value={formData[field.id] || ''}
-                        onChange={(e) => {
-                          setFormData((prev) => ({ ...prev, [field.id]: e.target.value }))
-                          if (errors[field.id]) setErrors((prev) => ({ ...prev, [field.id]: false }))
+                        {field.label} *
+                      </label>
+                      <div style={{ display: 'flex', gap: 8 }} id="field-birth_date">
+                        <select
+                          style={{ ...getInputStyle('birth_date'), flex: 1, minWidth: 0, width: 'auto' }}
+                          value={formData.birth_day || ''}
+                          onChange={(e) => {
+                            setFormData((prev) => ({ ...prev, birth_day: e.target.value }))
+                            if (errors.birth_date) setErrors((prev) => ({ ...prev, birth_date: false }))
+                          }}
+                        >
+                          <option value="">יום</option>
+                          {Array.from({ length: 31 }, (_, i) => i + 1).map((d) => (
+                            <option key={d} value={String(d)}>
+                              {d}
+                            </option>
+                          ))}
+                        </select>
+                        <select
+                          style={{ ...getInputStyle('birth_date'), flex: 1.5, minWidth: 0, width: 'auto' }}
+                          value={formData.birth_month || ''}
+                          onChange={(e) => {
+                            setFormData((prev) => ({ ...prev, birth_month: e.target.value }))
+                            if (errors.birth_date) setErrors((prev) => ({ ...prev, birth_date: false }))
+                          }}
+                        >
+                          <option value="">חודש</option>
+                          {HEBREW_MONTHS.map((m, i) => (
+                            <option key={m} value={String(i + 1)}>
+                              {m}
+                            </option>
+                          ))}
+                        </select>
+                        <select
+                          style={{ ...getInputStyle('birth_date'), flex: 1.2, minWidth: 0, width: 'auto' }}
+                          value={formData.birth_year || ''}
+                          onChange={(e) => {
+                            setFormData((prev) => ({ ...prev, birth_year: e.target.value }))
+                            if (errors.birth_date) setErrors((prev) => ({ ...prev, birth_date: false }))
+                          }}
+                        >
+                          <option value="">שנה</option>
+                          {Array.from({ length: 100 }, (_, i) => new Date().getFullYear() - i).map((y) => (
+                            <option key={y} value={String(y)}>
+                              {y}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      {errors.birth_date && (
+                        <span style={{ color: '#ef4444', fontSize: 12, display: 'block', marginTop: 4 }}>שדה חובה</span>
+                      )}
+                    </div>
+                  ) : (
+                    <div key={field.id} id={`field-${field.id}`} style={{ marginBottom: 12 }}>
+                      <label
+                        style={{
+                          fontSize: 13,
+                          fontWeight: 600,
+                          color: '#374151',
+                          display: 'block',
+                          marginBottom: 4,
                         }}
-                      />
-                    )}
-                    {errors[field.id] && (
-                      <span style={{ color: '#ef4444', fontSize: 12, display: 'block', marginTop: 4 }}>שדה חובה</span>
-                    )}
-                  </div>
-                ))}
+                      >
+                        {field.label} *
+                      </label>
+                      {field.type === 'select' ? (
+                        <select
+                          style={getInputStyle(field.id)}
+                          value={formData[field.id] || ''}
+                          onChange={(e) => {
+                            setFormData((prev) => ({ ...prev, [field.id]: e.target.value }))
+                            if (errors[field.id]) setErrors((prev) => ({ ...prev, [field.id]: false }))
+                          }}
+                        >
+                          <option value="">בחר...</option>
+                          {field.options.map((o) => (
+                            <option key={o} value={o}>
+                              {o}
+                            </option>
+                          ))}
+                        </select>
+                      ) : (
+                        <input
+                          type={field.type}
+                          style={getInputStyle(field.id)}
+                          value={formData[field.id] || ''}
+                          onChange={(e) => {
+                            setFormData((prev) => ({ ...prev, [field.id]: e.target.value }))
+                            if (errors[field.id]) setErrors((prev) => ({ ...prev, [field.id]: false }))
+                          }}
+                        />
+                      )}
+                      {errors[field.id] && (
+                        <span style={{ color: '#ef4444', fontSize: 12, display: 'block', marginTop: 4 }}>שדה חובה</span>
+                      )}
+                    </div>
+                  )
+                )}
 
                 {registrationFields.map((field) => {
                   const fid = String(field.id)
