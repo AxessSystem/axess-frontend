@@ -179,6 +179,7 @@ export default function MuniPortal() {
 
   const qSearch = searchParams.get('search') || ''
   const qCategory = searchParams.get('category') || ''
+  const categoryFilter = searchParams.get('category') || ''
   const qDateFrom = searchParams.get('date_from') || ''
   const qDateTo = searchParams.get('date_to') || ''
 
@@ -209,6 +210,11 @@ export default function MuniPortal() {
     if (!deptSlug) return null
     return departments.find((d) => d.portal_slug === deptSlug) || null
   }, [departments, deptSlug])
+
+  const portalListPath = useMemo(
+    () => (deptSlug ? `/muni/${citySlug}/${encodeURIComponent(deptSlug)}` : `/muni/${citySlug}`),
+    [citySlug, deptSlug]
+  )
 
   const loadPortal = useCallback(async () => {
     if (!citySlug) return
@@ -263,6 +269,9 @@ export default function MuniPortal() {
 
   const filteredEvents = useMemo(() => {
     let list = events
+    if (categoryFilter) {
+      list = list.filter((e) => (e.event_category || 'other') === categoryFilter)
+    }
     if (draftPrice === 'free') list = list.filter(isFreeEvent)
     else if (draftPrice === 'paid') list = list.filter((e) => !isFreeEvent(e))
     if (draftAudience.trim()) {
@@ -270,7 +279,7 @@ export default function MuniPortal() {
       list = list.filter((e) => String(e.target_audience || '').toLowerCase().includes(t))
     }
     return list
-  }, [events, draftPrice, draftAudience])
+  }, [events, categoryFilter, draftPrice, draftAudience])
 
   const applySearch = (e) => {
     e.preventDefault()
@@ -338,6 +347,20 @@ export default function MuniPortal() {
     setSliderIndex(0)
   }, [heroSlides.length, citySlug])
 
+  useEffect(() => {
+    if (!categoryFilter || eventsLoading) return
+    const id = `muni-cat-${categoryFilter}`
+    const timer = window.setTimeout(() => {
+      const el = document.getElementById(id)
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      } else {
+        document.getElementById('muni-main')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      }
+    }, 150)
+    return () => window.clearTimeout(timer)
+  }, [categoryFilter, eventsLoading, filteredEvents.length])
+
   const groupedByCategory = useMemo(() => {
     const order = MUNI_CATEGORIES.map((c) => c.value)
     const map = new Map()
@@ -365,6 +388,9 @@ export default function MuniPortal() {
         lang="he"
         style={{
           minHeight: '100vh',
+          overflowX: 'hidden',
+          maxWidth: '100vw',
+          position: 'relative',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -381,7 +407,20 @@ export default function MuniPortal() {
 
   if (err || !business) {
     return (
-      <div dir="rtl" lang="he" style={{ minHeight: '100vh', padding: 24, background: COLORS.background, color: COLORS.text, fontFamily: font }}>
+      <div
+        dir="rtl"
+        lang="he"
+        style={{
+          minHeight: '100vh',
+          overflowX: 'hidden',
+          maxWidth: '100vw',
+          position: 'relative',
+          padding: 24,
+          background: COLORS.background,
+          color: COLORS.text,
+          fontFamily: font,
+        }}
+      >
         <main id="muni-main" style={{ maxWidth: 560, margin: '0 auto', textAlign: 'center' }}>
           <h1 style={{ fontSize: '1.5rem', fontWeight: 800 }}>הפורטל לא נמצא</h1>
           <p style={{ fontSize: '1.125rem', color: COLORS.textLight, marginTop: 12 }}>{err || 'נסו שוב מאוחר יותר'}</p>
@@ -393,7 +432,19 @@ export default function MuniPortal() {
   const slide = heroSlides[sliderIndex]
 
   return (
-    <div dir="rtl" lang="he" style={{ minHeight: '100vh', background: COLORS.background, color: COLORS.text, fontFamily: font }}>
+    <div
+      dir="rtl"
+      lang="he"
+      style={{
+        minHeight: '100vh',
+        overflowX: 'hidden',
+        maxWidth: '100vw',
+        position: 'relative',
+        background: COLORS.background,
+        color: COLORS.text,
+        fontFamily: font,
+      }}
+    >
       <a href="#muni-main" className="muni-skip">
         דלג לתוכן
       </a>
@@ -457,7 +508,7 @@ export default function MuniPortal() {
               התחבר
             </button>
           </div>
-          <Link to={`/muni/${citySlug}`} style={{ display: 'flex', alignItems: 'center', gap: 8, textDecoration: 'none', color: COLORS.text, minWidth: 0 }}>
+          <Link to={portalListPath} style={{ display: 'flex', alignItems: 'center', gap: 8, textDecoration: 'none', color: COLORS.text, minWidth: 0 }}>
             {logoUrl ? (
               <img src={logoUrl} alt="" width={40} height={40} style={{ borderRadius: 10, objectFit: 'cover', flexShrink: 0 }} />
             ) : (
@@ -961,7 +1012,7 @@ export default function MuniPortal() {
           </p>
         ) : (
           groupedByCategory.map(({ key, label, items }) => (
-            <section key={key} aria-labelledby={`cat-${key}`} style={{ marginBottom: 36 }}>
+            <section key={key} aria-labelledby={`muni-cat-${key}`} style={{ marginBottom: 36 }}>
               <div
                 style={{
                   display: 'flex',
@@ -973,18 +1024,26 @@ export default function MuniPortal() {
                 }}
               >
                 <Link
-                  to={`/muni/${citySlug}?category=${encodeURIComponent(key)}`}
+                  to={`${portalListPath}?category=${encodeURIComponent(key)}`}
                   style={{ fontSize: 18, fontWeight: 800, color: COLORS.text, textDecoration: 'none' }}
-                  id={`cat-${key}`}
+                  id={`muni-cat-${key}`}
                 >
                   {label} ←
                 </Link>
-                <Link
-                  to={`/muni/${citySlug}?category=${encodeURIComponent(key)}`}
-                  style={{ fontSize: 15, fontWeight: 700, color: COLORS.accent, textDecoration: 'none' }}
+                <span
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => navigate(`${portalListPath}?category=${encodeURIComponent(key)}`)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault()
+                      navigate(`${portalListPath}?category=${encodeURIComponent(key)}`)
+                    }
+                  }}
+                  style={{ cursor: 'pointer', color: COLORS.accent, fontWeight: 700, fontSize: 15 }}
                 >
-                  הצג הכל &gt;
-                </Link>
+                  הצג הכל ›
+                </span>
               </div>
               <div
                 style={

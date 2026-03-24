@@ -1,17 +1,18 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import {
-  ArrowRight,
   Calendar,
   ChevronDown,
   ChevronUp,
   Loader2,
   Mail,
   MapPin,
+  Menu,
   MessageCircle,
   Minus,
   Phone,
   Plus,
+  X,
 } from 'lucide-react'
 import { COLORS, MUNI_CATEGORIES } from './MuniPortal'
 import SmartRegistrationModal from '../components/SmartRegistration/SmartRegistrationModal'
@@ -86,12 +87,14 @@ function useIsDesktop(bp = 900) {
 export default function MuniEventPage() {
   const { citySlug, eventSlug } = useParams()
   const [business, setBusiness] = useState(null)
+  const [departments, setDepartments] = useState([])
   const [event, setEvent] = useState(null)
   const [ticketTypes, setTicketTypes] = useState([])
   const [loading, setLoading] = useState(true)
   const [err, setErr] = useState(null)
   const [modalOpen, setModalOpen] = useState(false)
   const [drawerOpen, setDrawerOpen] = useState(false)
+  const [menuOpen, setMenuOpen] = useState(false)
   const [quantities, setQuantities] = useState({})
   const [openFaq, setOpenFaq] = useState(() => ({}))
 
@@ -128,6 +131,7 @@ export default function MuniEventPage() {
       if (!br.ok) throw new Error(bData.error || 'פורטל לא נמצא')
       if (!er.ok) throw new Error(eData.error || 'אירוע לא נמצא')
       setBusiness(bData.business)
+      setDepartments(bData.departments || [])
       setEvent(eData.event)
       const tt = eData.ticket_types || []
       setTicketTypes(tt)
@@ -214,7 +218,7 @@ export default function MuniEventPage() {
     )
   }
 
-  const logoUrl = business?.brand_assets?.logo_url
+  const logoUrl = business?.brand_assets?.logo_url || business?.brand_assets?.banner_image
   const hero = event.cover_image_url || event.image_url
   const when = formatEventWhen(event.date)
   const deptPhone = event.dept_phone || contact.phone
@@ -520,7 +524,19 @@ export default function MuniEventPage() {
     ) : null
 
   return (
-    <div dir="rtl" lang="he" style={{ minHeight: '100vh', background: COLORS.background, color: COLORS.text, fontFamily: font }}>
+    <div
+      dir="rtl"
+      lang="he"
+      style={{
+        minHeight: '100vh',
+        overflowX: 'hidden',
+        maxWidth: '100vw',
+        position: 'relative',
+        background: COLORS.background,
+        color: COLORS.text,
+        fontFamily: font,
+      }}
+    >
       <style>{`
         @keyframes spin { to { transform: rotate(360deg); } }
         .muni-event-btn { min-height: 52px; padding: 0 22px; border-radius: 14px; font-size: 1.05rem; font-weight: 800; border: none; cursor: pointer; background: ${COLORS.primary}; color: #fff; font-family: ${font}; }
@@ -530,6 +546,7 @@ export default function MuniEventPage() {
       `}</style>
 
       <header
+        role="banner"
         style={{
           position: 'fixed',
           top: 0,
@@ -545,14 +562,107 @@ export default function MuniEventPage() {
           padding: '0 16px',
         }}
       >
-        <div style={{ width: '100%', maxWidth: 1100, margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: '100%', gap: 12 }}>
-          <Link to={`/muni/${citySlug}`} style={{ display: 'flex', alignItems: 'center', gap: 8, textDecoration: 'none', color: COLORS.text, fontSize: 15, fontWeight: 700 }}>
-            <ArrowRight size={22} aria-hidden />
-            חזרה
+        <div style={{ width: '100%', maxWidth: 1120, margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: '100%', gap: 12 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <button
+              type="button"
+              aria-label="תפריט"
+              onClick={() => setMenuOpen(true)}
+              style={{
+                border: 'none',
+                background: 'transparent',
+                padding: 6,
+                cursor: 'pointer',
+                color: COLORS.primary,
+                borderRadius: 8,
+              }}
+            >
+              <Menu size={24} />
+            </button>
+            <button
+              type="button"
+              style={{
+                minHeight: 40,
+                padding: '0 16px',
+                borderRadius: 10,
+                border: 'none',
+                background: COLORS.primary,
+                color: '#fff',
+                fontWeight: 800,
+                fontSize: 14,
+                cursor: 'pointer',
+                fontFamily: font,
+              }}
+            >
+              התחבר
+            </button>
+          </div>
+          <Link to={`/muni/${citySlug}`} style={{ display: 'flex', alignItems: 'center', gap: 8, textDecoration: 'none', color: COLORS.text, minWidth: 0 }}>
+            {logoUrl ? (
+              <img src={logoUrl} alt="" width={40} height={40} style={{ borderRadius: 10, objectFit: 'cover', flexShrink: 0 }} />
+            ) : (
+              <div style={{ width: 40, height: 40, borderRadius: 10, background: `linear-gradient(135deg, ${COLORS.primary}, #2d5a8a)`, flexShrink: 0 }} />
+            )}
+            <span style={{ fontWeight: 800, fontSize: 15, maxWidth: 140, lineHeight: 1.2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {event?.dept_name || business?.name || ''}
+            </span>
           </Link>
-          {logoUrl && <img src={logoUrl} alt="" width={40} height={40} style={{ borderRadius: 10, flexShrink: 0 }} />}
         </div>
       </header>
+
+      {menuOpen && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="ניווט"
+          style={{ position: 'fixed', inset: 0, zIndex: 1100, background: 'rgba(15,23,42,0.45)' }}
+          onClick={() => setMenuOpen(false)}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              position: 'absolute',
+              top: 0,
+              right: 0,
+              bottom: 0,
+              width: 'min(320px, 88vw)',
+              background: COLORS.background,
+              boxShadow: '-4px 0 24px rgba(0,0,0,0.12)',
+              padding: 20,
+              overflowY: 'auto',
+              fontFamily: font,
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+              <span style={{ fontWeight: 800, fontSize: 18 }}>מחלקות</span>
+              <button type="button" aria-label="סגור" onClick={() => setMenuOpen(false)} style={{ border: 'none', background: 'none', cursor: 'pointer', padding: 4 }}>
+                <X size={28} color={COLORS.primary} />
+              </button>
+            </div>
+            <nav style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <Link
+                to={`/muni/${citySlug}`}
+                onClick={() => setMenuOpen(false)}
+                style={{ padding: 12, borderRadius: 10, textDecoration: 'none', color: COLORS.text, fontWeight: 600, border: `1px solid ${COLORS.border}` }}
+              >
+                פורטל כללי
+              </Link>
+              {departments.map((d) =>
+                d.portal_slug ? (
+                  <Link
+                    key={d.id}
+                    to={`/muni/${citySlug}/${encodeURIComponent(d.portal_slug)}`}
+                    onClick={() => setMenuOpen(false)}
+                    style={{ padding: 12, borderRadius: 10, textDecoration: 'none', color: COLORS.text, fontWeight: 600, border: `1px solid ${COLORS.border}` }}
+                  >
+                    {d.name}
+                  </Link>
+                ) : null
+              )}
+            </nav>
+          </div>
+        </div>
+      )}
 
       <div style={{ marginTop: 60, paddingBottom: 80 }}>
         <div style={{ width: '100%' }}>
