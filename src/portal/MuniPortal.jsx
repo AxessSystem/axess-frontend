@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Link, useParams, useSearchParams } from 'react-router-dom'
-import { ChevronLeft, ChevronRight, Loader2, Menu, X } from 'lucide-react'
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { Loader2, Menu, X } from 'lucide-react'
 
 const API_BASE = import.meta.env.VITE_API_URL || 'https://axess-production.up.railway.app'
 
@@ -89,12 +89,21 @@ function useIsDesktop(breakpoint = 768) {
 }
 
 function EventCard({ ev, citySlug, isMobile }) {
+  const navigate = useNavigate()
   const img = ev.cover_image_url || ev.image_url
   const cp = cardPrice(ev)
   const w = 300
   return (
-    <Link
-      to={`/muni/${citySlug}/event/${encodeURIComponent(ev.slug)}`}
+    <div
+      role="link"
+      tabIndex={0}
+      onClick={() => navigate(`/muni/${citySlug}/event/${encodeURIComponent(ev.slug)}`)}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault()
+          navigate(`/muni/${citySlug}/event/${encodeURIComponent(ev.slug)}`)
+        }
+      }}
       style={{
         width: isMobile ? '100%' : w,
         maxWidth: isMobile ? '100%' : w,
@@ -104,7 +113,6 @@ function EventCard({ ev, citySlug, isMobile }) {
         border: `1px solid ${COLORS.border}`,
         cursor: 'pointer',
         transition: 'transform 0.2s, box-shadow 0.2s',
-        textDecoration: 'none',
         display: 'block',
         boxSizing: 'border-box',
       }}
@@ -154,11 +162,12 @@ function EventCard({ ev, citySlug, isMobile }) {
           )}
         </div>
       </div>
-    </Link>
+    </div>
   )
 }
 
 export default function MuniPortal() {
+  const navigate = useNavigate()
   const { citySlug, deptSlug } = useParams()
   const [searchParams, setSearchParams] = useSearchParams()
   const [business, setBusiness] = useState(null)
@@ -301,6 +310,22 @@ export default function MuniPortal() {
 
   const heroSlides = useMemo(() => filteredEvents.slice(0, 5), [filteredEvents])
 
+  const prevSlide = useCallback(() => {
+    setSliderIndex((i) => {
+      const n = heroSlides.length
+      if (!n) return 0
+      return (i - 1 + n) % n
+    })
+  }, [heroSlides.length])
+
+  const nextSlide = useCallback(() => {
+    setSliderIndex((i) => {
+      const n = heroSlides.length
+      if (!n) return 0
+      return (i + 1) % n
+    })
+  }, [heroSlides.length])
+
   useEffect(() => {
     if (heroSlides.length <= 1) return undefined
     const t = setInterval(() => {
@@ -377,26 +402,27 @@ export default function MuniPortal() {
         .muni-skip { position: absolute; left: -9999px; top: auto; width: 1px; height: 1px; overflow: hidden; }
         .muni-skip:focus { position: fixed; left: 12px; top: 12px; width: auto; height: auto; padding: 12px 16px; background: #fff; border: 2px solid ${COLORS.primary}; border-radius: 8px; z-index: 10000; font-size: 1rem; }
         .muni-portal-card:hover { transform: scale(1.02); box-shadow: 0 8px 24px rgba(10,22,40,0.14); }
-        .muni-portal-header { display: flex !important; flex-direction: column; width: 100%; }
-        .muni-portal-header-inner { display: flex !important; width: 100%; }
         .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); border: 0; }
       `}</style>
 
       <header
-        className="muni-portal-header"
         role="banner"
         style={{
-          position: 'sticky',
+          position: 'fixed',
           top: 0,
-          zIndex: 100,
+          left: 0,
+          right: 0,
+          zIndex: 1000,
           background: '#fff',
           boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+          height: 60,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '0 16px',
         }}
       >
-        <div
-          className="muni-portal-header-inner"
-          style={{ maxWidth: 1120, margin: '0 auto', padding: '12px 16px', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}
-        >
+        <div style={{ width: '100%', maxWidth: 1120, margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: '100%', gap: 12 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <button
               type="button"
@@ -405,25 +431,25 @@ export default function MuniPortal() {
               style={{
                 border: 'none',
                 background: 'transparent',
-                padding: 8,
+                padding: 6,
                 cursor: 'pointer',
                 color: COLORS.primary,
                 borderRadius: 8,
               }}
             >
-              <Menu size={26} />
+              <Menu size={24} />
             </button>
             <button
               type="button"
               style={{
-                minHeight: 44,
-                padding: '0 18px',
+                minHeight: 40,
+                padding: '0 16px',
                 borderRadius: 10,
                 border: 'none',
                 background: COLORS.primary,
                 color: '#fff',
                 fontWeight: 800,
-                fontSize: 15,
+                fontSize: 14,
                 cursor: 'pointer',
                 fontFamily: font,
               }}
@@ -431,13 +457,15 @@ export default function MuniPortal() {
               התחבר
             </button>
           </div>
-          <Link to={`/muni/${citySlug}`} style={{ display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none', color: COLORS.text }}>
+          <Link to={`/muni/${citySlug}`} style={{ display: 'flex', alignItems: 'center', gap: 8, textDecoration: 'none', color: COLORS.text, minWidth: 0 }}>
             {logoUrl ? (
-              <img src={logoUrl} alt="" width={48} height={48} style={{ borderRadius: 10, objectFit: 'cover' }} />
+              <img src={logoUrl} alt="" width={40} height={40} style={{ borderRadius: 10, objectFit: 'cover', flexShrink: 0 }} />
             ) : (
-              <div style={{ width: 48, height: 48, borderRadius: 10, background: `linear-gradient(135deg, ${COLORS.primary}, #2d5a8a)` }} />
+              <div style={{ width: 40, height: 40, borderRadius: 10, background: `linear-gradient(135deg, ${COLORS.primary}, #2d5a8a)`, flexShrink: 0 }} />
             )}
-            <span style={{ fontWeight: 800, fontSize: 17, maxWidth: 160, lineHeight: 1.2 }}>{activeDept?.name || business.name}</span>
+            <span style={{ fontWeight: 800, fontSize: 15, maxWidth: 140, lineHeight: 1.2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {activeDept?.name || business.name}
+            </span>
           </Link>
         </div>
       </header>
@@ -447,7 +475,7 @@ export default function MuniPortal() {
           role="dialog"
           aria-modal="true"
           aria-label="ניווט"
-          style={{ position: 'fixed', inset: 0, zIndex: 60, background: 'rgba(15,23,42,0.45)' }}
+          style={{ position: 'fixed', inset: 0, zIndex: 1100, background: 'rgba(15,23,42,0.45)' }}
           onClick={() => setMenuOpen(false)}
         >
           <div
@@ -496,163 +524,186 @@ export default function MuniPortal() {
         </div>
       )}
 
-      <section aria-label="אירועים מובחרים" style={{ position: 'relative' }}>
-        {heroSlides.length > 0 && slide ? (
-          <div>
-            <div style={{ position: 'relative', height: 400, overflow: 'hidden', background: COLORS.primary }}>
-              {slide.cover_image_url || slide.image_url ? (
-                <img
-                  key={slide.id}
-                  src={slide.cover_image_url || slide.image_url}
-                  alt=""
-                  style={{ width: '100%', height: 400, objectFit: 'cover', display: 'block' }}
-                />
-              ) : (
-                <div key={slide.id} style={{ width: '100%', height: 400, background: `linear-gradient(135deg, ${COLORS.primary}, #1a3050)` }} />
-              )}
-              <button
-                type="button"
-                aria-label="שקופית קודמת"
-                onClick={() => setSliderIndex((i) => (i - 1 + heroSlides.length) % heroSlides.length)}
-                style={{
-                  position: 'absolute',
-                  left: 12,
-                  top: '50%',
-                  transform: 'translateY(-50%)',
-                  width: 44,
-                  height: 44,
-                  borderRadius: '50%',
-                  border: 'none',
-                  background: 'rgba(255,255,255,0.9)',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  color: COLORS.primary,
-                  boxShadow: '0 2px 10px rgba(0,0,0,0.15)',
+      <div style={{ marginTop: 60 }}>
+        <section aria-label="אירועים מובחרים" style={{ position: 'relative' }}>
+          {heroSlides.length > 0 && slide ? (
+            <div style={{ position: 'relative' }}>
+              <div
+                role="link"
+                tabIndex={0}
+                onClick={() => navigate(`/muni/${citySlug}/event/${encodeURIComponent(slide.slug)}`)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault()
+                    navigate(`/muni/${citySlug}/event/${encodeURIComponent(slide.slug)}`)
+                  }
                 }}
+                style={{ cursor: 'pointer' }}
               >
-                <ChevronRight size={28} />
-              </button>
-              <button
-                type="button"
-                aria-label="שקופית הבאה"
-                onClick={() => setSliderIndex((i) => (i + 1) % heroSlides.length)}
-                style={{
-                  position: 'absolute',
-                  right: 12,
-                  top: '50%',
-                  transform: 'translateY(-50%)',
-                  width: 44,
-                  height: 44,
-                  borderRadius: '50%',
-                  border: 'none',
-                  background: 'rgba(255,255,255,0.9)',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  color: COLORS.primary,
-                  boxShadow: '0 2px 10px rgba(0,0,0,0.15)',
-                }}
+                <div style={{ position: 'relative', height: 400, overflow: 'hidden', background: COLORS.primary }}>
+                  {slide.cover_image_url || slide.image_url ? (
+                    <img
+                      key={slide.id}
+                      src={slide.cover_image_url || slide.image_url}
+                      alt=""
+                      style={{ width: '100%', height: 400, objectFit: 'cover', display: 'block' }}
+                    />
+                  ) : (
+                    <div key={slide.id} style={{ width: '100%', height: 400, background: `linear-gradient(135deg, ${COLORS.primary}, #1a3050)` }} />
+                  )}
+                  <button
+                    type="button"
+                    aria-label="שקופית קודמת"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      prevSlide()
+                    }}
+                    style={{
+                      position: 'absolute',
+                      right: 12,
+                      top: '40%',
+                      background: 'rgba(0,0,0,0.4)',
+                      color: '#fff',
+                      border: 'none',
+                      borderRadius: '50%',
+                      width: 36,
+                      height: 36,
+                      cursor: 'pointer',
+                      fontSize: 18,
+                      zIndex: 10,
+                      lineHeight: 1,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    ›
+                  </button>
+                  <button
+                    type="button"
+                    aria-label="שקופית הבאה"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      nextSlide()
+                    }}
+                    style={{
+                      position: 'absolute',
+                      left: 12,
+                      top: '40%',
+                      background: 'rgba(0,0,0,0.4)',
+                      color: '#fff',
+                      border: 'none',
+                      borderRadius: '50%',
+                      width: 36,
+                      height: 36,
+                      cursor: 'pointer',
+                      fontSize: 18,
+                      zIndex: 10,
+                      lineHeight: 1,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    ‹
+                  </button>
+                </div>
+                <div
+                  style={{
+                    background: '#fff',
+                    padding: '16px 20px',
+                    borderBottom: `3px solid ${COLORS.accent}`,
+                  }}
+                >
+                  <h2
+                    style={{
+                      fontFamily: 'Heebo, sans-serif',
+                      fontWeight: 800,
+                      fontSize: 24,
+                      color: COLORS.primary,
+                      margin: '0 0 8px',
+                    }}
+                  >
+                    {slide.title}
+                  </h2>
+                  <div
+                    style={{
+                      display: 'flex',
+                      gap: 16,
+                      color: COLORS.textLight,
+                      fontSize: 14,
+                      alignItems: 'center',
+                      flexWrap: 'wrap',
+                    }}
+                  >
+                    <span>📅 {formatDate(slide.date)}</span>
+                    <span style={{ color: COLORS.accent }}>|</span>
+                    <span>
+                      📍{' '}
+                      {[slide.location, eventCity(slide)].filter(Boolean).join(', ') || '—'}
+                    </span>
+                  </div>
+                  <span
+                    style={{
+                      marginTop: 12,
+                      background: COLORS.primary,
+                      color: '#fff',
+                      borderRadius: 25,
+                      padding: '10px 24px',
+                      fontFamily: 'Heebo, sans-serif',
+                      fontWeight: 700,
+                      display: 'inline-block',
+                      fontSize: 15,
+                    }}
+                  >
+                    לרכישת כרטיסים
+                  </span>
+                </div>
+              </div>
+              <div
+                style={{ display: 'flex', justifyContent: 'center', gap: 8, padding: '12px 0', background: COLORS.background }}
+                onClick={(e) => e.stopPropagation()}
+                role="presentation"
               >
-                <ChevronLeft size={28} />
-              </button>
+                {heroSlides.map((_, i) => (
+                  <button
+                    key={i}
+                    type="button"
+                    aria-label={`שקופית ${i + 1}`}
+                    onClick={() => setSliderIndex(i)}
+                    style={{
+                      width: i === sliderIndex ? 22 : 8,
+                      height: 8,
+                      borderRadius: 999,
+                      border: 'none',
+                      background: i === sliderIndex ? COLORS.accent : COLORS.border,
+                      cursor: 'pointer',
+                      padding: 0,
+                      transition: 'width 0.2s',
+                    }}
+                  />
+                ))}
+              </div>
             </div>
+          ) : (
             <div
               style={{
-                background: '#fff',
-                padding: '16px 20px',
-                borderBottom: `3px solid ${COLORS.accent}`,
+                height: 200,
+                background: `linear-gradient(135deg, ${COLORS.primary} 0%, #050d18 100%)`,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#fff',
+                fontSize: 18,
+                fontWeight: 700,
               }}
             >
-              <h2
-                style={{
-                  fontFamily: 'Heebo, sans-serif',
-                  fontWeight: 800,
-                  fontSize: 24,
-                  color: COLORS.primary,
-                  margin: '0 0 8px',
-                }}
-              >
-                {slide.title}
-              </h2>
-              <div
-                style={{
-                  display: 'flex',
-                  gap: 16,
-                  color: COLORS.textLight,
-                  fontSize: 14,
-                  alignItems: 'center',
-                  flexWrap: 'wrap',
-                }}
-              >
-                <span>📅 {formatDate(slide.date)}</span>
-                <span style={{ color: COLORS.accent }}>|</span>
-                <span>
-                  📍{' '}
-                  {[slide.location, eventCity(slide)].filter(Boolean).join(', ') || '—'}
-                </span>
-              </div>
-              <Link
-                to={`/muni/${citySlug}/event/${encodeURIComponent(slide.slug)}`}
-                style={{
-                  marginTop: 12,
-                  background: COLORS.primary,
-                  color: '#fff',
-                  border: 'none',
-                  borderRadius: 25,
-                  padding: '10px 24px',
-                  fontFamily: 'Heebo, sans-serif',
-                  fontWeight: 700,
-                  cursor: 'pointer',
-                  display: 'inline-block',
-                  textDecoration: 'none',
-                }}
-              >
-                לרכישת כרטיסים
-              </Link>
+              אירועים יתווספו בקרוב
             </div>
-            <div style={{ display: 'flex', justifyContent: 'center', gap: 8, padding: '12px 0', background: COLORS.background }}>
-              {heroSlides.map((_, i) => (
-                <button
-                  key={i}
-                  type="button"
-                  aria-label={`שקופית ${i + 1}`}
-                  onClick={() => setSliderIndex(i)}
-                  style={{
-                    width: i === sliderIndex ? 22 : 8,
-                    height: 8,
-                    borderRadius: 999,
-                    border: 'none',
-                    background: i === sliderIndex ? COLORS.accent : COLORS.border,
-                    cursor: 'pointer',
-                    padding: 0,
-                    transition: 'width 0.2s',
-                  }}
-                />
-              ))}
-            </div>
-          </div>
-        ) : (
-          <div
-            style={{
-              height: 200,
-              background: `linear-gradient(135deg, ${COLORS.primary} 0%, #050d18 100%)`,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: '#fff',
-              fontSize: 18,
-              fontWeight: 700,
-            }}
-          >
-            אירועים יתווספו בקרוב
-          </div>
-        )}
-      </section>
+          )}
+        </section>
 
-      <main id="muni-main" style={{ maxWidth: 1120, margin: '0 auto', padding: '20px 16px 100px' }}>
+        <main id="muni-main" style={{ marginTop: 0, maxWidth: 1120, marginLeft: 'auto', marginRight: 'auto', padding: '20px 16px 100px' }}>
         <form
           onSubmit={applySearch}
           role="search"
@@ -1047,6 +1098,7 @@ export default function MuniPortal() {
           </div>
         </div>
       </footer>
+      </div>
     </div>
   )
 }

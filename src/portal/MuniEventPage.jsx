@@ -91,6 +91,7 @@ export default function MuniEventPage() {
   const [loading, setLoading] = useState(true)
   const [err, setErr] = useState(null)
   const [modalOpen, setModalOpen] = useState(false)
+  const [drawerOpen, setDrawerOpen] = useState(false)
   const [quantities, setQuantities] = useState({})
   const [openFaq, setOpenFaq] = useState(() => ({}))
 
@@ -162,6 +163,14 @@ export default function MuniEventPage() {
     [ticketTypes]
   )
 
+  const minPrice = useMemo(() => {
+    if (!ticketTypes.length) return null
+    return Math.min(...ticketTypes.map((t) => Number(t.price || 0)))
+  }, [ticketTypes])
+
+  const orderTicketLabel =
+    minPrice == null ? 'הזמן כרטיס' : minPrice === 0 ? 'הזמן כרטיס — חינם' : `הזמן כרטיס — מ-₪${minPrice.toFixed(0)}`
+
   const adjustQty = (id, delta, maxPer) => {
     setQuantities((prev) => {
       const cur = prev[id] || 0
@@ -213,22 +222,14 @@ export default function MuniEventPage() {
   const rich = event.rich_description
   const plainDesc = event.description
 
-  const ticketPanel = (
-    <aside
-      style={{
-        background: COLORS.cardBg,
-        border: `1px solid ${COLORS.border}`,
-        borderRadius: 16,
-        padding: 20,
-        boxShadow: '0 8px 28px rgba(10,22,40,0.1)',
-      }}
-    >
-      <h2 style={{ margin: '0 0 16px', fontSize: 20, fontWeight: 800, color: COLORS.text }}>כרטיסים</h2>
+  const ticketDrawerInner = (
+    <>
+      <h2 style={{ margin: '0 0 12px', fontSize: 18, fontWeight: 800, color: COLORS.text }}>כרטיסים</h2>
       {allFree && (
         <div
           style={{
             display: 'inline-block',
-            marginBottom: 14,
+            marginBottom: 12,
             padding: '6px 14px',
             borderRadius: 999,
             background: COLORS.accent,
@@ -241,9 +242,9 @@ export default function MuniEventPage() {
         </div>
       )}
       {ticketTypes.length === 0 ? (
-        <p style={{ color: COLORS.textLight, margin: 0 }}>אין סוגי כניסה זמינים בפורטל — השלימו בדף ההרשמה המלא.</p>
+        <p style={{ color: COLORS.textLight, margin: '0 0 12px' }}>אין סוגי כניסה זמינים בפורטל כרגע.</p>
       ) : (
-        <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 14 }}>
+        <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 12 }}>
           {ticketTypes.map((tt) => {
             const max = Math.min(parseInt(tt.max_per_order || 10, 10), 10)
             const avail =
@@ -256,7 +257,7 @@ export default function MuniEventPage() {
               <li
                 key={tt.id}
                 style={{
-                  padding: 14,
+                  padding: 12,
                   borderRadius: 12,
                   border: `1px solid ${COLORS.border}`,
                   background: '#fafbfc',
@@ -264,17 +265,17 @@ export default function MuniEventPage() {
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'flex-start' }}>
                   <div>
-                    <div style={{ fontWeight: 800, fontSize: 16, color: COLORS.text }}>{tt.name}</div>
+                    <div style={{ fontWeight: 800, fontSize: 15, color: COLORS.text }}>{tt.name}</div>
                     {tt.description && <div style={{ fontSize: 13, color: COLORS.textLight, marginTop: 4 }}>{tt.description}</div>}
-                    <div style={{ fontSize: 13, color: COLORS.textLight, marginTop: 6 }}>
+                    <div style={{ fontSize: 12, color: COLORS.textLight, marginTop: 6 }}>
                       {avail != null ? `זמינות: ${avail}` : 'זמינות: —'}
                     </div>
                   </div>
-                  <div style={{ fontWeight: 800, color: COLORS.primary, whiteSpace: 'nowrap' }}>
+                  <div style={{ fontWeight: 800, color: COLORS.primary, whiteSpace: 'nowrap', fontSize: 15 }}>
                     {price === 0 ? 'חינם' : `₪${price.toFixed(0)}`}
                   </div>
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 12 }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 10 }}>
                   <span style={{ fontSize: 14, color: COLORS.textLight }}>כמות</span>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                     <button
@@ -325,8 +326,8 @@ export default function MuniEventPage() {
           })}
         </ul>
       )}
-      <div style={{ marginTop: 20, paddingTop: 16, borderTop: `1px solid ${COLORS.border}` }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 14 }}>
+      <div style={{ marginTop: 16, paddingTop: 14, borderTop: `1px solid ${COLORS.border}` }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 12 }}>
           <span style={{ fontSize: 16, fontWeight: 600, color: COLORS.text }}>סה״כ לתשלום</span>
           <span style={{ fontSize: 20, fontWeight: 800, color: COLORS.text, fontFamily: font }}>₪{totalPay.toFixed(0)}</span>
         </div>
@@ -348,13 +349,13 @@ export default function MuniEventPage() {
             fontFamily: font,
           }}
         >
-          הזמן עכשיו
+          אישור והמשך
         </button>
         {!externalUrl && ticketTypes.length > 0 && !hasAnyTickets && (
           <p style={{ fontSize: 13, color: COLORS.textLight, marginTop: 8, textAlign: 'center' }}>בחרו לפחות כרטיס אחד</p>
         )}
       </div>
-    </aside>
+    </>
   )
 
   const titleSection = (
@@ -525,82 +526,71 @@ export default function MuniEventPage() {
         .muni-event-btn { min-height: 52px; padding: 0 22px; border-radius: 14px; font-size: 1.05rem; font-weight: 800; border: none; cursor: pointer; background: ${COLORS.primary}; color: #fff; font-family: ${font}; }
         .muni-event-btn:focus-visible { outline: 3px solid rgba(0,195,122,0.45); outline-offset: 2px; }
         .muni-event-secondary { background: #fff; color: ${COLORS.primary}; border: 2px solid ${COLORS.primary}; }
-        .muni-portal-header { display: flex !important; flex-direction: column; width: 100%; }
-        .muni-portal-header-inner { display: flex !important; width: 100%; }
         .sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);border:0}
       `}</style>
 
       <header
-        className="muni-portal-header"
         style={{
-          position: 'sticky',
+          position: 'fixed',
           top: 0,
-          zIndex: 100,
+          left: 0,
+          right: 0,
+          zIndex: 1000,
           background: '#fff',
           boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+          height: 60,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '0 16px',
         }}
       >
-        <div
-          className="muni-portal-header-inner"
-          style={{ maxWidth: 1100, margin: '0 auto', padding: '12px 16px', alignItems: 'center', gap: 14 }}
-        >
-          <Link to={`/muni/${citySlug}`} style={{ display: 'flex', alignItems: 'center', gap: 8, textDecoration: 'none', color: COLORS.text, fontSize: 16, fontWeight: 700 }}>
+        <div style={{ width: '100%', maxWidth: 1100, margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: '100%', gap: 12 }}>
+          <Link to={`/muni/${citySlug}`} style={{ display: 'flex', alignItems: 'center', gap: 8, textDecoration: 'none', color: COLORS.text, fontSize: 15, fontWeight: 700 }}>
             <ArrowRight size={22} aria-hidden />
             חזרה
           </Link>
-          {logoUrl && <img src={logoUrl} alt="" width={44} height={44} style={{ borderRadius: 10, marginRight: 'auto' }} />}
+          {logoUrl && <img src={logoUrl} alt="" width={40} height={40} style={{ borderRadius: 10, flexShrink: 0 }} />}
         </div>
       </header>
 
-      <div style={{ width: '100%' }}>
-        {hero ? (
-          <img
-            src={hero}
-            alt=""
-            style={{
-              width: '100%',
-              height: isDesktop ? 400 : 300,
-              objectFit: 'cover',
-              display: 'block',
-              borderRadius: 0,
-            }}
-          />
-        ) : (
-          <div style={{ width: '100%', height: isDesktop ? 400 : 300, background: `linear-gradient(135deg, ${COLORS.primary}, #1a3050)` }} />
-        )}
-      </div>
+      <div style={{ marginTop: 60, paddingBottom: 80 }}>
+        <div style={{ width: '100%' }}>
+          {hero ? (
+            <img
+              src={hero}
+              alt=""
+              style={{
+                width: '100%',
+                height: isDesktop ? 400 : 300,
+                objectFit: 'cover',
+                display: 'block',
+                borderRadius: 0,
+              }}
+            />
+          ) : (
+            <div style={{ width: '100%', height: isDesktop ? 400 : 300, background: `linear-gradient(135deg, ${COLORS.primary}, #1a3050)` }} />
+          )}
+        </div>
 
-      <div style={{ maxWidth: 1100, margin: '0 auto', padding: '24px 16px 100px' }}>
-        {titleSection}
-        {ticketPanel}
-        {descriptionSection}
-        {faqSection}
-        {contactSection}
+        <div style={{ maxWidth: 1100, margin: '0 auto', padding: '24px 16px 24px' }}>
+          {titleSection}
+          {descriptionSection}
+          {faqSection}
+          {contactSection}
+        </div>
 
-        {!externalUrl && (
-          <div style={{ marginTop: 24 }}>
-            <Link
-              to={`/e/${event.slug}`}
-              className="muni-event-btn muni-event-secondary"
-              style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', textDecoration: 'none', width: '100%', maxWidth: 400 }}
-            >
-              דף הרשמה מלא (תשלום מאובטח)
-            </Link>
-          </div>
-        )}
-      </div>
-
-      <footer
-        role="contentinfo"
-        style={{
-          background: COLORS.background,
-          borderTop: `1px solid ${COLORS.accent}`,
-          padding: '24px 16px 20px',
-          fontSize: 12,
-          color: COLORS.text,
-          fontFamily: font,
-        }}
-      >
+        <footer
+          role="contentinfo"
+          style={{
+            background: COLORS.background,
+            borderTop: `1px solid ${COLORS.accent}`,
+            padding: '24px 16px 20px',
+            fontSize: 12,
+            color: COLORS.text,
+            fontFamily: font,
+          }}
+        >
         <div style={{ maxWidth: 1100, margin: '0 auto' }}>
           <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '8px 16px', marginBottom: 14 }}>
             {['תנאי שימוש', 'אודות', 'פרטיות', 'ביטולים', 'בקשת ביטול'].map((t) => (
@@ -678,6 +668,45 @@ export default function MuniEventPage() {
           </div>
         </div>
       </footer>
+      </div>
+
+      <div
+        style={{
+          position: 'fixed',
+          bottom: 0,
+          left: 0,
+          right: 0,
+          zIndex: 100,
+          background: '#fff',
+          boxShadow: '0 -4px 20px rgba(0,0,0,0.12)',
+          borderRadius: '16px 16px 0 0',
+          padding: 16,
+          transform: drawerOpen ? 'translateY(0)' : 'translateY(calc(100% - 70px))',
+          transition: 'transform 0.3s ease',
+          maxHeight: '85vh',
+          overflowY: 'auto',
+        }}
+      >
+        <button
+          type="button"
+          onClick={() => setDrawerOpen(!drawerOpen)}
+          style={{
+            width: '100%',
+            background: COLORS.primary,
+            color: '#fff',
+            border: 'none',
+            borderRadius: 25,
+            padding: '14px',
+            fontFamily: 'Heebo',
+            fontWeight: 700,
+            fontSize: 16,
+            cursor: 'pointer',
+          }}
+        >
+          {drawerOpen ? '✕ סגור' : orderTicketLabel}
+        </button>
+        {drawerOpen && <div style={{ marginTop: 16 }}>{ticketDrawerInner}</div>}
+      </div>
 
       <SmartRegistrationModal
         open={modalOpen}
