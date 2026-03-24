@@ -1,8 +1,26 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
-import { Calendar, Loader2, MapPin, Search } from 'lucide-react'
+import {
+  Calendar,
+  ChevronLeft,
+  ChevronRight,
+  Loader2,
+  MapPin,
+  Menu,
+  X,
+} from 'lucide-react'
 
 const API_BASE = import.meta.env.VITE_API_URL || 'https://axess-production.up.railway.app'
+
+export const COLORS = {
+  primary: '#1a3a5c',
+  accent: '#00C37A',
+  background: '#ffffff',
+  text: '#1a3a5c',
+  textLight: '#6b7280',
+  border: '#e5e7eb',
+  cardBg: '#ffffff',
+}
 
 export const MUNI_CATEGORIES = [
   { value: 'workshop', label: 'סדנאות' },
@@ -24,20 +42,7 @@ export const MUNI_CATEGORIES = [
 
 const categoryLabel = (v) => MUNI_CATEGORIES.find((c) => c.value === v)?.label || v || 'אחר'
 
-function brandVars(business) {
-  const ba = business?.brand_assets && typeof business.brand_assets === 'object' ? business.brand_assets : {}
-  const colors = ba.colors && typeof ba.colors === 'object' ? ba.colors : {}
-  return {
-    '--muni-primary': colors.primary || '#0f766e',
-    '--muni-secondary': colors.secondary || '#14b8a6',
-    '--muni-accent': colors.primary || '#0d9488',
-    '--muni-page-bg': '#f8fafc',
-    '--muni-surface': '#ffffff',
-    '--muni-text': '#0f172a',
-    '--muni-muted': '#475569',
-    '--muni-border': '#e2e8f0',
-  }
-}
+const font = "'Heebo', system-ui, sans-serif"
 
 function formatWhen(iso) {
   if (!iso) return 'תאריך יוכרז'
@@ -48,26 +53,112 @@ function formatWhen(iso) {
   }
 }
 
-function priceLine(ev) {
-  const r = ev.resident_only_price
-  const n = ev.non_resident_price
-  if (r != null && Number(r) === 0 && (n == null || Number(n) === 0)) return 'חינם'
-  if (r != null && n != null) return `תושב ₪${Number(r).toFixed(0)} · חיצוני ₪${Number(n).toFixed(0)}`
-  if (r != null) return `מתוך ₪${Number(r).toFixed(0)} לתושב`
-  if (n != null) return `₪${Number(n).toFixed(0)}`
-  return 'פרטים בדף האירוע'
+function formatSliderLine(iso) {
+  if (!iso) return 'תאריך יוכרז'
+  try {
+    const d = new Date(iso)
+    return d.toLocaleDateString('he-IL', { day: 'numeric', month: 'long' })
+  } catch {
+    return iso
+  }
 }
 
-function spotsLine(ev) {
-  const reg = ev.registrations_count ?? 0
-  const cap = ev.max_capacity
-  const tr = ev.tickets_remaining
-  if (cap != null && cap > 0) {
-    const left = Math.max(0, cap - reg)
-    return `${reg} נרשמו · נותרו ${left} מתוך ${cap}`
-  }
-  if (tr != null) return `${reg} נרשמו · כרטיסים זמינים: ${tr}`
-  return `${reg} נרשמו`
+function isFreeEvent(ev) {
+  const r = ev.resident_only_price
+  const n = ev.non_resident_price
+  if (r != null && Number(r) === 0 && (n == null || Number(n) === 0)) return true
+  return false
+}
+
+function priceBadge(ev) {
+  if (isFreeEvent(ev)) return { text: 'חינם', free: true }
+  const r = ev.resident_only_price
+  const n = ev.non_resident_price
+  if (r != null && n != null) return { text: `מ-₪${Math.min(Number(r), Number(n)).toFixed(0)}`, free: false }
+  if (r != null) return { text: `מ-₪${Number(r).toFixed(0)}`, free: false }
+  if (n != null) return { text: `מ-₪${Number(n).toFixed(0)}`, free: false }
+  return { text: 'מחיר בדף', free: false }
+}
+
+function useIsDesktop(breakpoint = 768) {
+  const [wide, setWide] = useState(typeof window !== 'undefined' && window.innerWidth >= breakpoint)
+  useEffect(() => {
+    const mq = window.matchMedia(`(min-width: ${breakpoint}px)`)
+    const fn = () => setWide(mq.matches)
+    fn()
+    mq.addEventListener('change', fn)
+    return () => mq.removeEventListener('change', fn)
+  }, [breakpoint])
+  return wide
+}
+
+function EventCard({ ev, citySlug, narrow }) {
+  const img = ev.cover_image_url || ev.image_url
+  const w = narrow ? 260 : '100%'
+  const badge = priceBadge(ev)
+  return (
+    <Link
+      to={`/muni/${citySlug}/event/${encodeURIComponent(ev.slug)}`}
+      style={{
+        flex: narrow ? `0 0 ${w}px` : '1 1 auto',
+        width: w,
+        maxWidth: narrow ? w : '100%',
+        background: COLORS.cardBg,
+        borderRadius: 12,
+        overflow: 'hidden',
+        border: `1px solid ${COLORS.border}`,
+        textDecoration: 'none',
+        color: COLORS.text,
+        display: 'block',
+        transition: 'transform 0.2s ease, box-shadow 0.2s ease',
+        fontFamily: font,
+      }}
+      className="muni-portal-card"
+    >
+      <div style={{ height: 160, background: COLORS.border, overflow: 'hidden' }}>
+        {img ? (
+          <img src={img} alt="" style={{ width: '100%', height: 160, objectFit: 'cover', display: 'block' }} />
+        ) : (
+          <div
+            style={{
+              height: 160,
+              background: `linear-gradient(135deg, ${COLORS.primary} 0%, #2d5a8a 100%)`,
+            }}
+          />
+        )}
+      </div>
+      <div style={{ padding: '12px 14px 14px' }}>
+        <h3 style={{ margin: 0, fontSize: 16, fontWeight: 800, lineHeight: 1.35, color: COLORS.text }}>{ev.title}</h3>
+        <div style={{ marginTop: 8, fontSize: 14, color: COLORS.textLight, display: 'flex', flexDirection: 'column', gap: 4 }}>
+          <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <Calendar size={15} aria-hidden style={{ flexShrink: 0 }} />
+            {formatSliderLine(ev.date)}
+          </span>
+          {ev.location && (
+            <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <MapPin size={15} aria-hidden style={{ flexShrink: 0 }} />
+              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ev.location}</span>
+            </span>
+          )}
+        </div>
+        <div style={{ marginTop: 10 }}>
+          <span
+            style={{
+              display: 'inline-block',
+              padding: '4px 10px',
+              borderRadius: 999,
+              fontSize: 13,
+              fontWeight: 700,
+              background: badge.free ? COLORS.accent : `${COLORS.primary}14`,
+              color: badge.free ? '#fff' : COLORS.primary,
+            }}
+          >
+            {badge.text}
+          </span>
+        </div>
+      </div>
+    </Link>
+  )
 }
 
 export default function MuniPortal() {
@@ -82,18 +173,35 @@ export default function MuniPortal() {
 
   const qSearch = searchParams.get('search') || ''
   const qCategory = searchParams.get('category') || ''
+  const qDateFrom = searchParams.get('date_from') || ''
+  const qDateTo = searchParams.get('date_to') || ''
+
   const [searchDraft, setSearchDraft] = useState(qSearch)
+  const [menuOpen, setMenuOpen] = useState(false)
+  const [sliderIndex, setSliderIndex] = useState(0)
+
+  const [draftDateFrom, setDraftDateFrom] = useState(qDateFrom)
+  const [draftDateTo, setDraftDateTo] = useState(qDateTo)
+  const [draftCategory, setDraftCategory] = useState(qCategory)
+  const [draftAudience, setDraftAudience] = useState('')
+  const [draftPrice, setDraftPrice] = useState('all')
+
+  const isDesktop = useIsDesktop()
 
   useEffect(() => {
     setSearchDraft(qSearch)
   }, [qSearch])
 
+  useEffect(() => {
+    setDraftDateFrom(qDateFrom)
+    setDraftDateTo(qDateTo)
+    setDraftCategory(qCategory)
+  }, [qDateFrom, qDateTo, qCategory])
+
   const activeDept = useMemo(() => {
     if (!deptSlug) return null
     return departments.find((d) => d.portal_slug === deptSlug) || null
   }, [departments, deptSlug])
-
-  const cssVars = useMemo(() => brandVars(business), [business])
 
   const loadPortal = useCallback(async () => {
     if (!citySlug) return
@@ -122,6 +230,8 @@ export default function MuniPortal() {
       if (deptSlug) sp.set('dept_slug', deptSlug)
       if (qCategory) sp.set('category', qCategory)
       if (qSearch.trim()) sp.set('search', qSearch.trim())
+      if (qDateFrom) sp.set('date_from', qDateFrom)
+      if (qDateTo) sp.set('date_to', qDateTo)
       const qs = sp.toString()
       const url = `${API_BASE}/api/portal/${encodeURIComponent(citySlug)}/events${qs ? `?${qs}` : ''}`
       const r = await fetch(url)
@@ -133,7 +243,7 @@ export default function MuniPortal() {
     } finally {
       setEventsLoading(false)
     }
-  }, [citySlug, deptSlug, qCategory, qSearch])
+  }, [citySlug, deptSlug, qCategory, qSearch, qDateFrom, qDateTo])
 
   useEffect(() => {
     loadPortal()
@@ -144,6 +254,17 @@ export default function MuniPortal() {
     loadEvents()
   }, [business, loadEvents])
 
+  const filteredEvents = useMemo(() => {
+    let list = events
+    if (draftPrice === 'free') list = list.filter(isFreeEvent)
+    else if (draftPrice === 'paid') list = list.filter((e) => !isFreeEvent(e))
+    if (draftAudience.trim()) {
+      const t = draftAudience.trim().toLowerCase()
+      list = list.filter((e) => String(e.target_audience || '').toLowerCase().includes(t))
+    }
+    return list
+  }, [events, draftPrice, draftAudience])
+
   const applySearch = (e) => {
     e.preventDefault()
     const next = new URLSearchParams(searchParams)
@@ -152,278 +273,752 @@ export default function MuniPortal() {
     setSearchParams(next)
   }
 
-  const setCategory = (value) => {
+  const applyFilters = () => {
+    const next = new URLSearchParams(searchParams)
+    if (draftDateFrom) next.set('date_from', draftDateFrom)
+    else next.delete('date_from')
+    if (draftDateTo) next.set('date_to', draftDateTo)
+    else next.delete('date_to')
+    if (draftCategory) next.set('category', draftCategory)
+    else next.delete('category')
+    setSearchParams(next)
+  }
+
+  const clearFilters = () => {
+    setDraftDateFrom('')
+    setDraftDateTo('')
+    setDraftCategory('')
+    setDraftAudience('')
+    setDraftPrice('all')
+    setSearchDraft('')
+    setSearchParams(new URLSearchParams())
+  }
+
+  const setCategoryTab = (value) => {
     const next = new URLSearchParams(searchParams)
     if (value) next.set('category', value)
     else next.delete('category')
     setSearchParams(next)
   }
 
+  const heroSlides = useMemo(() => filteredEvents.slice(0, 5), [filteredEvents])
+
+  useEffect(() => {
+    if (heroSlides.length <= 1) return undefined
+    const t = setInterval(() => {
+      setSliderIndex((i) => (i + 1) % heroSlides.length)
+    }, 5000)
+    return () => clearInterval(t)
+  }, [heroSlides.length])
+
+  useEffect(() => {
+    setSliderIndex(0)
+  }, [heroSlides.length, citySlug])
+
+  const groupedByCategory = useMemo(() => {
+    const order = MUNI_CATEGORIES.map((c) => c.value)
+    const map = new Map()
+    for (const ev of filteredEvents) {
+      const k = ev.event_category || 'other'
+      if (!map.has(k)) map.set(k, [])
+      map.get(k).push(ev)
+    }
+    const rows = []
+    for (const key of order) {
+      if (map.has(key) && map.get(key).length) rows.push({ key, label: categoryLabel(key), items: map.get(key) })
+    }
+    for (const [key, items] of map) {
+      if (!order.includes(key) && items.length) rows.push({ key, label: categoryLabel(key), items })
+    }
+    return rows
+  }, [filteredEvents])
+
   const logoUrl = business?.brand_assets?.logo_url || business?.brand_assets?.banner_image
 
   if (loading) {
     return (
-      <div dir="rtl" lang="he" style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f8fafc' }}>
-        <Loader2 size={40} strokeWidth={2.5} aria-hidden style={{ color: '#0f766e', animation: 'spin 0.9s linear infinite' }} />
+      <div
+        dir="rtl"
+        lang="he"
+        style={{
+          minHeight: '100vh',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          background: COLORS.background,
+          fontFamily: font,
+        }}
+      >
+        <Loader2 size={40} strokeWidth={2.5} aria-hidden style={{ color: COLORS.primary, animation: 'spin 0.9s linear infinite' }} />
         <span className="sr-only">טוען פורטל</span>
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } } .sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);border:0}`}</style>
       </div>
     )
   }
 
   if (err || !business) {
     return (
-      <div dir="rtl" lang="he" style={{ minHeight: '100vh', padding: 24, background: '#f8fafc', color: '#0f172a' }}>
+      <div dir="rtl" lang="he" style={{ minHeight: '100vh', padding: 24, background: COLORS.background, color: COLORS.text, fontFamily: font }}>
         <main id="muni-main" style={{ maxWidth: 560, margin: '0 auto', textAlign: 'center' }}>
           <h1 style={{ fontSize: '1.5rem', fontWeight: 800 }}>הפורטל לא נמצא</h1>
-          <p style={{ fontSize: '1.125rem', color: '#475569', marginTop: 12 }}>{err || 'נסו שוב מאוחר יותר'}</p>
+          <p style={{ fontSize: '1.125rem', color: COLORS.textLight, marginTop: 12 }}>{err || 'נסו שוב מאוחר יותר'}</p>
         </main>
       </div>
     )
   }
 
-  const footerDept = activeDept || departments[0]
-  const deptBranding = footerDept?.branding && typeof footerDept.branding === 'object' ? footerDept.branding : {}
-  const footerPhone = footerDept?.phone || deptBranding.phone
-  const footerWa = deptBranding.whatsapp || deptBranding.wa
-  const footerEmail = deptBranding.email || business.email
+  const slide = heroSlides[sliderIndex]
 
   return (
-    <div dir="rtl" lang="he" style={{ minHeight: '100vh', background: 'var(--muni-page-bg)', color: 'var(--muni-text)', ...cssVars }}>
+    <div dir="rtl" lang="he" style={{ minHeight: '100vh', background: COLORS.background, color: COLORS.text, fontFamily: font }}>
       <a href="#muni-main" className="muni-skip">
         דלג לתוכן
       </a>
       <style>{`
         @keyframes spin { to { transform: rotate(360deg); } }
         .muni-skip { position: absolute; left: -9999px; top: auto; width: 1px; height: 1px; overflow: hidden; }
-        .muni-skip:focus { position: fixed; left: 12px; top: 12px; width: auto; height: auto; padding: 12px 16px; background: var(--muni-surface); border: 2px solid var(--muni-primary); border-radius: 8px; z-index: 10000; font-size: 1.1rem; }
-        .muni-header { background: var(--muni-surface); border-bottom: 1px solid var(--muni-border); }
-        .muni-tabs { display: flex; gap: 8px; overflow-x: auto; padding: 8px 0 12px; -webkit-overflow-scrolling: touch; scroll-snap-type: x proximity; }
-        .muni-tabs a { scroll-snap-align: start; flex: 0 0 auto; padding: 10px 16px; border-radius: 999px; font-size: 1.05rem; font-weight: 600; text-decoration: none; color: var(--muni-text); border: 2px solid transparent; min-height: 44px; display: inline-flex; align-items: center; }
-        .muni-tabs a[aria-current="page"] { background: color-mix(in srgb, var(--muni-primary) 18%, white); border-color: var(--muni-primary); color: #0f172a; }
-        .muni-card { background: var(--muni-surface); border: 1px solid var(--muni-border); border-radius: 16px; overflow: hidden; box-shadow: 0 1px 3px rgba(15,23,42,0.06); }
-        .muni-btn { min-height: 48px; padding: 0 20px; border-radius: 12px; font-size: 1.125rem; font-weight: 700; border: none; cursor: pointer; background: var(--muni-primary); color: #fff; }
-        .muni-btn:focus-visible { outline: 3px solid color-mix(in srgb, var(--muni-primary) 55%, white); outline-offset: 2px; }
+        .muni-skip:focus { position: fixed; left: 12px; top: 12px; width: auto; height: auto; padding: 12px 16px; background: #fff; border: 2px solid ${COLORS.primary}; border-radius: 8px; z-index: 10000; font-size: 1rem; }
+        .muni-portal-card:hover { transform: scale(1.02); box-shadow: 0 8px 24px rgba(26,58,92,0.12); }
         .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); border: 0; }
       `}</style>
 
-      <header className="muni-header" role="banner">
-        <div style={{ maxWidth: 960, margin: '0 auto', padding: '16px 20px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
-            {logoUrl ? (
-              <img src={logoUrl} alt="" width={56} height={56} style={{ borderRadius: 12, objectFit: 'cover' }} />
-            ) : (
-              <div style={{ width: 56, height: 56, borderRadius: 12, background: `linear-gradient(135deg, var(--muni-primary), var(--muni-secondary))` }} aria-hidden />
-            )}
-            <div>
-              <h1 style={{ margin: 0, fontSize: 'clamp(1.35rem, 4vw, 1.75rem)', fontWeight: 800 }}>{business.name || 'פורטל עירוני'}</h1>
-              <p style={{ margin: '6px 0 0', fontSize: '1.125rem', color: 'var(--muni-muted)' }}>אירועים ופעילות לתושבים</p>
-            </div>
+      <header
+        role="banner"
+        style={{
+          position: 'sticky',
+          top: 0,
+          zIndex: 40,
+          background: COLORS.background,
+          boxShadow: '0 1px 8px rgba(26,58,92,0.08)',
+        }}
+      >
+        <div style={{ maxWidth: 1120, margin: '0 auto', padding: '12px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <button
+              type="button"
+              aria-label="תפריט"
+              onClick={() => setMenuOpen(true)}
+              style={{
+                border: 'none',
+                background: 'transparent',
+                padding: 8,
+                cursor: 'pointer',
+                color: COLORS.primary,
+                borderRadius: 8,
+              }}
+            >
+              <Menu size={26} />
+            </button>
+            <button
+              type="button"
+              style={{
+                minHeight: 44,
+                padding: '0 18px',
+                borderRadius: 10,
+                border: 'none',
+                background: COLORS.primary,
+                color: '#fff',
+                fontWeight: 800,
+                fontSize: 15,
+                cursor: 'pointer',
+                fontFamily: font,
+              }}
+            >
+              התחבר
+            </button>
           </div>
+          <Link to={`/muni/${citySlug}`} style={{ display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none', color: COLORS.text }}>
+            {logoUrl ? (
+              <img src={logoUrl} alt="" width={48} height={48} style={{ borderRadius: 10, objectFit: 'cover' }} />
+            ) : (
+              <div style={{ width: 48, height: 48, borderRadius: 10, background: `linear-gradient(135deg, ${COLORS.primary}, #2d5a8a)` }} />
+            )}
+            <span style={{ fontWeight: 800, fontSize: 17, maxWidth: 160, lineHeight: 1.2 }}>{activeDept?.name || business.name}</span>
+          </Link>
+        </div>
+      </header>
 
-          <nav aria-label="מחלקות" style={{ marginTop: 16 }}>
-            <div className="muni-tabs" role="tablist">
-              <Link to={`/muni/${citySlug}`} aria-current={!deptSlug ? 'page' : undefined}>
-                כללי
+      {menuOpen && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="ניווט"
+          style={{ position: 'fixed', inset: 0, zIndex: 60, background: 'rgba(15,23,42,0.45)' }}
+          onClick={() => setMenuOpen(false)}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              position: 'absolute',
+              top: 0,
+              right: 0,
+              bottom: 0,
+              width: 'min(320px, 88vw)',
+              background: COLORS.background,
+              boxShadow: '-4px 0 24px rgba(0,0,0,0.12)',
+              padding: 20,
+              overflowY: 'auto',
+              fontFamily: font,
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+              <span style={{ fontWeight: 800, fontSize: 18 }}>מחלקות</span>
+              <button type="button" aria-label="סגור" onClick={() => setMenuOpen(false)} style={{ border: 'none', background: 'none', cursor: 'pointer', padding: 4 }}>
+                <X size={28} color={COLORS.primary} />
+              </button>
+            </div>
+            <nav style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <Link
+                to={`/muni/${citySlug}`}
+                onClick={() => setMenuOpen(false)}
+                style={{ padding: 12, borderRadius: 10, textDecoration: 'none', color: COLORS.text, fontWeight: 600, border: `1px solid ${COLORS.border}` }}
+              >
+                פורטל כללי
               </Link>
               {departments.map((d) =>
                 d.portal_slug ? (
                   <Link
                     key={d.id}
                     to={`/muni/${citySlug}/${encodeURIComponent(d.portal_slug)}`}
-                    aria-current={deptSlug === d.portal_slug ? 'page' : undefined}
+                    onClick={() => setMenuOpen(false)}
+                    style={{ padding: 12, borderRadius: 10, textDecoration: 'none', color: COLORS.text, fontWeight: 600, border: `1px solid ${COLORS.border}` }}
                   >
                     {d.name}
                   </Link>
-                ) : (
-                  <span
-                    key={d.id}
-                    style={{
-                      padding: '10px 16px',
-                      borderRadius: 999,
-                      fontSize: '1.05rem',
-                      fontWeight: 600,
-                      color: 'var(--muni-muted)',
-                      minHeight: 44,
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                    }}
-                    title="הוגדר slug למחלקה כדי לקשר לכאן"
-                  >
-                    {d.name}
-                  </span>
-                )
+                ) : null
               )}
-            </div>
-          </nav>
-
-          <form onSubmit={applySearch} role="search" aria-label="חיפוש אירועים" style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-            <label htmlFor="muni-search" className="sr-only">
-              חיפוש לפי שם אירוע
-            </label>
-            <input
-              id="muni-search"
-              type="search"
-              value={searchDraft}
-              onChange={(e) => setSearchDraft(e.target.value)}
-              placeholder="חיפוש אירועים…"
-              style={{
-                flex: 1,
-                minHeight: 48,
-                fontSize: '1.125rem',
-                padding: '0 14px',
-                borderRadius: 12,
-                border: `2px solid var(--muni-border)`,
-                background: '#fff',
-              }}
-            />
-            <button type="submit" className="muni-btn" aria-label="בצע חיפוש" style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-              <Search size={22} aria-hidden />
-            </button>
-          </form>
+            </nav>
+          </div>
         </div>
-      </header>
+      )}
 
-      <main id="muni-main" style={{ maxWidth: 960, margin: '0 auto', padding: '20px 20px 96px' }}>
-        <section aria-labelledby="filters-heading">
-          <h2 id="filters-heading" className="sr-only">
-            סינון לפי קטגוריה
-          </h2>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 20 }}>
-            <button
-              type="button"
-              className="muni-btn"
-              onClick={() => setCategory('')}
-              style={{
-                background: !qCategory ? 'var(--muni-primary)' : '#e2e8f0',
-                color: !qCategory ? '#fff' : '#0f172a',
-              }}
-            >
-              הכל
-            </button>
-            {MUNI_CATEGORIES.map((c) => (
-              <button
-                key={c.value}
-                type="button"
-                onClick={() => setCategory(c.value)}
+      <section aria-label="אירועים מובחרים" style={{ position: 'relative' }}>
+        {heroSlides.length > 0 && slide ? (
+          <>
+            <div style={{ position: 'relative', height: isDesktop ? 420 : 280, overflow: 'hidden', background: COLORS.primary }}>
+              {slide.cover_image_url || slide.image_url ? (
+                <img
+                  key={slide.id}
+                  src={slide.cover_image_url || slide.image_url}
+                  alt=""
+                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                />
+              ) : (
+                <div key={slide.id} style={{ width: '100%', height: '100%', background: `linear-gradient(135deg, ${COLORS.primary}, #2d5a8a)` }} />
+              )}
+              <div
                 style={{
-                  minHeight: 44,
-                  padding: '0 14px',
-                  borderRadius: 999,
-                  fontSize: '1.05rem',
-                  fontWeight: 600,
-                  border: `2px solid ${qCategory === c.value ? 'var(--muni-primary)' : 'var(--muni-border)'}`,
-                  background: qCategory === c.value ? 'color-mix(in srgb, var(--muni-primary) 15%, white)' : '#fff',
+                  position: 'absolute',
+                  inset: 0,
+                  background: 'linear-gradient(to top, rgba(26,58,92,0.92) 0%, rgba(26,58,92,0.35) 45%, transparent 100%)',
+                }}
+              />
+              <div style={{ position: 'absolute', right: 20, left: 20, bottom: 56, color: '#fff' }}>
+                <h2 style={{ margin: 0, fontSize: 28, fontWeight: 800, lineHeight: 1.25, textShadow: '0 2px 12px rgba(0,0,0,0.35)' }}>{slide.title}</h2>
+                <div style={{ marginTop: 10, fontSize: 16, display: 'flex', flexWrap: 'wrap', gap: '12px 20px', opacity: 0.95 }}>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                    <Calendar size={18} aria-hidden />
+                    {formatSliderLine(slide.date)}
+                  </span>
+                  {slide.location && (
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                      <MapPin size={18} aria-hidden />
+                      {slide.location}
+                    </span>
+                  )}
+                </div>
+                <Link
+                  to={`/muni/${citySlug}/event/${encodeURIComponent(slide.slug)}`}
+                  style={{
+                    display: 'inline-block',
+                    marginTop: 14,
+                    padding: '10px 20px',
+                    borderRadius: 999,
+                    background: COLORS.accent,
+                    color: '#fff',
+                    fontWeight: 800,
+                    textDecoration: 'none',
+                    fontSize: 15,
+                  }}
+                >
+                  לפרטים
+                </Link>
+              </div>
+              <button
+                type="button"
+                aria-label="שקופית קודמת"
+                onClick={() => setSliderIndex((i) => (i - 1 + heroSlides.length) % heroSlides.length)}
+                style={{
+                  position: 'absolute',
+                  left: 12,
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  width: 44,
+                  height: 44,
+                  borderRadius: '50%',
+                  border: 'none',
+                  background: 'rgba(255,255,255,0.9)',
                   cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: COLORS.primary,
+                  boxShadow: '0 2px 10px rgba(0,0,0,0.15)',
                 }}
               >
-                {c.label}
+                <ChevronRight size={28} />
               </button>
-            ))}
+              <button
+                type="button"
+                aria-label="שקופית הבאה"
+                onClick={() => setSliderIndex((i) => (i + 1) % heroSlides.length)}
+                style={{
+                  position: 'absolute',
+                  right: 12,
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  width: 44,
+                  height: 44,
+                  borderRadius: '50%',
+                  border: 'none',
+                  background: 'rgba(255,255,255,0.9)',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: COLORS.primary,
+                  boxShadow: '0 2px 10px rgba(0,0,0,0.15)',
+                }}
+              >
+                <ChevronLeft size={28} />
+              </button>
+              <div style={{ position: 'absolute', bottom: 16, left: 0, right: 0, display: 'flex', justifyContent: 'center', gap: 8 }}>
+                {heroSlides.map((_, i) => (
+                  <button
+                    key={i}
+                    type="button"
+                    aria-label={`שקופית ${i + 1}`}
+                    onClick={() => setSliderIndex(i)}
+                    style={{
+                      width: i === sliderIndex ? 22 : 8,
+                      height: 8,
+                      borderRadius: 999,
+                      border: 'none',
+                      background: i === sliderIndex ? COLORS.accent : 'rgba(255,255,255,0.5)',
+                      cursor: 'pointer',
+                      padding: 0,
+                      transition: 'width 0.2s',
+                    }}
+                  />
+                ))}
+              </div>
+            </div>
+          </>
+        ) : (
+          <div
+            style={{
+              height: isDesktop ? 280 : 200,
+              background: `linear-gradient(135deg, ${COLORS.primary} 0%, #0d2844 100%)`,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: '#fff',
+              fontSize: 18,
+              fontWeight: 700,
+            }}
+          >
+            אירועים יתווספו בקרוב
           </div>
-        </section>
+        )}
+      </section>
+
+      <main id="muni-main" style={{ maxWidth: 1120, margin: '0 auto', padding: '20px 16px 100px' }}>
+        <form
+          onSubmit={applySearch}
+          role="search"
+          aria-label="חיפוש אירועים"
+          style={{
+            display: 'flex',
+            gap: 10,
+            alignItems: 'stretch',
+            marginBottom: 20,
+            boxShadow: '0 4px 20px rgba(26,58,92,0.08)',
+            borderRadius: 50,
+            padding: 6,
+            paddingLeft: 20,
+            background: COLORS.cardBg,
+            border: `1px solid ${COLORS.border}`,
+          }}
+        >
+          <label htmlFor="muni-search" className="sr-only">
+            חיפוש
+          </label>
+          <input
+            id="muni-search"
+            type="search"
+            value={searchDraft}
+            onChange={(e) => setSearchDraft(e.target.value)}
+            placeholder="חפש לפי סוג אירוע, אמן או מקום..."
+            style={{
+              flex: 1,
+              minHeight: 48,
+              fontSize: 16,
+              border: 'none',
+              outline: 'none',
+              background: 'transparent',
+              fontFamily: font,
+              color: COLORS.text,
+            }}
+          />
+          <button
+            type="submit"
+            style={{
+              minHeight: 48,
+              padding: '0 28px',
+              borderRadius: 999,
+              border: 'none',
+              background: COLORS.primary,
+              color: '#fff',
+              fontWeight: 800,
+              fontSize: 16,
+              cursor: 'pointer',
+              fontFamily: font,
+              flexShrink: 0,
+            }}
+          >
+            חיפוש
+          </button>
+        </form>
+
+        <div
+          style={{
+            display: 'flex',
+            flexWrap: 'nowrap',
+            gap: 10,
+            marginBottom: 20,
+            overflowX: 'auto',
+            WebkitOverflowScrolling: 'touch',
+            paddingBottom: 4,
+          }}
+        >
+          <input
+            type="date"
+            value={draftDateFrom}
+            onChange={(e) => setDraftDateFrom(e.target.value)}
+            style={{
+              minHeight: 44,
+              padding: '0 10px',
+              borderRadius: 10,
+              border: `1px solid ${COLORS.border}`,
+              fontFamily: font,
+              fontSize: 14,
+              flex: '0 0 auto',
+            }}
+            aria-label="בחירת תאריך התחלה"
+          />
+          <input
+            type="date"
+            value={draftDateTo}
+            onChange={(e) => setDraftDateTo(e.target.value)}
+            style={{
+              minHeight: 44,
+              padding: '0 10px',
+              borderRadius: 10,
+              border: `1px solid ${COLORS.border}`,
+              fontFamily: font,
+              fontSize: 14,
+              flex: '0 0 auto',
+            }}
+            aria-label="בחירת תאריך סיום"
+          />
+          <select
+            value={draftCategory}
+            onChange={(e) => setDraftCategory(e.target.value)}
+            style={{
+              minHeight: 44,
+              padding: '0 12px',
+              borderRadius: 10,
+              border: `1px solid ${COLORS.border}`,
+              fontFamily: font,
+              fontSize: 14,
+              flex: '0 0 auto',
+              minWidth: 120,
+            }}
+            aria-label="קטגוריה"
+          >
+            <option value="">קטגוריה</option>
+            {MUNI_CATEGORIES.map((c) => (
+              <option key={c.value} value={c.value}>
+                {c.label}
+              </option>
+            ))}
+          </select>
+          <input
+            type="text"
+            value={draftAudience}
+            onChange={(e) => setDraftAudience(e.target.value)}
+            placeholder="קהל יעד"
+            style={{
+              minHeight: 44,
+              padding: '0 12px',
+              borderRadius: 10,
+              border: `1px solid ${COLORS.border}`,
+              fontFamily: font,
+              fontSize: 14,
+              flex: '0 0 auto',
+              minWidth: 100,
+            }}
+            aria-label="קהל יעד"
+          />
+          <select
+            value={draftPrice}
+            onChange={(e) => setDraftPrice(e.target.value)}
+            style={{
+              minHeight: 44,
+              padding: '0 12px',
+              borderRadius: 10,
+              border: `1px solid ${COLORS.border}`,
+              fontFamily: font,
+              fontSize: 14,
+              flex: '0 0 auto',
+            }}
+            aria-label="מחיר"
+          >
+            <option value="all">מחיר</option>
+            <option value="free">חינם</option>
+            <option value="paid">בתשלום</option>
+          </select>
+          <button
+            type="button"
+            onClick={applyFilters}
+            style={{
+              minHeight: 44,
+              padding: '0 18px',
+              borderRadius: 10,
+              border: 'none',
+              background: COLORS.primary,
+              color: '#fff',
+              fontWeight: 800,
+              fontFamily: font,
+              cursor: 'pointer',
+              flex: '0 0 auto',
+            }}
+          >
+            בחר
+          </button>
+          <button
+            type="button"
+            onClick={clearFilters}
+            style={{
+              minHeight: 44,
+              padding: '0 18px',
+              borderRadius: 10,
+              border: `2px solid ${COLORS.primary}`,
+              background: 'transparent',
+              color: COLORS.primary,
+              fontWeight: 700,
+              fontFamily: font,
+              cursor: 'pointer',
+              flex: '0 0 auto',
+            }}
+          >
+            נקה
+          </button>
+        </div>
+
+        <div
+          style={{
+            display: 'flex',
+            gap: 8,
+            overflowX: 'auto',
+            paddingBottom: 12,
+            WebkitOverflowScrolling: 'touch',
+            marginBottom: 8,
+          }}
+        >
+          <button
+            type="button"
+            onClick={() => setCategoryTab('')}
+            style={{
+              flex: '0 0 auto',
+              padding: '10px 18px',
+              borderRadius: 999,
+              border: `2px solid ${!qCategory ? COLORS.accent : COLORS.border}`,
+              background: !qCategory ? `${COLORS.accent}18` : COLORS.cardBg,
+              color: COLORS.text,
+              fontWeight: 700,
+              fontFamily: font,
+              cursor: 'pointer',
+              fontSize: 14,
+            }}
+          >
+            הכל
+          </button>
+          {MUNI_CATEGORIES.map((c) => (
+            <button
+              key={c.value}
+              type="button"
+              onClick={() => setCategoryTab(c.value)}
+              style={{
+                flex: '0 0 auto',
+                padding: '10px 18px',
+                borderRadius: 999,
+                border: `2px solid ${qCategory === c.value ? COLORS.accent : COLORS.border}`,
+                background: qCategory === c.value ? `${COLORS.accent}18` : COLORS.cardBg,
+                color: COLORS.text,
+                fontWeight: 700,
+                fontFamily: font,
+                cursor: 'pointer',
+                fontSize: 14,
+              }}
+            >
+              {c.label}
+            </button>
+          ))}
+        </div>
+
+        <p style={{ color: COLORS.textLight, fontSize: 14, margin: '4px 0 20px' }}>נמצאו {filteredEvents.length} אירועים</p>
 
         {eventsLoading ? (
-          <div style={{ display: 'flex', justifyContent: 'center', padding: 40 }}>
-            <Loader2 size={36} aria-hidden style={{ color: 'var(--muni-primary)', animation: 'spin 0.9s linear infinite' }} />
+          <div style={{ display: 'flex', justifyContent: 'center', padding: 48 }}>
+            <Loader2 size={36} aria-hidden style={{ color: COLORS.primary, animation: 'spin 0.9s linear infinite' }} />
             <span className="sr-only">טוען אירועים</span>
           </div>
-        ) : events.length === 0 ? (
-          <p style={{ fontSize: '1.2rem', color: 'var(--muni-muted)' }} role="status">
+        ) : filteredEvents.length === 0 ? (
+          <p style={{ fontSize: 17, color: COLORS.textLight }} role="status">
             אין אירועים להצגה כרגע.
           </p>
         ) : (
-          <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: 20 }}>
-            {events.map((ev) => {
-              const img = ev.cover_image_url || ev.image_url
-              return (
-                <li key={ev.id}>
-                  <article className="muni-card" aria-labelledby={`ev-title-${ev.id}`}>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr)', gap: 0 }}>
-                      {img ? (
-                        <img src={img} alt="" style={{ width: '100%', height: 200, objectFit: 'cover' }} />
-                      ) : (
-                        <div style={{ height: 160, background: `linear-gradient(120deg, var(--muni-primary), var(--muni-secondary))` }} aria-hidden />
-                      )}
-                      <div style={{ padding: 18 }}>
-                        <h3 id={`ev-title-${ev.id}`} style={{ margin: 0, fontSize: '1.35rem', fontWeight: 800 }}>
-                          {ev.title}
-                        </h3>
-                        <div style={{ marginTop: 10, fontSize: '1.1rem', color: 'var(--muni-muted)', display: 'flex', flexDirection: 'column', gap: 6 }}>
-                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-                            <Calendar size={20} aria-hidden />
-                            {formatWhen(ev.date)}
-                          </span>
-                          {ev.dept_name && <span>מחלקה: {ev.dept_name}</span>}
-                          <span>קטגוריה: {categoryLabel(ev.event_category)}</span>
-                          {ev.location && (
-                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-                              <MapPin size={20} aria-hidden />
-                              {ev.location}
-                            </span>
-                          )}
-                          <span style={{ fontWeight: 600, color: 'var(--muni-text)' }}>{priceLine(ev)}</span>
-                          <span>{spotsLine(ev)}</span>
-                        </div>
-                        <div style={{ marginTop: 16 }}>
-                          <Link
-                            to={`/muni/${citySlug}/event/${encodeURIComponent(ev.slug)}`}
-                            className="muni-btn"
-                            style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', textDecoration: 'none' }}
-                          >
-                            פרטים והרשמה
-                          </Link>
-                        </div>
-                      </div>
-                    </div>
-                  </article>
-                </li>
-              )
-            })}
-          </ul>
+          groupedByCategory.map(({ key, label, items }) => (
+            <section key={key} aria-labelledby={`cat-${key}`} style={{ marginBottom: 36 }}>
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  marginBottom: 12,
+                  borderBottom: `2px solid ${COLORS.accent}`,
+                  paddingBottom: 8,
+                }}
+              >
+                <Link
+                  to={`/muni/${citySlug}?category=${encodeURIComponent(key)}`}
+                  style={{ fontSize: 18, fontWeight: 800, color: COLORS.text, textDecoration: 'none' }}
+                  id={`cat-${key}`}
+                >
+                  {label} ←
+                </Link>
+                <Link
+                  to={`/muni/${citySlug}?category=${encodeURIComponent(key)}`}
+                  style={{ fontSize: 15, fontWeight: 700, color: COLORS.accent, textDecoration: 'none' }}
+                >
+                  הצג הכל &gt;
+                </Link>
+              </div>
+              <div
+                style={
+                  isDesktop
+                    ? { display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 16 }
+                    : { display: 'flex', gap: 14, overflowX: 'auto', paddingBottom: 8, WebkitOverflowScrolling: 'touch' }
+                }
+              >
+                {items.map((ev) => (
+                  <div key={ev.id} style={isDesktop ? {} : { flex: '0 0 auto' }}>
+                    <EventCard ev={ev} citySlug={citySlug} narrow={!isDesktop} />
+                  </div>
+                ))}
+              </div>
+            </section>
+          ))
         )}
       </main>
 
       <footer
         role="contentinfo"
         style={{
-          marginTop: 'auto',
-          padding: '24px 20px',
-          background: 'var(--muni-surface)',
-          borderTop: '1px solid var(--muni-border)',
-          fontSize: '1.125rem',
+          background: COLORS.background,
+          borderTop: `1px solid ${COLORS.accent}`,
+          padding: '28px 16px 20px',
+          fontSize: 12,
+          color: COLORS.text,
+          fontFamily: font,
         }}
       >
-        <div style={{ maxWidth: 960, margin: '0 auto' }}>
-          <h2 style={{ fontSize: '1.2rem', fontWeight: 800, margin: '0 0 12px' }}>יצירת קשר {footerDept ? `— ${footerDept.name}` : ''}</h2>
-          <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {footerPhone && (
-              <li>
-                <a href={`tel:${String(footerPhone).replace(/\s/g, '')}`} style={{ color: 'var(--muni-primary)', fontWeight: 600 }}>
-                  טלפון: {footerPhone}
-                </a>
-              </li>
-            )}
-            {footerWa && (
-              <li>
-                <a
-                  href={`https://wa.me/${String(footerWa).replace(/\D/g, '')}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={{ color: 'var(--muni-primary)', fontWeight: 600 }}
-                >
-                  WhatsApp
-                </a>
-              </li>
-            )}
-            {footerEmail && (
-              <li>
-                <a href={`mailto:${footerEmail}`} style={{ color: 'var(--muni-primary)', fontWeight: 600 }}>
-                  אימייל: {footerEmail}
-                </a>
-              </li>
-            )}
-            {!footerPhone && !footerWa && !footerEmail && <li style={{ color: 'var(--muni-muted)' }}>פרטי קשר יעודכנו בקרוב</li>}
-          </ul>
+        <div style={{ maxWidth: 1120, margin: '0 auto' }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '8px 16px', marginBottom: 14 }}>
+            {['תנאי שימוש', 'אודות', 'פרטיות', 'ביטולים', 'בקשת ביטול'].map((t) => (
+              <a key={t} href="#" style={{ color: COLORS.text, textDecoration: 'none', fontWeight: 500 }}>
+                {t}
+              </a>
+            ))}
+          </div>
+          <div style={{ textAlign: 'center', marginBottom: 14 }}>
+            <button
+              type="button"
+              style={{
+                padding: '12px 24px',
+                borderRadius: 999,
+                border: 'none',
+                background: COLORS.accent,
+                color: '#fff',
+                fontWeight: 800,
+                fontSize: 14,
+                cursor: 'pointer',
+                fontFamily: font,
+              }}
+            >
+              הרשמה חד פעמית לכל האירועים
+            </button>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'center', gap: 16, marginBottom: 16 }}>
+            {['facebook', 'instagram', 'youtube'].map((s) => (
+              <a
+                key={s}
+                href="#"
+                aria-label={s}
+                style={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: '50%',
+                  border: `1px solid ${COLORS.border}`,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: COLORS.primary,
+                  textDecoration: 'none',
+                  fontSize: 11,
+                  fontWeight: 800,
+                }}
+              >
+                {s[0].toUpperCase()}
+              </a>
+            ))}
+          </div>
+          <div
+            style={{
+              textAlign: 'center',
+              paddingTop: 16,
+              borderTop: `1px solid ${COLORS.border}`,
+            }}
+          >
+            <a
+              href="https://axess.pro"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                color: COLORS.textLight,
+                fontSize: 12,
+                textDecoration: 'none',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 6,
+              }}
+            >
+              Powered by
+              <span style={{ color: COLORS.accent, fontWeight: 700, fontFamily: 'Heebo, sans-serif' }}>AXESS</span>
+            </a>
+          </div>
         </div>
       </footer>
     </div>
