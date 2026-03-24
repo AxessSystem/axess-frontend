@@ -15,25 +15,40 @@ import {
   X,
 } from 'lucide-react'
 import { COLORS, MUNI_CATEGORIES } from './MuniPortal'
-import SmartRegistrationModal from '../components/SmartRegistration/SmartRegistrationModal'
 
 const API_BASE = import.meta.env.VITE_API_URL || 'https://axess-production.up.railway.app'
+
+const inputStyle = {
+  width: '100%',
+  padding: '10px 12px',
+  borderRadius: 8,
+  border: '1px solid #e5e7eb',
+  fontFamily: 'Heebo',
+  fontSize: 14,
+  outline: 'none',
+  boxSizing: 'border-box',
+}
+
+const labelStyle = {
+  fontSize: 13,
+  fontWeight: 600,
+  color: '#374151',
+  display: 'block',
+  marginBottom: 4,
+}
+
+const REG_DETAILS_FIELDS = [
+  { id: 'full_name', label: 'שם מלא', type: 'text', required: true },
+  { id: 'id_number', label: 'מספר ת"ז', type: 'text', required: true },
+  { id: 'phone', label: 'מספר נייד', type: 'tel', required: true },
+  { id: 'email', label: 'כתובת דוא"ל', type: 'email', required: true },
+  { id: 'birth_date', label: 'תאריך לידה', type: 'date', required: true },
+  { id: 'gender', label: 'מין', type: 'select', options: ['זכר', 'נקבה', 'אחר'], required: true },
+]
 
 const font = "'Heebo', system-ui, sans-serif"
 
 const categoryLabel = (v) => MUNI_CATEGORIES.find((c) => c.value === v)?.label || v || 'אחר'
-
-function portalCssVars() {
-  return {
-    '--muni-primary': COLORS.primary,
-    '--muni-secondary': COLORS.accent,
-    '--muni-page-bg': COLORS.background,
-    '--muni-surface': COLORS.cardBg,
-    '--muni-text': COLORS.text,
-    '--muni-muted': COLORS.textLight,
-    '--muni-border': COLORS.border,
-  }
-}
 
 function formatEventWhen(iso) {
   if (!iso) return null
@@ -92,14 +107,14 @@ export default function MuniEventPage() {
   const [ticketTypes, setTicketTypes] = useState([])
   const [loading, setLoading] = useState(true)
   const [err, setErr] = useState(null)
-  const [modalOpen, setModalOpen] = useState(false)
   const [drawerOpen, setDrawerOpen] = useState(false)
+  const [step, setStep] = useState('tickets')
+  const [creditOpen, setCreditOpen] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
   const [quantities, setQuantities] = useState({})
   const [openFaq, setOpenFaq] = useState(() => ({}))
 
   const isDesktop = useIsDesktop()
-  const cssVars = useMemo(() => portalCssVars(), [])
 
   const externalUrl = useMemo(() => {
     if (!event) return ''
@@ -161,6 +176,30 @@ export default function MuniEventPage() {
   }, [ticketTypes, quantities])
 
   const hasAnyTickets = useMemo(() => ticketTypes.some((tt) => (quantities[tt.id] || 0) > 0), [ticketTypes, quantities])
+
+  const selectedTickets = useMemo(() => {
+    return ticketTypes
+      .map((tt) => ({
+        id: tt.id,
+        name: tt.name,
+        price: Number(tt.price || 0),
+        quantity: quantities[tt.id] || 0,
+      }))
+      .filter((t) => t.quantity > 0)
+  }, [ticketTypes, quantities])
+
+  const totalPrice = totalPay
+
+  const showInlineCheckout = !externalUrl && ticketTypes.length > 0
+
+  useEffect(() => {
+    if (!hasAnyTickets) {
+      setStep('tickets')
+      setCreditOpen(false)
+      return
+    }
+    setStep((s) => (s === 'tickets' ? 'details' : s))
+  }, [hasAnyTickets])
 
   const allFree = useMemo(
     () => ticketTypes.length > 0 && ticketTypes.every((tt) => Number(tt.price || 0) === 0),
@@ -225,6 +264,32 @@ export default function MuniEventPage() {
 
   const rich = event.rich_description
   const plainDesc = event.description
+
+  const registrationFields = Array.isArray(event.registration_fields) ? event.registration_fields : []
+
+  const handleExternalTrack = async () => {
+    if (!externalUrl || !event?.id) return
+    try {
+      const r = await fetch(`${API_BASE}/api/portal/${encodeURIComponent(citySlug)}/track`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          event_id: event.id,
+          external_url: externalUrl,
+          external_platform: 'portal',
+          sub_account_id: event.sub_account_id || null,
+        }),
+      })
+      const data = await r.json().catch(() => ({}))
+      if (r.ok && data.redirect_url) {
+        window.location.href = data.redirect_url
+        return
+      }
+    } catch {
+      /* fallback below */
+    }
+    window.open(externalUrl, '_blank', 'noopener,noreferrer')
+  }
 
   const ticketDrawerInner = (
     <>
@@ -335,28 +400,372 @@ export default function MuniEventPage() {
           <span style={{ fontSize: 16, fontWeight: 600, color: COLORS.text }}>סה״כ לתשלום</span>
           <span style={{ fontSize: 20, fontWeight: 800, color: COLORS.text, fontFamily: font }}>₪{totalPay.toFixed(0)}</span>
         </div>
-        <button
-          type="button"
-          onClick={() => setModalOpen(true)}
-          disabled={!externalUrl && ticketTypes.length > 0 && !hasAnyTickets}
-          style={{
-            width: '100%',
-            minHeight: 50,
-            borderRadius: 12,
-            border: 'none',
-            background: COLORS.primary,
-            color: '#fff',
-            fontWeight: 800,
-            fontSize: 17,
-            cursor: !externalUrl && ticketTypes.length > 0 && !hasAnyTickets ? 'not-allowed' : 'pointer',
-            opacity: !externalUrl && ticketTypes.length > 0 && !hasAnyTickets ? 0.5 : 1,
-            fontFamily: font,
-          }}
-        >
-          אישור והמשך
-        </button>
-        {!externalUrl && ticketTypes.length > 0 && !hasAnyTickets && (
+
+        {externalUrl && (
+          <button
+            type="button"
+            onClick={handleExternalTrack}
+            style={{
+              width: '100%',
+              minHeight: 50,
+              borderRadius: 12,
+              border: 'none',
+              background: COLORS.primary,
+              color: '#fff',
+              fontWeight: 800,
+              fontSize: 17,
+              cursor: 'pointer',
+              fontFamily: font,
+            }}
+          >
+            המשך לרישום באתר חיצוני
+          </button>
+        )}
+
+        {!externalUrl && ticketTypes.length === 0 && event.slug && (
+          <Link
+            to={`/e/${event.slug}`}
+            onClick={() => setDrawerOpen(false)}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: '100%',
+              minHeight: 50,
+              borderRadius: 12,
+              border: 'none',
+              background: COLORS.primary,
+              color: '#fff',
+              fontWeight: 800,
+              fontSize: 17,
+              textDecoration: 'none',
+              fontFamily: font,
+            }}
+          >
+            פתח דף הרשמה
+          </Link>
+        )}
+
+        {showInlineCheckout && !hasAnyTickets && (
           <p style={{ fontSize: 13, color: COLORS.textLight, marginTop: 8, textAlign: 'center' }}>בחרו לפחות כרטיס אחד</p>
+        )}
+
+        {showInlineCheckout && hasAnyTickets && (
+          <div
+            style={{
+              marginTop: 16,
+              maxHeight: step !== 'tickets' ? 8000 : 0,
+              opacity: step !== 'tickets' ? 1 : 0,
+              overflow: 'hidden',
+              transition: 'max-height 0.4s ease, opacity 0.4s ease',
+            }}
+          >
+            {step === 'details' && (
+              <div
+                style={{
+                  marginTop: 16,
+                  padding: 20,
+                  background: '#f8fafc',
+                  borderRadius: 12,
+                  border: '1px solid #e5e7eb',
+                }}
+              >
+                <div style={{ marginBottom: 16, padding: 12, background: '#fff', borderRadius: 8 }}>
+                  <p style={{ fontWeight: 700, fontSize: 15 }}>{event.title}</p>
+                  {selectedTickets.map((t) => (
+                    <p key={t.id} style={{ fontSize: 14, color: '#6b7280' }}>
+                      {t.quantity} × {t.name} — ₪{t.price * t.quantity}
+                    </p>
+                  ))}
+                </div>
+
+                <button
+                  type="button"
+                  style={{
+                    width: '100%',
+                    background: '#1877F2',
+                    color: '#fff',
+                    border: 'none',
+                    borderRadius: 8,
+                    padding: '12px',
+                    fontFamily: 'Heebo',
+                    fontWeight: 700,
+                    fontSize: 15,
+                    cursor: 'pointer',
+                    marginBottom: 12,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 8,
+                  }}
+                >
+                  <span>f</span> הזדהה עם Facebook
+                </button>
+
+                <div style={{ textAlign: 'center', color: '#9ca3af', fontSize: 13, marginBottom: 12 }}>או</div>
+
+                {REG_DETAILS_FIELDS.map((field) => (
+                  <div key={field.id} style={{ marginBottom: 12 }}>
+                    <label
+                      style={{
+                        fontSize: 13,
+                        fontWeight: 600,
+                        color: '#374151',
+                        display: 'block',
+                        marginBottom: 4,
+                      }}
+                    >
+                      {field.label} *
+                    </label>
+                    {field.type === 'select' ? (
+                      <select style={inputStyle} defaultValue="">
+                        <option value="">בחר...</option>
+                        {field.options.map((o) => (
+                          <option key={o} value={o}>
+                            {o}
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      <input type={field.type} style={inputStyle} />
+                    )}
+                  </div>
+                ))}
+
+                {registrationFields.map((field) => (
+                  <div key={field.id} style={{ marginBottom: 12 }}>
+                    <label
+                      style={{
+                        fontSize: 13,
+                        fontWeight: 600,
+                        color: '#374151',
+                        display: 'block',
+                        marginBottom: 4,
+                      }}
+                    >
+                      {field.label} {field.required && '*'}
+                    </label>
+                    <input type={field.type || 'text'} style={inputStyle} />
+                  </div>
+                ))}
+
+                <div style={{ marginTop: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8, fontSize: 13, cursor: 'pointer' }}>
+                    <input type="checkbox" style={{ marginTop: 2 }} />
+                    <span>זהה אותי תמיד — הרשמה חד פעמית לכל האירועים</span>
+                  </label>
+                  <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8, fontSize: 13, cursor: 'pointer' }}>
+                    <input type="checkbox" required style={{ marginTop: 2 }} />
+                    <span>
+                      קראתי ואני מסכים/ה ל
+                      <a href="#" style={{ color: '#0a1628', textDecoration: 'underline' }}>
+                        תקנון
+                      </a>{' '}
+                      ול
+                      <a href="#" style={{ color: '#0a1628', textDecoration: 'underline' }}>
+                        מדיניות הביטולים
+                      </a>
+                    </span>
+                  </label>
+                  <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8, fontSize: 13, cursor: 'pointer' }}>
+                    <input type="checkbox" style={{ marginTop: 2 }} />
+                    <span>אני מאשר/ת קבלת עדכונים על אירועים חדשים</span>
+                  </label>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (totalPrice === 0) setStep('success')
+                    else setStep('payment')
+                  }}
+                  style={{
+                    width: '100%',
+                    background: '#0a1628',
+                    color: '#fff',
+                    border: 'none',
+                    borderRadius: 25,
+                    padding: '14px',
+                    fontFamily: 'Heebo',
+                    fontWeight: 700,
+                    fontSize: 16,
+                    cursor: 'pointer',
+                    marginTop: 16,
+                  }}
+                >
+                  המשך לתשלום →
+                </button>
+              </div>
+            )}
+
+            {step === 'payment' && (
+              <div
+                style={{
+                  marginTop: 16,
+                  padding: 20,
+                  background: '#f8fafc',
+                  borderRadius: 12,
+                  border: '1px solid #e5e7eb',
+                }}
+              >
+                <div style={{ marginBottom: 16, padding: 12, background: '#fff', borderRadius: 8 }}>
+                  {selectedTickets.map((t) => (
+                    <div key={t.id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14 }}>
+                      <span>
+                        {t.quantity} × {t.name}
+                      </span>
+                      <span>₪{t.price * t.quantity}</span>
+                    </div>
+                  ))}
+                  <div
+                    style={{
+                      borderTop: '1px solid #e5e7eb',
+                      marginTop: 8,
+                      paddingTop: 8,
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      fontWeight: 700,
+                    }}
+                  >
+                    <span>סה״כ לתשלום</span>
+                    <span>₪{totalPrice.toFixed(0)}</span>
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+                  <button
+                    type="button"
+                    style={{
+                      flex: 1,
+                      padding: '12px',
+                      borderRadius: 8,
+                      border: '1px solid #e5e7eb',
+                      background: '#fff',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      fontSize: 14,
+                      fontFamily: font,
+                    }}
+                  >
+                    🍎 Apple Pay
+                  </button>
+                  <button
+                    type="button"
+                    style={{
+                      flex: 1,
+                      padding: '12px',
+                      borderRadius: 8,
+                      border: '1px solid #e5e7eb',
+                      background: '#fff',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      fontSize: 14,
+                      fontFamily: font,
+                    }}
+                  >
+                    G Pay
+                  </button>
+                </div>
+
+                <div style={{ textAlign: 'center', color: '#9ca3af', fontSize: 13, marginBottom: 16 }}>
+                  או תשלום באמצעות אמצעי אחר
+                </div>
+
+                <div style={{ border: '1px solid #e5e7eb', borderRadius: 8, overflow: 'hidden' }}>
+                  <button
+                    type="button"
+                    onClick={() => setCreditOpen(!creditOpen)}
+                    style={{
+                      width: '100%',
+                      padding: '14px 16px',
+                      background: '#fff',
+                      border: 'none',
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      cursor: 'pointer',
+                      fontFamily: 'Heebo',
+                      fontWeight: 600,
+                      fontSize: 14,
+                    }}
+                  >
+                    <span>💳 כרטיס אשראי</span>
+                    <span>{creditOpen ? '▲' : '▼'}</span>
+                  </button>
+
+                  {creditOpen && (
+                    <div style={{ padding: '16px', borderTop: '1px solid #e5e7eb', background: '#fff' }}>
+                      <div style={{ marginBottom: 12 }}>
+                        <label style={labelStyle}>שם בעל הכרטיס</label>
+                        <input type="text" placeholder="ישראל ישראלי" style={inputStyle} />
+                      </div>
+
+                      <div style={{ marginBottom: 12 }}>
+                        <label style={labelStyle}>מספר נייד</label>
+                        <input type="tel" placeholder="050-0000000" style={inputStyle} />
+                      </div>
+
+                      <div style={{ marginBottom: 12 }}>
+                        <label style={labelStyle}>מספר כרטיס אשראי</label>
+                        <input type="text" placeholder="1234 5678 9012 3456" maxLength={19} style={inputStyle} />
+                      </div>
+
+                      <div style={{ display: 'flex', gap: 12, marginBottom: 16 }}>
+                        <div style={{ flex: 1 }}>
+                          <label style={labelStyle}>תוקף</label>
+                          <input type="text" placeholder="MM/YY" maxLength={5} style={inputStyle} />
+                        </div>
+                        <div style={{ flex: 1 }}>
+                          <label style={labelStyle}>CVV</label>
+                          <input type="text" placeholder="123" maxLength={4} style={inputStyle} />
+                        </div>
+                      </div>
+
+                      <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, marginBottom: 16 }}>
+                        <input type="checkbox" />
+                        <span>אני לא רובוט</span>
+                      </label>
+
+                      <button
+                        type="button"
+                        onClick={() => setStep('success')}
+                        style={{
+                          width: '100%',
+                          background: '#0a1628',
+                          color: '#fff',
+                          border: 'none',
+                          borderRadius: 25,
+                          padding: '14px',
+                          fontFamily: 'Heebo',
+                          fontWeight: 700,
+                          fontSize: 16,
+                          cursor: 'pointer',
+                        }}
+                      >
+                        ביצוע תשלום — ₪{totalPrice.toFixed(0)}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {step === 'success' && (
+              <div
+                style={{
+                  marginTop: 16,
+                  padding: 24,
+                  background: '#f0fdf4',
+                  borderRadius: 12,
+                  border: '1px solid #bbf7d0',
+                  textAlign: 'center',
+                }}
+              >
+                <p style={{ fontWeight: 800, fontSize: 18, color: '#166534', margin: '0 0 8px' }}>ההרשמה הושלמה בהצלחה</p>
+                <p style={{ fontSize: 14, color: '#15803d', margin: 0 }}>תודה! נשלח אליכם עדכון בהמשך.</p>
+              </div>
+            )}
+          </div>
         )}
       </div>
     </>
@@ -818,16 +1227,6 @@ export default function MuniEventPage() {
         {drawerOpen && <div style={{ marginTop: 16 }}>{ticketDrawerInner}</div>}
       </div>
 
-      <SmartRegistrationModal
-        open={modalOpen}
-        onClose={() => setModalOpen(false)}
-        citySlug={citySlug}
-        event={event}
-        ticketTypes={ticketTypes}
-        externalUrl={externalUrl}
-        apiBase={API_BASE}
-        cssVars={cssVars}
-      />
     </div>
   )
 }
