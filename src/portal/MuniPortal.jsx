@@ -132,11 +132,12 @@ function useIsDesktop(breakpoint = 768) {
   return wide
 }
 
-function EventCard({ ev, citySlug, isMobile }) {
+function EventCard({ ev, citySlug, isMobile, pagePad }) {
   const navigate = useNavigate()
   const img = ev.cover_image_url || ev.image_url
   const cp = cardPrice(ev)
-  const imgH = isMobile ? 200 : 387
+  const imgH = isMobile ? 220 : 387
+  const cardPad = pagePad ?? (isMobile ? 16 : 24)
   return (
     <div
       role="link"
@@ -149,9 +150,9 @@ function EventCard({ ev, citySlug, isMobile }) {
         }
       }}
       style={{
-        width: isMobile ? 'calc(100vw - 48px)' : '100%',
+        width: isMobile ? '100%' : '100%',
         minWidth: isMobile ? 280 : 'unset',
-        maxWidth: isMobile ? 'calc(100vw - 48px)' : '100%',
+        maxWidth: isMobile ? 350 : '100%',
         borderRadius: 12,
         overflow: 'hidden',
         border: `1px solid ${COLORS.border}`,
@@ -172,7 +173,12 @@ function EventCard({ ev, citySlug, isMobile }) {
         }}
       >
         {img ? (
-          <img src={img} alt="" style={{ width: '100%', height: imgH, objectFit: 'cover', display: 'block' }} />
+          <img
+            src={img}
+            alt=""
+            loading="lazy"
+            style={{ width: '100%', height: imgH, objectFit: 'cover', objectPosition: 'center', display: 'block' }}
+          />
         ) : (
           <div
             style={{
@@ -193,7 +199,7 @@ function EventCard({ ev, citySlug, isMobile }) {
           }}
         />
       </div>
-      <div style={{ padding: '12px 14px', background: '#fff' }}>
+      <div style={{ padding: cardPad, background: '#fff' }}>
         <h3
           style={{
             fontFamily: font,
@@ -271,6 +277,7 @@ export default function MuniPortal() {
 
   const isDesktop = useIsDesktop()
   const isMobile = !isDesktop
+  const pagePad = isMobile ? 16 : 24
   const heroBannerH = isMobile ? 280 : 480
 
   const next30Days = useMemo(() => {
@@ -289,11 +296,12 @@ export default function MuniPortal() {
 
   const filterSelectBase = {
     minHeight: 44,
+    height: 44,
     padding: '0 12px',
-    borderRadius: 10,
+    borderRadius: 8,
     border: `1px solid ${COLORS.border}`,
     fontFamily: font,
-    fontSize: 14,
+    fontSize: 16,
     flex: '0 0 auto',
     boxSizing: 'border-box',
   }
@@ -568,14 +576,15 @@ export default function MuniPortal() {
           zIndex: 1000,
           background: '#fff',
           boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
-          height: 60,
+          height: 70,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          padding: '0 16px',
+          padding: `0 ${pagePad}px`,
+          boxSizing: 'border-box',
         }}
       >
-        <div style={{ width: '100%', maxWidth: 1120, margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: '100%', gap: 12 }}>
+        <div style={{ width: '100%', maxWidth: 1200, margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: '100%', gap: 12 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <button
               type="button"
@@ -595,19 +604,21 @@ export default function MuniPortal() {
             <button
               type="button"
               style={{
-                minHeight: 40,
+                height: 44,
                 padding: '0 16px',
-                borderRadius: 10,
+                borderRadius: 8,
                 border: 'none',
                 background: COLORS.primary,
                 color: '#fff',
-                fontWeight: 800,
-                fontSize: 14,
+                fontWeight: 700,
+                fontSize: 16,
                 cursor: 'pointer',
                 fontFamily: font,
                 display: 'inline-flex',
                 alignItems: 'center',
+                justifyContent: 'center',
                 gap: 6,
+                boxSizing: 'border-box',
               }}
             >
               <User size={18} aria-hidden />
@@ -645,12 +656,12 @@ export default function MuniPortal() {
               width: 'min(320px, 88vw)',
               background: COLORS.background,
               boxShadow: '-4px 0 24px rgba(0,0,0,0.12)',
-              padding: 20,
+              padding: pagePad,
               overflowY: 'auto',
               fontFamily: font,
             }}
           >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: pagePad }}>
               <span style={{ fontWeight: 800, fontSize: 18 }}>מחלקות</span>
               <button type="button" aria-label="סגור" onClick={() => setMenuOpen(false)} style={{ border: 'none', background: 'none', cursor: 'pointer', padding: 4 }}>
                 <X size={28} color={COLORS.primary} />
@@ -681,7 +692,7 @@ export default function MuniPortal() {
         </div>
       )}
 
-      <div style={{ marginTop: 60 }}>
+      <div style={{ marginTop: 70 }}>
         <section aria-label="אירועים מובחרים" style={{ position: 'relative' }}>
           {heroSlides.length > 0 && slide ? (
             <div style={{ position: 'relative' }}>
@@ -775,15 +786,15 @@ export default function MuniPortal() {
                 <div
                   style={{
                     background: '#fff',
-                    padding: '16px 20px',
+                    padding: pagePad,
                     borderBottom: `3px solid ${COLORS.accent}`,
                   }}
                 >
                   <h2
                     style={{
                       fontFamily: font,
-                      fontWeight: 800,
-                      fontSize: 24,
+                      fontWeight: 700,
+                      fontSize: 28,
                       color: COLORS.primary,
                       margin: '0 0 8px',
                     }}
@@ -810,21 +821,32 @@ export default function MuniPortal() {
                       {[slide.location, eventCity(slide)].filter(Boolean).join(', ') || '—'}
                     </span>
                   </div>
-                  <span
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      navigate(`/muni/${citySlug}/event/${encodeURIComponent(slide.slug)}`)
+                    }}
                     style={{
                       marginTop: 12,
+                      height: 44,
+                      padding: '0 24px',
                       background: COLORS.primary,
                       color: '#fff',
-                      borderRadius: 25,
-                      padding: '10px 24px',
+                      borderRadius: 8,
+                      border: 'none',
                       fontFamily: font,
                       fontWeight: 700,
-                      display: 'inline-block',
-                      fontSize: 15,
+                      fontSize: 16,
+                      cursor: 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      boxSizing: 'border-box',
                     }}
                   >
                     לרכישת כרטיסים
-                  </span>
+                  </button>
                 </div>
               </div>
               <div
@@ -870,7 +892,8 @@ export default function MuniPortal() {
           )}
         </section>
 
-        <main id="muni-main" style={{ marginTop: 0, maxWidth: 1120, marginLeft: 'auto', marginRight: 'auto', padding: '20px 16px 100px' }}>
+        <div style={{ maxWidth: 1200, margin: '0 auto', padding: `0 ${pagePad}px` }}>
+        <main id="muni-main" style={{ marginTop: 0, paddingBottom: 100 }}>
         <form
           onSubmit={applySearch}
           role="search"
@@ -878,12 +901,13 @@ export default function MuniPortal() {
           style={{
             display: 'flex',
             gap: 10,
-            alignItems: 'stretch',
-            marginBottom: 20,
+            alignItems: 'center',
+            marginBottom: pagePad,
+            height: 50,
+            boxSizing: 'border-box',
             boxShadow: '0 4px 20px rgba(26,58,92,0.08)',
-            borderRadius: 50,
-            padding: 6,
-            paddingLeft: 20,
+            borderRadius: 8,
+            padding: '0 12px 0 16px',
             background: COLORS.cardBg,
             border: `1px solid ${COLORS.border}`,
           }}
@@ -899,32 +923,37 @@ export default function MuniPortal() {
             placeholder="חפש לפי סוג אירוע, אמן או מקום..."
             style={{
               flex: 1,
-              minHeight: 48,
+              height: 44,
+              minHeight: 44,
               fontSize: 16,
               border: 'none',
               outline: 'none',
               background: 'transparent',
               fontFamily: font,
               color: COLORS.text,
+              boxSizing: 'border-box',
             }}
           />
           <button
             type="submit"
             style={{
-              minHeight: 48,
-              padding: '0 28px',
-              borderRadius: 999,
+              height: 44,
+              minHeight: 44,
+              padding: '0 20px',
+              borderRadius: 8,
               border: 'none',
               background: COLORS.primary,
               color: '#fff',
-              fontWeight: 800,
+              fontWeight: 700,
               fontSize: 16,
               cursor: 'pointer',
               fontFamily: font,
               flexShrink: 0,
               display: 'inline-flex',
               alignItems: 'center',
+              justifyContent: 'center',
               gap: 8,
+              boxSizing: 'border-box',
             }}
           >
             <Search size={16} aria-hidden />
@@ -937,7 +966,7 @@ export default function MuniPortal() {
             display: 'flex',
             flexWrap: 'nowrap',
             gap: 10,
-            marginBottom: 20,
+            marginBottom: pagePad,
             overflowX: 'auto',
             WebkitOverflowScrolling: 'touch',
             paddingBottom: 4,
@@ -983,14 +1012,16 @@ export default function MuniPortal() {
             value={draftCategory}
             onChange={(e) => setDraftCategory(e.target.value)}
             style={{
+              height: 44,
               minHeight: 44,
               padding: '0 12px',
-              borderRadius: 10,
+              borderRadius: 8,
               border: `1px solid ${COLORS.border}`,
               fontFamily: font,
-              fontSize: 14,
+              fontSize: 16,
               flex: '0 0 auto',
               minWidth: 120,
+              boxSizing: 'border-box',
             }}
             aria-label="קטגוריה"
           >
@@ -1007,14 +1038,16 @@ export default function MuniPortal() {
             onChange={(e) => setDraftAudience(e.target.value)}
             placeholder="קהל יעד"
             style={{
+              height: 44,
               minHeight: 44,
               padding: '0 12px',
-              borderRadius: 10,
+              borderRadius: 8,
               border: `1px solid ${COLORS.border}`,
               fontFamily: font,
-              fontSize: 14,
+              fontSize: 16,
               flex: '0 0 auto',
               minWidth: 100,
+              boxSizing: 'border-box',
             }}
             aria-label="קהל יעד"
           />
@@ -1022,13 +1055,15 @@ export default function MuniPortal() {
             value={draftPrice}
             onChange={(e) => setDraftPrice(e.target.value)}
             style={{
+              height: 44,
               minHeight: 44,
               padding: '0 12px',
-              borderRadius: 10,
+              borderRadius: 8,
               border: `1px solid ${COLORS.border}`,
               fontFamily: font,
-              fontSize: 14,
+              fontSize: 16,
               flex: '0 0 auto',
+              boxSizing: 'border-box',
             }}
             aria-label="מחיר"
           >
@@ -1040,16 +1075,19 @@ export default function MuniPortal() {
             type="button"
             onClick={applyFilters}
             style={{
+              height: 44,
               minHeight: 44,
               padding: '0 18px',
-              borderRadius: 10,
+              borderRadius: 8,
               border: 'none',
               background: COLORS.primary,
               color: '#fff',
-              fontWeight: 800,
+              fontWeight: 700,
+              fontSize: 16,
               fontFamily: font,
               cursor: 'pointer',
               flex: '0 0 auto',
+              boxSizing: 'border-box',
             }}
           >
             בחר
@@ -1058,16 +1096,19 @@ export default function MuniPortal() {
             type="button"
             onClick={clearFilters}
             style={{
+              height: 44,
               minHeight: 44,
               padding: '0 18px',
-              borderRadius: 10,
+              borderRadius: 8,
               border: `2px solid ${COLORS.primary}`,
               background: 'transparent',
               color: COLORS.primary,
               fontWeight: 700,
+              fontSize: 16,
               fontFamily: font,
               cursor: 'pointer',
               flex: '0 0 auto',
+              boxSizing: 'border-box',
             }}
           >
             נקה
@@ -1089,18 +1130,20 @@ export default function MuniPortal() {
             onClick={() => setCategoryTab('')}
             style={{
               flex: '0 0 auto',
-              padding: '10px 18px',
-              borderRadius: 999,
+              minHeight: 44,
+              padding: '0 18px',
+              borderRadius: 8,
               border: `2px solid ${!qCategory ? COLORS.accent : COLORS.border}`,
               background: !qCategory ? `${COLORS.accent}18` : COLORS.cardBg,
               color: COLORS.text,
               fontWeight: 700,
               fontFamily: font,
               cursor: 'pointer',
-              fontSize: 14,
+              fontSize: 16,
               display: 'inline-flex',
               alignItems: 'center',
               gap: 6,
+              boxSizing: 'border-box',
             }}
           >
             <Tag size={15} aria-hidden />
@@ -1113,18 +1156,20 @@ export default function MuniPortal() {
               onClick={() => setCategoryTab(c.value)}
               style={{
                 flex: '0 0 auto',
-                padding: '10px 18px',
-                borderRadius: 999,
+                minHeight: 44,
+                padding: '0 18px',
+                borderRadius: 8,
                 border: `2px solid ${qCategory === c.value ? COLORS.accent : COLORS.border}`,
                 background: qCategory === c.value ? `${COLORS.accent}18` : COLORS.cardBg,
                 color: COLORS.text,
                 fontWeight: 700,
                 fontFamily: font,
                 cursor: 'pointer',
-                fontSize: 14,
+                fontSize: 16,
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: 6,
+                boxSizing: 'border-box',
               }}
             >
               <CategoryPillIcon value={c.value} />
@@ -1133,7 +1178,9 @@ export default function MuniPortal() {
           ))}
         </div>
 
-        <p style={{ color: COLORS.textLight, fontSize: 14, margin: '4px 0 20px' }}>נמצאו {filteredEvents.length} אירועים</p>
+        <p style={{ color: COLORS.textLight, fontSize: 15, lineHeight: 1.6, margin: `4px 0 ${pagePad}px` }}>
+          נמצאו {filteredEvents.length} אירועים
+        </p>
 
         {eventsLoading ? (
           <div style={{ display: 'flex', justifyContent: 'center', padding: 48 }}>
@@ -1146,33 +1193,42 @@ export default function MuniPortal() {
           </p>
         ) : (
           groupedByCategory.map(({ key, label, items }) => (
-            <section key={key} aria-labelledby={`muni-cat-${key}`} style={{ marginBottom: 36 }}>
+            <section key={key} aria-labelledby={`muni-cat-${key}`} style={{ marginBottom: pagePad * 2 }}>
               <div
                 style={{
                   display: 'flex',
                   justifyContent: 'space-between',
                   alignItems: 'center',
-                  marginBottom: 12,
+                  marginBottom: 24,
                   borderBottom: `2px solid ${COLORS.accent}`,
-                  paddingBottom: 8,
+                  paddingBottom: pagePad,
                 }}
               >
-                <Link
-                  to={`${portalListPath}?category=${encodeURIComponent(key)}`}
-                  style={{
-                    fontSize: 18,
-                    fontWeight: 800,
-                    color: COLORS.text,
-                    textDecoration: 'none',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: 6,
-                  }}
+                <h2
                   id={`muni-cat-${key}`}
+                  style={{
+                    fontSize: 28,
+                    fontWeight: 700,
+                    margin: 0,
+                    lineHeight: 1.2,
+                    flex: 1,
+                    minWidth: 0,
+                  }}
                 >
-                  <ChevronLeft size={18} aria-hidden />
-                  {label}
-                </Link>
+                  <Link
+                    to={`${portalListPath}?category=${encodeURIComponent(key)}`}
+                    style={{
+                      color: COLORS.text,
+                      textDecoration: 'none',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 6,
+                    }}
+                  >
+                    <ChevronLeft size={22} aria-hidden />
+                    {label}
+                  </Link>
+                </h2>
                 <span
                   role="button"
                   tabIndex={0}
@@ -1187,7 +1243,7 @@ export default function MuniPortal() {
                     cursor: 'pointer',
                     color: COLORS.accent,
                     fontWeight: 700,
-                    fontSize: 15,
+                    fontSize: 16,
                     display: 'inline-flex',
                     alignItems: 'center',
                     gap: 4,
@@ -1204,21 +1260,21 @@ export default function MuniPortal() {
                         display: 'flex',
                         flexDirection: 'row',
                         overflowX: 'auto',
-                        gap: 16,
+                        gap: pagePad,
                         paddingBottom: 8,
                         WebkitOverflowScrolling: 'touch',
                       }
                     : {
                         display: 'grid',
                         gridTemplateColumns: 'repeat(2, 1fr)',
-                        gap: 24,
+                        gap: pagePad,
                         paddingBottom: 0,
                       }
                 }
               >
                 {items.map((ev) => (
                   <div key={ev.id} style={{ width: isMobile ? 'auto' : '100%', flexShrink: isMobile ? 0 : undefined }}>
-                    <EventCard ev={ev} citySlug={citySlug} isMobile={isMobile} />
+                    <EventCard ev={ev} citySlug={citySlug} isMobile={isMobile} pagePad={pagePad} />
                   </div>
                 ))}
               </div>
@@ -1226,19 +1282,19 @@ export default function MuniPortal() {
           ))
         )}
       </main>
+      </div>
 
       <footer
         role="contentinfo"
         style={{
           background: COLORS.background,
           borderTop: `1px solid ${COLORS.accent}`,
-          padding: '28px 16px 20px',
           fontSize: 12,
           color: COLORS.text,
           fontFamily: font,
         }}
       >
-        <div style={{ maxWidth: 1120, margin: '0 auto' }}>
+        <div style={{ maxWidth: 1200, margin: '0 auto', padding: pagePad }}>
           <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '8px 16px', marginBottom: 14 }}>
             {['תנאי שימוש', 'אודות', 'פרטיות', 'ביטולים', 'בקשת ביטול'].map((t) => (
               <a key={t} href="#" style={{ color: COLORS.text, textDecoration: 'none', fontWeight: 500 }}>
@@ -1250,15 +1306,17 @@ export default function MuniPortal() {
             <button
               type="button"
               style={{
-                padding: '12px 24px',
-                borderRadius: 999,
+                height: 44,
+                padding: '0 24px',
+                borderRadius: 8,
                 border: 'none',
                 background: COLORS.accent,
                 color: '#fff',
-                fontWeight: 800,
-                fontSize: 14,
+                fontWeight: 700,
+                fontSize: 16,
                 cursor: 'pointer',
                 fontFamily: font,
+                boxSizing: 'border-box',
               }}
             >
               הרשמה חד פעמית לכל האירועים
