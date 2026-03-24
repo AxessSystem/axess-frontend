@@ -145,7 +145,10 @@ export default function MuniEventPage() {
   const [quantities, setQuantities] = useState({})
   const [openFaq, setOpenFaq] = useState(() => ({}))
 
-  const isDesktop = useIsDesktop()
+  const isDesktop = useIsDesktop(768)
+  const isMobile = !isDesktop
+  const pagePad = isMobile ? 16 : 24
+  const heroImgH = isMobile ? 220 : 450
 
   const externalUrl = useMemo(() => {
     if (!event) return ''
@@ -399,7 +402,7 @@ export default function MuniEventPage() {
       {ticketTypes.length === 0 ? (
         <p style={{ color: COLORS.textLight, margin: '0 0 12px' }}>אין סוגי כניסה זמינים בפורטל כרגע.</p>
       ) : (
-        <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <div style={{ borderTop: '1px solid #e5e7eb' }}>
           {ticketTypes.map((tt) => {
             const max = Math.min(parseInt(tt.max_per_order || 10, 10), 10)
             const avail =
@@ -409,30 +412,29 @@ export default function MuniEventPage() {
             const q = quantities[tt.id] || 0
             const price = Number(tt.price || 0)
             return (
-              <li
+              <div
                 key={tt.id}
                 style={{
-                  padding: 12,
-                  borderRadius: 12,
-                  border: `1px solid ${COLORS.border}`,
-                  background: '#fafbfc',
+                  height: 80,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: '0 16px',
+                  borderBottom: '1px solid #e5e7eb',
+                  boxSizing: 'border-box',
                 }}
               >
-                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'flex-start' }}>
-                  <div>
-                    <div style={{ fontWeight: 800, fontSize: 15, color: COLORS.text }}>{tt.name}</div>
-                    {tt.description && <div style={{ fontSize: 13, color: COLORS.textLight, marginTop: 4 }}>{tt.description}</div>}
-                    <div style={{ fontSize: 12, color: COLORS.textLight, marginTop: 6 }}>
-                      {avail != null ? `זמינות: ${avail}` : 'זמינות: —'}
-                    </div>
-                  </div>
-                  <div style={{ fontWeight: 800, color: COLORS.primary, whiteSpace: 'nowrap', fontSize: 15 }}>
-                    {price === 0 ? 'חינם' : `₪${price.toFixed(0)}`}
-                  </div>
+                <div style={{ minWidth: 0, flex: 1, paddingLeft: 8 }}>
+                  <p style={{ fontWeight: 700, fontSize: 15, margin: 0, color: COLORS.text }}>{tt.name}</p>
+                  <p style={{ fontSize: 13, color: '#6b7280', margin: 0 }}>
+                    {avail != null ? `${avail} מקומות` : 'זמינות —'}
+                  </p>
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 10 }}>
-                  <span style={{ fontSize: 14, color: COLORS.textLight }}>כמות</span>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
+                  <span style={{ fontWeight: 700, color: COLORS.text }}>
+                    {price === 0 ? 'חינם' : `₪${price.toFixed(0)}`}
+                  </span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     <button
                       type="button"
                       aria-label="הפחת"
@@ -476,10 +478,10 @@ export default function MuniEventPage() {
                     </button>
                   </div>
                 </div>
-              </li>
+              </div>
             )
           })}
-        </ul>
+        </div>
       )}
       <div style={{ marginTop: 16, paddingTop: 14, borderTop: `1px solid ${COLORS.border}` }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 12 }}>
@@ -1046,13 +1048,25 @@ export default function MuniEventPage() {
 
   const titleSection = (
     <div style={{ marginBottom: 24 }}>
-      <h1 style={{ fontSize: 'clamp(1.6rem, 4.5vw, 2.1rem)', fontWeight: 900, margin: '0 0 12px', color: COLORS.text, lineHeight: 1.2 }}>
+      <h1
+        style={{
+          fontSize: isMobile ? 24 : 32,
+          fontWeight: 800,
+          margin: '0 0 12px',
+          color: COLORS.text,
+          lineHeight: 1.2,
+        }}
+      >
         {event.title}
       </h1>
-      <p style={{ fontSize: 14, color: COLORS.textLight, margin: '0 0 8px' }}>קטגוריה: {categoryLabel(event.event_category)}</p>
-      {event.dept_name && <p style={{ fontSize: 14, color: COLORS.textLight, margin: '0 0 12px' }}>מחלקה: {event.dept_name}</p>}
+      <p style={{ fontSize: 15, lineHeight: 1.6, color: COLORS.textLight, margin: '0 0 8px' }}>
+        קטגוריה: {categoryLabel(event.event_category)}
+      </p>
+      {event.dept_name && (
+        <p style={{ fontSize: 15, lineHeight: 1.6, color: COLORS.textLight, margin: '0 0 12px' }}>מחלקה: {event.dept_name}</p>
+      )}
       {when && (
-        <p style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 18, margin: '10px 0', color: COLORS.text, fontWeight: 700 }}>
+        <p style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 15, lineHeight: 1.6, margin: '10px 0', color: COLORS.text, fontWeight: 700 }}>
           <Calendar size={22} aria-hidden style={{ color: COLORS.accent }} />
           {when.line}
         </p>
@@ -1062,7 +1076,15 @@ export default function MuniEventPage() {
           href={event.location_url || `https://maps.google.com/?q=${encodeURIComponent(event.location)}`}
           target="_blank"
           rel="noopener noreferrer"
-          style={{ display: 'inline-flex', alignItems: 'center', gap: 10, fontSize: 18, color: COLORS.primary, fontWeight: 800 }}
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 10,
+            fontSize: 15,
+            lineHeight: 1.6,
+            color: COLORS.primary,
+            fontWeight: 700,
+          }}
         >
           <MapPin size={22} aria-hidden style={{ color: COLORS.accent }} />
           {event.location}
@@ -1076,17 +1098,17 @@ export default function MuniEventPage() {
       <div style={{ marginTop: 8 }}>
         <div style={{ height: 1, background: COLORS.accent, margin: '0 0 24px', opacity: 0.9 }} />
         {plainDesc && (
-          <p style={{ fontSize: 17, lineHeight: 1.75, color: COLORS.text, margin: '0 0 16px', whiteSpace: 'pre-wrap' }}>{plainDesc}</p>
+          <p style={{ fontSize: 15, lineHeight: 1.6, color: COLORS.text, margin: '0 0 16px', whiteSpace: 'pre-wrap' }}>{plainDesc}</p>
         )}
         {rich &&
           (isProbablyHtml(rich) ? (
             <div
               dir="rtl"
-              style={{ fontSize: 17, lineHeight: 1.75, color: COLORS.text }}
+              style={{ fontSize: 15, lineHeight: 1.6, color: COLORS.text }}
               dangerouslySetInnerHTML={{ __html: rich }}
             />
           ) : (
-            <div style={{ fontSize: 17, lineHeight: 1.75, color: COLORS.text, whiteSpace: 'pre-wrap' }}>{rich}</div>
+            <div style={{ fontSize: 15, lineHeight: 1.6, color: COLORS.text, whiteSpace: 'pre-wrap' }}>{rich}</div>
           ))}
       </div>
     ) : null
@@ -1124,7 +1146,7 @@ export default function MuniEventPage() {
                   {item.q}
                   {open ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
                 </button>
-                {open && <p style={{ margin: '0 0 14px', fontSize: 15, color: COLORS.textLight, lineHeight: 1.65 }}>{item.a}</p>}
+                {open && <p style={{ margin: '0 0 14px', fontSize: 15, color: COLORS.textLight, lineHeight: 1.6 }}>{item.a}</p>}
               </li>
             )
           })}
@@ -1281,7 +1303,14 @@ export default function MuniEventPage() {
           </div>
           <Link to={`/muni/${citySlug}`} style={{ display: 'flex', alignItems: 'center', gap: 8, textDecoration: 'none', color: COLORS.text, minWidth: 0 }}>
             {logoUrl ? (
-              <img src={logoUrl} alt="" width={40} height={40} style={{ borderRadius: 10, objectFit: 'cover', flexShrink: 0 }} />
+              <img
+                src={logoUrl}
+                alt=""
+                width={40}
+                height={40}
+                loading="lazy"
+                style={{ borderRadius: 10, objectFit: 'cover', flexShrink: 0 }}
+              />
             ) : (
               <div style={{ width: 40, height: 40, borderRadius: 10, background: `linear-gradient(135deg, ${COLORS.primary}, #2d5a8a)`, flexShrink: 0 }} />
             )}
@@ -1346,44 +1375,113 @@ export default function MuniEventPage() {
         </div>
       )}
 
-      <div style={{ marginTop: 60, paddingBottom: 80 }}>
-        <div style={{ width: '100%' }}>
-          {hero ? (
-            <img
-              src={hero}
-              alt=""
-              style={{
-                width: '100%',
-                height: isDesktop ? 400 : 300,
-                objectFit: 'cover',
-                display: 'block',
-                borderRadius: 0,
-              }}
-            />
-          ) : (
-            <div style={{ width: '100%', height: isDesktop ? 400 : 300, background: `linear-gradient(135deg, ${COLORS.primary}, #1a3050)` }} />
-          )}
-        </div>
-
-        <div style={{ maxWidth: 1100, margin: '0 auto', padding: '24px 16px 24px' }}>
-          {titleSection}
-          {descriptionSection}
-          {faqSection}
-          {contactSection}
-        </div>
+      <div style={{ marginTop: 60, paddingBottom: isMobile ? 76 : 32 }}>
+        {isMobile ? (
+          <>
+            <div style={{ width: '100%' }}>
+              {hero ? (
+                <img
+                  src={hero}
+                  alt=""
+                  loading="lazy"
+                  style={{
+                    width: '100%',
+                    height: heroImgH,
+                    objectFit: 'cover',
+                    objectPosition: 'center',
+                    display: 'block',
+                    borderRadius: 0,
+                  }}
+                />
+              ) : (
+                <div
+                  style={{
+                    width: '100%',
+                    height: heroImgH,
+                    background: `linear-gradient(135deg, ${COLORS.primary}, #01061f)`,
+                  }}
+                />
+              )}
+            </div>
+            <div style={{ padding: pagePad }}>
+              {titleSection}
+              {descriptionSection}
+              {faqSection}
+              {contactSection}
+            </div>
+          </>
+        ) : (
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: '2fr 1fr',
+              gap: 32,
+              maxWidth: 1200,
+              margin: '0 auto',
+              padding: '0 24px',
+            }}
+          >
+            <div>
+              <div style={{ width: '100%' }}>
+                {hero ? (
+                  <img
+                    src={hero}
+                    alt=""
+                    loading="lazy"
+                    style={{
+                      width: '100%',
+                      height: heroImgH,
+                      objectFit: 'cover',
+                      objectPosition: 'center',
+                      display: 'block',
+                      borderRadius: 0,
+                    }}
+                  />
+                ) : (
+                  <div
+                    style={{
+                      width: '100%',
+                      height: heroImgH,
+                      background: `linear-gradient(135deg, ${COLORS.primary}, #01061f)`,
+                    }}
+                  />
+                )}
+              </div>
+              <div style={{ padding: `${pagePad}px 0` }}>
+                {titleSection}
+                {descriptionSection}
+                {faqSection}
+                {contactSection}
+              </div>
+            </div>
+            <aside style={{ position: 'sticky', top: 80, alignSelf: 'start' }}>
+              <div
+                style={{
+                  border: '1px solid #e5e7eb',
+                  borderRadius: 12,
+                  background: '#fff',
+                  padding: pagePad,
+                  boxShadow: '0 4px 24px rgba(2,12,61,0.06)',
+                }}
+              >
+                {ticketDrawerInner}
+              </div>
+            </aside>
+          </div>
+        )}
 
         <footer
           role="contentinfo"
           style={{
             background: COLORS.background,
             borderTop: `1px solid ${COLORS.accent}`,
-            padding: '24px 16px 20px',
+            padding: `${pagePad}px`,
             fontSize: 12,
             color: COLORS.text,
             fontFamily: font,
           }}
         >
-        <div style={{ maxWidth: 1100, margin: '0 auto' }}>
+        <div style={{ maxWidth: 1200, margin: '0 auto' }}>
           <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '8px 16px', marginBottom: 14 }}>
             {['תנאי שימוש', 'אודות', 'פרטיות', 'ביטולים', 'בקשת ביטול'].map((t) => (
               <a key={t} href="#" style={{ color: COLORS.text, textDecoration: 'none', fontWeight: 500 }}>
@@ -1455,50 +1553,85 @@ export default function MuniEventPage() {
               }}
             >
               Powered by
-              <span style={{ color: COLORS.accent, fontWeight: 700, fontFamily: 'Heebo, sans-serif' }}>AXESS</span>
+              <span style={{ color: COLORS.accent, fontWeight: 700, fontFamily: font }}>AXESS</span>
             </a>
           </div>
         </div>
       </footer>
       </div>
 
-      <div
-        style={{
-          position: 'fixed',
-          bottom: 0,
-          left: 0,
-          right: 0,
-          zIndex: 100,
-          background: '#fff',
-          boxShadow: '0 -4px 20px rgba(0,0,0,0.12)',
-          borderRadius: '16px 16px 0 0',
-          padding: 16,
-          transform: drawerOpen ? 'translateY(0)' : 'translateY(calc(100% - 70px))',
-          transition: 'transform 0.3s ease',
-          maxHeight: '85vh',
-          overflowY: 'auto',
-        }}
-      >
-        <button
-          type="button"
-          onClick={() => setDrawerOpen(!drawerOpen)}
+      {isMobile && drawerOpen && (
+        <>
+          <div
+            role="presentation"
+            onClick={() => setDrawerOpen(false)}
+            style={{
+              position: 'fixed',
+              inset: 0,
+              top: 60,
+              bottom: 60,
+              zIndex: 200,
+              background: 'rgba(0,0,0,0.35)',
+            }}
+          />
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="רכישת כרטיסים"
+            style={{
+              position: 'fixed',
+              top: 60,
+              left: 0,
+              right: 0,
+              bottom: 60,
+              zIndex: 210,
+              background: '#fff',
+              overflowY: 'auto',
+              padding: pagePad,
+            }}
+          >
+            {ticketDrawerInner}
+          </div>
+        </>
+      )}
+
+      {isMobile && (
+        <div
           style={{
-            width: '100%',
-            background: COLORS.primary,
-            color: '#fff',
-            border: 'none',
-            borderRadius: 25,
-            padding: '14px',
-            fontFamily: 'Heebo',
-            fontWeight: 700,
-            fontSize: 16,
-            cursor: 'pointer',
+            position: 'fixed',
+            bottom: 0,
+            left: 0,
+            right: 0,
+            height: 60,
+            background: '#fff',
+            boxShadow: '0 -2px 12px rgba(0,0,0,0.1)',
+            display: 'flex',
+            alignItems: 'center',
+            padding: '0 16px',
+            zIndex: 300,
+            boxSizing: 'border-box',
           }}
         >
-          {drawerOpen ? '✕ סגור' : orderTicketLabel}
-        </button>
-        {drawerOpen && <div style={{ marginTop: 16 }}>{ticketDrawerInner}</div>}
-      </div>
+          <button
+            type="button"
+            onClick={() => setDrawerOpen((o) => !o)}
+            style={{
+              width: '100%',
+              height: 44,
+              background: '#020c3d',
+              color: '#fff',
+              border: 'none',
+              borderRadius: 25,
+              fontFamily: 'Heebo, sans-serif',
+              fontWeight: 700,
+              fontSize: 16,
+              cursor: 'pointer',
+            }}
+          >
+            {drawerOpen ? 'סגור' : orderTicketLabel}
+          </button>
+        </div>
+      )}
 
     </div>
   )
