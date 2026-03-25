@@ -124,20 +124,6 @@ export default function AuthConnect() {
     }
   }, [returnUrl, createTokenAndRedirect])
 
-  if (!returnUrl) {
-    return (
-      <div dir="rtl" style={{ minHeight: '100vh', background: '#0a1628', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <div style={{ background: '#fff', borderRadius: 16, padding: 32, maxWidth: 380, textAlign: 'center' }}>
-          <QRLogo size={36} />
-          <h2 style={{ color: '#0a1628', marginTop: 16, fontFamily: 'Heebo, sans-serif' }}>AXESS Identity</h2>
-          <p style={{ color: '#6b7280', fontSize: 14, fontFamily: 'Heebo, sans-serif' }}>
-            דף זה משמש לזיהוי משתמשים דרך שותפי AXESS.
-          </p>
-        </div>
-      </div>
-    )
-  }
-
   const sendOTP = async () => {
     setLoading(true)
     setError('')
@@ -254,28 +240,33 @@ export default function AuthConnect() {
           textAlign: 'center',
         }}
       >
-        <div style={{ marginBottom: 24 }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-            <QRLogo size={36} />
-            <span
-              style={{
-                fontFamily: 'Heebo, sans-serif',
-                fontSize: 28,
-                fontWeight: 900,
-                color: '#0a1628',
-                letterSpacing: -1,
-              }}
-            >
-              AXESS
-            </span>
-          </div>
-          {partner && (
-            <p style={{ color: '#6b7280', fontSize: 14, margin: '4px 0 0', textAlign: 'center' }}>שותף: {partner}</p>
-          )}
-          {city && (
-            <p style={{ color: '#6b7280', fontSize: 14, margin: '4px 0 0', textAlign: 'center' }}>זיהוי תושב — {city}</p>
-          )}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 10,
+            marginBottom: 24,
+          }}
+        >
+          <QRLogo size={32} />
+          <span
+            style={{
+              fontFamily: 'Heebo, sans-serif',
+              fontSize: 26,
+              fontWeight: 900,
+              color: '#0a1628',
+              letterSpacing: -1,
+            }}
+          >
+            AXESS
+          </span>
         </div>
+        {city && (
+          <p style={{ color: '#6b7280', fontSize: 14, margin: '0 0 20px' }}>
+            זיהוי תושב — {city}
+          </p>
+        )}
 
         {step === 'phone' && (
           <>
