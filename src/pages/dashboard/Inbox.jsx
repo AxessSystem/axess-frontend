@@ -113,7 +113,7 @@ function ChatSendPanel({
         if (!r.ok) throw new Error(data.error || "שגיאה");
         setMessage("");
         if (textareaRef.current) {
-          textareaRef.current.style.height = "100px";
+          textareaRef.current.style.height = "120px";
         }
         onSent?.();
         toast.success("הערה נשמרה");
@@ -154,7 +154,7 @@ function ChatSendPanel({
       setMessage("");
       setTemplateVars({});
       if (textareaRef.current) {
-        textareaRef.current.style.height = "100px";
+        textareaRef.current.style.height = "120px";
       }
       onSent?.();
       toast.success("נשלח");
@@ -382,43 +382,34 @@ function ChatSendPanel({
       {(messageMode === "note" ||
         (messageMode === "message" &&
           (sendChannel === "sms" || (sendChannel === "whatsapp" && (waSession || !templateName))))) && (
-        <div style={{ display: "flex", gap: 8, alignItems: "flex-end" }}>
-          <button
-            type="button"
-            aria-label="צרף קובץ"
-            style={{ background: "none", border: "none", cursor: "pointer", padding: 6, flexShrink: 0 }}
-          >
-            <Paperclip size={18} color="var(--v2-gray-400)" />
-          </button>
-          <textarea
-            ref={textareaRef}
-            placeholder={messageMode === "note" ? "🔒 הערה פנימית..." : "כתוב הודעה..."}
-            value={message}
-            onChange={(e) => {
-              setMessage(e.target.value);
-              e.target.style.height = "auto";
-              e.target.style.height = `${Math.min(e.target.scrollHeight, 220)}px`;
-            }}
-            maxLength={messageMode === "note" ? 4000 : 612}
-            dir="rtl"
-            style={{
-              flex: 1,
-              minHeight: 100,
-              maxHeight: 220,
-              padding: "12px 16px",
-              background: "var(--glass-bg)",
-              border: "1px solid var(--glass-border)",
-              borderRadius: 8,
-              color: "var(--text-bubble, #fff)",
-              fontSize: 14,
-              lineHeight: 1.5,
-              resize: "none",
-              overflow: "auto",
-              fontFamily: "inherit",
-              boxSizing: "border-box",
-            }}
-          />
-        </div>
+        <textarea
+          ref={textareaRef}
+          placeholder={messageMode === "note" ? "🔒 הערה פנימית..." : "כתוב הודעה..."}
+          value={message}
+          onChange={(e) => {
+            setMessage(e.target.value);
+            e.target.style.height = "auto";
+            e.target.style.height = `${Math.min(e.target.scrollHeight, 240)}px`;
+          }}
+          maxLength={messageMode === "note" ? 4000 : 612}
+          dir="rtl"
+          style={{
+            width: "100%",
+            minHeight: 120,
+            maxHeight: 240,
+            padding: "12px 16px",
+            background: "var(--glass-bg)",
+            border: "1px solid var(--glass-border)",
+            borderRadius: 8,
+            color: "var(--text-bubble, #fff)",
+            fontSize: 14,
+            lineHeight: 1.5,
+            resize: "none",
+            overflow: "auto",
+            fontFamily: "inherit",
+            boxSizing: "border-box",
+          }}
+        />
       )}
       {messageMode === "message" && sendChannel === "sms" && message.length > 0 && (
         <div className="inbox-char-count">
@@ -426,15 +417,23 @@ function ChatSendPanel({
           {message.length <= 160 ? 1 : Math.ceil(message.length / 153)} SMS
         </div>
       )}
-      <button
-        type="button"
-        className="btn btn--primary btn-send"
-        onClick={handleSend}
-        disabled={!canSend || sending}
-        style={{ alignSelf: "flex-start" }}
-      >
-        {sending ? <RefreshCw size={14} className="spin" /> : <Send size={14} />} שלח
-      </button>
+      <div dir="rtl" style={{ display: "flex", alignItems: "center", gap: 8, alignSelf: "flex-start" }}>
+        <button
+          type="button"
+          className="btn btn--primary btn-send"
+          onClick={handleSend}
+          disabled={!canSend || sending}
+        >
+          {sending ? <RefreshCw size={14} className="spin" /> : <Send size={14} />} שלח
+        </button>
+        <button
+          type="button"
+          aria-label="צרף קובץ"
+          style={{ background: "none", border: "none", cursor: "pointer", padding: 6, flexShrink: 0 }}
+        >
+          <Paperclip size={18} color="var(--v2-gray-400)" />
+        </button>
+      </div>
       </div>
       </div>
     </div>
