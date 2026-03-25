@@ -2,8 +2,8 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useLocation, useNavigate } from "react-router-dom";
 import {
-  MessageSquare, Send, RefreshCw, Search, Plus, X, ChevronLeft, Settings,
-  InboxIcon,
+  MessageSquare, MessageCircle, Send, RefreshCw, Search, Plus, X, ChevronLeft, Settings,
+  InboxIcon, Paperclip,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { fetchWithAuth, supabase } from "@/lib/supabase";
@@ -26,6 +26,33 @@ function formatRelative(iso) {
   if (diff < 86400000) return d.toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit" });
   if (diff < 172800000) return "אתמול";
   return d.toLocaleDateString("he-IL", { day: "2-digit", month: "2-digit" });
+}
+
+function formatTime(iso) {
+  if (!iso) return "";
+  const d = new Date(iso);
+  return d.toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit" });
+}
+
+function BubbleStyle(direction, isInternal) {
+  const inbound = direction === "inbound";
+  return {
+    maxWidth: "75%",
+    padding: "10px 14px",
+    borderRadius: isInternal ? 8 : inbound ? "12px 12px 0 12px" : "12px 12px 12px 0",
+    background: isInternal
+      ? "rgba(245,158,11,0.15)"
+      : inbound
+        ? "var(--glass-bg)"
+        : "#00C37A",
+    color: !isInternal && !inbound ? "#000" : "var(--text-bubble, #fff)",
+    border: isInternal ? "1px solid rgba(245,158,11,0.3)" : "none",
+    alignSelf: isInternal ? "center" : inbound ? "flex-end" : "flex-start",
+    marginBottom: 4,
+    fontSize: 14,
+    lineHeight: 1.5,
+    wordBreak: "break-word",
+  };
 }
 
 function extractVariables(components) {
@@ -59,6 +86,7 @@ function ChatSendPanel({
   const [templateVars, setTemplateVars] = useState({});
   const [sending, setSending] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const textareaRef = useRef(null);
 
   const targetConvId = sendChannel === "sms" ? smsConvoId : waConvoId || convId;
   const approvedTemplates = (templates || []).filter((t) => t.meta_status === "APPROVED");
@@ -84,6 +112,9 @@ function ChatSendPanel({
         const data = await r.json().catch(() => ({}));
         if (!r.ok) throw new Error(data.error || "שגיאה");
         setMessage("");
+        if (textareaRef.current) {
+          textareaRef.current.style.height = "80px";
+        }
         onSent?.();
         toast.success("הערה נשמרה");
       } catch (e) {
@@ -122,6 +153,9 @@ function ChatSendPanel({
       if (!r.ok) throw new Error(data.error || "שגיאה");
       setMessage("");
       setTemplateVars({});
+      if (textareaRef.current) {
+        textareaRef.current.style.height = "80px";
+      }
       onSent?.();
       toast.success("נשלח");
     } catch (e) {
@@ -137,16 +171,11 @@ function ChatSendPanel({
       : (sendChannel === "sms" && message.trim()) ||
         (sendChannel === "whatsapp" && (waSession ? message.trim() : templateName));
 
-  const compactTabBtn = (active) => ({
-    padding: "3px 8px",
-    borderRadius: 6,
-    border: "1px solid var(--glass-border)",
-    background: active ? "var(--v2-primary)" : "rgba(255,255,255,0.06)",
-    color: active ? "var(--v2-dark)" : "var(--v2-gray-400)",
-    fontSize: 11,
-    cursor: "pointer",
-    fontFamily: "inherit",
-  });
+  const segmentTabs = [
+    ...(waConnected ? [{ id: "message", label: "WA", icon: <MessageCircle size={14} /> }] : []),
+    { id: "sms", label: "SMS", icon: <MessageSquare size={14} /> },
+    { id: "note", label: "🔒", icon: null },
+  ];
 
   return (
     <div
@@ -191,36 +220,53 @@ function ChatSendPanel({
         }}
       >
       <div style={{ overflowY: "auto", overflowX: "hidden", minHeight: 0, flex: 1, display: "flex", flexDirection: "column", gap: 6 }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 4, flexWrap: "nowrap" }}>
-        {waConnected && (
-          <button
-            type="button"
-            onClick={() => {
-              setMessageMode("message");
-              setSendChannel("whatsapp");
-            }}
-            style={compactTabBtn(messageMode === "message" && sendChannel === "whatsapp")}
-          >
-            💬 WA
-          </button>
-        )}
-        <button
-          type="button"
-          onClick={() => {
-            setMessageMode("message");
-            setSendChannel("sms");
-          }}
-          style={compactTabBtn(messageMode === "message" && sendChannel === "sms")}
-        >
-          SMS
-        </button>
-        <button
-          type="button"
-          onClick={() => setMessageMode("note")}
-          style={compactTabBtn(messageMode === "note")}
-        >
-          🔒 פנימי
-        </button>
+      <div
+        style={{
+          display: "flex",
+          background: "var(--glass-bg)",
+          borderRadius: 8,
+          padding: 3,
+          gap: 2,
+        }}
+      >
+        {segmentTabs.map((tab) => {
+          const active =
+            tab.id === "note"
+              ? messageMode === "note"
+              : messageMode === "message" &&
+                (tab.id === "message" ? sendChannel === "whatsapp" : tab.id === "sms" && sendChannel === "sms");
+          return (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => {
+                if (tab.id === "note") setMessageMode("note");
+                else {
+                  setMessageMode("message");
+                  setSendChannel(tab.id === "message" ? "whatsapp" : "sms");
+                }
+              }}
+              style={{
+                padding: "6px 14px",
+                borderRadius: 6,
+                border: "none",
+                background: active ? (tab.id === "note" ? "#F59E0B" : "var(--v2-primary)") : "transparent",
+                color: active ? "#fff" : "var(--v2-gray-400)",
+                cursor: "pointer",
+                fontSize: 13,
+                fontWeight: active ? 600 : 400,
+                display: "flex",
+                alignItems: "center",
+                gap: 4,
+                height: 32,
+                fontFamily: "inherit",
+              }}
+            >
+              {tab.icon}
+              {tab.label}
+            </button>
+          );
+        })}
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
         <div
@@ -324,45 +370,43 @@ function ChatSendPanel({
       {(messageMode === "note" ||
         (messageMode === "message" &&
           (sendChannel === "sms" || (sendChannel === "whatsapp" && (waSession || !templateName))))) && (
-        <textarea
-          placeholder={
-            messageMode === "note" ? "🔒 הערה פנימית — הצוות בלבד רואה זאת" : "כתוב הודעה..."
-          }
-          value={message}
-          onChange={(e) => setMessage(e.target.value)}
-          rows={4}
-          maxLength={messageMode === "note" ? 4000 : 612}
-          dir="rtl"
-          style={
-            messageMode === "note"
-              ? {
-                  minHeight: 80,
-                  background: "rgba(245,158,11,0.1)",
-                  border: "1px solid #F59E0B",
-                  width: "100%",
-                  resize: "none",
-                  fontSize: 12,
-                  fontFamily: "inherit",
-                  padding: "6px 8px",
-                  borderRadius: 8,
-                  color: "#fff",
-                  boxSizing: "border-box",
-                }
-              : {
-                  minHeight: 80,
-                  width: "100%",
-                  background: "var(--v2-dark-3)",
-                  border: "1px solid var(--glass-border)",
-                  resize: "none",
-                  fontSize: 12,
-                  fontFamily: "inherit",
-                  padding: "6px 8px",
-                  borderRadius: 8,
-                  color: "#fff",
-                  boxSizing: "border-box",
-                }
-          }
-        />
+        <div style={{ display: "flex", gap: 8, alignItems: "flex-end" }}>
+          <button
+            type="button"
+            aria-label="צרף קובץ"
+            style={{ background: "none", border: "none", cursor: "pointer", padding: 6, flexShrink: 0 }}
+          >
+            <Paperclip size={18} color="var(--v2-gray-400)" />
+          </button>
+          <textarea
+            ref={textareaRef}
+            placeholder={messageMode === "note" ? "🔒 הערה פנימית..." : "כתוב הודעה..."}
+            value={message}
+            onChange={(e) => {
+              setMessage(e.target.value);
+              e.target.style.height = "auto";
+              e.target.style.height = `${Math.min(e.target.scrollHeight, 200)}px`;
+            }}
+            maxLength={messageMode === "note" ? 4000 : 612}
+            dir="rtl"
+            style={{
+              flex: 1,
+              minHeight: 80,
+              maxHeight: 200,
+              padding: "12px 16px",
+              background: "var(--glass-bg)",
+              border: "1px solid var(--glass-border)",
+              borderRadius: 8,
+              color: "var(--text-bubble, #fff)",
+              fontSize: 14,
+              lineHeight: 1.5,
+              resize: "none",
+              overflow: "auto",
+              fontFamily: "inherit",
+              boxSizing: "border-box",
+            }}
+          />
+        </div>
       )}
       {messageMode === "message" && sendChannel === "sms" && message.length > 0 && (
         <div className="inbox-char-count">
@@ -372,10 +416,10 @@ function ChatSendPanel({
       )}
       <button
         type="button"
-        className="btn btn--primary"
+        className="btn btn--primary btn-send"
         onClick={handleSend}
         disabled={!canSend || sending}
-        style={{ padding: "6px 12px", fontSize: 12, alignSelf: "flex-start" }}
+        style={{ alignSelf: "flex-start" }}
       >
         {sending ? <RefreshCw size={14} className="spin" /> : <Send size={14} />} שלח
       </button>
@@ -972,7 +1016,7 @@ export default function Inbox({ onUnreadChange }) {
         .inbox-conv-list { flex: 1; overflow-y: auto; }
         .inbox-conv-item { padding: 12px 16px; border-bottom: 1px solid var(--glass-border); cursor: pointer; transition: background 0.15s; display: flex; flex-direction: column; gap: 6px; }
         .inbox-conv-item:hover { background: rgba(255,255,255,0.04); }
-        .inbox-conv-item.selected { background: rgba(0,195,122,0.1); border-right: 3px solid var(--v2-primary); }
+        .inbox-conv-item.selected { background: rgba(0,195,122,0.1); border-right: 3px solid #00C37A; }
         .inbox-conv-row { display: flex; align-items: center; gap: 8px; }
         .inbox-conv-icon { font-size: 16px; }
         .inbox-conv-name { font-weight: 600; color: #fff; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -984,7 +1028,7 @@ export default function Inbox({ onUnreadChange }) {
         .inbox-chat-main { flex: 1; display: flex; flex-direction: column; min-width: 0; min-height: 0; overflow: hidden; }
         .inbox-chat-header { flex-shrink: 0; padding: 16px; border-bottom: 1px solid var(--glass-border); display: flex; justify-content: space-between; align-items: center; }
         .inbox-chat-back { display: none; }
-        .inbox-chat-body { flex: 1; min-height: 0; overflow-y: auto; padding: 12px 16px; display: flex; flex-direction: column; gap: 12px; }
+        .inbox-chat-body { flex: 1; min-height: 0; overflow-y: auto; padding: 12px 16px; display: flex; flex-direction: column; gap: 0; }
         .inbox-chat-empty { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; color: var(--v2-gray-500); }
         .inbox-bubble { max-width: 80%; padding: 10px 14px; border-radius: 12px; font-size: 14px; line-height: 1.5; }
         .inbox-bubble--out { align-self: flex-end; background: var(--v2-primary); color: var(--v2-dark); }
@@ -995,7 +1039,24 @@ export default function Inbox({ onUnreadChange }) {
         .inbox-send-tabs { display: flex; gap: 8px; }
         .inbox-send-tabs button { padding: 6px 14px; border-radius: 8px; border: 1px solid var(--glass-border); background: transparent; color: var(--v2-gray-400); font-size: 13px; cursor: pointer; }
         .inbox-send-tabs button.active { background: var(--v2-primary); color: var(--v2-dark); border-color: var(--v2-primary); }
-        .inbox-send-panel textarea { width: 100%; background: var(--v2-dark-3); border: 1px solid var(--glass-border); border-radius: 8px; padding: 12px; color: #fff; resize: none; font-size: 14px; }
+        .inbox-send-panel textarea { width: 100%; background: var(--glass-bg); border: 1px solid var(--glass-border); border-radius: 8px; padding: 12px; color: #fff; resize: none; font-size: 14px; }
+        .btn-send {
+          height: 44px;
+          min-width: 80px;
+          border-radius: 8px;
+          font-weight: 600;
+          font-size: 15px;
+          border: none;
+          cursor: pointer;
+          transition: filter 0.15s ease, transform 0.1s ease;
+        }
+        .btn-send:hover:not(:disabled) { filter: brightness(1.1); }
+        .btn-send:active:not(:disabled) { transform: scale(0.97); }
+        .inbox-unified textarea:focus, .inbox-unified input:focus {
+          outline: none;
+          border-color: #00C37A !important;
+          box-shadow: 0 0 0 2px rgba(0,195,122,0.2);
+        }
         .inbox-send-panel select, .inbox-send-panel input { background: var(--v2-dark-3); border: 1px solid var(--glass-border); border-radius: 8px; padding: 10px; color: #fff; }
         .inbox-char-count { font-size: 11px; color: var(--v2-gray-500); }
         .supervisor-panel { width: 260px; min-height: 0; padding: 0; border-right: 1px solid var(--glass-border); background: var(--v2-dark-3); display: flex; flex-direction: column; gap: 0; overflow: hidden; }
@@ -1246,18 +1307,6 @@ export default function Inbox({ onUnreadChange }) {
                 <Plus size={14} /> חדש
               </button>
             </div>
-            <div className="inbox-list-tabs">
-              {[
-                { key: "all", label: "הכל" },
-                { key: "sms", label: "💬 SMS" },
-                { key: "whatsapp", label: "🟢 WA" },
-                { key: "unassigned", label: "לא מוקצה" },
-              ].map((t) => (
-                <button key={t.key} className={tab === t.key ? "active" : ""} onClick={() => setTab(t.key)}>
-                  {t.label}
-                </button>
-              ))}
-            </div>
             {isSupervisor && staff.length > 0 && (
               <select
                 value={agentFilter}
@@ -1270,14 +1319,61 @@ export default function Inbox({ onUnreadChange }) {
                 ))}
               </select>
             )}
-            <div className="inbox-search">
-              <Search size={16} style={{ color: "var(--v2-gray-500)" }} />
-              <input
-                placeholder="חיפוש טלפון או הודעה..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                dir="rtl"
-              />
+            <div style={{ display: "flex", gap: 8, padding: "8px 12px", alignItems: "center", flexWrap: "wrap" }}>
+              <div style={{ flex: 1, minWidth: 140, position: "relative" }}>
+                <Search
+                  size={14}
+                  style={{
+                    position: "absolute",
+                    right: 10,
+                    top: "50%",
+                    transform: "translateY(-50%)",
+                    color: "var(--v2-gray-500)",
+                    pointerEvents: "none",
+                  }}
+                />
+                <input
+                  placeholder="חיפוש..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  dir="rtl"
+                  style={{
+                    width: "100%",
+                    paddingRight: 32,
+                    height: 34,
+                    borderRadius: 8,
+                    border: "1px solid var(--glass-border)",
+                    background: "var(--glass-bg)",
+                    color: "var(--text-bubble, #fff)",
+                    fontSize: 13,
+                    boxSizing: "border-box",
+                  }}
+                />
+              </div>
+              {[
+                { label: "הכל", key: "all" },
+                { label: "WA", key: "whatsapp" },
+                { label: "SMS", key: "sms" },
+                { label: "לא נענה", key: "unassigned" },
+              ].map((f) => (
+                <button
+                  key={f.key}
+                  type="button"
+                  onClick={() => setTab(f.key)}
+                  style={{
+                    padding: "4px 10px",
+                    borderRadius: 20,
+                    border: "none",
+                    background: tab === f.key ? "var(--v2-primary)" : "var(--glass-bg)",
+                    color: tab === f.key ? "#fff" : "var(--text-bubble, #fff)",
+                    fontSize: 12,
+                    cursor: "pointer",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {f.label}
+                </button>
+              ))}
             </div>
           </div>
           <div className="inbox-conv-list">
@@ -1296,7 +1392,13 @@ export default function Inbox({ onUnreadChange }) {
                   onClick={() => setSelectedConv(c)}
                 >
                   <div className="inbox-conv-row">
-                    <span className="inbox-conv-icon">{CHANNEL_ICON[c.channel] || "💬"}</span>
+                    <span className="inbox-conv-icon" style={{ display: "flex", alignItems: "center" }}>
+                      {c.channel === "whatsapp" ? (
+                        <MessageCircle size={13} color="#22C55E" />
+                      ) : (
+                        <MessageSquare size={13} color="#3B82F6" />
+                      )}
+                    </span>
                     <span className="inbox-conv-name">{c.customer_phone}</span>
                     <span className="inbox-conv-time">{formatRelative(c.last_message_at)}</span>
                   </div>
@@ -1306,8 +1408,22 @@ export default function Inbox({ onUnreadChange }) {
                   </div>
                   <div className="inbox-conv-badges">
                     {(c.unread_count || 0) > 0 && (
-                      <span className="inbox-badge" style={{ background: "var(--v2-primary)", color: "var(--v2-dark)" }}>
-                        {c.unread_count}
+                      <span
+                        style={{
+                          background: "#00C37A",
+                          color: "#000",
+                          borderRadius: "50%",
+                          width: 18,
+                          height: 18,
+                          fontSize: 11,
+                          fontWeight: 700,
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          flexShrink: 0,
+                        }}
+                      >
+                        {(c.unread_count || 0) > 9 ? "9+" : c.unread_count}
                       </span>
                     )}
                     {STATUS_LABELS[c.status] && (
@@ -1353,32 +1469,56 @@ export default function Inbox({ onUnreadChange }) {
                 ) : messages.length === 0 ? (
                   <div className="inbox-chat-empty">אין הודעות עדיין</div>
                 ) : (
-                  messages.map((m) =>
-                    m.is_internal ? (
-                      <div key={m.id} className="inbox-bubble inbox-bubble--internal">
-                        <div>
-                          🔒 <strong>{m.agent_name || "סוכן"}</strong>: {m.message || "—"}
+                  <div style={{ display: "flex", flexDirection: "column", padding: 0 }}>
+                    {messages.map((m) => {
+                      const isIn = m.direction === "in";
+                      const direction = isIn ? "inbound" : "outbound";
+                      const waSt = m.metadata?.wa_status;
+                      const tickStatus =
+                        waSt === "read" ? "read" : waSt === "delivered" ? "delivered" : "sent";
+                      return (
+                        <div
+                          key={m.id}
+                          style={{
+                            display: "flex",
+                            flexDirection: "column",
+                            alignItems: m.is_internal ? "center" : isIn ? "flex-end" : "flex-start",
+                          }}
+                        >
+                          <div style={BubbleStyle(direction, !!m.is_internal)}>
+                            {m.is_internal && (
+                              <span style={{ fontSize: 11, color: "#F59E0B" }}>
+                                🔒 {m.agent_name || "סוכן"} ·{" "}
+                              </span>
+                            )}
+                            {m.message || m.action || "—"}
+                          </div>
+                          <div
+                            style={{
+                              fontSize: 11,
+                              color: "var(--v2-gray-400)",
+                              marginBottom: 8,
+                              display: "flex",
+                              alignItems: "center",
+                              gap: 4,
+                              alignSelf: isIn ? "flex-end" : "flex-start",
+                            }}
+                          >
+                            {formatTime(m.created_at)}
+                            {!m.is_internal && m.direction === "out" && (
+                              <span
+                                style={{
+                                  color: tickStatus === "read" ? "#00C37A" : "var(--v2-gray-400)",
+                                }}
+                              >
+                                {tickStatus === "read" ? "✓✓" : tickStatus === "delivered" ? "✓✓" : "✓"}
+                              </span>
+                            )}
+                          </div>
                         </div>
-                        <div className="inbox-bubble-meta">
-                          <span>הערה פנימית</span>
-                          <span>{formatTimestamp(m.created_at)}</span>
-                        </div>
-                      </div>
-                    ) : (
-                      <div key={m.id} className={`inbox-bubble inbox-bubble--${m.direction}`}>
-                        <div>{m.message || m.action || "—"}</div>
-                        <div className="inbox-bubble-meta">
-                          <span>{CHANNEL_ICON[m.channel] || "💬"}</span>
-                          <span>{formatTimestamp(m.created_at)}</span>
-                          {m.direction === "out" && m.metadata?.wa_status && (
-                            <span>
-                              {m.metadata.wa_status === "read" ? "נקרא" : m.metadata.wa_status === "delivered" ? "הגיע" : "נשלח"}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    ),
-                  )
+                      );
+                    })}
+                  </div>
                 )}
                 </div>
                 <ChatSendPanel
