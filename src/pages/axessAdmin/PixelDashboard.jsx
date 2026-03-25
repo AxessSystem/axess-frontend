@@ -14,6 +14,10 @@ function copyText(text, msg = 'הועתק') {
   navigator.clipboard.writeText(text).then(() => toast.success(msg)).catch(() => toast.error('העתקה נכשלה'))
 }
 
+/**
+ * דשבורד Axess Admin — בחירת עסק/עירייה וצפייה בנתוני פיקסל ושותפים מכל המערכת.
+ * לבעלי עסק יש דף נפרד: /dashboard/pixel (PixelSettings.jsx).
+ */
 export default function PixelDashboard() {
   const { session } = useAuth()
   const headers = session?.access_token

@@ -56,6 +56,7 @@ const Assets         = lazy(() => import('@/pages/dashboard/Assets'))
 const WebviewSettings = lazy(() => import('@/pages/dashboard/WebviewSettings'))
 const Flows = lazy(() => import('@/pages/dashboard/Flows'))
 const ScanManagement = lazy(() => import('@/pages/dashboard/ScanManagement'))
+const PixelSettings = lazy(() => import('@/pages/dashboard/PixelSettings'))
 const Notifications  = lazy(() => import('@/pages/dashboard/Notifications'))
 
 /* ── Existing admin/producer pages (lazy) ── */
@@ -227,6 +228,7 @@ export default function App() {
               <Route path="inbox" element={<Inbox />} />
               <Route path="assets" element={<Assets />} />
               <Route path="webview" element={<WebviewSettings />} />
+              <Route path="pixel" element={<PixelSettings />} />
               <Route path="flows" element={<Flows />} />
               <Route path="scan-management" element={<ScanManagement />} />
               <Route path="notifications" element={<Notifications />} />
