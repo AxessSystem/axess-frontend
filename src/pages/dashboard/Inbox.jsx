@@ -156,7 +156,7 @@ function ChatSendPanel({
         borderTop: "1px solid var(--glass-border)",
         background: "var(--card, var(--v2-dark-2))",
         transition: "height 0.25s ease",
-        height: drawerOpen ? "260px" : "44px",
+        height: drawerOpen ? "380px" : "44px",
         overflow: "hidden",
         display: "flex",
         flexDirection: "column",
@@ -330,12 +330,13 @@ function ChatSendPanel({
           }
           value={message}
           onChange={(e) => setMessage(e.target.value)}
-          rows={3}
+          rows={4}
           maxLength={messageMode === "note" ? 4000 : 612}
           dir="rtl"
           style={
             messageMode === "note"
               ? {
+                  minHeight: 80,
                   background: "rgba(245,158,11,0.1)",
                   border: "1px solid #F59E0B",
                   width: "100%",
@@ -348,6 +349,7 @@ function ChatSendPanel({
                   boxSizing: "border-box",
                 }
               : {
+                  minHeight: 80,
                   width: "100%",
                   background: "var(--v2-dark-3)",
                   border: "1px solid var(--glass-border)",
