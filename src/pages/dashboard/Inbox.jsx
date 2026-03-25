@@ -58,7 +58,7 @@ function ChatSendPanel({
   const [templateName, setTemplateName] = useState("");
   const [templateVars, setTemplateVars] = useState({});
   const [sending, setSending] = useState(false);
-  const [composerFocused, setComposerFocused] = useState(false);
+  const [drawerOpen, setDrawerOpen] = useState(false);
 
   const targetConvId = sendChannel === "sms" ? smsConvoId : waConvoId || convId;
   const approvedTemplates = (templates || []).filter((t) => t.meta_status === "APPROVED");
@@ -155,15 +155,41 @@ function ChatSendPanel({
         flexShrink: 0,
         borderTop: "1px solid var(--glass-border)",
         background: "var(--card, var(--v2-dark-2))",
-        maxHeight: composerFocused ? 280 : 120,
-        transition: "max-height 0.2s ease",
+        transition: "height 0.25s ease",
+        height: drawerOpen ? "260px" : "44px",
         overflow: "hidden",
         display: "flex",
         flexDirection: "column",
-        padding: composerFocused ? "8px 12px" : "6px 12px",
-        gap: 6,
       }}
     >
+      <div
+        onClick={() => setDrawerOpen(!drawerOpen)}
+        style={{
+          height: 44,
+          flexShrink: 0,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          padding: "0 16px",
+          cursor: "pointer",
+          userSelect: "none",
+        }}
+      >
+        <span style={{ fontSize: 13, color: "var(--v2-gray-400)" }}>
+          {drawerOpen ? "" : "💬 כתוב הודעה..."}
+        </span>
+        <span style={{ fontSize: 16, color: "var(--v2-gray-400)" }}>{drawerOpen ? "▼" : "▲"}</span>
+      </div>
+      <div
+        style={{
+          flex: 1,
+          overflow: "hidden",
+          padding: "0 12px 12px",
+          minHeight: 0,
+          display: "flex",
+          flexDirection: "column",
+        }}
+      >
       <div style={{ overflowY: "auto", overflowX: "hidden", minHeight: 0, flex: 1, display: "flex", flexDirection: "column", gap: 6 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 4, flexWrap: "nowrap" }}>
         {waConnected && (
@@ -238,7 +264,7 @@ function ChatSendPanel({
       {queues.length > 0 && (
         <div style={{ marginBottom: 0, paddingBottom: 4, borderBottom: "1px solid var(--glass-border)" }}>
           <div style={{ fontSize: 10, color: "var(--v2-gray-500)", marginBottom: 4 }}>תורים</div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 4, maxHeight: composerFocused ? 72 : 40, overflowY: "auto" }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 4, maxHeight: 72, overflowY: "auto" }}>
             {queues.map((q) => (
               <div
                 key={q.queue_name || "__default__"}
@@ -304,8 +330,7 @@ function ChatSendPanel({
           }
           value={message}
           onChange={(e) => setMessage(e.target.value)}
-          onFocus={() => setComposerFocused(true)}
-          rows={composerFocused ? 4 : 2}
+          rows={3}
           maxLength={messageMode === "note" ? 4000 : 612}
           dir="rtl"
           style={
@@ -352,6 +377,7 @@ function ChatSendPanel({
       >
         {sending ? <RefreshCw size={14} className="spin" /> : <Send size={14} />} שלח
       </button>
+      </div>
       </div>
     </div>
   );
