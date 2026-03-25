@@ -12,6 +12,8 @@ const API_BASE = (import.meta.env.VITE_API_URL || 'https://axess-production.up.r
 const PIXEL_EMBED_HOST = (import.meta.env.VITE_PIXEL_SCRIPT_ORIGIN || 'https://api.axess.pro').replace(/\/$/, '')
 /** קישור מעקב — בדרך כלל בכתובת ה-API שמריצה את /go */
 const GO_DISPLAY_ORIGIN = (import.meta.env.VITE_MAGIC_LINK_ORIGIN || API_BASE).replace(/\/$/, '')
+/** דף Auth Connect ציבורי */
+const AUTH_SITE_ORIGIN = (import.meta.env.VITE_SITE_ORIGIN || 'https://axess.pro').replace(/\/$/, '')
 
 function copyToClipboard(text, msg = 'הועתק') {
   navigator.clipboard.writeText(text).then(() => toast.success(msg)).catch(() => toast.error('העתקה נכשלה'))
@@ -22,6 +24,7 @@ export default function PixelSettings() {
   const qc = useQueryClient()
   const [businessSlug, setBusinessSlug] = useState('')
   const [magicUrl, setMagicUrl] = useState('')
+  const [authReturnUrl, setAuthReturnUrl] = useState('')
   const [newPartnerName, setNewPartnerName] = useState('')
   const [newPartnerSlug, setNewPartnerSlug] = useState('')
 
@@ -270,6 +273,153 @@ export default function PixelSettings() {
             </button>
           </div>
         )}
+      </div>
+
+      {/* 3b — התחבר עם AXESS */}
+      <div
+        style={{
+          background: 'var(--card, var(--v2-dark-2))',
+          borderRadius: 12,
+          padding: 20,
+          marginBottom: 20,
+          marginTop: 16,
+          border: '1px solid var(--glass-border)',
+        }}
+      >
+        <h3 style={{ margin: '0 0 8px', fontSize: 16, fontWeight: 700, color: '#fff' }}>🔗 התחבר עם AXESS</h3>
+        <p style={{ fontSize: 13, color: 'var(--v2-gray-400)', marginBottom: 16 }}>
+          אפשר לתושבים/לקוחות להזדהות פעם אחת ולהיזכר בכל אתר שותף אוטומטית.
+        </p>
+
+        <label style={{ fontSize: 13, fontWeight: 600, marginBottom: 6, display: 'block', color: 'var(--v2-gray-300)' }}>
+          כפתור להטמעה באתר שלך:
+        </label>
+        <div
+          style={{
+            background: '#1a1d21',
+            borderRadius: 8,
+            padding: 12,
+            fontFamily: 'monospace, Consolas, monospace',
+            fontSize: 12,
+            color: '#00C37A',
+            marginBottom: 12,
+            direction: 'ltr',
+            overflowX: 'auto',
+            textAlign: 'left',
+          }}
+        >
+          {`<a href="${AUTH_SITE_ORIGIN}/auth?city=${citySlug || '[slug]'}&return=YOUR_URL">\n  <img src="${AUTH_SITE_ORIGIN}/btn-connect.svg" alt="התחבר עם AXESS" />\n</a>`}
+        </div>
+        <button
+          type="button"
+          className="btn btn--secondary"
+          onClick={() =>
+            copyToClipboard(
+              `<a href="${AUTH_SITE_ORIGIN}/auth?city=${citySlug || ''}&return=YOUR_URL">\n  <img src="${AUTH_SITE_ORIGIN}/btn-connect.svg" alt="התחבר עם AXESS" />\n</a>`,
+              'הועתק'
+            )
+          }
+        >
+          📋 העתק קוד
+        </button>
+
+        <div style={{ marginTop: 16 }}>
+          <label style={{ fontSize: 13, fontWeight: 600, marginBottom: 8, display: 'block', color: 'var(--v2-gray-300)' }}>
+            תצוגה מקדימה (כהה / בהיר):
+          </label>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center' }}>
+            <a
+              href={`${AUTH_SITE_ORIGIN}/auth?city=${encodeURIComponent(citySlug || '')}&return=https://example.com`}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 8,
+                padding: '10px 20px',
+                background: '#0a1628',
+                color: '#fff',
+                borderRadius: 8,
+                textDecoration: 'none',
+                fontFamily: 'Heebo, sans-serif',
+                fontWeight: 700,
+                fontSize: 15,
+              }}
+            >
+              <span style={{ color: '#00C37A', fontSize: 18, fontWeight: 900 }}>A</span>
+              התחבר עם AXESS
+            </a>
+            <a
+              href={`${AUTH_SITE_ORIGIN}/auth?city=${encodeURIComponent(citySlug || '')}&return=https://example.com`}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 8,
+                padding: '10px 20px',
+                background: '#fff',
+                color: '#0a1628',
+                border: '2px solid #0a1628',
+                borderRadius: 8,
+                textDecoration: 'none',
+                fontFamily: 'Heebo, sans-serif',
+                fontWeight: 700,
+                fontSize: 15,
+              }}
+            >
+              <span style={{ color: '#00C37A', fontSize: 18, fontWeight: 900 }}>A</span>
+              התחבר עם AXESS
+            </a>
+          </div>
+        </div>
+
+        <div style={{ marginTop: 20 }}>
+          <label style={{ fontSize: 13, fontWeight: 600, marginBottom: 6, display: 'block', color: 'var(--v2-gray-300)' }}>
+            צור לינק זיהוי לקמפיין:
+          </label>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <input
+              dir="ltr"
+              value={authReturnUrl}
+              onChange={(e) => setAuthReturnUrl(e.target.value)}
+              placeholder="https://example.com/checkout"
+              style={{
+                flex: 1,
+                minWidth: 200,
+                height: 36,
+                borderRadius: 8,
+                border: '1px solid var(--glass-border)',
+                background: 'var(--glass-bg, var(--v2-dark-3))',
+                color: 'var(--text, #fff)',
+                padding: '0 12px',
+                fontSize: 13,
+                boxSizing: 'border-box',
+              }}
+            />
+            <button
+              type="button"
+              disabled={!authReturnUrl.trim()}
+              onClick={() => {
+                const link = `${AUTH_SITE_ORIGIN}/auth?city=${encodeURIComponent(citySlug || '')}&return=${encodeURIComponent(authReturnUrl.trim())}`
+                copyToClipboard(link, 'הלינק הועתק')
+              }}
+              style={{
+                padding: '0 16px',
+                borderRadius: 8,
+                border: 'none',
+                background: !authReturnUrl.trim() ? '#555' : '#00C37A',
+                color: '#000',
+                fontWeight: 700,
+                cursor: !authReturnUrl.trim() ? 'not-allowed' : 'pointer',
+                fontSize: 13,
+                height: 36,
+              }}
+            >
+              צור לינק
+            </button>
+          </div>
+        </div>
       </div>
 
       {/* 4 — Partner API (בעל עסק) */}

@@ -18,6 +18,7 @@ import Validator from '@/pages/Validator'
 import ScanStation from '@/pages/ScanStation'
 import Join from '@/pages/Join'
 import InviteAccept from '@/pages/InviteAccept'
+import AuthConnect from '@/pages/AuthConnect'
 
 /* ── New AXESS pages (lazy) ── */
 const Onboarding      = lazy(() => import('@/pages/Onboarding'))
@@ -181,6 +182,7 @@ export default function App() {
             <Route path="/features" element={<Features />} />
             <Route path="/terms" element={<Terms />} />
             <Route path="/privacy" element={<Privacy />} />
+            <Route path="/auth" element={<AuthConnect />} />
             <Route path="/v/:slug" element={<Validator />} />
             <Route path="/e/:slug" element={<EventPage />} />
             <Route path="/e/:slug/group-register" element={<GroupRegistrationPage />} />
