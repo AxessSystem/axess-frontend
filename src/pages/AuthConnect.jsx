@@ -86,6 +86,7 @@ export default function AuthConnect() {
   const [otp, setOtp] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [phoneError, setPhoneError] = useState('')
   const [redirectAttempts, setRedirectAttempts] = useState(0)
 
   const createTokenAndRedirect = useCallback(
@@ -124,6 +125,8 @@ export default function AuthConnect() {
     }
   }, [returnUrl, createTokenAndRedirect])
 
+  const isValidPhone = (p) => /^05\d{8}$/.test(p.replace(/[-\s]/g, ''))
+
   const sendOTP = async () => {
     setLoading(true)
     setError('')
@@ -141,6 +144,15 @@ export default function AuthConnect() {
       setError(e.message || 'שגיאה בשליחת קוד')
     }
     setLoading(false)
+  }
+
+  const handleSendOTP = () => {
+    if (!isValidPhone(phone)) {
+      setPhoneError('מספר נייד לא תקין — יש להזין מספר ישראלי תקין (05X-XXXXXXX)')
+      return
+    }
+    setPhoneError('')
+    sendOTP()
   }
 
   const verifyOTP = async () => {
@@ -274,26 +286,36 @@ export default function AuthConnect() {
             <input
               type="tel"
               value={phone}
-              onChange={(e) => setPhone(e.target.value)}
+              onChange={(e) => {
+                setPhone(e.target.value)
+                if (phoneError) setPhoneError('')
+              }}
               placeholder="050-0000000"
               style={{
                 width: '100%',
                 height: 48,
                 borderRadius: 8,
-                border: '1px solid #e5e7eb',
+                border: `1px solid ${phoneError ? '#EF4444' : '#e5e7eb'}`,
                 padding: '0 16px',
                 fontSize: 18,
                 textAlign: 'center',
                 boxSizing: 'border-box',
                 marginBottom: 16,
                 fontFamily: 'Heebo',
+                color: '#0a1628',
+                background: phoneError ? '#fef2f2' : '#fff',
               }}
             />
+            {phoneError && (
+              <p style={{ color: '#EF4444', fontSize: 13, marginTop: 6, textAlign: 'right' }}>
+                ⚠️ {phoneError}
+              </p>
+            )}
             {error && <p style={{ color: '#EF4444', fontSize: 13, marginBottom: 12 }}>{error}</p>}
             <button
               type="button"
-              onClick={sendOTP}
-              disabled={loading || phone.replace(/\D/g, '').length < 9}
+              onClick={handleSendOTP}
+              disabled={loading || !isValidPhone(phone)}
               style={{
                 width: '100%',
                 height: 48,
