@@ -384,6 +384,7 @@ export default function Inbox({ onUnreadChange }) {
   const [conversations, setConversations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState("all");
+  const [activeTab, setActiveTab] = useState("conversations");
   const [search, setSearch] = useState("");
   const [agentFilter, setAgentFilter] = useState("");
   const [selectedConv, setSelectedConv] = useState(null);
@@ -508,6 +509,18 @@ export default function Inbox({ onUnreadChange }) {
     enabled: !!activeConversationId && !!selectedConv?.customer_phone,
   });
 
+  const { data: supervisor } = useQuery({
+    queryKey: ["inbox-supervisor", businessId],
+    queryFn: async () => {
+      const r = await fetch(`${API_BASE}/api/inbox/supervisor`, { headers: authHeaders() });
+      const data = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(data.error || "supervisor");
+      return data;
+    },
+    refetchInterval: 30_000,
+    enabled: !!session?.access_token && !!businessId && isSupervisor,
+  });
+
   useEffect(() => {
     if (!businessId) return;
 
@@ -524,6 +537,7 @@ export default function Inbox({ onUnreadChange }) {
         (payload) => {
           console.log("[realtime] inbox change:", payload);
           queryClient.invalidateQueries({ queryKey: ["conversations", businessId] });
+          queryClient.invalidateQueries({ queryKey: ["inbox-supervisor", businessId] });
         },
       )
       .subscribe();
@@ -669,8 +683,9 @@ export default function Inbox({ onUnreadChange }) {
   return (
     <>
       <style>{`
-        .inbox-unified { display: flex; height: calc(100vh - 140px); min-height: 400px; direction: rtl; background: var(--v2-dark-2); border-radius: var(--radius-lg); border: 1px solid var(--glass-border); overflow: hidden; }
-        .inbox-list { width: 320px; min-width: 280px; border-left: 1px solid var(--glass-border); display: flex; flex-direction: column; background: var(--v2-dark-3); }
+        .inbox-unified { display: flex; flex-direction: column; height: calc(100vh - 140px); min-height: 400px; direction: rtl; background: var(--v2-dark-2); border-radius: var(--radius-lg); border: 1px solid var(--glass-border); overflow: hidden; }
+        .inbox-unified-row { display: flex; flex: 1; flex-direction: row; min-width: 0; min-height: 0; overflow: hidden; }
+        .inbox-list { width: 320px; min-width: 280px; min-height: 0; border-left: 1px solid var(--glass-border); display: flex; flex-direction: column; background: var(--v2-dark-3); }
         .inbox-list-header { padding: 12px 16px; border-bottom: 1px solid var(--glass-border); }
         .inbox-list-tabs { display: flex; gap: 4px; margin-bottom: 10px; }
         .inbox-list-tabs button { padding: 6px 12px; border-radius: 8px; border: none; background: rgba(255,255,255,0.06); color: var(--v2-gray-400); font-size: 12px; cursor: pointer; }
@@ -688,18 +703,18 @@ export default function Inbox({ onUnreadChange }) {
         .inbox-conv-preview { font-size: 12px; color: var(--v2-gray-400); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
         .inbox-conv-badges { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
         .inbox-badge { font-size: 10px; padding: 2px 8px; border-radius: 99px; }
-        .inbox-chat { flex: 1; display: flex; flex-direction: row; min-width: 0; background: var(--v2-dark-2); }
-        .inbox-chat-main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
-        .inbox-chat-header { padding: 16px; border-bottom: 1px solid var(--glass-border); display: flex; justify-content: space-between; align-items: center; }
+        .inbox-chat { flex: 1; display: flex; flex-direction: row; min-width: 0; min-height: 0; background: var(--v2-dark-2); }
+        .inbox-chat-main { flex: 1; display: flex; flex-direction: column; min-width: 0; min-height: 0; overflow: hidden; }
+        .inbox-chat-header { flex-shrink: 0; padding: 16px; border-bottom: 1px solid var(--glass-border); display: flex; justify-content: space-between; align-items: center; }
         .inbox-chat-back { display: none; }
-        .inbox-chat-body { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+        .inbox-chat-body { flex: 1; min-height: 0; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
         .inbox-chat-empty { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; color: var(--v2-gray-500); }
         .inbox-bubble { max-width: 80%; padding: 10px 14px; border-radius: 12px; font-size: 14px; line-height: 1.5; }
         .inbox-bubble--out { align-self: flex-end; background: var(--v2-primary); color: var(--v2-dark); }
         .inbox-bubble--in { align-self: flex-start; background: var(--v2-dark-3); border: 1px solid var(--glass-border); }
         .inbox-bubble--internal { align-self: stretch; max-width: 95%; background: rgba(245,158,11,0.15); border: 1px solid rgba(245,158,11,0.35); color: var(--v2-gray-200); }
         .inbox-bubble-meta { display: flex; align-items: center; gap: 8px; margin-top: 6px; font-size: 11px; opacity: 0.8; }
-        .inbox-send-panel { padding: 16px; border-top: 1px solid var(--glass-border); display: flex; flex-direction: column; gap: 10px; }
+        .inbox-send-panel { flex-shrink: 0; padding: 16px; border-top: 1px solid var(--glass-border); display: flex; flex-direction: column; gap: 10px; background: var(--v2-dark-2); }
         .inbox-send-tabs { display: flex; gap: 8px; }
         .inbox-send-tabs button { padding: 6px 14px; border-radius: 8px; border: 1px solid var(--glass-border); background: transparent; color: var(--v2-gray-400); font-size: 13px; cursor: pointer; }
         .inbox-send-tabs button.active { background: var(--v2-primary); color: var(--v2-dark); border-color: var(--v2-primary); }
@@ -721,6 +736,7 @@ export default function Inbox({ onUnreadChange }) {
         @keyframes spin { to { transform: rotate(360deg); } }
         @media (max-width: 768px) {
           .inbox-unified { flex-direction: column; height: auto; min-height: 100vh; }
+          .inbox-unified-row { flex-direction: column; }
           .inbox-list { width: 100%; max-height: 40vh; }
           .inbox-chat { display: ${selectedConv ? "flex" : "none"}; }
           .inbox-chat-back { display: flex; }
@@ -728,6 +744,223 @@ export default function Inbox({ onUnreadChange }) {
       `}</style>
 
       <div className="inbox-unified">
+        {isSupervisor && (
+          <div
+            style={{
+              flexShrink: 0,
+              display: "flex",
+              gap: 8,
+              padding: "8px 12px",
+              borderBottom: "1px solid var(--glass-border)",
+              background: "var(--v2-dark-3)",
+              alignItems: "center",
+            }}
+          >
+            <button
+              type="button"
+              onClick={() => setActiveTab("conversations")}
+              style={{
+                padding: "6px 16px",
+                borderRadius: 20,
+                border: "none",
+                background: activeTab === "conversations" ? "var(--v2-primary)" : "rgba(255,255,255,0.08)",
+                color: activeTab === "conversations" ? "var(--v2-dark)" : "var(--v2-gray-400)",
+                cursor: "pointer",
+                fontSize: 13,
+              }}
+            >
+              שיחות
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab("supervisor")}
+              style={{
+                padding: "6px 16px",
+                borderRadius: 20,
+                border: "none",
+                background: activeTab === "supervisor" ? "var(--v2-primary)" : "rgba(255,255,255,0.08)",
+                color: activeTab === "supervisor" ? "var(--v2-dark)" : "var(--v2-gray-400)",
+                cursor: "pointer",
+                fontSize: 13,
+              }}
+            >
+              📊 מוקד
+            </button>
+          </div>
+        )}
+        {activeTab === "supervisor" && isSupervisor ? (
+          <div
+            style={{
+              flex: 1,
+              minHeight: 0,
+              overflowY: "auto",
+              padding: 16,
+              background: "var(--v2-dark-2)",
+            }}
+          >
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))",
+                gap: 12,
+                marginBottom: 20,
+              }}
+            >
+              {[
+                { label: "שיחות פתוחות", value: supervisor?.kpis?.open_count ?? 0, icon: "💬", color: "#3B82F6" },
+                { label: "ממתינות למענה", value: supervisor?.kpis?.waiting_count ?? 0, icon: "⏳", color: "#F59E0B" },
+                { label: "נסגרו היום", value: supervisor?.kpis?.resolved_today ?? 0, icon: "✅", color: "#22C55E" },
+                { label: "זמן ממוצע", value: `${supervisor?.kpis?.avg_resolution_minutes ?? 0} דק'`, icon: "⌛", color: "#8B5CF6" },
+              ].map((kpi) => (
+                <div
+                  key={kpi.label}
+                  style={{
+                    background: "var(--v2-dark-3)",
+                    borderRadius: 12,
+                    padding: 14,
+                    border: "1px solid var(--glass-border)",
+                    textAlign: "center",
+                  }}
+                >
+                  <div style={{ fontSize: 24 }}>{kpi.icon}</div>
+                  <div style={{ fontSize: 22, fontWeight: 800, color: kpi.color }}>{kpi.value}</div>
+                  <div style={{ fontSize: 12, color: "var(--v2-gray-400)" }}>{kpi.label}</div>
+                </div>
+              ))}
+            </div>
+            {supervisor?.alerts?.length > 0 && (
+              <div
+                style={{
+                  background: "rgba(239,68,68,0.1)",
+                  border: "1px solid rgba(239,68,68,0.3)",
+                  borderRadius: 10,
+                  padding: 12,
+                  marginBottom: 16,
+                }}
+              >
+                <p style={{ fontWeight: 700, color: "#EF4444", marginBottom: 8 }}>
+                  🚨 {supervisor.alerts.length} שיחות ממתינות מעל 10 דקות
+                </p>
+                {supervisor.alerts.map((a) => (
+                  <div key={a.id} style={{ fontSize: 13, color: "#e5e7eb", marginBottom: 4 }}>
+                    📞 {a.customer_phone} — {Math.round(Number(a.wait_minutes))} דקות המתנה
+                    {a.agent_name && ` | נציג: ${a.agent_name}`}
+                  </div>
+                ))}
+              </div>
+            )}
+            <h3 style={{ fontSize: 15, fontWeight: 700, marginBottom: 10 }}>נציגים</h3>
+            <div style={{ marginBottom: 20 }}>
+              {(supervisor?.agents || []).map((agent) => (
+                <div
+                  key={agent.id}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    padding: "10px 12px",
+                    background: "var(--v2-dark-3)",
+                    borderRadius: 10,
+                    marginBottom: 8,
+                    border: "1px solid var(--glass-border)",
+                  }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <div
+                      style={{
+                        width: 10,
+                        height: 10,
+                        borderRadius: "50%",
+                        background: agent.is_online ? "#22C55E" : "#9CA3AF",
+                      }}
+                    />
+                    <span style={{ fontWeight: 600 }}>{agent.full_name || "נציג"}</span>
+                    <span style={{ fontSize: 12, color: "var(--v2-gray-400)" }}>{agent.role}</span>
+                  </div>
+                  <div style={{ display: "flex", gap: 16, fontSize: 13, color: "var(--v2-gray-400)" }}>
+                    <span>
+                      עומס: {agent.current_load}/{agent.max_capacity}
+                    </span>
+                    {agent.avg_resolution_minutes != null && (
+                      <span>ממוצע: {agent.avg_resolution_minutes} דק'</span>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+            <h3 style={{ fontSize: 15, fontWeight: 700, marginBottom: 10 }}>תורים</h3>
+            <div style={{ marginBottom: 20 }}>
+              {(supervisor?.queues || []).map((q) => (
+                <div
+                  key={String(q.queue_name)}
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    padding: "10px 12px",
+                    background: "var(--v2-dark-3)",
+                    borderRadius: 10,
+                    marginBottom: 8,
+                    border: "1px solid var(--glass-border)",
+                  }}
+                >
+                  <span style={{ fontWeight: 600 }}>{q.queue_name}</span>
+                  <div style={{ display: "flex", gap: 12, fontSize: 13 }}>
+                    <span style={{ color: "#F59E0B" }}>{q.waiting} ממתינות</span>
+                    <span style={{ color: "var(--v2-gray-400)" }}>המתנה: {q.avg_wait_minutes} דק'</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <h3 style={{ fontSize: 15, fontWeight: 700, marginBottom: 10 }}>שיחות פעילות</h3>
+            {(supervisor?.activeConvs || []).map((conv) => (
+              <div
+                key={conv.id}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    setSelectedConv(conv);
+                    setActiveTab("conversations");
+                    refetchConversations();
+                    queryClient.invalidateQueries({ queryKey: ["messages", conv.id] });
+                  }
+                }}
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  padding: "10px 12px",
+                  background: "var(--v2-dark-3)",
+                  borderRadius: 10,
+                  marginBottom: 8,
+                  border: "1px solid var(--glass-border)",
+                  cursor: "pointer",
+                }}
+                onClick={() => {
+                  setSelectedConv(conv);
+                  setActiveTab("conversations");
+                  refetchConversations();
+                  queryClient.invalidateQueries({ queryKey: ["messages", conv.id] });
+                }}
+              >
+                <div>
+                  <span style={{ fontWeight: 600 }}>{conv.customer_phone}</span>
+                  <span style={{ fontSize: 12, color: "var(--v2-gray-400)", marginRight: 8 }}>
+                    {conv.queue_name || "כללי"}
+                  </span>
+                </div>
+                <div style={{ display: "flex", gap: 12, fontSize: 13 }}>
+                  <span style={{ color: Number(conv.wait_minutes) > 10 ? "#EF4444" : "var(--v2-gray-400)" }}>
+                    {Math.round(Number(conv.wait_minutes))} דק'
+                  </span>
+                  <span style={{ color: "var(--v2-gray-400)" }}>{conv.agent_name || "לא מוקצה"}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+        <div className="inbox-unified-row">
         <div className="inbox-list">
           <div className="inbox-list-header">
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
@@ -908,6 +1141,8 @@ export default function Inbox({ onUnreadChange }) {
             </div>
           )}
         </div>
+        </div>
+        )}
       </div>
 
       {showNewMessage && (
