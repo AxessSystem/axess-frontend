@@ -1,7 +1,49 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
+import { Shield, Lock, Zap } from 'lucide-react'
 
 const API_BASE = (import.meta.env.VITE_API_URL || 'https://axess-production.up.railway.app').replace(/\/$/, '')
+
+/** אייקון QR — כמו ב-Login.jsx (בלי טקסט AXESS) */
+function QRLogo({ size = 40 }) {
+  const dot = Math.max(8, Math.round(size * 0.3))
+  const edge = Math.round(-size * 0.125)
+  return (
+    <div style={{ position: 'relative', width: size, height: size, flexShrink: 0, display: 'inline-flex' }}>
+      <svg width={size} height={size} viewBox="0 0 36 36" fill="none">
+        <rect x="1" y="1" width="34" height="34" rx="6" stroke="var(--v2-primary)" strokeWidth="1.5" fill="#161E2E" />
+        <rect x="5" y="5" width="10" height="10" rx="2" fill="var(--v2-primary)" />
+        <rect x="7" y="7" width="6" height="6" rx="1" fill="#161E2E" />
+        <rect x="9" y="9" width="2" height="2" fill="var(--v2-primary)" />
+        <rect x="21" y="5" width="10" height="10" rx="2" fill="var(--v2-primary)" />
+        <rect x="23" y="7" width="6" height="6" rx="1" fill="#161E2E" />
+        <rect x="25" y="9" width="2" height="2" fill="var(--v2-primary)" />
+        <rect x="5" y="21" width="10" height="10" rx="2" fill="var(--v2-primary)" />
+        <rect x="7" y="23" width="6" height="6" rx="1" fill="#161E2E" />
+        <rect x="9" y="25" width="2" height="2" fill="var(--v2-primary)" />
+        <rect x="17" y="5" width="2" height="2" fill="var(--v2-primary)" />
+        <rect x="17" y="9" width="2" height="2" fill="var(--v2-primary)" />
+        <rect x="21" y="17" width="2" height="2" fill="var(--v2-primary)" />
+        <rect x="25" y="17" width="2" height="2" fill="var(--v2-primary)" />
+        <rect x="17" y="21" width="2" height="2" fill="var(--v2-primary)" />
+        <rect x="25" y="25" width="2" height="2" fill="var(--v2-primary)" />
+      </svg>
+      <div
+        className="animate-pulse-green"
+        style={{
+          position: 'absolute',
+          top: edge,
+          right: edge,
+          width: dot,
+          height: dot,
+          background: 'var(--v2-primary)',
+          borderRadius: '50%',
+          border: '2px solid var(--v2-dark)',
+        }}
+      />
+    </div>
+  )
+}
 
 function setCookie(name, value, days) {
   const expires = new Date(Date.now() + days * 864e5).toUTCString()
@@ -82,11 +124,21 @@ export default function AuthConnect() {
     }
   }, [returnUrl, createTokenAndRedirect])
 
+  if (!returnUrl) {
+    return (
+      <div dir="rtl" style={{ minHeight: '100vh', background: '#0a1628', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ background: '#fff', borderRadius: 16, padding: 32, maxWidth: 380, textAlign: 'center' }}>
+          <QRLogo size={36} />
+          <h2 style={{ color: '#0a1628', marginTop: 16, fontFamily: 'Heebo, sans-serif' }}>AXESS Identity</h2>
+          <p style={{ color: '#6b7280', fontSize: 14, fontFamily: 'Heebo, sans-serif' }}>
+            דף זה משמש לזיהוי משתמשים דרך שותפי AXESS.
+          </p>
+        </div>
+      </div>
+    )
+  }
+
   const sendOTP = async () => {
-    if (!returnUrl) {
-      setError('חסר קישור חזרה (return)')
-      return
-    }
     setLoading(true)
     setError('')
     try {
@@ -203,17 +255,25 @@ export default function AuthConnect() {
         }}
       >
         <div style={{ marginBottom: 24 }}>
-          <h1 style={{ color: '#00C37A', fontSize: 28, fontWeight: 900, margin: 0 }}>AXESS</h1>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+            <QRLogo size={36} />
+            <span
+              style={{
+                fontFamily: 'Heebo, sans-serif',
+                fontSize: 28,
+                fontWeight: 900,
+                color: '#0a1628',
+                letterSpacing: -1,
+              }}
+            >
+              AXESS
+            </span>
+          </div>
           {partner && (
-            <p style={{ color: '#6b7280', fontSize: 14, margin: '4px 0 0' }}>שותף: {partner}</p>
+            <p style={{ color: '#6b7280', fontSize: 14, margin: '4px 0 0', textAlign: 'center' }}>שותף: {partner}</p>
           )}
           {city && (
-            <p style={{ color: '#6b7280', fontSize: 14, margin: '4px 0 0' }}>זיהוי תושב — {city}</p>
-          )}
-          {!returnUrl && (
-            <p style={{ color: '#b45309', fontSize: 13, margin: '12px 0 0' }}>
-              חסר פרמטר <strong>return</strong> — יש לכלול כתובת חזרה (למשל <code style={{ direction: 'ltr' }}>?return=https://…</code>).
-            </p>
+            <p style={{ color: '#6b7280', fontSize: 14, margin: '4px 0 0', textAlign: 'center' }}>זיהוי תושב — {city}</p>
           )}
         </div>
 
@@ -242,7 +302,7 @@ export default function AuthConnect() {
             <button
               type="button"
               onClick={sendOTP}
-              disabled={loading || !returnUrl || phone.replace(/\D/g, '').length < 9}
+              disabled={loading || phone.replace(/\D/g, '').length < 9}
               style={{
                 width: '100%',
                 height: 48,
@@ -330,9 +390,18 @@ export default function AuthConnect() {
         )}
 
         <div style={{ marginTop: 24, paddingTop: 16, borderTop: '1px solid #e5e7eb' }}>
-          <p style={{ color: '#9CA3AF', fontSize: 12 }}>
-            🔒 מאובטח &nbsp;|&nbsp; 🛡️ פרטי &nbsp;|&nbsp; ⚡ מהיר
-          </p>
+          <div style={{ display: 'flex', justifyContent: 'center', gap: 20, marginTop: 16 }}>
+            {[
+              { icon: <Shield size={16} />, label: 'מאובטח' },
+              { icon: <Lock size={16} />, label: 'פרטי' },
+              { icon: <Zap size={16} />, label: 'מהיר' },
+            ].map((item) => (
+              <div key={item.label} style={{ display: 'flex', alignItems: 'center', gap: 4, color: '#9CA3AF', fontSize: 12 }}>
+                {item.icon}
+                <span>{item.label}</span>
+              </div>
+            ))}
+          </div>
           <p style={{ color: '#9CA3AF', fontSize: 11, marginTop: 4 }}>
             Powered by <span style={{ color: '#00C37A', fontWeight: 700 }}>AXESS</span>
           </p>
