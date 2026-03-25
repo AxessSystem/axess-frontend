@@ -58,6 +58,7 @@ function ChatSendPanel({
   const [templateName, setTemplateName] = useState("");
   const [templateVars, setTemplateVars] = useState({});
   const [sending, setSending] = useState(false);
+  const [composerFocused, setComposerFocused] = useState(false);
 
   const targetConvId = sendChannel === "sms" ? smsConvoId : waConvoId || convId;
   const approvedTemplates = (templates || []).filter((t) => t.meta_status === "APPROVED");
@@ -136,41 +137,66 @@ function ChatSendPanel({
       : (sendChannel === "sms" && message.trim()) ||
         (sendChannel === "whatsapp" && (waSession ? message.trim() : templateName));
 
+  const compactTabBtn = (active) => ({
+    padding: "3px 8px",
+    borderRadius: 6,
+    border: "1px solid var(--glass-border)",
+    background: active ? "var(--v2-primary)" : "rgba(255,255,255,0.06)",
+    color: active ? "var(--v2-dark)" : "var(--v2-gray-400)",
+    fontSize: 11,
+    cursor: "pointer",
+    fontFamily: "inherit",
+  });
+
   return (
-    <div className="inbox-send-panel">
-      <div style={{ display: "flex", gap: 8, marginBottom: 4, flexWrap: "wrap" }}>
+    <div
+      className="inbox-send-panel"
+      style={{
+        flexShrink: 0,
+        borderTop: "1px solid var(--glass-border)",
+        background: "var(--card, var(--v2-dark-2))",
+        maxHeight: composerFocused ? 280 : 120,
+        transition: "max-height 0.2s ease",
+        overflow: "hidden",
+        display: "flex",
+        flexDirection: "column",
+        padding: composerFocused ? "8px 12px" : "6px 12px",
+        gap: 6,
+      }}
+    >
+      <div style={{ overflowY: "auto", overflowX: "hidden", minHeight: 0, flex: 1, display: "flex", flexDirection: "column", gap: 6 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 4, flexWrap: "nowrap" }}>
+        {waConnected && (
+          <button
+            type="button"
+            onClick={() => {
+              setMessageMode("message");
+              setSendChannel("whatsapp");
+            }}
+            style={compactTabBtn(messageMode === "message" && sendChannel === "whatsapp")}
+          >
+            💬 WA
+          </button>
+        )}
         <button
           type="button"
-          onClick={() => setMessageMode("message")}
-          style={{
-            padding: "4px 12px",
-            borderRadius: 20,
-            border: "none",
-            background: messageMode === "message" ? "var(--v2-primary)" : "rgba(255,255,255,0.08)",
-            color: messageMode === "message" ? "var(--v2-dark)" : "var(--v2-gray-400)",
-            fontSize: 13,
-            cursor: "pointer",
+          onClick={() => {
+            setMessageMode("message");
+            setSendChannel("sms");
           }}
+          style={compactTabBtn(messageMode === "message" && sendChannel === "sms")}
         >
-          💬 הודעה (SMS / WA)
+          SMS
         </button>
         <button
           type="button"
           onClick={() => setMessageMode("note")}
-          style={{
-            padding: "4px 12px",
-            borderRadius: 20,
-            border: "none",
-            background: messageMode === "note" ? "#F59E0B" : "rgba(255,255,255,0.08)",
-            color: messageMode === "note" ? "#fff" : "var(--v2-gray-400)",
-            fontSize: 13,
-            cursor: "pointer",
-          }}
+          style={compactTabBtn(messageMode === "note")}
         >
-          🔒 הערה פנימית
+          🔒 פנימי
         </button>
       </div>
-      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10, flexWrap: "wrap" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
         <div
           style={{
             width: 10,
@@ -192,27 +218,27 @@ function ChatSendPanel({
             if (!r.ok) toast.error("לא עודכן סטטוס");
           }}
           style={{
-            padding: "4px 8px",
-            borderRadius: 8,
+            padding: "2px 6px",
+            borderRadius: 6,
             border: "1px solid var(--glass-border)",
             background: "var(--v2-dark-3)",
             color: "#fff",
-            fontSize: 12,
+            fontSize: 11,
           }}
         >
           <option value="online">זמין</option>
           <option value="away">לא זמין</option>
         </select>
         {agents.length > 0 && (
-          <span style={{ fontSize: 11, color: "var(--v2-gray-500)" }}>
+          <span style={{ fontSize: 10, color: "var(--v2-gray-500)" }}>
             מחוברים: {agents.filter((a) => a.is_online).length}/{agents.length}
           </span>
         )}
       </div>
       {queues.length > 0 && (
-        <div style={{ marginBottom: 10, paddingBottom: 10, borderBottom: "1px solid var(--glass-border)" }}>
-          <div style={{ fontSize: 11, color: "var(--v2-gray-500)", marginBottom: 6 }}>תורים</div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 6, maxHeight: 120, overflowY: "auto" }}>
+        <div style={{ marginBottom: 0, paddingBottom: 4, borderBottom: "1px solid var(--glass-border)" }}>
+          <div style={{ fontSize: 10, color: "var(--v2-gray-500)", marginBottom: 4 }}>תורים</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 4, maxHeight: composerFocused ? 72 : 40, overflowY: "auto" }}>
             {queues.map((q) => (
               <div
                 key={q.queue_name || "__default__"}
@@ -234,28 +260,28 @@ function ChatSendPanel({
           </div>
         </div>
       )}
-      {messageMode === "message" && waConnected && (
-        <div className="inbox-send-tabs">
-          <button className={sendChannel === "sms" ? "active" : ""} onClick={() => setSendChannel("sms")}>
-            💬 SMS
-          </button>
-          <button className={sendChannel === "whatsapp" ? "active" : ""} onClick={() => setSendChannel("whatsapp")}>
-            🟢 WhatsApp
-          </button>
-        </div>
-      )}
       {messageMode === "message" && sendChannel === "whatsapp" && !waSession && approvedTemplates.length > 0 && (
-        <div className="inbox-send-field">
-          <label>תבנית</label>
-          <select value={templateName} onChange={(e) => setTemplateName(e.target.value)}>
-            <option value="">בחר תבנית...</option>
-            {approvedTemplates.map((t) => (
-              <option key={t.id} value={t.template_name}>
-                {t.template_name}
-              </option>
-            ))}
-          </select>
-        </div>
+        <select
+          value={templateName}
+          onChange={(e) => setTemplateName(e.target.value)}
+          style={{
+            width: "100%",
+            padding: "4px 8px",
+            borderRadius: 6,
+            border: "1px solid var(--glass-border)",
+            background: "var(--v2-dark-3)",
+            color: "#fff",
+            fontSize: 11,
+            fontFamily: "inherit",
+          }}
+        >
+          <option value="">תבנית…</option>
+          {approvedTemplates.map((t) => (
+            <option key={t.id} value={t.template_name}>
+              {t.template_name}
+            </option>
+          ))}
+        </select>
       )}
       {messageMode === "message" && sendChannel === "whatsapp" && !waSession && templateName && templateVarCount > 0 && (
         <div className="inbox-send-vars">
@@ -278,7 +304,8 @@ function ChatSendPanel({
           }
           value={message}
           onChange={(e) => setMessage(e.target.value)}
-          rows={3}
+          onFocus={() => setComposerFocused(true)}
+          rows={composerFocused ? 4 : 2}
           maxLength={messageMode === "note" ? 4000 : 612}
           dir="rtl"
           style={
@@ -286,8 +313,27 @@ function ChatSendPanel({
               ? {
                   background: "rgba(245,158,11,0.1)",
                   border: "1px solid #F59E0B",
+                  width: "100%",
+                  resize: "none",
+                  fontSize: 12,
+                  fontFamily: "inherit",
+                  padding: "6px 8px",
+                  borderRadius: 8,
+                  color: "#fff",
+                  boxSizing: "border-box",
                 }
-              : undefined
+              : {
+                  width: "100%",
+                  background: "var(--v2-dark-3)",
+                  border: "1px solid var(--glass-border)",
+                  resize: "none",
+                  fontSize: 12,
+                  fontFamily: "inherit",
+                  padding: "6px 8px",
+                  borderRadius: 8,
+                  color: "#fff",
+                  boxSizing: "border-box",
+                }
           }
         />
       )}
@@ -297,9 +343,16 @@ function ChatSendPanel({
           {message.length <= 160 ? 1 : Math.ceil(message.length / 153)} SMS
         </div>
       )}
-      <button className="btn btn--primary" onClick={handleSend} disabled={!canSend || sending}>
-        {sending ? <RefreshCw size={16} className="spin" /> : <Send size={16} />} שלח
+      <button
+        type="button"
+        className="btn btn--primary"
+        onClick={handleSend}
+        disabled={!canSend || sending}
+        style={{ padding: "6px 12px", fontSize: 12, alignSelf: "flex-start" }}
+      >
+        {sending ? <RefreshCw size={14} className="spin" /> : <Send size={14} />} שלח
       </button>
+      </div>
     </div>
   );
 }
@@ -316,6 +369,7 @@ function SupervisorPanel({
   const [whisperText, setWhisperText] = useState("");
   const [transferring, setTransferring] = useState(false);
   const [whisperSending, setWhisperSending] = useState(false);
+  const [openSection, setOpenSection] = useState("assign");
 
   const canWhisper = ["owner", "manager"].includes(String(memberRole || "").toLowerCase());
   const onlineAgents = (agents || []).filter((a) => a.is_online);
@@ -402,94 +456,171 @@ function SupervisorPanel({
     }
   };
 
+  const selectStyle = {
+    width: "100%",
+    padding: "8px 12px",
+    borderRadius: 8,
+    border: "1px solid var(--glass-border)",
+    background: "var(--card)",
+    color: "var(--text)",
+    fontSize: 13,
+    fontFamily: "inherit",
+  };
+
   return (
-    <div className="supervisor-panel">
-      <h4>ניהול שיחה</h4>
-      <div className="supervisor-customer">
-        <div>טלפון: <span dir="ltr">{conv?.customer_phone}</span></div>
+    <div
+      className="supervisor-panel"
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        height: "100%",
+        overflow: "hidden",
+        padding: 0,
+        gap: 0,
+      }}
+    >
+      <div style={{ flexShrink: 0, padding: "12px 16px", borderBottom: "1px solid var(--glass-border)" }}>
+        <h4 style={{ margin: "0 0 8px", fontSize: 14 }}>ניהול שיחה</h4>
+        <div className="supervisor-customer">
+          <div>
+            טלפון: <span dir="ltr">{conv?.customer_phone}</span>
+          </div>
+        </div>
       </div>
-      <div className="supervisor-field">
-        <label>הקצה לנציג</label>
-        <select
-          value={agentId}
-          onChange={(e) => setAgentId(e.target.value)}
-          style={{
-            width: "100%",
-            padding: "8px 12px",
-            borderRadius: 8,
-            border: "1px solid var(--glass-border)",
-            background: "var(--card)",
-            color: "var(--text)",
-            fontSize: 13,
-            fontFamily: "inherit",
-          }}
-        >
-          <option value="">—</option>
-          {(staff || []).map((s) => (
-            <option key={s.id} value={s.id}>#{s.role}</option>
-          ))}
-        </select>
-        <button onClick={handleAssign} disabled={assigning}>שמור</button>
-      </div>
-      <div className="supervisor-field">
-        <label>מחלקה</label>
-        <input value={department} onChange={(e) => setDepartment(e.target.value)} placeholder="למשל: מכירות" />
-        <button onClick={handleChangeDept} disabled={savingDept}>עדכן</button>
-      </div>
-      <div className="supervisor-field">
-        <label>העבר לנציג</label>
-        <select
-          value={transferAgent}
-          onChange={(e) => setTransferAgent(e.target.value)}
-          style={{
-            width: "100%",
-            padding: "8px 12px",
-            borderRadius: 8,
-            border: "1px solid var(--glass-border)",
-            background: "var(--card)",
-            color: "var(--text)",
-            fontSize: 13,
-            fontFamily: "inherit",
-          }}
-        >
-          <option value="">—</option>
-          {onlineAgents.map((a) => (
-            <option key={a.business_member_id} value={a.business_member_id}>
-              {a.full_name || a.email || a.business_member_id}
-            </option>
-          ))}
-        </select>
-        <button type="button" onClick={handleTransfer} disabled={transferring || !transferAgent}>
-          העבר
-        </button>
-      </div>
-      {canWhisper && (
-        <div className="supervisor-field">
-          <label>הערת מנהל</label>
-          <input
-            value={whisperText}
-            onChange={(e) => setWhisperText(e.target.value)}
-            placeholder="הערה לצוות (מנהל)…"
-            dir="rtl"
+      <div style={{ flex: 1, overflowY: "auto", minHeight: 0, padding: "12px 16px" }}>
+        <div>
+          <button
+            type="button"
+            onClick={() => setOpenSection(openSection === "assign" ? null : "assign")}
             style={{
               width: "100%",
-              padding: "8px 12px",
-              borderRadius: 8,
-              border: "1px solid #F59E0B",
-              background: "rgba(245,158,11,0.12)",
-              color: "var(--text)",
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              background: "none",
+              border: "none",
+              cursor: "pointer",
+              padding: "8px 0",
+              color: "var(--v2-gray-200)",
               fontSize: 13,
               fontFamily: "inherit",
             }}
-          />
-          <button type="button" className="btn btn--primary" onClick={handleWhisper} disabled={whisperSending || !whisperText.trim()}>
-            שלח
+          >
+            <span>הקצה לנציג / מחלקה</span>
+            <span>{openSection === "assign" ? "▲" : "▼"}</span>
           </button>
+          {openSection === "assign" && (
+            <div className="supervisor-field" style={{ paddingBottom: 8 }}>
+              <label>הקצה לנציג</label>
+              <select value={agentId} onChange={(e) => setAgentId(e.target.value)} style={selectStyle}>
+                <option value="">—</option>
+                {(staff || []).map((s) => (
+                  <option key={s.id} value={s.id}>
+                    #{s.role}
+                  </option>
+                ))}
+              </select>
+              <button type="button" onClick={handleAssign} disabled={assigning}>
+                שמור
+              </button>
+              <label style={{ marginTop: 8 }}>מחלקה</label>
+              <input value={department} onChange={(e) => setDepartment(e.target.value)} placeholder="למשל: מכירות" />
+              <button type="button" onClick={handleChangeDept} disabled={savingDept}>
+                עדכן
+              </button>
+            </div>
+          )}
         </div>
-      )}
-      <button className="supervisor-resolve" onClick={handleResolve} disabled={resolving}>
-        סגור שיחה
-      </button>
+        <div>
+          <button
+            type="button"
+            onClick={() => setOpenSection(openSection === "transfer" ? null : "transfer")}
+            style={{
+              width: "100%",
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              background: "none",
+              border: "none",
+              cursor: "pointer",
+              padding: "8px 0",
+              color: "var(--v2-gray-200)",
+              fontSize: 13,
+              fontFamily: "inherit",
+            }}
+          >
+            <span>העבר לנציג</span>
+            <span>{openSection === "transfer" ? "▲" : "▼"}</span>
+          </button>
+          {openSection === "transfer" && (
+            <div className="supervisor-field" style={{ paddingBottom: 8 }}>
+              <select value={transferAgent} onChange={(e) => setTransferAgent(e.target.value)} style={selectStyle}>
+                <option value="">—</option>
+                {onlineAgents.map((a) => (
+                  <option key={a.business_member_id} value={a.business_member_id}>
+                    {a.full_name || a.email || a.business_member_id}
+                  </option>
+                ))}
+              </select>
+              <button type="button" onClick={handleTransfer} disabled={transferring || !transferAgent}>
+                העבר
+              </button>
+            </div>
+          )}
+        </div>
+        {canWhisper && (
+          <div>
+            <button
+              type="button"
+              onClick={() => setOpenSection(openSection === "whisper" ? null : "whisper")}
+              style={{
+                width: "100%",
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                background: "none",
+                border: "none",
+                cursor: "pointer",
+                padding: "8px 0",
+                color: "var(--v2-gray-200)",
+                fontSize: 13,
+                fontFamily: "inherit",
+              }}
+            >
+              <span>הערת מנהל</span>
+              <span>{openSection === "whisper" ? "▲" : "▼"}</span>
+            </button>
+            {openSection === "whisper" && (
+              <div className="supervisor-field" style={{ paddingBottom: 8 }}>
+                <input
+                  value={whisperText}
+                  onChange={(e) => setWhisperText(e.target.value)}
+                  placeholder="הערה לצוות (מנהל)…"
+                  dir="rtl"
+                  style={{
+                    width: "100%",
+                    padding: "8px 12px",
+                    borderRadius: 8,
+                    border: "1px solid #F59E0B",
+                    background: "rgba(245,158,11,0.12)",
+                    color: "var(--text)",
+                    fontSize: 13,
+                    fontFamily: "inherit",
+                  }}
+                />
+                <button type="button" className="btn btn--primary" onClick={handleWhisper} disabled={whisperSending || !whisperText.trim()}>
+                  שלח
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+      <div style={{ flexShrink: 0, padding: "12px 16px", borderTop: "1px solid var(--glass-border)" }}>
+        <button type="button" className="supervisor-resolve" style={{ width: "100%" }} onClick={handleResolve} disabled={resolving}>
+          סגור שיחה
+        </button>
+      </div>
     </div>
   );
 }
@@ -825,22 +956,22 @@ export default function Inbox({ onUnreadChange }) {
         .inbox-chat-main { flex: 1; display: flex; flex-direction: column; min-width: 0; min-height: 0; overflow: hidden; }
         .inbox-chat-header { flex-shrink: 0; padding: 16px; border-bottom: 1px solid var(--glass-border); display: flex; justify-content: space-between; align-items: center; }
         .inbox-chat-back { display: none; }
-        .inbox-chat-body { flex: 1; min-height: 0; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+        .inbox-chat-body { flex: 1; min-height: 0; overflow-y: auto; padding: 12px 16px; display: flex; flex-direction: column; gap: 12px; }
         .inbox-chat-empty { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; color: var(--v2-gray-500); }
         .inbox-bubble { max-width: 80%; padding: 10px 14px; border-radius: 12px; font-size: 14px; line-height: 1.5; }
         .inbox-bubble--out { align-self: flex-end; background: var(--v2-primary); color: var(--v2-dark); }
         .inbox-bubble--in { align-self: flex-start; background: var(--v2-dark-3); border: 1px solid var(--glass-border); }
         .inbox-bubble--internal { align-self: stretch; max-width: 95%; background: rgba(245,158,11,0.15); border: 1px solid rgba(245,158,11,0.35); color: var(--v2-gray-200); }
         .inbox-bubble-meta { display: flex; align-items: center; gap: 8px; margin-top: 6px; font-size: 11px; opacity: 0.8; }
-        .inbox-send-panel { flex-shrink: 0; padding: 16px; border-top: 1px solid var(--glass-border); display: flex; flex-direction: column; gap: 10px; background: var(--v2-dark-2); }
+        .inbox-send-panel { flex-shrink: 0; padding: 0; border-top: none; display: flex; flex-direction: column; gap: 0; background: transparent; }
         .inbox-send-tabs { display: flex; gap: 8px; }
         .inbox-send-tabs button { padding: 6px 14px; border-radius: 8px; border: 1px solid var(--glass-border); background: transparent; color: var(--v2-gray-400); font-size: 13px; cursor: pointer; }
         .inbox-send-tabs button.active { background: var(--v2-primary); color: var(--v2-dark); border-color: var(--v2-primary); }
         .inbox-send-panel textarea { width: 100%; background: var(--v2-dark-3); border: 1px solid var(--glass-border); border-radius: 8px; padding: 12px; color: #fff; resize: none; font-size: 14px; }
         .inbox-send-panel select, .inbox-send-panel input { background: var(--v2-dark-3); border: 1px solid var(--glass-border); border-radius: 8px; padding: 10px; color: #fff; }
         .inbox-char-count { font-size: 11px; color: var(--v2-gray-500); }
-        .supervisor-panel { width: 260px; padding: 16px; border-right: 1px solid var(--glass-border); background: var(--v2-dark-3); display: flex; flex-direction: column; gap: 12px; }
-        .supervisor-panel h4 { margin: 0 0 8px; font-size: 14px; }
+        .supervisor-panel { width: 260px; min-height: 0; padding: 0; border-right: 1px solid var(--glass-border); background: var(--v2-dark-3); display: flex; flex-direction: column; gap: 0; overflow: hidden; }
+        .supervisor-panel h4 { margin: 0; font-size: 14px; }
         .supervisor-customer { font-size: 13px; color: var(--v2-gray-400); }
         .supervisor-field { display: flex; flex-direction: column; gap: 6px; }
         .supervisor-field label { font-size: 11px; color: var(--v2-gray-500); }
