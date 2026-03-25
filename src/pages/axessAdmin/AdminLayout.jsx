@@ -17,6 +17,7 @@ import {
   Menu,
   X,
   Globe,
+  BarChart3,
 } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { useEffect } from 'react'
@@ -37,6 +38,7 @@ const NAV_ITEMS = [
   { icon: FileText, label: 'Audit Log', path: '/axess-admin/audit' },
   { icon: Activity, label: 'System Health', path: '/axess-admin/system' },
   { icon: Globe, label: 'Webview', path: '/axess-admin/webview' },
+  { icon: BarChart3, label: 'Pixel', path: '/axess-admin/pixel' },
 ]
 
 const MOBILE_PRIMARY_NAV = [

@@ -89,6 +89,7 @@ const AdminSupportPage   = lazy(() => import('@/pages/axessAdmin/AdminSupportPag
 const AdminUsersPage     = lazy(() => import('@/pages/axessAdmin/AdminUsersPage'))
 const AdminSystemPage    = lazy(() => import('@/pages/axessAdmin/AdminSystemPage'))
 const AdminWebviewPage   = lazy(() => import('@/pages/axessAdmin/AdminWebviewPage'))
+const PixelDashboard     = lazy(() => import('@/pages/axessAdmin/PixelDashboard'))
 
 /* ── Webview bundle (lazy, standalone) ── */
 const WebviewApp = lazy(() => import('./webview/WebviewApp'))
@@ -267,6 +268,7 @@ export default function App() {
               <Route path="audit" element={<AdminAuditLogPage />} />
               <Route path="system" element={<AdminSystemPage />} />
               <Route path="webview" element={<AdminWebviewPage />} />
+              <Route path="pixel" element={<PixelDashboard />} />
             </Route>
 
             {/* ── Producer ── */}
