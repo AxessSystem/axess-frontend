@@ -47,6 +47,10 @@ const STATUS_LABELS = {
 function ChatSendPanel({
   convId, customerPhone, channel, smsConvoId, waConvoId, waConnected, waSession, templates,
   onSent, apiFetch,
+  agents = [],
+  agentOnline,
+  onAgentStatusChange,
+  queues = [],
 }) {
   const [messageMode, setMessageMode] = useState("message");
   const [sendChannel, setSendChannel] = useState(channel || "sms");
@@ -166,6 +170,70 @@ function ChatSendPanel({
           🔒 הערה פנימית
         </button>
       </div>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10, flexWrap: "wrap" }}>
+        <div
+          style={{
+            width: 10,
+            height: 10,
+            borderRadius: "50%",
+            background: agentOnline ? "#22C55E" : "#9CA3AF",
+          }}
+        />
+        <select
+          value={agentOnline ? "online" : "away"}
+          onChange={async (e) => {
+            const online = e.target.value === "online";
+            onAgentStatusChange?.(online);
+            const r = await fetch(`${API_BASE}/api/inbox/agents/status`, {
+              method: "PATCH",
+              headers: noteHeaders,
+              body: JSON.stringify({ is_online: online }),
+            });
+            if (!r.ok) toast.error("לא עודכן סטטוס");
+          }}
+          style={{
+            padding: "4px 8px",
+            borderRadius: 8,
+            border: "1px solid var(--glass-border)",
+            background: "var(--v2-dark-3)",
+            color: "#fff",
+            fontSize: 12,
+          }}
+        >
+          <option value="online">זמין</option>
+          <option value="away">לא זמין</option>
+        </select>
+        {agents.length > 0 && (
+          <span style={{ fontSize: 11, color: "var(--v2-gray-500)" }}>
+            מחוברים: {agents.filter((a) => a.is_online).length}/{agents.length}
+          </span>
+        )}
+      </div>
+      {queues.length > 0 && (
+        <div style={{ marginBottom: 10, paddingBottom: 10, borderBottom: "1px solid var(--glass-border)" }}>
+          <div style={{ fontSize: 11, color: "var(--v2-gray-500)", marginBottom: 6 }}>תורים</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6, maxHeight: 120, overflowY: "auto" }}>
+            {queues.map((q) => (
+              <div
+                key={q.queue_name || "__default__"}
+                style={{
+                  fontSize: 11,
+                  padding: "6px 8px",
+                  borderRadius: 6,
+                  background: "rgba(255,255,255,0.04)",
+                  lineHeight: 1.35,
+                }}
+              >
+                <strong style={{ fontSize: 12 }}>{q.queue_name || "(ללא תור)"}</strong>
+                <div style={{ color: "var(--v2-gray-500)" }}>
+                  סה״כ {q.total} · פתוח {q.unassigned} · מוקצה {q.assigned}
+                  {q.avg_wait_minutes != null ? ` · ~${q.avg_wait_minutes} דק׳` : ""}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
       {messageMode === "message" && waConnected && (
         <div className="inbox-send-tabs">
           <button className={sendChannel === "sms" ? "active" : ""} onClick={() => setSendChannel("sms")}>
@@ -336,6 +404,7 @@ export default function Inbox({ onUnreadChange }) {
   const [newMsgSending, setNewMsgSending] = useState(false);
   const recipientSearchDebounceRef = useRef(null);
   const [queues, setQueues] = useState([]);
+  const [agents, setAgents] = useState([]);
   const [agentOnline, setAgentOnline] = useState(true);
 
   const isSupervisor = role === "owner" || role === "manager";
@@ -522,6 +591,7 @@ export default function Inbox({ onUnreadChange }) {
         .then((r) => (r.ok ? r.json() : {}))
         .then((d) => {
           const rows = d.agents || [];
+          setAgents(rows);
           const email = user?.email;
           const mine = rows.find((a) => a.email === email);
           if (mine) setAgentOnline(!!mine.is_online);
@@ -529,17 +599,6 @@ export default function Inbox({ onUnreadChange }) {
         .catch(() => {});
     }
   }, [session?.access_token, businessId, isSupervisor, authHeaders, user?.email]);
-
-  const updateAgentStatus = async (online) => {
-    if (!session?.access_token || !businessId) return;
-    setAgentOnline(online);
-    const r = await fetch(`${API_BASE}/api/inbox/agents/status`, {
-      method: "PATCH",
-      headers: authHeaders(),
-      body: JSON.stringify({ is_online: online }),
-    });
-    if (!r.ok) toast.error("לא עודכן סטטוס");
-  };
 
   useEffect(() => {
     const pending = pendingOpenRef.current;
@@ -710,31 +769,6 @@ export default function Inbox({ onUnreadChange }) {
                 dir="rtl"
               />
             </div>
-            {queues.length > 0 && (
-              <div style={{ marginTop: 10, paddingTop: 10, borderTop: "1px solid var(--glass-border)" }}>
-                <div style={{ fontSize: 11, color: "var(--v2-gray-500)", marginBottom: 6 }}>תורים</div>
-                <div style={{ display: "flex", flexDirection: "column", gap: 6, maxHeight: 140, overflowY: "auto" }}>
-                  {queues.map((q) => (
-                    <div
-                      key={q.queue_name || "__default__"}
-                      style={{
-                        fontSize: 11,
-                        padding: "6px 8px",
-                        borderRadius: 6,
-                        background: "rgba(255,255,255,0.04)",
-                        lineHeight: 1.35,
-                      }}
-                    >
-                      <strong style={{ fontSize: 12 }}>{q.queue_name || "(ללא תור)"}</strong>
-                      <div style={{ color: "var(--v2-gray-500)" }}>
-                        סה״כ {q.total} · פתוח {q.unassigned} · מוקצה {q.assigned}
-                        {q.avg_wait_minutes != null ? ` · ~${q.avg_wait_minutes} דק׳` : ""}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
           </div>
           <div className="inbox-conv-list">
             {loading ? (
@@ -796,31 +830,6 @@ export default function Inbox({ onUnreadChange }) {
                     <span dir="ltr">{selectedConv.customer_phone}</span>
                   </div>
                   <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                      <div
-                        style={{
-                          width: 10,
-                          height: 10,
-                          borderRadius: "50%",
-                          background: agentOnline ? "#22C55E" : "#9CA3AF",
-                        }}
-                      />
-                      <select
-                        value={agentOnline ? "online" : "away"}
-                        onChange={(e) => updateAgentStatus(e.target.value === "online")}
-                        style={{
-                          padding: "4px 8px",
-                          borderRadius: 8,
-                          border: "1px solid var(--glass-border)",
-                          background: "var(--v2-dark-3)",
-                          color: "#fff",
-                          fontSize: 12,
-                        }}
-                      >
-                        <option value="online">זמין</option>
-                        <option value="away">לא זמין</option>
-                      </select>
-                    </div>
                     {isSupervisor && (
                       <button className={`btn btn--ghost ${showSupervisor ? "active" : ""}`} onClick={() => setShowSupervisor(!showSupervisor)} title="ניהול שיחה">
                         <Settings size={18} />
@@ -863,20 +872,24 @@ export default function Inbox({ onUnreadChange }) {
                 )}
                 </div>
                 <ChatSendPanel
-                convId={selectedConv.id}
-                customerPhone={selectedConv.customer_phone}
-                channel={selectedConv.channel}
-                smsConvoId={smsConv?.id}
-                waConvoId={waConv?.id}
-                waConnected={!!waStatus?.connected}
-                waSession={(waStatus?.active_sessions_count || 0) > 0}
-                templates={templates}
-                onSent={() => {
-                  refetchConversations();
-                  queryClient.invalidateQueries({ queryKey: ["messages", selectedConv.id] });
-                }}
-                apiFetch={{ token: session?.access_token, businessId }}
-              />
+                  convId={selectedConv.id}
+                  customerPhone={selectedConv.customer_phone}
+                  channel={selectedConv.channel}
+                  smsConvoId={smsConv?.id}
+                  waConvoId={waConv?.id}
+                  waConnected={!!waStatus?.connected}
+                  waSession={(waStatus?.active_sessions_count || 0) > 0}
+                  templates={templates}
+                  agents={agents}
+                  agentOnline={agentOnline}
+                  onAgentStatusChange={setAgentOnline}
+                  queues={queues}
+                  onSent={() => {
+                    refetchConversations();
+                    queryClient.invalidateQueries({ queryKey: ["messages", selectedConv.id] });
+                  }}
+                  apiFetch={{ token: session?.access_token, businessId }}
+                />
               </div>
               {showSupervisor && isSupervisor && (
                 <SupervisorPanel
