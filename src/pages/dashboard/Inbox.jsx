@@ -113,7 +113,7 @@ function ChatSendPanel({
         if (!r.ok) throw new Error(data.error || "שגיאה");
         setMessage("");
         if (textareaRef.current) {
-          textareaRef.current.style.height = "80px";
+          textareaRef.current.style.height = "100px";
         }
         onSent?.();
         toast.success("הערה נשמרה");
@@ -154,7 +154,7 @@ function ChatSendPanel({
       setMessage("");
       setTemplateVars({});
       if (textareaRef.current) {
-        textareaRef.current.style.height = "80px";
+        textareaRef.current.style.height = "100px";
       }
       onSent?.();
       toast.success("נשלח");
@@ -174,7 +174,7 @@ function ChatSendPanel({
   const segmentTabs = [
     ...(waConnected ? [{ id: "message", label: "WA", icon: <MessageCircle size={14} /> }] : []),
     { id: "sms", label: "SMS", icon: <MessageSquare size={14} /> },
-    { id: "note", label: "🔒", icon: null },
+    { id: "note", label: "🔒 פנימי", icon: null },
   ];
 
   return (
@@ -268,44 +268,54 @@ function ChatSendPanel({
           );
         })}
       </div>
-      <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-        <div
-          style={{
-            width: 10,
-            height: 10,
-            borderRadius: "50%",
-            background: agentOnline ? "#22C55E" : "#9CA3AF",
-          }}
-        />
-        <select
-          value={agentOnline ? "online" : "away"}
-          onChange={async (e) => {
-            const online = e.target.value === "online";
-            onAgentStatusChange?.(online);
-            const r = await fetch(`${API_BASE}/api/inbox/agents/status`, {
-              method: "PATCH",
-              headers: noteHeaders,
-              body: JSON.stringify({ is_online: online }),
-            });
-            if (!r.ok) toast.error("לא עודכן סטטוס");
-          }}
-          style={{
-            padding: "2px 6px",
-            borderRadius: 6,
-            border: "1px solid var(--glass-border)",
-            background: "var(--v2-dark-3)",
-            color: "#fff",
-            fontSize: 11,
-          }}
-        >
-          <option value="online">זמין</option>
-          <option value="away">לא זמין</option>
-        </select>
-        {agents.length > 0 && (
-          <span style={{ fontSize: 10, color: "var(--v2-gray-500)" }}>
-            מחוברים: {agents.filter((a) => a.is_online).length}/{agents.length}
-          </span>
-        )}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 12,
+          padding: "6px 0",
+          fontSize: 14,
+          flexWrap: "wrap",
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <div
+            style={{
+              width: 10,
+              height: 10,
+              borderRadius: "50%",
+              background: agentOnline ? "#22C55E" : "#9CA3AF",
+            }}
+          />
+          <select
+            value={agentOnline ? "online" : "away"}
+            onChange={async (e) => {
+              const online = e.target.value === "online";
+              onAgentStatusChange?.(online);
+              const r = await fetch(`${API_BASE}/api/inbox/agents/status`, {
+                method: "PATCH",
+                headers: noteHeaders,
+                body: JSON.stringify({ is_online: online }),
+              });
+              if (!r.ok) toast.error("לא עודכן סטטוס");
+            }}
+            style={{
+              padding: "2px 6px",
+              borderRadius: 6,
+              border: "1px solid var(--glass-border)",
+              background: "var(--v2-dark-3)",
+              color: "#fff",
+              fontSize: 14,
+              fontFamily: "inherit",
+            }}
+          >
+            <option value="online">זמין</option>
+            <option value="away">לא זמין</option>
+          </select>
+        </div>
+        <span style={{ fontSize: 13, color: "var(--v2-gray-400)" }}>
+          מחוברים: {agents?.filter((a) => a.is_online).length || 0}/{agents?.length || 0}
+        </span>
       </div>
       {queues.length > 0 && (
         <div style={{ marginBottom: 0, paddingBottom: 4, borderBottom: "1px solid var(--glass-border)" }}>
@@ -337,14 +347,16 @@ function ChatSendPanel({
           value={templateName}
           onChange={(e) => setTemplateName(e.target.value)}
           style={{
-            width: "100%",
-            padding: "4px 8px",
-            borderRadius: 6,
+            height: 36,
+            padding: "0 12px",
+            borderRadius: 8,
             border: "1px solid var(--glass-border)",
-            background: "var(--v2-dark-3)",
-            color: "#fff",
-            fontSize: 11,
+            background: "var(--glass-bg)",
+            color: "var(--text, #fff)",
+            fontSize: 13,
             fontFamily: "inherit",
+            width: "100%",
+            boxSizing: "border-box",
           }}
         >
           <option value="">תבנית…</option>
@@ -385,14 +397,14 @@ function ChatSendPanel({
             onChange={(e) => {
               setMessage(e.target.value);
               e.target.style.height = "auto";
-              e.target.style.height = `${Math.min(e.target.scrollHeight, 200)}px`;
+              e.target.style.height = `${Math.min(e.target.scrollHeight, 220)}px`;
             }}
             maxLength={messageMode === "note" ? 4000 : 612}
             dir="rtl"
             style={{
               flex: 1,
-              minHeight: 80,
-              maxHeight: 200,
+              minHeight: 100,
+              maxHeight: 220,
               padding: "12px 16px",
               background: "var(--glass-bg)",
               border: "1px solid var(--glass-border)",
@@ -704,7 +716,7 @@ export default function Inbox({ onUnreadChange }) {
 
   const [conversations, setConversations] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState("all");
+  const [filter, setFilter] = useState("הכל");
   const [activeTab, setActiveTab] = useState("conversations");
   const [search, setSearch] = useState("");
   const [agentFilter, setAgentFilter] = useState("");
@@ -800,16 +812,19 @@ export default function Inbox({ onUnreadChange }) {
     isLoading: conversationsLoading,
     refetch: refetchConversations,
   } = useQuery({
-    queryKey: ["conversations", businessId, tab, search, agentFilter],
+    queryKey: ["conversations", businessId, filter, search, agentFilter],
     queryFn: async () => {
       const params = new URLSearchParams();
-      if (tab === "sms") params.set("channel", "sms");
-      else if (tab === "whatsapp") params.set("channel", "whatsapp");
-      else if (tab === "unassigned") params.set("status", "unassigned");
+      if (filter === "SMS") params.set("channel", "sms");
+      else if (filter === "WA") params.set("channel", "whatsapp");
+      else if (filter === "לא מוקצה") params.set("status", "unassigned");
       if (search) params.set("search", search);
       if (agentFilter && isSupervisor) params.set("assigned_to", agentFilter);
       const res = await apiFetch(`/api/inbox/conversations?${params}`);
-      return res;
+      const list = res.conversations || [];
+      const conversations =
+        filter === "לא נענה" ? list.filter((c) => (c.unread_count || 0) > 0) : list;
+      return { ...res, conversations };
     },
     enabled: !!session?.access_token && !!businessId,
   });
@@ -1307,11 +1322,71 @@ export default function Inbox({ onUnreadChange }) {
                 <Plus size={14} /> חדש
               </button>
             </div>
+            <div
+              style={{
+                display: "flex",
+                gap: 6,
+                padding: "6px 12px",
+                flexWrap: "wrap",
+                borderBottom: "1px solid var(--glass-border)",
+              }}
+            >
+              {["הכל", "WA", "SMS", "לא מוקצה", "לא נענה"].map((f) => (
+                <button
+                  key={f}
+                  type="button"
+                  onClick={() => setFilter(f)}
+                  style={{
+                    padding: "4px 12px",
+                    borderRadius: 20,
+                    border: "none",
+                    background: filter === f ? "var(--primary, var(--v2-primary))" : "var(--glass-bg)",
+                    color: filter === f ? "#fff" : "var(--text, #fff)",
+                    fontSize: 12,
+                    cursor: "pointer",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {f}
+                </button>
+              ))}
+            </div>
+            <div style={{ padding: "8px 12px", position: "relative" }}>
+              <Search
+                size={14}
+                color="var(--v2-gray-400)"
+                style={{
+                  position: "absolute",
+                  right: 22,
+                  top: "50%",
+                  transform: "translateY(-50%)",
+                  pointerEvents: "none",
+                }}
+              />
+              <input
+                placeholder="חיפוש לפי טלפון או הודעה..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                dir="rtl"
+                style={{
+                  width: "100%",
+                  height: 36,
+                  paddingRight: 36,
+                  paddingLeft: 12,
+                  borderRadius: 8,
+                  border: "1px solid var(--glass-border)",
+                  background: "var(--glass-bg)",
+                  color: "var(--text, #fff)",
+                  fontSize: 13,
+                  boxSizing: "border-box",
+                }}
+              />
+            </div>
             {isSupervisor && staff.length > 0 && (
               <select
                 value={agentFilter}
                 onChange={(e) => setAgentFilter(e.target.value)}
-                style={{ marginBottom: 8, padding: "6px 10px", borderRadius: 8, background: "var(--v2-dark-2)", border: "1px solid var(--glass-border)", color: "#fff", fontSize: 12 }}
+                style={{ marginBottom: 8, marginTop: 8, padding: "6px 10px", borderRadius: 8, background: "var(--v2-dark-2)", border: "1px solid var(--glass-border)", color: "#fff", fontSize: 12 }}
               >
                 <option value="">כל הנציגים</option>
                 {staff.map((s) => (
@@ -1319,62 +1394,6 @@ export default function Inbox({ onUnreadChange }) {
                 ))}
               </select>
             )}
-            <div style={{ display: "flex", gap: 8, padding: "8px 12px", alignItems: "center", flexWrap: "wrap" }}>
-              <div style={{ flex: 1, minWidth: 140, position: "relative" }}>
-                <Search
-                  size={14}
-                  style={{
-                    position: "absolute",
-                    right: 10,
-                    top: "50%",
-                    transform: "translateY(-50%)",
-                    color: "var(--v2-gray-500)",
-                    pointerEvents: "none",
-                  }}
-                />
-                <input
-                  placeholder="חיפוש..."
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  dir="rtl"
-                  style={{
-                    width: "100%",
-                    paddingRight: 32,
-                    height: 34,
-                    borderRadius: 8,
-                    border: "1px solid var(--glass-border)",
-                    background: "var(--glass-bg)",
-                    color: "var(--text-bubble, #fff)",
-                    fontSize: 13,
-                    boxSizing: "border-box",
-                  }}
-                />
-              </div>
-              {[
-                { label: "הכל", key: "all" },
-                { label: "WA", key: "whatsapp" },
-                { label: "SMS", key: "sms" },
-                { label: "לא נענה", key: "unassigned" },
-              ].map((f) => (
-                <button
-                  key={f.key}
-                  type="button"
-                  onClick={() => setTab(f.key)}
-                  style={{
-                    padding: "4px 10px",
-                    borderRadius: 20,
-                    border: "none",
-                    background: tab === f.key ? "var(--v2-primary)" : "var(--glass-bg)",
-                    color: tab === f.key ? "#fff" : "var(--text-bubble, #fff)",
-                    fontSize: 12,
-                    cursor: "pointer",
-                    whiteSpace: "nowrap",
-                  }}
-                >
-                  {f.label}
-                </button>
-              ))}
-            </div>
           </div>
           <div className="inbox-conv-list">
             {loading ? (
