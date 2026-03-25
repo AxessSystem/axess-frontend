@@ -193,7 +193,7 @@ export default function PixelSettings() {
               <MiniKpi icon={Users} label="ביקורים ייחודיים" value={totals.unique_sessions} />
               <MiniKpi icon={MousePointerClick} label="לחיצות על לינקים" value={totals.link_clicks} />
               <MiniKpi icon={Eye} label="צפיות דף" value={totals.pageviews} />
-              <MiniKpi icon={Users} label="תושבים מזוהים" value={totals.identified_residents} />
+              <MiniKpi icon={Users} label="משתמשים מזוהים" value={totals.identified_residents} />
               <MiniKpi icon={TrendingUp} label="המרות (מג׳יק)" value={totals.conversions} />
             </div>
             {chartData.length > 0 ? (
@@ -276,10 +276,15 @@ export default function PixelSettings() {
       {canManagePartners ? (
         <div style={{ background: 'var(--card, var(--v2-dark-2))', borderRadius: 12, padding: 16, border: '1px solid var(--glass-border)' }}>
           <h3 style={{ margin: '0 0 12px', fontSize: 17, color: '#fff', display: 'flex', alignItems: 'center', gap: 8 }}>
-            <KeyRound size={18} /> Partner API Keys
+            <KeyRound size={18} /> Partner API — אימות משתמש
           </h3>
+          <p style={{ fontSize: 13, color: 'var(--v2-gray-400)', marginBottom: 12 }}>
+            צור API Key עבור פלטפורמות חיצוניות (אתרי כרטיסים, מערכות הרשמה){' '}
+            שיאפשר להן לזהות משתמשים אוטומטית דרך AXESS —{' '}
+            ללא מילוי פרטים חוזר.
+          </p>
           <p style={{ fontSize: 12, color: 'var(--v2-gray-500)', marginBottom: 12 }}>
-            אימות תושב: <code style={{ direction: 'ltr' }}>GET {API_BASE}/api/partner/verify/:token</code> · כותרת{' '}
+            אימות משתמש: <code style={{ direction: 'ltr' }}>GET {API_BASE}/api/partner/verify/:token</code> · כותרת{' '}
             <code>X-Api-Key</code>
           </p>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginBottom: 16, alignItems: 'flex-end' }}>
