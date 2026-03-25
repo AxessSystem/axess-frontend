@@ -304,12 +304,21 @@ function ChatSendPanel({
   );
 }
 
-function SupervisorPanel({ conv, staff, onAssign, onChangeDept, onResolve, onClose }) {
+function SupervisorPanel({
+  conv, staff, agents, onAssign, onResolve, onClose, authHeaders, onAfterTransfer, onAfterWhisper, memberRole,
+}) {
   const [agentId, setAgentId] = useState(conv?.assigned_to || "");
   const [department, setDepartment] = useState(conv?.department || "");
   const [assigning, setAssigning] = useState(false);
   const [savingDept, setSavingDept] = useState(false);
   const [resolving, setResolving] = useState(false);
+  const [transferAgent, setTransferAgent] = useState("");
+  const [whisperText, setWhisperText] = useState("");
+  const [transferring, setTransferring] = useState(false);
+  const [whisperSending, setWhisperSending] = useState(false);
+
+  const canWhisper = ["owner", "manager"].includes(String(memberRole || "").toLowerCase());
+  const onlineAgents = (agents || []).filter((a) => a.is_online);
 
   const handleAssign = async () => {
     setAssigning(true);
@@ -348,6 +357,51 @@ function SupervisorPanel({ conv, staff, onAssign, onChangeDept, onResolve, onClo
     }
   };
 
+  const handleTransfer = async () => {
+    if (!transferAgent) {
+      toast.error("בחר נציג");
+      return;
+    }
+    setTransferring(true);
+    try {
+      const r = await fetch(`${API_BASE}/api/inbox/conversations/${conv.id}/transfer`, {
+        method: "PATCH",
+        headers: { ...authHeaders() },
+        body: JSON.stringify({ new_agent_id: transferAgent }),
+      });
+      const data = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(data.error || "שגיאה");
+      toast.success("השיחה הועברה");
+      setTransferAgent("");
+      onAfterTransfer?.();
+    } catch (e) {
+      toast.error(e.message);
+    } finally {
+      setTransferring(false);
+    }
+  };
+
+  const handleWhisper = async () => {
+    if (!whisperText.trim()) return;
+    setWhisperSending(true);
+    try {
+      const r = await fetch(`${API_BASE}/api/inbox/conversations/${conv.id}/whisper`, {
+        method: "POST",
+        headers: { ...authHeaders() },
+        body: JSON.stringify({ content: whisperText.trim() }),
+      });
+      const data = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(data.error || "שגיאה");
+      toast.success("נשלחה הערת מנהל");
+      setWhisperText("");
+      onAfterWhisper?.();
+    } catch (e) {
+      toast.error(e.message);
+    } finally {
+      setWhisperSending(false);
+    }
+  };
+
   return (
     <div className="supervisor-panel">
       <h4>ניהול שיחה</h4>
@@ -356,7 +410,20 @@ function SupervisorPanel({ conv, staff, onAssign, onChangeDept, onResolve, onClo
       </div>
       <div className="supervisor-field">
         <label>הקצה לנציג</label>
-        <select value={agentId} onChange={(e) => setAgentId(e.target.value)}>
+        <select
+          value={agentId}
+          onChange={(e) => setAgentId(e.target.value)}
+          style={{
+            width: "100%",
+            padding: "8px 12px",
+            borderRadius: 8,
+            border: "1px solid var(--glass-border)",
+            background: "var(--card)",
+            color: "var(--text)",
+            fontSize: 13,
+            fontFamily: "inherit",
+          }}
+        >
           <option value="">—</option>
           {(staff || []).map((s) => (
             <option key={s.id} value={s.id}>#{s.role}</option>
@@ -369,6 +436,57 @@ function SupervisorPanel({ conv, staff, onAssign, onChangeDept, onResolve, onClo
         <input value={department} onChange={(e) => setDepartment(e.target.value)} placeholder="למשל: מכירות" />
         <button onClick={handleChangeDept} disabled={savingDept}>עדכן</button>
       </div>
+      <div className="supervisor-field">
+        <label>העבר לנציג</label>
+        <select
+          value={transferAgent}
+          onChange={(e) => setTransferAgent(e.target.value)}
+          style={{
+            width: "100%",
+            padding: "8px 12px",
+            borderRadius: 8,
+            border: "1px solid var(--glass-border)",
+            background: "var(--card)",
+            color: "var(--text)",
+            fontSize: 13,
+            fontFamily: "inherit",
+          }}
+        >
+          <option value="">—</option>
+          {onlineAgents.map((a) => (
+            <option key={a.business_member_id} value={a.business_member_id}>
+              {a.full_name || a.email || a.business_member_id}
+            </option>
+          ))}
+        </select>
+        <button type="button" onClick={handleTransfer} disabled={transferring || !transferAgent}>
+          העבר
+        </button>
+      </div>
+      {canWhisper && (
+        <div className="supervisor-field">
+          <label>הערת מנהל</label>
+          <input
+            value={whisperText}
+            onChange={(e) => setWhisperText(e.target.value)}
+            placeholder="הערה לצוות (מנהל)…"
+            dir="rtl"
+            style={{
+              width: "100%",
+              padding: "8px 12px",
+              borderRadius: 8,
+              border: "1px solid #F59E0B",
+              background: "rgba(245,158,11,0.12)",
+              color: "var(--text)",
+              fontSize: 13,
+              fontFamily: "inherit",
+            }}
+          />
+          <button type="button" className="btn btn--primary" onClick={handleWhisper} disabled={whisperSending || !whisperText.trim()}>
+            שלח
+          </button>
+        </div>
+      )}
       <button className="supervisor-resolve" onClick={handleResolve} disabled={resolving}>
         סגור שיחה
       </button>
@@ -1128,6 +1246,17 @@ export default function Inbox({ onUnreadChange }) {
                 <SupervisorPanel
                   conv={selectedConv}
                   staff={staff}
+                  agents={agents}
+                  memberRole={role}
+                  authHeaders={authHeaders}
+                  onAfterTransfer={() => {
+                    refetchConversations();
+                    queryClient.invalidateQueries({ queryKey: ["messages", selectedConv.id] });
+                    queryClient.invalidateQueries({ queryKey: ["inbox-supervisor", businessId] });
+                  }}
+                  onAfterWhisper={() => {
+                    queryClient.invalidateQueries({ queryKey: ["messages", selectedConv.id] });
+                  }}
                   onAssign={(aid, dep) => handleAssign(selectedConv.id, aid, dep)}
                   onResolve={() => handleResolve(selectedConv.id)}
                   onClose={() => setShowSupervisor(false)}
