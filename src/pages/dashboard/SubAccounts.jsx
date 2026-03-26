@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useAuth } from '@/contexts/AuthContext'
 import { useRequirePermission } from '@/hooks/useRequirePermission'
 import { Building2, Plus, Users, Calendar, Pencil, Copy, Globe, Save, Settings2, ClipboardList } from 'lucide-react'
@@ -44,6 +45,7 @@ function emptyDeptForm() {
 export default function SubAccounts() {
   const subAccountsAllowed = useRequirePermission('can_manage_sub_accounts')
   const { session, businessId } = useAuth()
+  const navigate = useNavigate()
   const [tab, setTab] = useState(0)
   const [subAccounts, setSubAccounts] = useState([])
   const [purchaseOrders, setPurchaseOrders] = useState([])
@@ -435,12 +437,9 @@ export default function SubAccounts() {
                       <span style={{ color: sa.portal_enabled ? '#4ade80' : 'var(--v2-gray-400)' }}>פורטל: {sa.portal_enabled ? 'פעיל' : 'כבוי'}</span>
                     </div>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                      <a
-                        href="/dashboard"
-                        style={{ flex: '1 1 120px', padding: '10px 12px', background: 'var(--v2-primary)', color: 'var(--v2-dark)', borderRadius: 8, fontWeight: 700, textDecoration: 'none', textAlign: 'center', fontSize: 13 }}
-                      >
+                      <button type="button" onClick={() => navigate(`/dashboard/sub-accounts/${sa.id}`)} style={{ flex: '1 1 120px', padding: '10px 12px', background: 'var(--v2-primary)', color: 'var(--v2-dark)', borderRadius: 8, fontWeight: 700, border: 'none', cursor: 'pointer', textAlign: 'center', fontSize: 13 }}>
                         כנס למחלקה
-                      </a>
+                      </button>
                       <button
                         type="button"
                         onClick={() => openEdit(sa)}

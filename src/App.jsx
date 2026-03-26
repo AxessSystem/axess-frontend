@@ -52,6 +52,7 @@ const PromotersPage  = lazy(() => import('@/pages/dashboard/Promoters'))
 const Staff          = lazy(() => import('@/pages/dashboard/Staff'))
 const Settings       = lazy(() => import('@/pages/dashboard/Settings'))
 const SubAccounts    = lazy(() => import('@/pages/dashboard/SubAccounts'))
+const SubAccountDetail = lazy(() => import('@/pages/dashboard/SubAccountDetail'))
 const Inbox          = lazy(() => import('@/pages/dashboard/Inbox'))
 const Assets         = lazy(() => import('@/pages/dashboard/Assets'))
 const WebviewSettings = lazy(() => import('@/pages/dashboard/WebviewSettings'))
@@ -228,6 +229,7 @@ export default function App() {
               <Route path="staff" element={<Staff />} />
               <Route path="settings" element={<Settings />} />
               <Route path="sub-accounts" element={<SubAccounts />} />
+              <Route path="sub-accounts/:id" element={<SubAccountDetail />} />
               <Route path="inbox" element={<Inbox />} />
               <Route path="assets" element={<Assets />} />
               <Route path="webview" element={<WebviewSettings />} />
