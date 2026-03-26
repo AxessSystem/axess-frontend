@@ -575,7 +575,7 @@ function StepValidator({ onNext, onPrev, data, setData }) {
             </div>
             <div>
               <label className="label">מגבלת מימוש</label>
-              <select className="input" value={data.validatorLimit || 'once'} onChange={e => setData(d => ({ ...d, validatorLimit: e.target.value }))}>
+              <select style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid var(--glass-border)', background: 'var(--card)', color: 'var(--text)', fontSize: 14, fontFamily: 'inherit', cursor: 'pointer' }} value={data.validatorLimit || 'once'} onChange={e => setData(d => ({ ...d, validatorLimit: e.target.value }))}>
                 <option value="once">פעם אחת</option>
                 <option value="unlimited">ללא הגבלה</option>
                 <option value="3">עד 3 פעמים</option>

@@ -157,14 +157,14 @@ function LinksTab({ businessId }) {
                 </div>
                 <div style={{ marginBottom: 12 }}>
                   <label className="label">סוג</label>
-                  <select className="input" value={destType} onChange={e => setDestType(e.target.value)}>
+                  <select style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid var(--glass-border)', background: 'var(--card)', color: 'var(--text)', fontSize: 14, fontFamily: 'inherit', cursor: 'pointer' }} value={destType} onChange={e => setDestType(e.target.value)}>
                     <option value="event_page">אירוע</option>
                     <option value="external_url">URL חיצוני</option>
                   </select>
                 </div>
                 {destType === 'event_page' && (
                   <div style={{ marginBottom: 12 }}>
-                    <select className="input" value={destId} onChange={e => setDestId(e.target.value)}>
+                    <select style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid var(--glass-border)', background: 'var(--card)', color: 'var(--text)', fontSize: 14, fontFamily: 'inherit', cursor: 'pointer' }} value={destId} onChange={e => setDestId(e.target.value)}>
                       <option value="">בחר אירוע</option>
                       {events.map(ev => <option key={ev.id} value={ev.id}>{ev.title}</option>)}
                     </select>
@@ -537,11 +537,11 @@ function WhatsAppTab({ businessId, session }) {
               <div dir="rtl" style={{ background: 'var(--v2-dark-2)', borderRadius: 'var(--radius-lg)', padding: 24, maxWidth: 420, width: '90%' }} onClick={e => e.stopPropagation()}>
                 <h3 style={{ marginBottom: 16 }}>כלל ניתוב חדש</h3>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                  <div><label className="label">סוג</label><select className="input" value={ruleForm.rule_type} onChange={e => setRuleForm(f => ({ ...f, rule_type: e.target.value }))}><option value="keyword">מילת מפתח</option><option value="department">מחלקה</option><option value="phone_number">מספר ישיר</option><option value="default">ברירת מחדל</option></select></div>
+                  <div><label className="label">סוג</label><select style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid var(--glass-border)', background: 'var(--card)', color: 'var(--text)', fontSize: 14, fontFamily: 'inherit', cursor: 'pointer' }} value={ruleForm.rule_type} onChange={e => setRuleForm(f => ({ ...f, rule_type: e.target.value }))}><option value="keyword">מילת מפתח</option><option value="department">מחלקה</option><option value="phone_number">מספר ישיר</option><option value="default">ברירת מחדל</option></select></div>
                   <div><label className="label">ערך התאמה</label><input className="input" value={ruleForm.match_value} onChange={e => setRuleForm(f => ({ ...f, match_value: e.target.value }))} placeholder="למשל: הזמנה" /></div>
-                  <div><label className="label">ערוץ</label><select className="input" value={ruleForm.channel} onChange={e => setRuleForm(f => ({ ...f, channel: e.target.value }))}><option value="both">שניהם</option><option value="sms">SMS</option><option value="whatsapp">WhatsApp</option></select></div>
-                  <div><label className="label">פעולה</label><select className="input" value={ruleForm.action} onChange={e => setRuleForm(f => ({ ...f, action: e.target.value }))}><option value="queue_general">תור כללי</option><option value="assign_agent">הקצה נציג</option><option value="assign_department">הקצה מחלקה</option><option value="bot_reply">תשובת בוט</option></select></div>
-                  {ruleForm.action === 'assign_agent' && <div><label className="label">נציג</label><select className="input" value={ruleForm.target_agent_id} onChange={e => setRuleForm(f => ({ ...f, target_agent_id: e.target.value }))}><option value="">בחר...</option>{staff.map(s => <option key={s.id} value={s.id}>#{s.role}</option>)}</select></div>}
+                  <div><label className="label">ערוץ</label><select style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid var(--glass-border)', background: 'var(--card)', color: 'var(--text)', fontSize: 14, fontFamily: 'inherit', cursor: 'pointer' }} value={ruleForm.channel} onChange={e => setRuleForm(f => ({ ...f, channel: e.target.value }))}><option value="both">שניהם</option><option value="sms">SMS</option><option value="whatsapp">WhatsApp</option></select></div>
+                  <div><label className="label">פעולה</label><select style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid var(--glass-border)', background: 'var(--card)', color: 'var(--text)', fontSize: 14, fontFamily: 'inherit', cursor: 'pointer' }} value={ruleForm.action} onChange={e => setRuleForm(f => ({ ...f, action: e.target.value }))}><option value="queue_general">תור כללי</option><option value="assign_agent">הקצה נציג</option><option value="assign_department">הקצה מחלקה</option><option value="bot_reply">תשובת בוט</option></select></div>
+                  {ruleForm.action === 'assign_agent' && <div><label className="label">נציג</label><select style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid var(--glass-border)', background: 'var(--card)', color: 'var(--text)', fontSize: 14, fontFamily: 'inherit', cursor: 'pointer' }} value={ruleForm.target_agent_id} onChange={e => setRuleForm(f => ({ ...f, target_agent_id: e.target.value }))}><option value="">בחר...</option>{staff.map(s => <option key={s.id} value={s.id}>#{s.role}</option>)}</select></div>}
                   {ruleForm.action === 'assign_department' && <div><label className="label">מחלקה</label><input className="input" value={ruleForm.target_department} onChange={e => setRuleForm(f => ({ ...f, target_department: e.target.value }))} /></div>}
                   {ruleForm.action === 'bot_reply' && <div><label className="label">טקסט בוט</label><textarea className="input" value={ruleForm.bot_reply_text} onChange={e => setRuleForm(f => ({ ...f, bot_reply_text: e.target.value }))} rows={3} /></div>}
                 </div>
