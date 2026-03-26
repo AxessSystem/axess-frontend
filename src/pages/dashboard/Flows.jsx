@@ -911,7 +911,7 @@ export default function Flows() {
                     <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                       <span style={{ fontSize: 13, color: 'var(--v2-gray-400)' }}>טריגר</span>
                       <select
-                        style={{ ...SELECT_STYLE, ...inputStyle }}
+                        style={{ ...inputStyle, ...SELECT_STYLE }}
                         value={form.trigger_type}
                         onChange={(e) => setForm((p) => ({ ...p, trigger_type: e.target.value }))}
                       >
@@ -987,7 +987,7 @@ export default function Flows() {
                             <label style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 10 }}>
                               <span style={{ fontSize: 12, color: 'var(--v2-gray-400)' }}>סוג שלב</span>
                               <select
-                                style={{ ...SELECT_STYLE, ...inputStyle }}
+                                style={{ ...inputStyle, ...SELECT_STYLE }}
                                 value={step.type}
                                 onChange={(e) => {
                                   const t = e.target.value
@@ -1059,7 +1059,7 @@ export default function Flows() {
                                       }}
                                     />
                                     <select
-                                      style={{ ...SELECT_STYLE, ...inputStyle }}
+                                      style={{ ...inputStyle, ...SELECT_STYLE }}
                                       value={opt.next_step || ''}
                                       onChange={(e) => {
                                         const options = [...(step.options || [])]

@@ -644,7 +644,7 @@ export default function ScanManagement() {
               <label style={{ display: 'block', marginBottom: 14 }}>
                 <span style={{ display: 'block', fontSize: 13, color: 'var(--v2-gray-400)', marginBottom: 6 }}>סוג אובייקט</span>
                 <select
-                  style={{ ...SELECT_STYLE, ...inputStyle }}
+                  style={{ ...inputStyle, ...SELECT_STYLE }}
                   value={objectType}
                   onChange={(e) => {
                     const v = e.target.value
@@ -665,7 +665,7 @@ export default function ScanManagement() {
                     {objectType === 'event' ? 'אירוע' : objectType === 'validator' ? 'Validator' : 'קופון'}
                   </span>
                   <select
-                    style={{ ...SELECT_STYLE, ...inputStyle }}
+                    style={{ ...inputStyle, ...SELECT_STYLE }}
                     value={objectId}
                     onChange={(e) => setObjectId(e.target.value)}
                     required
