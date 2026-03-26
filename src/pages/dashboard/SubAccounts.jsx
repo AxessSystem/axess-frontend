@@ -8,24 +8,60 @@ import toast from 'react-hot-toast'
 const API_BASE = import.meta.env.VITE_API_URL || 'https://api.axess.pro'
 const PORTAL_BASE = 'https://axess.pro/portal'
 
-const DEPT_TYPE_OPTIONS = [
+const DEPT_TYPES = [
   { value: 'culture', label: 'תרבות' },
   { value: 'youth', label: 'נוער' },
   { value: 'sport', label: 'ספורט' },
   { value: 'welfare', label: 'רווחה' },
   { value: 'education', label: 'חינוך' },
-  { value: 'custom', label: 'מותאם' },
+  { value: 'custom', label: 'מותאם אישית' },
 ]
 
 const AUDIENCE_OPTS = [
   { value: 'children', label: 'ילדים' },
   { value: 'youth', label: 'נוער' },
+  { value: 'young_adults', label: 'צעירים' },
   { value: 'adults', label: 'מבוגרים' },
-  { value: 'seniors', label: 'קשישים' },
+  { value: 'veterans', label: 'ותיקים' },
   { value: 'all', label: 'כולם' },
 ]
 
-const AUDIENCE_LABELS = Object.fromEntries(AUDIENCE_OPTS.map((o) => [o.value, o.label]))
+const DEPT_SELECT_STYLE = {
+  width: '100%',
+  padding: '8px 12px',
+  borderRadius: 8,
+  border: '1px solid var(--glass-border)',
+  background: 'var(--card)',
+  color: 'var(--text)',
+  fontSize: 14,
+  fontFamily: 'inherit',
+}
+
+const CUSTOM_TYPE_INPUT_STYLE = {
+  marginTop: 8,
+  width: '100%',
+  padding: '8px 12px',
+  borderRadius: 8,
+  border: '1px solid var(--glass-border)',
+  background: 'var(--card)',
+  color: 'var(--text)',
+  fontSize: 14,
+}
+
+function normalizeAudienceFromApi(arr) {
+  if (!Array.isArray(arr)) return []
+  return arr.map((v) => (v === 'seniors' ? 'veterans' : v))
+}
+
+function parseBrandingObj(raw) {
+  if (raw && typeof raw === 'object' && !Array.isArray(raw)) return { ...raw }
+  return {}
+}
+
+const AUDIENCE_LABELS = {
+  ...Object.fromEntries(AUDIENCE_OPTS.map((o) => [o.value, o.label])),
+  seniors: 'ותיקים',
+}
 
 function emptyDeptForm() {
   return {
@@ -35,6 +71,8 @@ function emptyDeptForm() {
     description: '',
     target_audience: [],
     phone: '',
+    department_email: '',
+    manager_user_id: '',
     budget_code: '',
     portal_enabled: false,
     portal_slug: '',
@@ -64,6 +102,8 @@ export default function SubAccounts() {
     portal_general_enabled: false,
   })
   const [orgLoading, setOrgLoading] = useState(false)
+
+  const [staffList, setStaffList] = useState([])
 
   const [poModal, setPoModal] = useState(false)
   const [poForm, setPoForm] = useState({
@@ -99,6 +139,18 @@ export default function SubAccounts() {
       .catch(() => setPurchaseOrders([]))
       .finally(() => setPoLoading(false))
   }, [businessId, authHeaders])
+
+  const loadStaffForModal = useCallback(() => {
+    if (!businessId || !session?.access_token) return
+    fetch(`${API_BASE}/api/staff`, { headers: authHeaders() })
+      .then((r) => r.json())
+      .then((d) => setStaffList(Array.isArray(d.staff) ? d.staff : []))
+      .catch(() => setStaffList([]))
+  }, [businessId, session?.access_token, authHeaders])
+
+  useEffect(() => {
+    if (modalOpen) loadStaffForModal()
+  }, [modalOpen, loadStaffForModal])
 
   const loadOrg = useCallback(() => {
     if (!businessId) return
@@ -146,14 +198,17 @@ export default function SubAccounts() {
   }
 
   const openEdit = (sa) => {
+    const br = parseBrandingObj(sa.branding)
     setEditId(sa.id)
     setDeptForm({
       name: sa.department_name || '',
       department_type: sa.department_type || 'custom',
       custom_type_name: sa.custom_type_name || '',
       description: sa.description || '',
-      target_audience: Array.isArray(sa.target_audience) ? sa.target_audience : [],
+      target_audience: normalizeAudienceFromApi(sa.target_audience),
       phone: sa.phone || '',
+      department_email: br.department_email || '',
+      manager_user_id: br.manager_user_id || '',
       budget_code: sa.budget_code || '',
       portal_enabled: !!sa.portal_enabled,
       portal_slug: sa.portal_slug || '',
@@ -178,17 +233,25 @@ export default function SubAccounts() {
     }
     setSubmitting(true)
     try {
+      const prevBranding = editId
+        ? parseBrandingObj(subAccounts.find((s) => String(s.id) === String(editId))?.branding)
+        : {}
       const body = {
         name: deptForm.name.trim(),
         department_type: deptForm.department_type,
         custom_type_name: deptForm.department_type === 'custom' ? deptForm.custom_type_name.trim() || null : null,
         description: deptForm.description.trim() || null,
-        target_audience: deptForm.target_audience,
+        target_audience: deptForm.target_audience.map((v) => (v === 'seniors' ? 'veterans' : v)),
         phone: deptForm.phone.trim() || null,
         budget_code: deptForm.budget_code.trim() || null,
         portal_enabled: deptForm.portal_enabled,
         portal_slug: deptForm.portal_slug.trim() || null,
         shared_portal: deptForm.shared_portal,
+        branding: {
+          ...prevBranding,
+          department_email: deptForm.department_email.trim() || null,
+          manager_user_id: deptForm.manager_user_id || null,
+        },
       }
       const url = editId ? `${API_BASE}/api/sub-accounts/${editId}` : `${API_BASE}/api/sub-accounts`
       const res = await fetch(url, {
@@ -376,7 +439,7 @@ export default function SubAccounts() {
           ) : (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 16 }}>
               {subAccounts.map((sa) => {
-                const typeLabel = DEPT_TYPE_OPTIONS.find((o) => o.value === sa.department_type)?.label || sa.department_type
+                const typeLabel = DEPT_TYPES.find((o) => o.value === sa.department_type)?.label || sa.department_type
                 const audiences = (sa.target_audience || []).map((a) => AUDIENCE_LABELS[a] || a).filter(Boolean)
                 return (
                   <div
@@ -586,19 +649,25 @@ export default function SubAccounts() {
             <label className="label">שם מחלקה</label>
             <input className="input" style={{ marginBottom: 14 }} value={deptForm.name} onChange={(e) => setDeptForm((f) => ({ ...f, name: e.target.value }))} />
             <label className="label">סוג</label>
-            <select className="input" style={{ marginBottom: 14 }} value={deptForm.department_type} onChange={(e) => setDeptForm((f) => ({ ...f, department_type: e.target.value }))}>
-              {DEPT_TYPE_OPTIONS.map((o) => (
-                <option key={o.value} value={o.value}>
-                  {o.label}
+            <select style={{ ...DEPT_SELECT_STYLE, marginBottom: 14 }} value={deptForm.department_type} onChange={(e) => setDeptForm((f) => ({ ...f, department_type: e.target.value }))}>
+              {DEPT_TYPES.map((t) => (
+                <option key={t.value} value={t.value}>
+                  {t.label}
                 </option>
               ))}
             </select>
             {deptForm.department_type === 'custom' && (
-              <>
-                <label className="label">כותרת מותאמת</label>
-                <input className="input" style={{ marginBottom: 14 }} value={deptForm.custom_type_name} onChange={(e) => setDeptForm((f) => ({ ...f, custom_type_name: e.target.value }))} />
-              </>
+              <input placeholder="שם מחלקה מותאם..." style={{ ...CUSTOM_TYPE_INPUT_STYLE, marginBottom: 14 }} value={deptForm.custom_type_name} onChange={(e) => setDeptForm((f) => ({ ...f, custom_type_name: e.target.value }))} />
             )}
+            <label className="label">מנהל המחלקה</label>
+            <select style={{ ...DEPT_SELECT_STYLE, marginBottom: 14 }} value={deptForm.manager_user_id} onChange={(e) => setDeptForm((f) => ({ ...f, manager_user_id: e.target.value }))}>
+              <option value="">— בחר מרשימת הצוות —</option>
+              {staffList.map((s) => (
+                <option key={s.id} value={s.user_id || ''}>
+                  {s.full_name || s.email || s.user_id}
+                </option>
+              ))}
+            </select>
             <label className="label">תיאור</label>
             <textarea className="input" style={{ marginBottom: 14, minHeight: 72, resize: 'vertical' }} value={deptForm.description} onChange={(e) => setDeptForm((f) => ({ ...f, description: e.target.value }))} />
             <label className="label">קהל יעד</label>
@@ -612,6 +681,8 @@ export default function SubAccounts() {
             </div>
             <label className="label">טלפון מחלקה</label>
             <input className="input" dir="ltr" style={{ marginBottom: 14 }} value={deptForm.phone} onChange={(e) => setDeptForm((f) => ({ ...f, phone: e.target.value }))} />
+            <label className="label">מייל מחלקה</label>
+            <input className="input" dir="ltr" type="email" style={{ marginBottom: 14 }} value={deptForm.department_email} onChange={(e) => setDeptForm((f) => ({ ...f, department_email: e.target.value }))} />
             <label className="label">קוד תקציב</label>
             <input className="input" style={{ marginBottom: 14 }} value={deptForm.budget_code} onChange={(e) => setDeptForm((f) => ({ ...f, budget_code: e.target.value }))} />
             <div style={{ marginBottom: 14, padding: 14, borderRadius: 12, background: 'rgba(255,255,255,0.04)', border: '1px solid var(--glass-border)' }}>

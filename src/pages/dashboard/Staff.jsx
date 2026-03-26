@@ -100,10 +100,6 @@ function statusBadge(status) {
   return { text: s, bg: 'rgba(148,163,184,0.2)', color: '#94a3b8' }
 }
 
-function roleColor(role) {
-  return ROLE_PRESETS.find((r) => r.value === role)?.color || '#94a3b8'
-}
-
 function logIcon(actionType) {
   const a = (actionType || '').toLowerCase()
   if (a.includes('send') || a.includes('שליח')) return '📤'
@@ -451,29 +447,22 @@ export default function Staff() {
                       {m.phone && (
                         <div style={{ fontSize: 13, color: 'var(--v2-gray-400)', direction: 'ltr', textAlign: 'right' }}>{m.phone}</div>
                       )}
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 8 }}>
-                        <span
-                          style={{
-                            fontSize: 12,
-                            fontWeight: 700,
-                            padding: '4px 10px',
-                            borderRadius: 8,
-                            background: `${roleColor(m.role)}22`,
-                            color: roleColor(m.role),
-                          }}
-                        >
-                          {ROLE_PRESETS.find((r) => r.value === m.role)?.label || m.role}
-                          {m.custom_role ? ` · ${m.custom_role}` : ''}
-                        </span>
-                        <span style={{ fontSize: 12, fontWeight: 700, padding: '4px 10px', borderRadius: 8, background: sb.bg, color: sb.color }}>{sb.text}</span>
+                      <div style={{ marginTop: 8, fontSize: 13, color: 'var(--v2-gray-400)' }}>
+                        <strong style={{ color: 'var(--v2-gray-500)', fontWeight: 600 }}>תפקיד: </strong>
+                        {ROLE_PRESETS.find((r) => r.value === m.role)?.label || m.role || '—'}
                       </div>
-                      {deptIds.length > 0 && (
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
-                          {deptIds.map((id) => {
-                            const sa = subAccounts.find((s) => s.id === id)
+                      <div style={{ marginTop: 4, fontSize: 13, color: 'var(--v2-gray-400)' }}>
+                        <strong style={{ color: 'var(--v2-gray-500)', fontWeight: 600 }}>תיאור תפקיד: </strong>
+                        {m.custom_role || '—'}
+                      </div>
+                      <div style={{ marginTop: 8, fontSize: 12, color: 'var(--v2-gray-500)', fontWeight: 600 }}>מחלקה משויכת</div>
+                      {deptIds.length > 0 ? (
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 6 }}>
+                          {deptIds.map((deptId) => {
+                            const sa = subAccounts.find((s) => String(s.id) === String(deptId))
                             return (
                               <span
-                                key={id}
+                                key={deptId}
                                 style={{
                                   fontSize: 11,
                                   padding: '2px 8px',
@@ -482,12 +471,17 @@ export default function Staff() {
                                   border: '1px solid var(--glass-border)',
                                 }}
                               >
-                                {sa?.department_name || id.slice(0, 8)}
+                                {sa?.department_name || String(deptId).slice(0, 8)}
                               </span>
                             )
                           })}
                         </div>
+                      ) : (
+                        <div style={{ fontSize: 13, color: 'var(--v2-gray-400)', marginTop: 4 }}>—</div>
                       )}
+                      <div style={{ marginTop: 8 }}>
+                        <span style={{ fontSize: 12, fontWeight: 700, padding: '4px 10px', borderRadius: 8, background: sb.bg, color: sb.color }}>{sb.text}</span>
+                      </div>
                       {m.valid_until && (
                         <div style={{ fontSize: 12, color: 'var(--v2-gray-400)', marginTop: 6 }}>
                           תוקף עד: {new Date(m.valid_until).toLocaleDateString('he-IL')}
