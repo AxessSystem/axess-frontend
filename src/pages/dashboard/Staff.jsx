@@ -2,7 +2,6 @@ import { useState, useEffect, useMemo, useCallback } from 'react'
 import {
   Edit3,
   Trash2,
-  UserPlus,
   Users,
   Shield,
   History,
@@ -331,18 +330,15 @@ export default function Staff() {
 
   return (
     <div dir="rtl" style={{ padding: 'var(--space-3)', maxWidth: 1100 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
-        <h1 style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 24, fontWeight: 800 }}>צוות</h1>
-        <div
-          style={{
-            display: 'flex',
-            flexWrap: 'wrap',
-            gap: 8,
-            marginBottom: 24,
-            borderBottom: '1px solid var(--glass-border)',
-            paddingBottom: 16,
-          }}
-        >
+      <div style={{ marginBottom: 24 }}>
+        <h1 style={{ fontSize: 24, fontWeight: 800, margin: '0 0 6px' }}>צוות</h1>
+        <p style={{ fontSize: 14, color: 'var(--v2-gray-400)', margin: 0 }}>
+          ניהול אנשי צוות, הרשאות, הזמנות ולוג פעילות
+        </p>
+      </div>
+
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           {[
             { id: 0, label: 'אנשי צוות', icon: Users },
             { id: 1, label: 'הרשאות', icon: Shield },
@@ -375,31 +371,31 @@ export default function Staff() {
             )
           })}
         </div>
+        {tab === 0 && (
+          <button
+            type="button"
+            onClick={openInvite}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+              padding: '8px 16px',
+              borderRadius: 8,
+              background: 'var(--primary)',
+              color: '#fff',
+              border: 'none',
+              cursor: 'pointer',
+              fontWeight: 600,
+              fontSize: 14,
+            }}
+          >
+            + הזמן איש צוות
+          </button>
+        )}
       </div>
 
       {tab === 0 && (
         <>
-          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 16 }}>
-            <button
-              type="button"
-              onClick={openInvite}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8,
-                padding: '12px 20px',
-                borderRadius: 'var(--radius-full)',
-                background: 'var(--v2-primary)',
-                color: 'var(--v2-dark)',
-                fontWeight: 700,
-                border: 'none',
-                cursor: 'pointer',
-              }}
-            >
-              <UserPlus size={18} /> הזמן איש צוות
-            </button>
-          </div>
-
           {loading ? (
             <div style={{ color: 'var(--v2-gray-400)' }}>טוען...</div>
           ) : staff.length === 0 ? (

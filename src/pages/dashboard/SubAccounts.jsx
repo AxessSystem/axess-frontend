@@ -303,18 +303,15 @@ export default function SubAccounts() {
 
   return (
     <div dir="rtl" style={{ padding: 'var(--space-3)', maxWidth: 1100 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
-        <h1 style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 24, fontWeight: 800 }}>מחלקות</h1>
-        <div
-          style={{
-            display: 'flex',
-            flexWrap: 'wrap',
-            gap: 8,
-            marginBottom: 24,
-            borderBottom: '1px solid var(--glass-border)',
-            paddingBottom: 16,
-          }}
-        >
+      <div style={{ marginBottom: 24 }}>
+        <h1 style={{ fontSize: 24, fontWeight: 800, margin: '0 0 6px' }}>מחלקות</h1>
+        <p style={{ fontSize: 14, color: 'var(--v2-gray-400)', margin: 0 }}>
+          ניהול מחלקות, צוות ייעודי, פורטל ציבורי והגדרות לכל מחלקה
+        </p>
+      </div>
+
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           {[
             { id: 0, label: 'מחלקות', icon: Building2 },
             { id: 1, label: 'הגדרות ארגון', icon: Settings2 },
@@ -347,31 +344,31 @@ export default function SubAccounts() {
             )
           })}
         </div>
+        {tab === 0 && (
+          <button
+            type="button"
+            onClick={openCreate}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+              padding: '8px 16px',
+              borderRadius: 8,
+              background: 'var(--primary)',
+              color: '#fff',
+              border: 'none',
+              cursor: 'pointer',
+              fontWeight: 600,
+              fontSize: 14,
+            }}
+          >
+            + מחלקה חדשה
+          </button>
+        )}
       </div>
 
       {tab === 0 && (
         <>
-          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 16 }}>
-            <button
-              type="button"
-              onClick={openCreate}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8,
-                padding: '12px 20px',
-                borderRadius: 'var(--radius-full)',
-                background: 'var(--v2-primary)',
-                color: 'var(--v2-dark)',
-                fontWeight: 700,
-                border: 'none',
-                cursor: 'pointer',
-              }}
-            >
-              <Plus size={18} /> מחלקה חדשה
-            </button>
-          </div>
-
           {loading ? (
             <div style={{ color: 'var(--v2-gray-400)' }}>טוען...</div>
           ) : (
