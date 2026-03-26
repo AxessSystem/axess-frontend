@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
 import { useRequirePermission } from '@/hooks/useRequirePermission'
-import { Building2, Plus, Users, Calendar, Pencil, Copy, Globe, Save } from 'lucide-react'
+import { Building2, Plus, Users, Calendar, Pencil, Copy, Globe, Save, Settings2, ClipboardList } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 const API_BASE = import.meta.env.VITE_API_URL || 'https://api.axess.pro'
@@ -316,10 +316,11 @@ export default function SubAccounts() {
           }}
         >
           {[
-            { id: 0, label: 'מחלקות' },
-            { id: 1, label: 'הגדרות ארגון' },
-            { id: 2, label: 'הזמנות עבודה' },
+            { id: 0, label: 'מחלקות', icon: Building2 },
+            { id: 1, label: 'הגדרות ארגון', icon: Settings2 },
+            { id: 2, label: 'הזמנות עבודה', icon: ClipboardList },
           ].map((t) => {
+            const Icon = t.icon
             const active = tab === t.id
             return (
               <button
@@ -340,6 +341,7 @@ export default function SubAccounts() {
                   fontSize: 14,
                 }}
               >
+                <Icon size={18} />
                 {t.label}
               </button>
             )

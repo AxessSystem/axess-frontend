@@ -4,6 +4,8 @@ import {
   Trash2,
   UserPlus,
   Users,
+  Shield,
+  History,
   Pause,
   Copy,
   Mail,
@@ -342,10 +344,11 @@ export default function Staff() {
           }}
         >
           {[
-            { id: 0, label: 'אנשי צוות' },
-            { id: 1, label: 'הרשאות' },
-            { id: 2, label: 'לוג פעילות' },
+            { id: 0, label: 'אנשי צוות', icon: Users },
+            { id: 1, label: 'הרשאות', icon: Shield },
+            { id: 2, label: 'לוג פעילות', icon: History },
           ].map((t) => {
+            const Icon = t.icon
             const active = tab === t.id
             return (
               <button
@@ -366,6 +369,7 @@ export default function Staff() {
                   fontSize: 14,
                 }}
               >
+                <Icon size={18} />
                 {t.label}
               </button>
             )
