@@ -141,24 +141,25 @@ export default function Staff() {
   const [logFilterFrom, setLogFilterFrom] = useState('')
   const [logFilterTo, setLogFilterTo] = useState('')
 
-  const authHeaders = useCallback(() => {
-    const h = { 'Content-Type': 'application/json' }
-    if (session?.access_token) h.Authorization = `Bearer ${session.access_token}`
-    if (businessId) h['X-Business-Id'] = businessId
-    return h
-  }, [session, businessId])
+  const authHeaders = useCallback(() => ({
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${session?.access_token}`,
+    'X-Business-Id': businessId,
+  }), [session?.access_token, businessId])
 
-  const loadStaff = useCallback(() => {
-    if (!businessId) return
+  const loadStaff = useCallback(async () => {
+    if (!businessId || !session?.access_token) return
     setLoading(true)
-    fetch(`${API_BASE}/api/staff`, { headers: authHeaders() })
-      .then((r) => r.json())
-      .then((data) => {
-        setStaff(Array.isArray(data.staff) ? data.staff : [])
-      })
-      .catch(() => setStaff([]))
-      .finally(() => setLoading(false))
-  }, [businessId, authHeaders])
+    try {
+      const r = await fetch(`${API_BASE}/api/staff`, { headers: authHeaders() })
+      const data = await r.json()
+      setStaff(Array.isArray(data.staff) ? data.staff : [])
+    } catch {
+      setStaff([])
+    } finally {
+      setLoading(false)
+    }
+  }, [businessId, session?.access_token, authHeaders])
 
   const loadLogs = useCallback(() => {
     if (!businessId) return
