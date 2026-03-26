@@ -297,26 +297,6 @@ export default function SubAccounts() {
     }
   }
 
-  const tabBtn = (i, label) => (
-    <button
-      type="button"
-      key={i}
-      onClick={() => setTab(i)}
-      style={{
-        padding: '10px 18px',
-        borderRadius: 'var(--radius-full)',
-        border: 'none',
-        cursor: 'pointer',
-        fontWeight: 700,
-        fontSize: 14,
-        background: tab === i ? 'var(--v2-primary)' : 'transparent',
-        color: tab === i ? 'var(--v2-dark)' : 'var(--v2-gray-400)',
-      }}
-    >
-      {label}
-    </button>
-  )
-
   const portalUrl = (slug) => (slug ? `${PORTAL_BASE}/${encodeURIComponent(slug)}` : '')
 
   if (!subAccountsAllowed) return null
@@ -325,10 +305,45 @@ export default function SubAccounts() {
     <div dir="rtl" style={{ padding: 'var(--space-3)', maxWidth: 1100 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
         <h1 style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 24, fontWeight: 800 }}>מחלקות</h1>
-        <div style={{ display: 'flex', gap: 8, background: 'var(--v2-dark-3)', padding: 4, borderRadius: 'var(--radius-full)', border: '1px solid var(--glass-border)' }}>
-          {tabBtn(0, 'מחלקות')}
-          {tabBtn(1, 'הגדרות ארגון')}
-          {tabBtn(2, 'הזמנות עבודה')}
+        <div
+          style={{
+            display: 'flex',
+            flexWrap: 'wrap',
+            gap: 8,
+            marginBottom: 24,
+            borderBottom: '1px solid var(--glass-border)',
+            paddingBottom: 16,
+          }}
+        >
+          {[
+            { id: 0, label: 'מחלקות' },
+            { id: 1, label: 'הגדרות ארגון' },
+            { id: 2, label: 'הזמנות עבודה' },
+          ].map((t) => {
+            const active = tab === t.id
+            return (
+              <button
+                key={t.id}
+                type="button"
+                onClick={() => setTab(t.id)}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  padding: '10px 16px',
+                  borderRadius: 10,
+                  border: `1px solid ${active ? 'var(--v2-primary)' : 'var(--glass-border)'}`,
+                  background: active ? 'rgba(0,195,122,0.12)' : 'transparent',
+                  color: active ? '#fff' : 'var(--v2-gray-400)',
+                  cursor: 'pointer',
+                  fontWeight: 600,
+                  fontSize: 14,
+                }}
+              >
+                {t.label}
+              </button>
+            )
+          })}
         </div>
       </div>
 
