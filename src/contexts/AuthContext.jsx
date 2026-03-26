@@ -3,11 +3,84 @@ import { supabase } from '@/lib/supabase'
 
 const AuthContext = createContext(null)
 
+/** ברירת מחדל לפי תפקיד — owner: null ⇒ כל ההרשאות */
+const ROLE_PERMISSIONS = {
+  owner: null,
+  manager: {
+    can_view_inbox: true,
+    can_reply_inbox: true,
+    can_view_campaigns: true,
+    can_create_campaigns: true,
+    can_send_campaigns: true,
+    can_view_events: true,
+    can_manage_events: true,
+    can_view_audiences: true,
+    can_manage_audiences: true,
+    can_view_reports: true,
+    can_export_data: true,
+    can_manage_webview: true,
+    can_manage_flows: true,
+    can_scan: true,
+  },
+  inbox_agent: { can_view_inbox: true, can_reply_inbox: true },
+  event_producer: { can_view_events: true, can_manage_events: true, can_scan: true },
+  campaign_manager: {
+    can_view_campaigns: true,
+    can_create_campaigns: true,
+    can_send_campaigns: true,
+    can_view_audiences: true,
+  },
+  scanner: { can_scan: true },
+  analyst: {
+    can_view_reports: true,
+    can_view_audiences: true,
+    can_view_campaigns: true,
+    can_view_events: true,
+  },
+  coordinator: {
+    can_view_events: true,
+    can_manage_events: true,
+    can_scan: true,
+    can_view_audiences: true,
+  },
+  division_head: {
+    can_view_inbox: true,
+    can_reply_inbox: true,
+    can_view_campaigns: true,
+    can_create_campaigns: true,
+    can_send_campaigns: true,
+    can_view_events: true,
+    can_manage_events: true,
+    can_scan: true,
+    can_view_audiences: true,
+    can_manage_audiences: true,
+    can_view_reports: true,
+    can_export_data: true,
+    can_manage_sub_accounts: true,
+    can_manage_webview: true,
+    can_manage_flows: true,
+  },
+  department_manager: {
+    can_view_inbox: true,
+    can_reply_inbox: true,
+    can_view_events: true,
+    can_manage_events: true,
+    can_scan: true,
+    can_view_audiences: true,
+    can_manage_audiences: true,
+    can_view_reports: true,
+    can_approve_registrations: true,
+  },
+  external_auditor: { can_view_reports: true, can_view_events: true },
+}
+
 export function AuthProvider({ children }) {
   const [session, setSession] = useState(null)
   const [profile, setProfile] = useState(null)
   const [businessMember, setBusinessMember] = useState(null)
   const [loading, setLoading] = useState(true)
+  /** נכון אחרי שסיימנו לטעון profile + businessMember (או שאין משתמש) — למניעת redirect מוקדם ב־useRequirePermission */
+  const [identityReady, setIdentityReady] = useState(false)
 
   const fetchProfile = useCallback(async (userId) => {
     const { data, error } = await supabase
@@ -43,8 +116,14 @@ export function AuthProvider({ children }) {
       const m = members[0]
       const { data: rp } = await supabase.from('role_permissions').select('permissions').eq('role', m.role).single()
       const rolePerms = rp?.permissions || {}
-      const merged = { ...rolePerms, ...(m.permissions || {}) }
-      return { role: m.role, permissions: merged, businessId: m.business_id }
+      const rawOverrides = m.permissions && typeof m.permissions === 'object' ? m.permissions : {}
+      const merged = { ...rolePerms, ...rawOverrides }
+      return {
+        role: m.role,
+        permissions: merged,
+        permissionOverrides: rawOverrides,
+        businessId: m.business_id,
+      }
     } catch (err) {
       console.error('fetchBusinessMember error:', err)
       return null
@@ -134,6 +213,7 @@ export function AuthProvider({ children }) {
           setSession(null)
           setProfile(null)
           setBusinessMember(null)
+          setIdentityReady(true)
         }
       },
     )
@@ -145,10 +225,12 @@ export function AuthProvider({ children }) {
     if (!userId) {
       setProfile(null)
       setBusinessMember(null)
+      setIdentityReady(true)
       return
     }
 
     let cancelled = false
+    setIdentityReady(false)
 
     const load = async () => {
       try {
@@ -172,7 +254,10 @@ export function AuthProvider({ children }) {
           setBusinessMember(null)
         }
       } finally {
-        if (!cancelled) setLoading(false)
+        if (!cancelled) {
+          setLoading(false)
+          setIdentityReady(true)
+        }
       }
     }
 
@@ -218,8 +303,25 @@ export function AuthProvider({ children }) {
   }
 
   const role = businessMember?.role ?? null
+  const memberRole = businessMember?.role ?? null
   const permissions = businessMember?.permissions ?? {}
   const baseBusinessId = businessMember?.businessId ?? null
+
+  const hasPermission = useCallback(
+    (key) => {
+      if (!businessMember) return false
+      const r = businessMember.role
+      if (r === 'owner') return true
+      const overrides = businessMember.permissionOverrides || {}
+      if (Object.prototype.hasOwnProperty.call(overrides, key)) {
+        return !!overrides[key]
+      }
+      const preset = ROLE_PERMISSIONS[r]
+      if (preset == null) return false
+      return !!preset[key]
+    },
+    [businessMember]
+  )
   const isAdmin = profile?.role === 'admin'
   const isProducer = profile?.role === 'producer'
   const producerId = profile?.producer_id
@@ -239,7 +341,10 @@ export function AuthProvider({ children }) {
       session,
       profile,
       loading,
+      identityReady,
       role,
+      memberRole,
+      hasPermission,
       permissions,
       businessId: effectiveBusinessId,
       isAdmin,

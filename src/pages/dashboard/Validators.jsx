@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useRequirePermission } from '@/hooks/useRequirePermission'
 import { motion, AnimatePresence } from 'framer-motion'
 import { QrCode, ExternalLink, Copy, CheckCircle, X, Clock } from 'lucide-react'
 import Badge from '@/components/ui/Badge'
@@ -91,10 +92,13 @@ function QRModal({ validator, onClose }) {
 }
 
 export default function Validators() {
+  const validatorsAllowed = useRequirePermission('can_manage_events')
   const [selected, setSelected] = useState(null)
   const [filter, setFilter] = useState('all')
 
   const filtered = MOCK_VALIDATORS.filter(v => filter === 'all' || v.status === filter)
+
+  if (!validatorsAllowed) return null
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }} dir="rtl">

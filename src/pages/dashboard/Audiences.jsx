@@ -10,6 +10,7 @@ import ExportButton from '@/components/ui/ExportButton'
 import { api } from '@/services/api'
 import { fetchWithAuth, supabase } from '@/lib/supabase'
 import { useAuth } from '@/contexts/AuthContext'
+import { useRequirePermission } from '@/hooks/useRequirePermission'
 import toast from 'react-hot-toast'
 
 const API_BASE = import.meta.env.VITE_API_URL || 'https://axess-production.up.railway.app'
@@ -420,6 +421,7 @@ function CustomerProfileDrawer({ open, onClose, masterRecipientId, businessId, o
 }
 
 export default function Audiences() {
+  const audiencesAllowed = useRequirePermission('can_view_audiences')
   const navigate = useNavigate()
   const { session, businessId } = useAuth()
   const queryClient = useQueryClient()
@@ -709,6 +711,8 @@ export default function Audiences() {
       : lastWhereClause
         ? (nlQuery?.substring(0, 40) || 'סגמנט AI')
         : ''
+
+  if (!audiencesAllowed) return null
 
   return (
     <div className="page-container" style={{ display: 'flex', flexDirection: 'column', gap: 24 }} dir="rtl">

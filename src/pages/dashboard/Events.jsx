@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
+import { useRequirePermission } from '@/hooks/useRequirePermission'
 import { Calendar, Plus, TrendingUp, ExternalLink, Key, Copy, Edit3, Copy as CopyIcon, Trash2, Users, BarChart2, Armchair, LayoutGrid, MapPin, Check, X, Send, Link2, CheckCircle, XCircle } from 'lucide-react'
 import toast from 'react-hot-toast'
 import SeatingBuilder from '../../components/SeatingBuilder'
@@ -722,6 +723,7 @@ const FONT_STYLES = [
 ]
 
 export default function Events() {
+  const eventsAllowed = useRequirePermission('can_view_events')
   const [events, setEvents] = useState([])
   const [loading, setLoading] = useState(true)
   const [wizardOpen, setWizardOpen] = useState(false)
@@ -990,6 +992,8 @@ export default function Events() {
   }
 
   const wizardSteps = ['פרטים בסיסיים', 'מיקום', 'תיאור', 'תמונות', 'כרטיסים', 'תפריט וסקיצה', 'עיצוב', 'סיכום']
+
+  if (!eventsAllowed) return null
 
   return (
     <div dir="rtl" style={{ padding: 'var(--space-3)' }}>

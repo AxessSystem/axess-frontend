@@ -6,6 +6,7 @@ import {
   InboxIcon, Paperclip,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useRequirePermission } from "@/hooks/useRequirePermission";
 import { fetchWithAuth, supabase } from "@/lib/supabase";
 import toast from "react-hot-toast";
 
@@ -709,6 +710,7 @@ function SupervisorPanel({
 }
 
 export default function Inbox({ onUnreadChange }) {
+  const inboxAllowed = useRequirePermission("can_view_inbox");
   const { session, businessId, role, user } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
@@ -1014,6 +1016,8 @@ export default function Inbox({ onUnreadChange }) {
       </div>
     );
   }
+
+  if (!inboxAllowed) return null;
 
   return (
     <>

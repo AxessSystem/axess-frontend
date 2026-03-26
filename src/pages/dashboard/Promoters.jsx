@@ -2,10 +2,12 @@ import { useState, useEffect } from 'react'
 import { Edit3, Trash2 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useAuth } from '@/contexts/AuthContext'
+import { useRequirePermission } from '@/hooks/useRequirePermission'
 
 const API_BASE = import.meta.env.VITE_API_URL || 'https://axess-production.up.railway.app'
 
 export default function Promoters() {
+  const promotersAllowed = useRequirePermission('can_manage_promoters')
   const { businessId } = useAuth()
   const [promoters, setPromoters] = useState([])
   const [loading, setLoading] = useState(true)
@@ -76,6 +78,8 @@ export default function Promoters() {
     setEmail(p.email || '')
     setInstagram(p.instagram || '')
   }
+
+  if (!promotersAllowed) return null
 
   return (
     <div dir="rtl" style={{ padding: 'var(--space-3)' }}>

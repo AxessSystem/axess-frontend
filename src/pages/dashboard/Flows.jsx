@@ -12,6 +12,7 @@ import {
   MessageCircle,
 } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
+import { useRequirePermission } from '@/hooks/useRequirePermission'
 import { fetchWithAuth, supabase } from '@/lib/supabase'
 
 const API_BASE = import.meta.env.VITE_API_URL || 'https://axess-production.up.railway.app'
@@ -274,6 +275,7 @@ function WaPreview({ bubbles }) {
 }
 
 export default function Flows() {
+  const flowsAllowed = useRequirePermission('can_manage_flows')
   const { session, businessId, profile } = useAuth()
   const [flows, setFlows] = useState([])
   const [loading, setLoading] = useState(true)
@@ -559,6 +561,8 @@ export default function Flows() {
       return { ...prev, steps }
     })
   }
+
+  if (!flowsAllowed) return null
 
   return (
     <div dir="rtl" style={{ padding: '24px', maxWidth: 1200, margin: '0 auto' }}>

@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
+import { useRequirePermission } from '@/hooks/useRequirePermission'
 import { Building2, Plus, Users, Calendar, Pencil, Copy, Globe, Save } from 'lucide-react'
 import toast from 'react-hot-toast'
 
@@ -41,6 +42,7 @@ function emptyDeptForm() {
 }
 
 export default function SubAccounts() {
+  const subAccountsAllowed = useRequirePermission('can_manage_sub_accounts')
   const { session, businessId } = useAuth()
   const [tab, setTab] = useState(0)
   const [subAccounts, setSubAccounts] = useState([])
@@ -316,6 +318,8 @@ export default function SubAccounts() {
   )
 
   const portalUrl = (slug) => (slug ? `${PORTAL_BASE}/${encodeURIComponent(slug)}` : '')
+
+  if (!subAccountsAllowed) return null
 
   return (
     <div dir="rtl" style={{ padding: 'var(--space-3)', maxWidth: 1100 }}>

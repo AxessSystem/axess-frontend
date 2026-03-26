@@ -4,6 +4,7 @@ import { motion } from 'framer-motion'
 import { Save, Building, Building2, MessageSquare, CreditCard, Bell, Wallet, User, Link2, Store, Calendar, LayoutGrid, Grid3X3, Megaphone, QrCode, Send, Users, UsersRound, ClipboardList, MessageCircle, MessageCircleMore, FileText, GitBranch, Eye, RefreshCw, Plus, X, Workflow, CheckCircle, Utensils, Ticket, Tag, ShoppingBag, BarChart3 } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
 import { useAuth } from '@/contexts/AuthContext'
+import { useRequirePermission } from '@/hooks/useRequirePermission'
 import WebviewAnalytics from '@/webview/WebviewAnalytics'
 import { fetchWithAuth, supabase } from '@/lib/supabase'
 
@@ -918,6 +919,7 @@ function BusinessTypeTab({ businessId, config, onConfigChange }) {
 }
 
 export default function Settings() {
+  const settingsAllowed = useRequirePermission('can_manage_settings')
   const { user, session, updateUser, businessId } = useAuth()
   const [activeTab, setActiveTab] = useState('account')
   const [saving, setSaving] = useState(false)
@@ -1008,6 +1010,8 @@ export default function Settings() {
     setSaving(false)
     toast.success('ההגדרות נשמרו בהצלחה')
   }
+
+  if (!settingsAllowed) return null
 
   return (
     <div style={{ maxWidth: 720, display: 'flex', flexDirection: 'column', gap: 24 }} dir="rtl">

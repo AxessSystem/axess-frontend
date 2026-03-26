@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useRequirePermission } from '@/hooks/useRequirePermission'
 import { motion } from 'framer-motion'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
@@ -42,12 +43,15 @@ function CustomTooltip({ active, payload, label }) {
 const cardStyle = { background: 'var(--v2-dark-3)', border: '1px solid var(--glass-border)', borderRadius: 'var(--radius-lg)', padding: '24px' }
 
 export default function Reports() {
+  const reportsAllowed = useRequirePermission('can_view_reports')
   const [period, setPeriod] = useState('30d')
 
   const totalSent      = MOCK_CAMPAIGNS.reduce((s, c) => s + c.sent, 0)
   const totalDelivered = MOCK_CAMPAIGNS.reduce((s, c) => s + c.delivered, 0)
   const totalClicked   = MOCK_CAMPAIGNS.reduce((s, c) => s + c.clicked, 0)
   const totalRedeemed  = MOCK_CAMPAIGNS.reduce((s, c) => s + c.redeemed, 0)
+
+  if (!reportsAllowed) return null
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }} dir="rtl">

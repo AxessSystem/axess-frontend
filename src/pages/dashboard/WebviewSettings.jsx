@@ -7,6 +7,7 @@ import {
 } from 'lucide-react'
 import { QRCodeSVG } from 'qrcode.react'
 import { useAuth } from '@/contexts/AuthContext'
+import { useRequirePermission } from '@/hooks/useRequirePermission'
 import { fetchWithAuth, supabase } from '@/lib/supabase'
 
 const API_BASE = import.meta.env.VITE_API_URL || 'https://axess-production.up.railway.app'
@@ -105,6 +106,7 @@ function mergeBrandAssets(raw) {
 }
 
 export default function WebviewSettings() {
+  const webviewAllowed = useRequirePermission('can_manage_webview')
   const { session, businessId } = useAuth()
   const [tab, setTab] = useState('design')
   const [loading, setLoading] = useState(true)
@@ -515,6 +517,8 @@ export default function WebviewSettings() {
       </div>
     )
   }
+
+  if (!webviewAllowed) return null
 
   return (
     <div dir="rtl" style={{ padding: '24px', maxWidth: 1100, margin: '0 auto' }}>

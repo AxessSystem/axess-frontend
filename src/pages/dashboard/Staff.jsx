@@ -12,6 +12,7 @@ import {
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useAuth } from '@/contexts/AuthContext'
+import { useRequirePermission } from '@/hooks/useRequirePermission'
 
 const API_BASE = import.meta.env.VITE_API_URL || 'https://axess-production.up.railway.app'
 
@@ -111,6 +112,7 @@ function logIcon(actionType) {
 }
 
 export default function Staff() {
+  const staffAllowed = useRequirePermission('can_manage_staff')
   const { session, businessId } = useAuth()
   const [tab, setTab] = useState(0)
   const [staff, setStaff] = useState([])
@@ -340,6 +342,8 @@ export default function Staff() {
     })
     return [...s]
   }, [logs])
+
+  if (!staffAllowed) return null
 
   return (
     <div dir="rtl" style={{ padding: 'var(--space-3)', maxWidth: 1100 }}>

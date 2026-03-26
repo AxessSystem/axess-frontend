@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '@/contexts/AuthContext'
+import { useRequirePermission } from '@/hooks/useRequirePermission'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Upload, Users, FileText, Calendar, QrCode, Send,
@@ -773,6 +774,7 @@ function StepSummary({ onPrev, data, onSubmit, selectedEvent, businessId, authHe
 
 /* ── Main Wizard ── */
 export default function NewCampaign() {
+  const campaignAllowed = useRequirePermission('can_create_campaigns')
   const navigate = useNavigate()
   const location = useLocation()
   const { session, businessId } = useAuth()
@@ -827,6 +829,8 @@ export default function NewCampaign() {
 
   const next = () => setStep(s => Math.min(s + 1, 8))
   const prev = () => setStep(s => Math.max(s - 1, 1))
+
+  if (!campaignAllowed) return null
 
   return (
     <div style={{ maxWidth: 680, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 20 }} dir="rtl">

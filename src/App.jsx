@@ -191,6 +191,7 @@ export default function App() {
             <Route path="/booking/:id" element={<BookingManagementPage />} />
             <Route path="/g/token/:token" element={<GuestPaymentPage />} />
             <Route path="/scan/:eventSlug" element={<ScanStation />} />
+            <Route path="/scan-station" element={<Navigate to="/dashboard/scan-management" replace />} />
 
             <Route path="/muni/:citySlug/event/:eventSlug" element={<MuniEventPage />} />
             <Route path="/muni/:citySlug/:deptSlug" element={<MuniPortal />} />

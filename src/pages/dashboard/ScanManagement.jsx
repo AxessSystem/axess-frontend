@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { Plus, Copy, X, ScanLine, QrCode, BarChart3 } from 'lucide-react'
 import { QRCodeCanvas } from 'qrcode.react'
 import { useAuth } from '@/contexts/AuthContext'
+import { useRequirePermission } from '@/hooks/useRequirePermission'
 import { fetchWithAuth, supabase } from '@/lib/supabase'
 
 const API_BASE = import.meta.env.VITE_API_URL || 'https://axess-production.up.railway.app'
@@ -199,6 +200,7 @@ function ValidatorQrRow({ item, onStats }) {
 }
 
 export default function ScanManagement() {
+  const scanAllowed = useRequirePermission('can_scan')
   const { session, businessId } = useAuth()
   const [tab, setTab] = useState('stations')
   const [stations, setStations] = useState([])
@@ -432,6 +434,8 @@ export default function ScanManagement() {
     alignItems: 'center',
     marginBottom: 10,
   }
+
+  if (!scanAllowed) return null
 
   return (
     <div dir="rtl" style={{ padding: 24, maxWidth: 900, margin: '0 auto' }}>

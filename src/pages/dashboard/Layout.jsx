@@ -1,9 +1,10 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { Link, Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom'
 import {
-  LayoutDashboard, Send, Users, BarChart2, QrCode, Settings,
+  Send, Users, BarChart2, QrCode, Settings,
   Bell, Menu, X, ChevronDown, Wallet, LogOut, Calendar, Megaphone, UserCheck, Building,
-  Info, AlertTriangle, Wrench, MessageSquare, Smartphone, Layers, GitBranch, ScanLine, Radio,
+  Info, AlertTriangle, Wrench, MessageSquare, Layers, GitBranch, ScanLine, Radio,
+  PieChart, Globe,
 } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { supabase } from '@/lib/supabase'
@@ -36,77 +37,71 @@ const NAV_SHORTCUTS = {
   ],
 }
 
-const ALL_NAV_ITEMS = [
-  { icon: LayoutDashboard, label: 'סקירה כללית', path: '/dashboard', permission: null, roles: null },
-  { icon: MessageSquare,   label: 'אינבוקס',       path: '/dashboard/inbox', permission: null, roles: null },
-  { icon: Layers,          label: 'הנכסים שלי',    path: '/dashboard/assets', permission: null, roles: null },
-  { icon: Send,            label: 'קמפיין חדש',  path: '/dashboard/new-campaign', permission: 'can_send_campaigns', roles: null },
-  { icon: Smartphone,      label: 'Webview',       path: '/dashboard/webview', permission: null, roles: null },
-  { icon: Radio,           label: 'Pixel & לינקים', path: '/dashboard/pixel', permission: null, roles: null },
-  { icon: GitBranch,       label: 'Flows',         path: '/dashboard/flows', permission: null, roles: null },
-  { icon: ScanLine,        label: 'עמדות סריקה', path: '/dashboard/scan-management', permission: null, roles: null },
-  { icon: Users,           label: 'קהלים',        path: '/dashboard/audiences', permission: null, roles: null },
-  { icon: Calendar,        label: 'אירועים',      path: '/dashboard/events', permission: 'can_edit_events', roles: null },
-  { icon: Megaphone,       label: 'יחצ"נים',      path: '/dashboard/promoters', permission: 'can_manage_promoters', roles: null },
-  { icon: UserCheck,       label: 'צוות',         path: '/dashboard/staff', permission: 'can_manage_staff', roles: null },
-  { icon: QrCode,          label: 'Validators',   path: '/dashboard/validators', permission: null, roles: null },
-  { icon: BarChart2,       label: 'דוחות',        path: '/dashboard/reports', permission: 'can_view_reports', roles: null },
-  { icon: Building,        label: 'מחלקות',       path: '/dashboard/sub-accounts', permission: 'can_manage_sub_accounts', roles: null },
-  { icon: Settings,        label: 'הגדרות',       path: '/dashboard/settings', permission: null, roles: null },
+const pathToNavKey = {
+  '/dashboard': 'overview',
+  '/dashboard/new-campaign': 'campaigns',
+  '/dashboard/audiences': 'audiences',
+  '/dashboard/events': 'events',
+  '/dashboard/promoters': 'promoters',
+  '/dashboard/staff': 'staff',
+  '/dashboard/validators': 'validators',
+  '/dashboard/inbox': 'inbox',
+  '/dashboard/assets': 'assets',
+  '/dashboard/webview': 'webview',
+  '/dashboard/flows': 'flows',
+  '/dashboard/scan-management': 'scan_management',
+  '/dashboard/pixel': 'pixel',
+  '/dashboard/reports': 'reports',
+  '/dashboard/settings': 'settings',
+  '/dashboard/sub-accounts': 'sub_accounts',
+}
+
+const DASHBOARD_NAV_BASE = [
+  { path: '/dashboard', label: 'סקירה', icon: BarChart2, permission: null },
+  { path: '/dashboard/inbox', label: 'אינבוקס', icon: MessageSquare, permission: 'can_view_inbox' },
+  { path: '/dashboard/assets', label: 'נכסים שלי', icon: Layers, permission: null },
+  { path: '/dashboard/new-campaign', label: 'קמפיין חדש', icon: Send, permission: 'can_create_campaigns' },
+  { path: '/dashboard/audiences', label: 'קהלים', icon: Users, permission: 'can_view_audiences' },
+  { path: '/dashboard/webview', label: 'Webview', icon: Globe, permission: 'can_manage_webview' },
+  { path: '/dashboard/flows', label: 'Flows', icon: GitBranch, permission: 'can_manage_flows' },
+  { path: '/dashboard/events', label: 'אירועים', icon: Calendar, permission: 'can_view_events' },
+  { path: '/dashboard/promoters', label: 'יחצ"נים', icon: Megaphone, permission: 'can_manage_promoters' },
+  { path: '/dashboard/validators', label: 'Validators', icon: QrCode, permission: 'can_manage_events' },
+  { path: '/dashboard/scan-management', label: 'עמדות סריקה', icon: ScanLine, permission: 'can_scan' },
+  { path: '/dashboard/reports', label: 'דוחות', icon: PieChart, permission: 'can_view_reports' },
+  { path: '/dashboard/staff', label: 'צוות', icon: UserCheck, permission: 'can_manage_staff' },
+  { path: '/dashboard/sub-accounts', label: 'מחלקות', icon: Building, permission: 'can_manage_sub_accounts' },
+  { path: '/dashboard/pixel', label: 'Pixel & לינקים', icon: Radio, permission: null },
+  { path: '/dashboard/settings', label: 'הגדרות', icon: Settings, permission: 'can_manage_settings' },
 ]
 
-function getVisibleNavItems(role, permissions, businessConfig) {
+function getLegacyNavForRole(role) {
   if (role === 'door_staff')
-    return ALL_NAV_ITEMS.filter(i => i.path === '/dashboard' || i.label === 'Validators')
+    return DASHBOARD_NAV_BASE.filter(i => i.path === '/dashboard' || i.path === '/dashboard/validators')
   if (role === 'bar_staff')
-    return ALL_NAV_ITEMS.filter(i => i.path === '/dashboard' || i.label === 'Validators' || i.path === '/dashboard/settings')
+    return DASHBOARD_NAV_BASE.filter(i => i.path === '/dashboard' || i.path === '/dashboard/validators' || i.path === '/dashboard/settings')
   if (role === 'viewer')
-    return ALL_NAV_ITEMS.filter(i => i.path === '/dashboard' || i.path === '/dashboard/reports' || i.path === '/dashboard/pixel')
+    return DASHBOARD_NAV_BASE.filter(i => i.path === '/dashboard' || i.path === '/dashboard/reports' || i.path === '/dashboard/pixel')
   if (role === 'promoter_manager')
-    return ALL_NAV_ITEMS.filter(i => i.path === '/dashboard' || i.path === '/dashboard/promoters')
+    return DASHBOARD_NAV_BASE.filter(i => i.path === '/dashboard' || i.path === '/dashboard/promoters')
+  return null
+}
 
-  const pathToNavKey = {
-    '/dashboard': 'overview',
-    '/dashboard/new-campaign': 'campaigns',
-    '/dashboard/audiences': 'audiences',
-    '/dashboard/events': 'events',
-    '/dashboard/promoters': 'promoters',
-    '/dashboard/staff': 'staff',
-    '/dashboard/validators': 'validators',
-    '/dashboard/inbox': 'inbox',
-    '/dashboard/assets': 'assets',
-    '/dashboard/webview': 'webview',
-    '/dashboard/flows': 'flows',
-    '/dashboard/scan-management': 'scan_management',
-    '/dashboard/pixel': 'pixel',
-    '/dashboard/reports': 'reports',
-    '/dashboard/settings': 'settings',
-    '/dashboard/sub-accounts': 'sub_accounts',
-  }
-  const byConfig = (items) => {
-    if (!businessConfig) return items
-    const allowedPaths = businessConfig.nav_items || []
-    return items.filter(item => {
-      if (item.path === '/dashboard') return true
-      if (item.path === '/dashboard/settings') return true
-      if (item.path === '/dashboard/inbox') return true
-      if (item.path === '/dashboard/webview') return true
-      if (item.path === '/dashboard/flows') return true
-      if (item.path === '/dashboard/scan-management') return true
-      if (item.path === '/dashboard/assets') return true
-      if (item.path === '/dashboard/pixel') return true
-      const key = pathToNavKey[item.path]
-      return key ? allowedPaths.includes(key) : allowedPaths.some(p => item.path.includes(p))
-    })
-  }
-
-  if (!permissions || Object.keys(permissions).length === 0)
-    return byConfig(ALL_NAV_ITEMS)
-  const permFiltered = ALL_NAV_ITEMS.filter(i => {
-    if (!i.permission) return true
-    return permissions[i.permission] === true
+function applyBusinessNavConfig(items, businessConfig) {
+  if (!businessConfig) return items
+  const allowedPaths = businessConfig.nav_items || []
+  return items.filter(item => {
+    if (item.path === '/dashboard') return true
+    if (item.path === '/dashboard/settings') return true
+    if (item.path === '/dashboard/inbox') return true
+    if (item.path === '/dashboard/webview') return true
+    if (item.path === '/dashboard/flows') return true
+    if (item.path === '/dashboard/scan-management') return true
+    if (item.path === '/dashboard/assets') return true
+    if (item.path === '/dashboard/pixel') return true
+    const key = pathToNavKey[item.path]
+    return key ? allowedPaths.includes(key) : allowedPaths.some(p => item.path.includes(p))
   })
-  return byConfig(permFiltered)
 }
 
 /* ── QR Logo (same as Header) ── */
@@ -420,8 +415,9 @@ export default function DashboardClientLayout() {
   const [dismissedNotices, setDismissedNotices] = useState(() => {
     try { return JSON.parse(sessionStorage.getItem('dismissed_notices') || '[]') } catch { return [] }
   })
-  const { role, permissions, businessId, isAxessAdmin, session, profile } = useAuth()
+  const { role, businessId, isAxessAdmin, session, profile, hasPermission, memberRole, loading: authLoading, identityReady } = useAuth()
   const navigate = useNavigate()
+  const location = useLocation()
   const [inboxUnreadCount, setInboxUnreadCount] = useState(0)
   const [notificationsUnreadCount, setNotificationsUnreadCount] = useState(0)
   const [recentNotifications, setRecentNotifications] = useState([])
@@ -526,6 +522,21 @@ export default function DashboardClientLayout() {
 
   const activeNotices = systemNotices.filter(n => !dismissedNotices.includes(n.id))
 
+  const NAV_ITEMS = useMemo(() => {
+    const legacy = getLegacyNavForRole(role)
+    const permissionFiltered =
+      legacy ?? DASHBOARD_NAV_BASE.filter((item) => !item.permission || hasPermission(item.permission))
+    return applyBusinessNavConfig(permissionFiltered, businessConfig)
+  }, [role, hasPermission, businessConfig])
+
+  useEffect(() => {
+    if (!identityReady || authLoading) return
+    if (memberRole !== 'scanner') return
+    const p = location.pathname
+    if (p === '/dashboard/scan-management' || p === '/scan-station') return
+    navigate('/scan-station', { replace: true })
+  }, [memberRole, authLoading, identityReady, navigate, location.pathname])
+
   const handleLogout = async () => {
     try {
       await supabase.auth.signOut()
@@ -536,7 +547,6 @@ export default function DashboardClientLayout() {
     }
   }
 
-  const NAV_ITEMS = getVisibleNavItems(role, permissions, businessConfig)
   const SETTINGS_PATH = '/dashboard/settings'
   const MAIN_NAV = NAV_ITEMS.filter(i => i.path !== SETTINGS_PATH)
   const SETTINGS_ITEM = NAV_ITEMS.find(i => i.path === SETTINGS_PATH)
