@@ -3,18 +3,19 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from '@/contexts/AuthContext'
 
 export function useRequirePermission(permission) {
-  const { hasPermission, loading, identityReady } = useAuth()
+  const { hasPermission, memberRole, identityReady, loading } = useAuth()
   const navigate = useNavigate()
 
   useEffect(() => {
     if (!identityReady || loading) return
-    if (permission == null || permission === undefined) return
+    // owner תמיד מורשה
+    if (memberRole === 'owner') return
     if (!hasPermission(permission)) {
       navigate('/dashboard', { replace: true })
     }
-  }, [permission, hasPermission, navigate, loading, identityReady])
+  }, [identityReady, loading, memberRole, permission])
 
-  if (!identityReady || loading) return true
-  if (permission == null || permission === undefined) return true
+  // owner תמיד true
+  if (memberRole === 'owner') return true
   return hasPermission(permission)
 }
