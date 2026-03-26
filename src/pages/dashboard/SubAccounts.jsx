@@ -8,14 +8,15 @@ import toast from 'react-hot-toast'
 const API_BASE = import.meta.env.VITE_API_URL || 'https://api.axess.pro'
 const PORTAL_BASE = 'https://axess.pro/portal'
 
-const DEPT_TYPES = [
+const BASE_DEPT_TYPES = [
   { value: 'culture', label: 'תרבות' },
   { value: 'youth', label: 'נוער' },
   { value: 'sport', label: 'ספורט' },
   { value: 'welfare', label: 'רווחה' },
   { value: 'education', label: 'חינוך' },
-  { value: 'custom', label: 'מותאם אישית' },
 ]
+
+const BASE_DEPT_TYPE_VALUES = new Set(BASE_DEPT_TYPES.map((t) => t.value))
 
 const AUDIENCE_OPTS = [
   { value: 'children', label: 'ילדים' },
@@ -35,17 +36,7 @@ const DEPT_SELECT_STYLE = {
   color: 'var(--text)',
   fontSize: 14,
   fontFamily: 'inherit',
-}
-
-const CUSTOM_TYPE_INPUT_STYLE = {
-  marginTop: 8,
-  width: '100%',
-  padding: '8px 12px',
-  borderRadius: 8,
-  border: '1px solid var(--glass-border)',
-  background: 'var(--card)',
-  color: 'var(--text)',
-  fontSize: 14,
+  cursor: 'pointer',
 }
 
 function normalizeAudienceFromApi(arr) {
@@ -104,6 +95,9 @@ export default function SubAccounts() {
   const [orgLoading, setOrgLoading] = useState(false)
 
   const [staffList, setStaffList] = useState([])
+  const [customTypes, setCustomTypes] = useState([])
+  const [showAddType, setShowAddType] = useState(false)
+  const [newTypeName, setNewTypeName] = useState('')
 
   const [poModal, setPoModal] = useState(false)
   const [poForm, setPoForm] = useState({
@@ -194,15 +188,25 @@ export default function SubAccounts() {
   const openCreate = () => {
     setEditId(null)
     setDeptForm(emptyDeptForm())
+    setCustomTypes([])
+    setShowAddType(false)
+    setNewTypeName('')
     setModalOpen(true)
   }
 
   const openEdit = (sa) => {
     const br = parseBrandingObj(sa.branding)
     setEditId(sa.id)
+    if (!BASE_DEPT_TYPE_VALUES.has(sa.department_type)) {
+      setCustomTypes([{ value: sa.department_type, label: sa.custom_type_name || sa.department_type }])
+    } else {
+      setCustomTypes([])
+    }
+    setShowAddType(false)
+    setNewTypeName('')
     setDeptForm({
       name: sa.department_name || '',
-      department_type: sa.department_type || 'custom',
+      department_type: sa.department_type || 'culture',
       custom_type_name: sa.custom_type_name || '',
       description: sa.description || '',
       target_audience: normalizeAudienceFromApi(sa.target_audience),
@@ -236,10 +240,15 @@ export default function SubAccounts() {
       const prevBranding = editId
         ? parseBrandingObj(subAccounts.find((s) => String(s.id) === String(editId))?.branding)
         : {}
+      const allTypesForSave = [...BASE_DEPT_TYPES, ...customTypes]
+      const selectedType = allTypesForSave.find((t) => t.value === deptForm.department_type)
+      const custom_type_name = BASE_DEPT_TYPE_VALUES.has(deptForm.department_type)
+        ? null
+        : (selectedType?.label || deptForm.custom_type_name?.trim() || null)
       const body = {
         name: deptForm.name.trim(),
         department_type: deptForm.department_type,
-        custom_type_name: deptForm.department_type === 'custom' ? deptForm.custom_type_name.trim() || null : null,
+        custom_type_name,
         description: deptForm.description.trim() || null,
         target_audience: deptForm.target_audience.map((v) => (v === 'seniors' ? 'veterans' : v)),
         phone: deptForm.phone.trim() || null,
@@ -439,7 +448,7 @@ export default function SubAccounts() {
           ) : (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 16 }}>
               {subAccounts.map((sa) => {
-                const typeLabel = DEPT_TYPES.find((o) => o.value === sa.department_type)?.label || sa.department_type
+                const typeLabel = BASE_DEPT_TYPES.find((o) => o.value === sa.department_type)?.label || sa.custom_type_name || sa.department_type
                 const audiences = (sa.target_audience || []).map((a) => AUDIENCE_LABELS[a] || a).filter(Boolean)
                 return (
                   <div
@@ -649,15 +658,81 @@ export default function SubAccounts() {
             <label className="label">שם מחלקה</label>
             <input className="input" style={{ marginBottom: 14 }} value={deptForm.name} onChange={(e) => setDeptForm((f) => ({ ...f, name: e.target.value }))} />
             <label className="label">סוג</label>
-            <select style={{ ...DEPT_SELECT_STYLE, marginBottom: 14 }} value={deptForm.department_type} onChange={(e) => setDeptForm((f) => ({ ...f, department_type: e.target.value }))}>
-              {DEPT_TYPES.map((t) => (
+            <select
+              style={{ ...DEPT_SELECT_STYLE, marginBottom: showAddType ? 8 : 14 }}
+              value={deptForm.department_type}
+              onChange={(e) => {
+                if (e.target.value === '__add_new__') {
+                  setShowAddType(true)
+                  return
+                }
+                setDeptForm((f) => ({ ...f, department_type: e.target.value }))
+              }}
+            >
+              {[...BASE_DEPT_TYPES, ...customTypes].map((t) => (
                 <option key={t.value} value={t.value}>
                   {t.label}
                 </option>
               ))}
+              <option value="__add_new__">+ הוסף סוג חדש...</option>
             </select>
-            {deptForm.department_type === 'custom' && (
-              <input placeholder="שם מחלקה מותאם..." style={{ ...CUSTOM_TYPE_INPUT_STYLE, marginBottom: 14 }} value={deptForm.custom_type_name} onChange={(e) => setDeptForm((f) => ({ ...f, custom_type_name: e.target.value }))} />
+            {showAddType && (
+              <div style={{ display: 'flex', gap: 8, marginBottom: 14, flexWrap: 'wrap' }}>
+                <input
+                  value={newTypeName}
+                  onChange={(e) => setNewTypeName(e.target.value)}
+                  placeholder="שם הסוג החדש (למשל: דוברות)"
+                  style={{
+                    flex: '1 1 140px',
+                    padding: '8px 12px',
+                    borderRadius: 8,
+                    border: '1px solid var(--glass-border)',
+                    background: 'var(--card)',
+                    color: 'var(--text)',
+                    fontSize: 14,
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!newTypeName.trim()) return
+                    const raw = newTypeName.trim()
+                    const newType = { value: raw.toLowerCase().replace(/\s/g, '_'), label: raw }
+                    setCustomTypes((prev) => [...prev, newType])
+                    setDeptForm((f) => ({ ...f, department_type: newType.value, custom_type_name: newType.label }))
+                    setShowAddType(false)
+                    setNewTypeName('')
+                  }}
+                  style={{
+                    padding: '8px 16px',
+                    borderRadius: 8,
+                    border: 'none',
+                    background: 'var(--primary)',
+                    color: '#fff',
+                    cursor: 'pointer',
+                    fontWeight: 600,
+                  }}
+                >
+                  הוסף
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowAddType(false)
+                    setNewTypeName('')
+                  }}
+                  style={{
+                    padding: '8px 12px',
+                    borderRadius: 8,
+                    border: '1px solid var(--glass-border)',
+                    background: 'none',
+                    color: 'var(--text)',
+                    cursor: 'pointer',
+                  }}
+                >
+                  ביטול
+                </button>
+              </div>
             )}
             <label className="label">מנהל המחלקה</label>
             <select style={{ ...DEPT_SELECT_STYLE, marginBottom: 14 }} value={deptForm.manager_user_id} onChange={(e) => setDeptForm((f) => ({ ...f, manager_user_id: e.target.value }))}>
