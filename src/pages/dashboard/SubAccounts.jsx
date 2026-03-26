@@ -27,16 +27,11 @@ const AUDIENCE_OPTS = [
   { value: 'all', label: 'כולם' },
 ]
 
-const DEPT_SELECT_STYLE = {
-  width: '100%',
-  padding: '8px 12px',
-  borderRadius: 8,
-  border: '1px solid var(--glass-border)',
-  background: 'var(--card)',
-  color: 'var(--text)',
-  fontSize: 14,
-  fontFamily: 'inherit',
-  cursor: 'pointer',
+const SELECT_STYLE = {
+  width: '100%', padding: '8px 12px', borderRadius: 8,
+  border: '1px solid var(--glass-border)', background: 'var(--card)',
+  color: 'var(--text)', fontSize: 14, fontFamily: 'inherit',
+  cursor: 'pointer', WebkitAppearance: 'none', appearance: 'none',
 }
 
 function normalizeAudienceFromApi(arr) {
@@ -659,7 +654,7 @@ export default function SubAccounts() {
             <input className="input" style={{ marginBottom: 14 }} value={deptForm.name} onChange={(e) => setDeptForm((f) => ({ ...f, name: e.target.value }))} />
             <label className="label">סוג</label>
             <select
-              style={{ ...DEPT_SELECT_STYLE, marginBottom: showAddType ? 8 : 14 }}
+              style={{ ...SELECT_STYLE, marginBottom: showAddType ? 8 : 14 }}
               value={deptForm.department_type}
               onChange={(e) => {
                 if (e.target.value === '__add_new__') {
@@ -735,7 +730,7 @@ export default function SubAccounts() {
               </div>
             )}
             <label className="label">מנהל המחלקה</label>
-            <select style={{ ...DEPT_SELECT_STYLE, marginBottom: 14 }} value={deptForm.manager_user_id} onChange={(e) => setDeptForm((f) => ({ ...f, manager_user_id: e.target.value }))}>
+            <select style={{ ...SELECT_STYLE, marginBottom: 14 }} value={deptForm.manager_user_id} onChange={(e) => setDeptForm((f) => ({ ...f, manager_user_id: e.target.value }))}>
               <option value="">— בחר מרשימת הצוות —</option>
               {staffList.map((s) => (
                 <option key={s.id} value={s.user_id || ''}>

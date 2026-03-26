@@ -13,6 +13,13 @@ import { fetchWithAuth, supabase } from '@/lib/supabase'
 const API_BASE = import.meta.env.VITE_API_URL || 'https://api.axess.pro'
 const PUBLIC_WEBVIEW_ORIGIN = 'https://axess.pro'
 
+const SELECT_STYLE = {
+  width: '100%', padding: '8px 12px', borderRadius: 8,
+  border: '1px solid var(--glass-border)', background: 'var(--card)',
+  color: 'var(--text)', fontSize: 14, fontFamily: 'inherit',
+  cursor: 'pointer', WebkitAppearance: 'none', appearance: 'none',
+}
+
 const cardStyle = {
   background: 'var(--card)',
   border: '1px solid var(--glass-border)',
@@ -763,7 +770,7 @@ export default function WebviewSettings() {
                 <label className="label">סוג עסק</label>
                 <select
                   className="input"
-                  style={{ marginTop: 6 }}
+                  style={{ ...SELECT_STYLE, marginTop: 6 }}
                   value={settingsDraft.business_type}
                   onChange={(e) => setSettingsDraft((s) => ({ ...s, business_type: e.target.value }))}
                 >

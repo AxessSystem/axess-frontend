@@ -51,6 +51,13 @@ const inputStyle = {
   fontSize: 14,
 }
 
+const SELECT_STYLE = {
+  width: '100%', padding: '8px 12px', borderRadius: 8,
+  border: '1px solid var(--glass-border)', background: 'var(--card)',
+  color: 'var(--text)', fontSize: 14, fontFamily: 'inherit',
+  cursor: 'pointer', WebkitAppearance: 'none', appearance: 'none',
+}
+
 const EXPIRE_OPTIONS = [
   { value: 6, label: '6 שעות' },
   { value: 12, label: '12 שעות' },
@@ -637,7 +644,7 @@ export default function ScanManagement() {
               <label style={{ display: 'block', marginBottom: 14 }}>
                 <span style={{ display: 'block', fontSize: 13, color: 'var(--v2-gray-400)', marginBottom: 6 }}>סוג אובייקט</span>
                 <select
-                  style={inputStyle}
+                  style={{ ...SELECT_STYLE, ...inputStyle }}
                   value={objectType}
                   onChange={(e) => {
                     const v = e.target.value
@@ -658,7 +665,7 @@ export default function ScanManagement() {
                     {objectType === 'event' ? 'אירוע' : objectType === 'validator' ? 'Validator' : 'קופון'}
                   </span>
                   <select
-                    style={inputStyle}
+                    style={{ ...SELECT_STYLE, ...inputStyle }}
                     value={objectId}
                     onChange={(e) => setObjectId(e.target.value)}
                     required

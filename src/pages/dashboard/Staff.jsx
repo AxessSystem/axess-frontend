@@ -17,6 +17,13 @@ import { useRequirePermission } from '@/hooks/useRequirePermission'
 
 const API_BASE = import.meta.env.VITE_API_URL || 'https://api.axess.pro'
 
+const SELECT_STYLE = {
+  width: '100%', padding: '8px 12px', borderRadius: 8,
+  border: '1px solid var(--glass-border)', background: 'var(--card)',
+  color: 'var(--text)', fontSize: 14, fontFamily: 'inherit',
+  cursor: 'pointer', WebkitAppearance: 'none', appearance: 'none',
+}
+
 /** Presets for invite dropdown + default permission preview */
 export const ROLE_PRESETS = [
   { value: 'owner', label: 'בעלים', color: '#eab308', permissions: { can_manage_staff: true, can_edit_events: true, can_send_campaigns: true, can_view_reports: true } },
@@ -670,15 +677,7 @@ export default function Staff() {
                 <select
                   value={inviteRole}
                   onChange={(e) => onInviteRoleChange(e.target.value)}
-                  style={{
-                    width: '100%',
-                    padding: '10px 12px',
-                    borderRadius: 8,
-                    border: '1px solid var(--glass-border)',
-                    background: 'var(--card)',
-                    color: 'var(--text)',
-                    fontSize: 14,
-                  }}
+                  style={{ ...SELECT_STYLE, padding: '10px 12px' }}
                 >
                   <option value="">בחר תפקיד</option>
                   <option value="manager">מנהל</option>

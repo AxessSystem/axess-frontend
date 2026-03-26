@@ -12,6 +12,13 @@ import toast from "react-hot-toast";
 
 const API_BASE = import.meta.env.VITE_API_URL || "https://api.axess.pro";
 
+const SELECT_STYLE = {
+  width: "100%", padding: "8px 12px", borderRadius: 8,
+  border: "1px solid var(--glass-border)", background: "var(--card)",
+  color: "var(--text)", fontSize: 14, fontFamily: "inherit",
+  cursor: "pointer", WebkitAppearance: "none", appearance: "none",
+};
+
 function formatTimestamp(iso) {
   if (!iso) return "";
   const d = new Date(iso);
@@ -301,13 +308,12 @@ function ChatSendPanel({
               if (!r.ok) toast.error("לא עודכן סטטוס");
             }}
             style={{
+              ...SELECT_STYLE,
+              width: "auto",
               padding: "2px 6px",
               borderRadius: 6,
-              border: "1px solid var(--glass-border)",
               background: "var(--v2-dark-3)",
               color: "#fff",
-              fontSize: 14,
-              fontFamily: "inherit",
             }}
           >
             <option value="online">זמין</option>
@@ -348,15 +354,13 @@ function ChatSendPanel({
           value={templateName}
           onChange={(e) => setTemplateName(e.target.value)}
           style={{
+            ...SELECT_STYLE,
             height: 36,
             padding: "0 12px",
             borderRadius: 8,
-            border: "1px solid var(--glass-border)",
             background: "var(--glass-bg)",
             color: "var(--text, #fff)",
             fontSize: 13,
-            fontFamily: "inherit",
-            width: "100%",
             boxSizing: "border-box",
           }}
         >
@@ -1389,7 +1393,7 @@ export default function Inbox({ onUnreadChange }) {
               <select
                 value={agentFilter}
                 onChange={(e) => setAgentFilter(e.target.value)}
-                style={{ marginBottom: 8, marginTop: 8, padding: "6px 10px", borderRadius: 8, background: "var(--v2-dark-2)", border: "1px solid var(--glass-border)", color: "#fff", fontSize: 12 }}
+                style={{ ...SELECT_STYLE, marginBottom: 8, marginTop: 8, padding: "6px 10px", background: "var(--v2-dark-2)", color: "#fff", fontSize: 12 }}
               >
                 <option value="">כל הנציגים</option>
                 {staff.map((s) => (

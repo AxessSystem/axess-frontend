@@ -17,6 +17,13 @@ import { fetchWithAuth, supabase } from '@/lib/supabase'
 
 const API_BASE = import.meta.env.VITE_API_URL || 'https://api.axess.pro'
 
+const SELECT_STYLE = {
+  width: '100%', padding: '8px 12px', borderRadius: 8,
+  border: '1px solid var(--glass-border)', background: 'var(--card)',
+  color: 'var(--text)', fontSize: 14, fontFamily: 'inherit',
+  cursor: 'pointer', WebkitAppearance: 'none', appearance: 'none',
+}
+
 const STEP_TYPES = [
   { type: 'message', label: '💬 הודעת טקסט', fields: ['content'] },
   { type: 'menu', label: '📋 תפריט + כפתורים', fields: ['content', 'options'] },
@@ -904,7 +911,7 @@ export default function Flows() {
                     <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                       <span style={{ fontSize: 13, color: 'var(--v2-gray-400)' }}>טריגר</span>
                       <select
-                        style={inputStyle}
+                        style={{ ...SELECT_STYLE, ...inputStyle }}
                         value={form.trigger_type}
                         onChange={(e) => setForm((p) => ({ ...p, trigger_type: e.target.value }))}
                       >
@@ -980,7 +987,7 @@ export default function Flows() {
                             <label style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 10 }}>
                               <span style={{ fontSize: 12, color: 'var(--v2-gray-400)' }}>סוג שלב</span>
                               <select
-                                style={inputStyle}
+                                style={{ ...SELECT_STYLE, ...inputStyle }}
                                 value={step.type}
                                 onChange={(e) => {
                                   const t = e.target.value
@@ -1052,7 +1059,7 @@ export default function Flows() {
                                       }}
                                     />
                                     <select
-                                      style={inputStyle}
+                                      style={{ ...SELECT_STYLE, ...inputStyle }}
                                       value={opt.next_step || ''}
                                       onChange={(e) => {
                                         const options = [...(step.options || [])]
