@@ -7,7 +7,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { Copy, MousePointerClick, Users, Eye, Link2, KeyRound, Plus } from 'lucide-react'
 import toast from 'react-hot-toast'
 
-const API_BASE = (import.meta.env.VITE_API_URL || 'https://axess-production.up.railway.app').replace(/\/$/, '')
+const API_BASE = (import.meta.env.VITE_API_URL || 'https://api.axess.pro').replace(/\/$/, '')
 const PIXEL_EMBED_HOST = (import.meta.env.VITE_PIXEL_SCRIPT_ORIGIN || 'https://api.axess.pro').replace(/\/$/, '')
 
 function copyText(text, msg = 'הועתק') {

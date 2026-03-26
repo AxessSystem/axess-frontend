@@ -278,7 +278,7 @@ export default function SeatingBuilder({ eventId, initialConfig, onSave, onCance
     if (!eventId) return
     setSaving(true)
     try {
-      const API_BASE = import.meta.env.VITE_API_URL || 'https://axess-production.up.railway.app'
+      const API_BASE = import.meta.env.VITE_API_URL || 'https://api.axess.pro'
       const config = buildConfig()
       const body = { template_type: config.template_type, seats: config.seats, zones: config.zones }
       const res = await fetch(`${API_BASE}/api/admin/events/${eventId}/seating`, {

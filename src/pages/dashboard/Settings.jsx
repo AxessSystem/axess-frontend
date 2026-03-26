@@ -8,7 +8,7 @@ import { useRequirePermission } from '@/hooks/useRequirePermission'
 import WebviewAnalytics from '@/webview/WebviewAnalytics'
 import { fetchWithAuth, supabase } from '@/lib/supabase'
 
-const API_BASE = import.meta.env.VITE_API_URL || 'https://axess-production.up.railway.app'
+const API_BASE = import.meta.env.VITE_API_URL || 'https://api.axess.pro'
 const SMS_LINK_BASE = import.meta.env.VITE_SMS_LINK_BASE || 'https://axss.me'
 
 const FEATURE_ICONS = {

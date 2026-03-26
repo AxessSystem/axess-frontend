@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip } from 'recharts'
 import { useAuth } from '@/contexts/AuthContext'
 
-const API_BASE = import.meta.env.VITE_API_URL || 'https://axess-production.up.railway.app'
+const API_BASE = import.meta.env.VITE_API_URL || 'https://api.axess.pro'
 
 export default function AdminSMS() {
   const { session } = useAuth()

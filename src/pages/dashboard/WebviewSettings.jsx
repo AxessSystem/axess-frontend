@@ -10,7 +10,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { useRequirePermission } from '@/hooks/useRequirePermission'
 import { fetchWithAuth, supabase } from '@/lib/supabase'
 
-const API_BASE = import.meta.env.VITE_API_URL || 'https://axess-production.up.railway.app'
+const API_BASE = import.meta.env.VITE_API_URL || 'https://api.axess.pro'
 const PUBLIC_WEBVIEW_ORIGIN = 'https://axess.pro'
 
 const cardStyle = {

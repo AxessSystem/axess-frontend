@@ -5,7 +5,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { Search, Tag, Users2, Trash2, RefreshCw } from 'lucide-react'
 import AdminRecipientDrawer from './AdminRecipientDrawer'
 
-const API_BASE = import.meta.env.VITE_API_URL || 'https://axess-production.up.railway.app'
+const API_BASE = import.meta.env.VITE_API_URL || 'https://api.axess.pro'
 
 function engagementBadgeColor(score) {
   const s = Number(score || 0)

@@ -5,7 +5,7 @@ import toast from 'react-hot-toast'
 import SeatingModal from '../components/SeatingModal'
 import Tooltip from '../components/ui/Tooltip'
 
-const API_BASE = import.meta.env.VITE_API_URL || 'https://axess-production.up.railway.app'
+const API_BASE = import.meta.env.VITE_API_URL || 'https://api.axess.pro'
 
 export default function EventPage() {
   const { slug } = useParams()

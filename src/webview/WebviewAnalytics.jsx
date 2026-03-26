@@ -20,7 +20,7 @@ export default function WebviewAnalyticsTab({ businessId, authHeaders }) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
-  const API_BASE = import.meta.env.VITE_API_URL || 'https://axess-production.up.railway.app'
+  const API_BASE = import.meta.env.VITE_API_URL || 'https://api.axess.pro'
 
   useEffect(() => {
     if (!businessId || !authHeaders) return

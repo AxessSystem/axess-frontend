@@ -2,7 +2,7 @@ import { useState, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Upload, X, FileText, Check, ArrowRight, Download, AlertTriangle, XCircle } from 'lucide-react'
 
-const API_BASE = import.meta.env.VITE_API_URL || 'https://axess-production.up.railway.app'
+const API_BASE = import.meta.env.VITE_API_URL || 'https://api.axess.pro'
 const MAP_OPTIONS = [
   { value: 'phone', label: 'טלפון' },
   { value: 'first_name', label: 'שם פרטי' },

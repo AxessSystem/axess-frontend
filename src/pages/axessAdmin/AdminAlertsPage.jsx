@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { AlertCircle, AlertTriangle, CheckCircle2, ClipboardList, CircleHelp, CreditCard, XCircle } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 
-const API_BASE = import.meta.env.VITE_API_URL || 'https://axess-production.up.railway.app'
+const API_BASE = import.meta.env.VITE_API_URL || 'https://api.axess.pro'
 
 const typeIcon = {
   error: XCircle,

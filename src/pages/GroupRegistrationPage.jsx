@@ -3,7 +3,7 @@ import { useParams, Link } from 'react-router-dom'
 import { Loader2, ArrowRight } from 'lucide-react'
 import toast from 'react-hot-toast'
 
-const API_BASE = import.meta.env.VITE_API_URL || 'https://axess-production.up.railway.app'
+const API_BASE = import.meta.env.VITE_API_URL || 'https://api.axess.pro'
 
 const CONTACT_ROLES = [
   { value: 'מורה', label: 'מורה' },

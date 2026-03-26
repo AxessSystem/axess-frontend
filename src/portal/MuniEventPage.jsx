@@ -16,7 +16,7 @@ import {
 } from 'lucide-react'
 import { COLORS, MUNI_CATEGORIES } from './MuniPortal'
 
-const API_BASE = import.meta.env.VITE_API_URL || 'https://axess-production.up.railway.app'
+const API_BASE = import.meta.env.VITE_API_URL || 'https://api.axess.pro'
 
 const inputStyle = {
   width: '100%',

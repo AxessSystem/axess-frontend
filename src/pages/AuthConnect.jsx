@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { Shield, Lock, Zap } from 'lucide-react'
 
-const API_BASE = (import.meta.env.VITE_API_URL || 'https://axess-production.up.railway.app').replace(/\/$/, '')
+const API_BASE = (import.meta.env.VITE_API_URL || 'https://api.axess.pro').replace(/\/$/, '')
 
 /** אייקון QR — כמו ב-Login.jsx (בלי טקסט AXESS) */
 function QRLogo({ size = 40 }) {

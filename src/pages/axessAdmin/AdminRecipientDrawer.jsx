@@ -4,7 +4,7 @@ import toast from 'react-hot-toast'
 import { AnimatePresence, motion } from 'framer-motion'
 import { Phone, X, Clock, MapPin } from 'lucide-react'
 
-const API_BASE = import.meta.env.VITE_API_URL || 'https://axess-production.up.railway.app'
+const API_BASE = import.meta.env.VITE_API_URL || 'https://api.axess.pro'
 
 function initialsFromName(firstName, lastName) {
   const name = [firstName, lastName].filter(Boolean).join(' ').trim()

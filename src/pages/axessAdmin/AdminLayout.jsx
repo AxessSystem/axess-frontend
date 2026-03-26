@@ -22,7 +22,7 @@ import {
 import { useAuth } from '@/contexts/AuthContext'
 import { useEffect } from 'react'
 
-const API_BASE = import.meta.env.VITE_API_URL || 'https://axess-production.up.railway.app'
+const API_BASE = import.meta.env.VITE_API_URL || 'https://api.axess.pro'
 
 const NAV_ITEMS = [
   { icon: LayoutDashboard, label: 'סקירה', path: '/axess-admin' },

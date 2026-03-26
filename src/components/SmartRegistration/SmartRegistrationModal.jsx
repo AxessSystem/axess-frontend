@@ -26,7 +26,7 @@ export default function SmartRegistrationModal({
   event,
   ticketTypes = [],
   externalUrl,
-  apiBase = import.meta.env.VITE_API_URL || 'https://axess-production.up.railway.app',
+  apiBase = import.meta.env.VITE_API_URL || 'https://api.axess.pro',
   cssVars = {},
 }) {
   const flow = externalUrl ? 'external' : ticketTypes.length > 0 ? 'checkout' : 'redirect'

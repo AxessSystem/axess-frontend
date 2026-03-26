@@ -3,7 +3,7 @@ import { useParams, Link } from 'react-router-dom'
 import { Loader2, Users, Plus, Send, CheckCircle } from 'lucide-react'
 import toast from 'react-hot-toast'
 
-const API_BASE = import.meta.env.VITE_API_URL || 'https://axess-production.up.railway.app'
+const API_BASE = import.meta.env.VITE_API_URL || 'https://api.axess.pro'
 
 export default function GroupManagementPage() {
   const { code } = useParams()

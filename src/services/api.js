@@ -1,7 +1,7 @@
 import toast from 'react-hot-toast'
 import { supabase } from '@/lib/supabase'
 
-const BASE = import.meta.env.VITE_API_URL || 'https://axess-production.up.railway.app'
+const BASE = import.meta.env.VITE_API_URL || 'https://api.axess.pro'
 
 /* ── Generic fetch with retry + error handling ── */
 async function apiFetch(path, options = {}, retries = 2) {

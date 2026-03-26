@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
 
-const API_BASE = import.meta.env.VITE_API_URL || 'https://axess-production.up.railway.app/api'
+const API_BASE = import.meta.env.VITE_API_URL || 'https://api.axess.pro/api'
 
 // ─── CTA action resolver ──────────────────────────────────────────────────────
 function resolveCTAHref(action, value) {
