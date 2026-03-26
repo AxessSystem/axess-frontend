@@ -142,10 +142,11 @@ export default function Staff() {
   const [logFilterTo, setLogFilterTo] = useState('')
 
   const authHeaders = useCallback(() => {
-    const h = { 'Content-Type': 'application/json', 'X-Business-Id': businessId }
+    const h = { 'Content-Type': 'application/json' }
     if (session?.access_token) h.Authorization = `Bearer ${session.access_token}`
+    if (businessId) h['X-Business-Id'] = businessId
     return h
-  }, [businessId, session?.access_token])
+  }, [session, businessId])
 
   const loadStaff = useCallback(() => {
     if (!businessId) return
