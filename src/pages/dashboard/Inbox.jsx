@@ -750,6 +750,9 @@ export default function Inbox({ onUnreadChange }) {
   const [queues, setQueues] = useState([]);
   const [agents, setAgents] = useState([]);
   const [agentOnline, setAgentOnline] = useState(true);
+  const [isMobile, setIsMobile] = useState(() =>
+    typeof window !== "undefined" && window.matchMedia("(max-width: 768px)").matches,
+  );
 
   const isSupervisor = role === "owner" || role === "manager";
 
@@ -765,6 +768,14 @@ export default function Inbox({ onUnreadChange }) {
     await supabase.auth.signOut();
     navigate("/login");
   };
+
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 768px)");
+    const onChange = () => setIsMobile(mq.matches);
+    onChange();
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
+  }, []);
 
   useEffect(() => {
     const state = location.state || {};
@@ -1101,9 +1112,8 @@ export default function Inbox({ onUnreadChange }) {
         @keyframes spin { to { transform: rotate(360deg); } }
         @media (max-width: 768px) {
           .inbox-unified { flex-direction: column; height: auto; min-height: 100vh; }
-          .inbox-unified-row { flex-direction: column; }
-          .inbox-list { width: 100%; max-height: 40vh; }
-          .inbox-chat { display: ${selectedConv ? "flex" : "none"}; }
+          .inbox-unified-row { flex-direction: column; flex: 1; min-height: 0; }
+          .inbox-list { width: 100%; max-height: none; }
           .inbox-chat-back { display: flex; }
         }
       `}</style>
@@ -1326,7 +1336,15 @@ export default function Inbox({ onUnreadChange }) {
           </div>
         ) : (
         <div className="inbox-unified-row">
-        <div className="inbox-list">
+        <div
+          className="inbox-list"
+          style={{
+            height: "100%",
+            overflowY: "auto",
+            display: selectedConv && isMobile ? "none" : "flex",
+            flexDirection: "column",
+          }}
+        >
           <div className="inbox-list-header">
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
               <h2 style={{ margin: 0, fontSize: 18 }}>אינבוקס מאוחד</h2>
@@ -1473,7 +1491,14 @@ export default function Inbox({ onUnreadChange }) {
           </div>
         </div>
 
-        <div className="inbox-chat">
+        <div
+          className="inbox-chat"
+          style={{
+            height: "100%",
+            display: !selectedConv && isMobile ? "none" : "flex",
+            flexDirection: "column",
+          }}
+        >
           {selectedConv ? (
             <>
               <div className="inbox-chat-main">

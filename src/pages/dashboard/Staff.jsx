@@ -10,6 +10,7 @@ import {
   Mail,
   MessageCircle,
   Filter,
+  X,
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useAuth } from '@/contexts/AuthContext'
@@ -17,6 +18,21 @@ import { useRequirePermission } from '@/hooks/useRequirePermission'
 import CustomSelect from '@/components/ui/CustomSelect'
 
 const API_BASE = import.meta.env.VITE_API_URL || 'https://api.axess.pro'
+
+const MODAL_CLOSE_X = {
+  position: 'absolute',
+  top: 12,
+  left: 12,
+  background: 'none',
+  border: 'none',
+  cursor: 'pointer',
+  color: 'var(--v2-gray-400)',
+  padding: 4,
+  borderRadius: 6,
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+}
 
 const SELECT_STYLE = {
   width: '100%', padding: '8px 12px', borderRadius: 8,
@@ -660,9 +676,12 @@ export default function Staff() {
         >
           <div
             dir="rtl"
-            style={{ background: 'var(--v2-dark-3)', border: '1px solid var(--glass-border)', borderRadius: 'var(--radius-lg)', padding: 24, maxWidth: 480, width: '100%', maxHeight: '90vh', overflow: 'auto' }}
+            style={{ position: 'relative', background: 'var(--v2-dark-3)', border: '1px solid var(--glass-border)', borderRadius: 'var(--radius-lg)', padding: 24, maxWidth: 480, width: '100%', maxHeight: '90vh', overflow: 'auto' }}
             onClick={(e) => e.stopPropagation()}
           >
+            <button type="button" onClick={() => !submitting && setInviteOpen(false)} style={MODAL_CLOSE_X} aria-label="סגור">
+              <X size={20} />
+            </button>
             <h3 style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontWeight: 700, fontSize: 18, marginBottom: 16 }}>הזמנת איש צוות</h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
               <div>
@@ -805,7 +824,10 @@ export default function Staff() {
           style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}
           onClick={() => !submitting && setEditMember(null)}
         >
-          <div dir="rtl" style={{ background: 'var(--v2-dark-3)', border: '1px solid var(--glass-border)', borderRadius: 'var(--radius-lg)', padding: 24, maxWidth: 400, width: '100%' }} onClick={(e) => e.stopPropagation()}>
+          <div dir="rtl" style={{ position: 'relative', background: 'var(--v2-dark-3)', border: '1px solid var(--glass-border)', borderRadius: 'var(--radius-lg)', padding: 24, maxWidth: 400, width: '100%' }} onClick={(e) => e.stopPropagation()}>
+            <button type="button" onClick={() => !submitting && setEditMember(null)} style={MODAL_CLOSE_X} aria-label="סגור">
+              <X size={20} />
+            </button>
             <h3 style={{ fontWeight: 700, fontSize: 18, marginBottom: 16 }}>עריכת חבר צוות</h3>
             <label className="label">תפקיד</label>
             <CustomSelect

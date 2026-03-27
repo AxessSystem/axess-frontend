@@ -12,6 +12,21 @@ import CustomSelect from '@/components/ui/CustomSelect'
 const API_BASE = import.meta.env.VITE_API_URL || 'https://api.axess.pro'
 const SMS_LINK_BASE = import.meta.env.VITE_SMS_LINK_BASE || 'https://axss.me'
 
+const MODAL_CLOSE_X = {
+  position: 'absolute',
+  top: 12,
+  left: 12,
+  background: 'none',
+  border: 'none',
+  cursor: 'pointer',
+  color: 'var(--v2-gray-400)',
+  padding: 4,
+  borderRadius: 6,
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+}
+
 const FEATURE_ICONS = {
   events: Calendar,
   tables: LayoutGrid,
@@ -148,7 +163,10 @@ function LinksTab({ businessId }) {
 
       {modalOpen && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={() => setModalOpen(false)}>
-          <div dir="rtl" style={{ background: 'var(--v2-dark-2)', borderRadius: 'var(--radius-lg)', padding: 24, maxWidth: 420, width: '90%' }} onClick={e => e.stopPropagation()}>
+          <div dir="rtl" style={{ position: 'relative', background: 'var(--v2-dark-2)', borderRadius: 'var(--radius-lg)', padding: 24, maxWidth: 420, width: '90%' }} onClick={e => e.stopPropagation()}>
+            <button type="button" onClick={() => setModalOpen(false)} style={MODAL_CLOSE_X} aria-label="סגור">
+              <X size={20} />
+            </button>
             <h3 style={{ marginBottom: 16 }}>צור לינק חדש</h3>
             {!createdLink ? (
               <>
@@ -529,7 +547,10 @@ function WhatsAppTab({ businessId, session }) {
           <button onClick={() => setRuleModal(true)} className="btn-primary">+ הוסף כלל</button>
           {ruleModal && (
             <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={() => setRuleModal(false)}>
-              <div dir="rtl" style={{ background: 'var(--v2-dark-2)', borderRadius: 'var(--radius-lg)', padding: 24, maxWidth: 420, width: '90%' }} onClick={e => e.stopPropagation()}>
+              <div dir="rtl" style={{ position: 'relative', background: 'var(--v2-dark-2)', borderRadius: 'var(--radius-lg)', padding: 24, maxWidth: 420, width: '90%' }} onClick={e => e.stopPropagation()}>
+                <button type="button" onClick={() => setRuleModal(false)} style={MODAL_CLOSE_X} aria-label="סגור">
+                  <X size={20} />
+                </button>
                 <h3 style={{ marginBottom: 16 }}>כלל ניתוב חדש</h3>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                   <div><label className="label">סוג</label><CustomSelect value={ruleForm.rule_type} onChange={(val) => setRuleForm(f => ({ ...f, rule_type: val }))} options={[{ value: 'keyword', label: 'מילת מפתח' }, { value: 'department', label: 'מחלקה' }, { value: 'phone_number', label: 'מספר טלפון' }, { value: 'default', label: 'ברירת מחדל' }]} /></div>
@@ -575,7 +596,10 @@ function WhatsAppTab({ businessId, session }) {
 
           {flowCreateModal && (
             <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }} onClick={() => !flowCreateBusy && setFlowCreateModal(false)}>
-              <div dir="rtl" style={{ background: 'var(--v2-dark-2)', borderRadius: 'var(--radius-lg)', padding: 24, maxWidth: 480, width: '100%', maxHeight: '90vh', overflowY: 'auto', border: '1px solid var(--glass-border)' }} onClick={e => e.stopPropagation()}>
+              <div dir="rtl" style={{ position: 'relative', background: 'var(--v2-dark-2)', borderRadius: 'var(--radius-lg)', padding: 24, maxWidth: 480, width: '100%', maxHeight: '90vh', overflowY: 'auto', border: '1px solid var(--glass-border)' }} onClick={e => e.stopPropagation()}>
+                <button type="button" onClick={() => !flowCreateBusy && setFlowCreateModal(false)} style={MODAL_CLOSE_X} aria-label="סגור">
+                  <X size={20} />
+                </button>
                 <h3 style={{ marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}><Workflow size={20} /> צור Flow חדש — שלב {flowCreateStep}/3</h3>
                 {flowCreateStep === 1 && (
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: 12 }}>
@@ -644,7 +668,10 @@ function WhatsAppTab({ businessId, session }) {
 
           {flowSendModal && (
             <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 101, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }} onClick={() => !flowSendBusy && setFlowSendModal(null)}>
-              <div dir="rtl" style={{ background: 'var(--v2-dark-2)', borderRadius: 'var(--radius-lg)', padding: 24, maxWidth: 420, width: '100%', border: '1px solid var(--glass-border)' }} onClick={e => e.stopPropagation()}>
+              <div dir="rtl" style={{ position: 'relative', background: 'var(--v2-dark-2)', borderRadius: 'var(--radius-lg)', padding: 24, maxWidth: 420, width: '100%', border: '1px solid var(--glass-border)' }} onClick={e => e.stopPropagation()}>
+                <button type="button" onClick={() => !flowSendBusy && setFlowSendModal(null)} style={MODAL_CLOSE_X} aria-label="סגור">
+                  <X size={20} />
+                </button>
                 <h3 style={{ marginBottom: 16 }}>שלח Flow — {flowSendModal.display_name || flowSendModal.flow_name}</h3>
                 <div style={{ marginBottom: 12 }}>
                   <label className="label">טלפונים (מופרדים בפסיק או שורה)</label>
@@ -727,7 +754,10 @@ function AccountChangeModal({ type, onClose, updateUser, toE164 }) {
 
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={onClose}>
-      <div dir="rtl" style={{ background: 'var(--v2-dark-3)', border: '1px solid var(--glass-border)', borderRadius: 'var(--radius-lg)', padding: 24, maxWidth: 360, width: '90%' }} onClick={e => e.stopPropagation()}>
+      <div dir="rtl" style={{ position: 'relative', background: 'var(--v2-dark-3)', border: '1px solid var(--glass-border)', borderRadius: 'var(--radius-lg)', padding: 24, maxWidth: 360, width: '90%' }} onClick={e => e.stopPropagation()}>
+        <button type="button" onClick={onClose} style={MODAL_CLOSE_X} aria-label="סגור">
+          <X size={20} />
+        </button>
         <h3 style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontWeight: 700, fontSize: 18, marginBottom: 16 }}>שינוי {isPhone ? 'טלפון' : 'מייל'}</h3>
         <input
           className="input"
@@ -856,7 +886,10 @@ function BusinessTypeTab({ businessId, config, onConfigChange }) {
 
       {changeModalOpen && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', overflowY: 'auto', padding: 24 }} onClick={() => setChangeModalOpen(false)}>
-          <div dir="rtl" style={{ background: 'var(--v2-dark-2)', border: '1px solid var(--glass-border)', borderRadius: 'var(--radius-lg)', padding: 24, maxWidth: 560, width: '100%', maxHeight: '90vh', overflowY: 'auto' }} onClick={e => e.stopPropagation()}>
+          <div dir="rtl" style={{ position: 'relative', background: 'var(--v2-dark-2)', border: '1px solid var(--glass-border)', borderRadius: 'var(--radius-lg)', padding: 24, maxWidth: 560, width: '100%', maxHeight: '90vh', overflowY: 'auto' }} onClick={e => e.stopPropagation()}>
+            <button type="button" onClick={() => setChangeModalOpen(false)} style={MODAL_CLOSE_X} aria-label="סגור">
+              <X size={20} />
+            </button>
             <h3 style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontWeight: 700, fontSize: 20, marginBottom: 8 }}>שנה סוג עסק</h3>
             <p style={{ color: 'var(--v2-gray-400)', fontSize: 14, marginBottom: 16 }}>
               שינוי סוג העסק ישנה את הלשוניות הזמינות בדשבורד.

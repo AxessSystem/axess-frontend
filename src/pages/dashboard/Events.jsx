@@ -12,6 +12,21 @@ import CustomSelect from '@/components/ui/CustomSelect'
 const API_BASE = import.meta.env.VITE_API_URL || 'https://api.axess.pro'
 const FRONTEND_URL = import.meta.env.VITE_FRONTEND_URL || window.location.origin
 
+const MODAL_CLOSE_X = {
+  position: 'absolute',
+  top: 12,
+  left: 12,
+  background: 'none',
+  border: 'none',
+  cursor: 'pointer',
+  color: 'var(--v2-gray-400)',
+  padding: 4,
+  borderRadius: 6,
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+}
+
 function MenuBuilderModal({ businessId, onClose }) {
   const [name, setName] = useState('')
   const [categories, setCategories] = useState([{ name: '', items: [] }])
@@ -45,6 +60,9 @@ function MenuBuilderModal({ businessId, onClose }) {
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={onClose}>
       <div style={{ position: 'relative', zIndex: 301, background: 'var(--v2-dark-2)', borderRadius: 'var(--radius-lg)', padding: 32, maxWidth: 500, width: '90%', maxHeight: '90vh', overflowY: 'auto' }} onClick={e => e.stopPropagation()} dir="rtl">
+        <button type="button" onClick={onClose} style={MODAL_CLOSE_X} aria-label="סגור">
+          <X size={20} />
+        </button>
         <h3 style={{ marginBottom: 20 }}>צור תפריט חדש</h3>
         <input value={name} onChange={e => setName(e.target.value)} placeholder="שם התפריט" style={{ width: '100%', padding: 12, marginBottom: 20, borderRadius: 12, border: '1px solid var(--glass-border)', background: 'var(--v2-dark-3)', color: '#fff' }} />
         {categories.map((cat, ci) => (
@@ -119,10 +137,12 @@ function FloorStatusModal({ event, onClose }) {
 
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 55 }} onClick={onClose}>
-      <div style={{ background: 'var(--v2-dark-2)', borderRadius: 'var(--radius-lg)', padding: 24, maxWidth: 700, width: '95%', maxHeight: '90vh', overflowY: 'auto' }} onClick={e => e.stopPropagation()} dir="rtl">
+      <div style={{ position: 'relative', background: 'var(--v2-dark-2)', borderRadius: 'var(--radius-lg)', padding: 24, maxWidth: 700, width: '95%', maxHeight: '90vh', overflowY: 'auto' }} onClick={e => e.stopPropagation()} dir="rtl">
+        <button type="button" onClick={onClose} style={MODAL_CLOSE_X} aria-label="סגור">
+          <X size={20} />
+        </button>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
           <h2 style={{ fontSize: 20, fontWeight: 700 }}>ניהול ערב — {event.title}</h2>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--v2-gray-400)', cursor: 'pointer', fontSize: 18 }}>×</button>
         </div>
         <div style={{ display: 'flex', gap: 16, marginBottom: 20, flexWrap: 'wrap', fontSize: 14 }}>
           <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><span style={{ width: 10, height: 10, borderRadius: '50%', background: FLOOR_STATUS_COLORS.arrived }} /> הגיעו: {counters.arrived}</span>
@@ -391,7 +411,10 @@ function PromotersModal({ event, businessId, onClose, embedded }) {
         {/* Stats modal */}
         {statsModal && (
           <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 60 }} onClick={() => setStatsModal(null)}>
-            <div style={{ background: 'var(--v2-dark-2)', borderRadius: 'var(--radius-lg)', padding: 24, maxWidth: 400, width: '90%' }} onClick={e => e.stopPropagation()} dir="rtl">
+            <div style={{ position: 'relative', background: 'var(--v2-dark-2)', borderRadius: 'var(--radius-lg)', padding: 24, maxWidth: 400, width: '90%' }} onClick={e => e.stopPropagation()} dir="rtl">
+              <button type="button" onClick={() => setStatsModal(null)} style={MODAL_CLOSE_X} aria-label="סגור">
+                <X size={20} />
+              </button>
               <h3 style={{ marginBottom: 16 }}>סטטיסטיקות — {statsModal.promoter_name}</h3>
               {statsData && (
                 <>
@@ -412,7 +435,12 @@ function PromotersModal({ event, businessId, onClose, embedded }) {
   if (embedded) return content
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 55 }} onClick={onClose}>
-      <div onClick={e => e.stopPropagation()}>{content}</div>
+      <div style={{ position: 'relative' }} onClick={e => e.stopPropagation()}>
+        <button type="button" onClick={onClose} style={MODAL_CLOSE_X} aria-label="סגור">
+          <X size={20} />
+        </button>
+        {content}
+      </div>
     </div>
   )
 }
@@ -695,6 +723,9 @@ function LayoutBuilderModal({ businessId, onClose }) {
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={onClose}>
       <div style={{ position: 'relative', zIndex: 301, background: 'var(--v2-dark-2)', borderRadius: 'var(--radius-lg)', padding: 32, maxWidth: 600, width: '90%', maxHeight: '90vh', overflowY: 'auto' }} onClick={e => e.stopPropagation()} dir="rtl">
+        <button type="button" onClick={onClose} style={MODAL_CLOSE_X} aria-label="סגור">
+          <X size={20} />
+        </button>
         <h3 style={{ marginBottom: 16 }}>צור סקיצה חדשה</h3>
         <input value={name} onChange={e => setName(e.target.value)} placeholder="שם הסקיצה (למשל: תצורת שולחנות VIP)" style={{ width: '100%', padding: 12, marginBottom: 20, borderRadius: 12, border: '1px solid var(--glass-border)', background: 'var(--v2-dark-3)', color: '#fff' }} />
         <SeatingBuilder eventId={null} initialConfig={config} onSave={(cfg) => handleSave(cfg)} onCancel={onClose} />
@@ -1193,6 +1224,9 @@ export default function Events() {
       {wizardOpen && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 199 }} onClick={requestCloseWizard}>
           <div style={{ position: 'fixed', inset: 0, zIndex: 200, display: 'flex', flexDirection: 'column', background: 'var(--v2-dark)', overflow: 'hidden' }} onClick={e => e.stopPropagation()}>
+            <button type="button" onClick={requestCloseWizard} style={MODAL_CLOSE_X} aria-label="סגור">
+              <X size={20} />
+            </button>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 16px 0', marginBottom: 8 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                 <h2 style={{ fontSize: 20, fontWeight: 700, margin: 0 }}>צור אירוע חדש</h2>
@@ -1202,7 +1236,6 @@ export default function Events() {
                   </span>
                 )}
               </div>
-              <button onClick={requestCloseWizard} style={{ background: 'transparent', border: 'none', color: 'var(--v2-gray-400)', cursor: 'pointer', padding: 8 }} aria-label="סגור"><X size={24} /></button>
             </div>
             <div style={{ display: 'flex', gap: 8, marginBottom: 24, flexWrap: 'wrap', fontSize: 12, padding: '0 16px' }}>
               {wizardSteps.map((s, i) => (
@@ -1503,7 +1536,10 @@ export default function Events() {
       {/* Close wizard confirmation modal */}
       {closeWizardModalOpen && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 250 }} onClick={e => e.target === e.currentTarget && setCloseWizardModalOpen(false)}>
-          <div style={{ background: 'var(--v2-dark-2)', borderRadius: 'var(--radius-lg)', padding: 32, maxWidth: 360, textAlign: 'center' }} onClick={e => e.stopPropagation()} dir="rtl">
+          <div style={{ position: 'relative', background: 'var(--v2-dark-2)', borderRadius: 'var(--radius-lg)', padding: 32, maxWidth: 360, textAlign: 'center' }} onClick={e => e.stopPropagation()} dir="rtl">
+            <button type="button" onClick={() => setCloseWizardModalOpen(false)} style={MODAL_CLOSE_X} aria-label="סגור">
+              <X size={20} />
+            </button>
             <div style={{ fontSize: 36, marginBottom: 12 }}>💾</div>
             <h3 style={{ marginBottom: 8 }}>האירוע נשמר כטיוטה</h3>
             <p style={{ color: 'var(--v2-gray-400)', fontSize: 14, marginBottom: 20 }}>תמצא אותו בקטע הטיוטות</p>
@@ -1515,7 +1551,10 @@ export default function Events() {
       {/* Draft delete confirm */}
       {draftDeleteConfirm && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 60 }} onClick={() => setDraftDeleteConfirm(null)}>
-          <div style={{ background: 'var(--v2-dark-2)', borderRadius: 'var(--radius-lg)', padding: 32, maxWidth: 360 }} onClick={e => e.stopPropagation()} dir="rtl">
+          <div style={{ position: 'relative', background: 'var(--v2-dark-2)', borderRadius: 'var(--radius-lg)', padding: 32, maxWidth: 360 }} onClick={e => e.stopPropagation()} dir="rtl">
+            <button type="button" onClick={() => setDraftDeleteConfirm(null)} style={MODAL_CLOSE_X} aria-label="סגור">
+              <X size={20} />
+            </button>
             <h3 style={{ marginBottom: 12 }}>למחוק טיוטה זו?</h3>
             <div style={{ display: 'flex', gap: 12 }}>
               <button onClick={() => setDraftDeleteConfirm(null)} style={{ flex: 1, padding: 14, background: 'var(--v2-dark-3)', border: '1px solid var(--glass-border)', borderRadius: 12, color: '#fff', cursor: 'pointer' }}>ביטול</button>
@@ -1543,7 +1582,10 @@ export default function Events() {
       {/* Publish success modal */}
       {publishSuccessEvent && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 60 }} onClick={() => setPublishSuccessEvent(null)}>
-          <div style={{ background: 'var(--v2-dark-2)', borderRadius: 'var(--radius-lg)', padding: 32, maxWidth: 420, textAlign: 'center' }} onClick={e => e.stopPropagation()}>
+          <div style={{ position: 'relative', background: 'var(--v2-dark-2)', borderRadius: 'var(--radius-lg)', padding: 32, maxWidth: 420, textAlign: 'center' }} onClick={e => e.stopPropagation()}>
+            <button type="button" onClick={() => setPublishSuccessEvent(null)} style={MODAL_CLOSE_X} aria-label="סגור">
+              <X size={20} />
+            </button>
             <div style={{ fontSize: 48, marginBottom: 16 }}>🎉</div>
             <h2 style={{ fontSize: 22, fontWeight: 700, marginBottom: 12 }}>האירוע פורסם!</h2>
             <div style={{ color: 'var(--v2-gray-400)', marginBottom: 16, fontSize: 14 }}>קישור לשיתוף:</div>
@@ -1587,7 +1629,10 @@ export default function Events() {
       {/* Delete confirm */}
       {deleteConfirm && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 60 }} onClick={() => setDeleteConfirm(null)}>
-          <div style={{ background: 'var(--v2-dark-2)', borderRadius: 'var(--radius-lg)', padding: 32, maxWidth: 380 }} onClick={e => e.stopPropagation()}>
+          <div style={{ position: 'relative', background: 'var(--v2-dark-2)', borderRadius: 'var(--radius-lg)', padding: 32, maxWidth: 380 }} onClick={e => e.stopPropagation()}>
+            <button type="button" onClick={() => setDeleteConfirm(null)} style={MODAL_CLOSE_X} aria-label="סגור">
+              <X size={20} />
+            </button>
             <h3 style={{ marginBottom: 12 }}>מחק אירוע?</h3>
             <p style={{ color: 'var(--v2-gray-400)', marginBottom: 24 }}>"{deleteConfirm.title}" — פעולה זו לא ניתנת לביטול.</p>
             <div style={{ display: 'flex', gap: 12 }}>
@@ -1614,6 +1659,7 @@ export default function Events() {
         >
           <div
             style={{
+              position: 'relative',
               background: 'var(--v2-dark-2)',
               borderRadius: 'var(--radius-lg)',
               padding: 32,
@@ -1624,6 +1670,14 @@ export default function Events() {
             }}
             onClick={e => e.stopPropagation()}
           >
+            <button
+              type="button"
+              onClick={() => { setStaffModalEvent(null); setNewTokenResult(null) }}
+              style={MODAL_CLOSE_X}
+              aria-label="סגור"
+            >
+              <X size={20} />
+            </button>
             <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 8 }}>🔑 עמדות סריקה — {staffModalEvent.title}</h2>
             <div style={{ color: 'var(--v2-gray-400)', fontSize: 14, marginBottom: 24 }}>צור לינקים לעמדות סריקה בודדות (כניסה ראשית, בר, VIP וכו׳)</div>
 

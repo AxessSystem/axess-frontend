@@ -2,11 +2,26 @@ import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '@/contexts/AuthContext'
 import { useRequirePermission } from '@/hooks/useRequirePermission'
-import { Building2, Plus, Users, Calendar, Pencil, Copy, Globe, Save, Settings2, ClipboardList } from 'lucide-react'
+import { Building2, Plus, Users, Calendar, Pencil, Copy, Globe, Save, Settings2, ClipboardList, X } from 'lucide-react'
 import toast from 'react-hot-toast'
 import CustomSelect from '@/components/ui/CustomSelect'
 
 const API_BASE = import.meta.env.VITE_API_URL || 'https://api.axess.pro'
+
+const MODAL_CLOSE_X = {
+  position: 'absolute',
+  top: 12,
+  left: 12,
+  background: 'none',
+  border: 'none',
+  cursor: 'pointer',
+  color: 'var(--v2-gray-400)',
+  padding: 4,
+  borderRadius: 6,
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+}
 const PORTAL_BASE = 'https://axess.pro/portal'
 
 const BASE_DEPT_TYPES = [
@@ -649,7 +664,10 @@ export default function SubAccounts() {
 
       {modalOpen && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100, padding: 16 }} onClick={() => !submitting && setModalOpen(false)}>
-          <div style={{ background: 'var(--v2-dark-2)', borderRadius: 'var(--radius-lg)', padding: 28, maxWidth: 480, width: '100%', maxHeight: '90vh', overflow: 'auto', border: '1px solid var(--glass-border)' }} onClick={(e) => e.stopPropagation()} dir="rtl">
+          <div style={{ position: 'relative', background: 'var(--v2-dark-2)', borderRadius: 'var(--radius-lg)', padding: 28, maxWidth: 480, width: '100%', maxHeight: '90vh', overflow: 'auto', border: '1px solid var(--glass-border)' }} onClick={(e) => e.stopPropagation()} dir="rtl">
+            <button type="button" onClick={() => !submitting && setModalOpen(false)} style={MODAL_CLOSE_X} aria-label="סגור">
+              <X size={20} />
+            </button>
             <h3 style={{ marginBottom: 20, fontFamily: "'Bricolage Grotesque', sans-serif", fontWeight: 800 }}>{editId ? 'עריכת מחלקה' : 'מחלקה חדשה'}</h3>
             <label className="label">שם מחלקה</label>
             <input className="input" style={{ marginBottom: 14 }} value={deptForm.name} onChange={(e) => setDeptForm((f) => ({ ...f, name: e.target.value }))} />
@@ -784,7 +802,10 @@ export default function SubAccounts() {
 
       {poModal && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100, padding: 16 }} onClick={() => !submitting && setPoModal(false)}>
-          <div style={{ background: 'var(--v2-dark-2)', borderRadius: 'var(--radius-lg)', padding: 28, maxWidth: 440, width: '100%', border: '1px solid var(--glass-border)' }} onClick={(e) => e.stopPropagation()} dir="rtl">
+          <div style={{ position: 'relative', background: 'var(--v2-dark-2)', borderRadius: 'var(--radius-lg)', padding: 28, maxWidth: 440, width: '100%', border: '1px solid var(--glass-border)' }} onClick={(e) => e.stopPropagation()} dir="rtl">
+            <button type="button" onClick={() => !submitting && setPoModal(false)} style={MODAL_CLOSE_X} aria-label="סגור">
+              <X size={20} />
+            </button>
             <h3 style={{ marginBottom: 20, fontWeight: 800 }}>PO חדש</h3>
             <label className="label">מחלקה</label>
             <CustomSelect

@@ -2,11 +2,26 @@ import { useState, useEffect, useCallback } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '@/contexts/AuthContext'
 import { useRequirePermission } from '@/hooks/useRequirePermission'
-import { ArrowRight, Building2, Users, Calendar, Settings2 } from 'lucide-react'
+import { ArrowRight, Building2, Users, Calendar, Settings2, X } from 'lucide-react'
 import toast from 'react-hot-toast'
 import CustomSelect from '@/components/ui/CustomSelect'
 
 const API_BASE = import.meta.env.VITE_API_URL || 'https://api.axess.pro'
+
+const MODAL_CLOSE_X = {
+  position: 'absolute',
+  top: 12,
+  left: 12,
+  background: 'none',
+  border: 'none',
+  cursor: 'pointer',
+  color: 'var(--v2-gray-400)',
+  padding: 4,
+  borderRadius: 6,
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+}
 
 const BASE_DEPT_TYPES = [
   { value: 'culture', label: 'תרבות' },
@@ -405,7 +420,10 @@ export default function SubAccountDetail() {
 
       {editOpen && dept && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100, padding: 16 }} onClick={() => !submitting && setEditOpen(false)}>
-          <div style={{ background: 'var(--v2-dark-2)', borderRadius: 'var(--radius-lg)', padding: 28, maxWidth: 480, width: '100%', maxHeight: '90vh', overflow: 'auto', border: '1px solid var(--glass-border)' }} onClick={(e) => e.stopPropagation()} dir="rtl">
+          <div style={{ position: 'relative', background: 'var(--v2-dark-2)', borderRadius: 'var(--radius-lg)', padding: 28, maxWidth: 480, width: '100%', maxHeight: '90vh', overflow: 'auto', border: '1px solid var(--glass-border)' }} onClick={(e) => e.stopPropagation()} dir="rtl">
+            <button type="button" onClick={() => !submitting && setEditOpen(false)} style={MODAL_CLOSE_X} aria-label="סגור">
+              <X size={20} />
+            </button>
             <h3 style={{ marginBottom: 20, fontFamily: "'Bricolage Grotesque', sans-serif", fontWeight: 800 }}>עריכת מחלקה</h3>
             <label className="label">שם מחלקה</label>
             <input className="input" style={{ marginBottom: 14 }} value={editForm.name} onChange={(e) => setEditForm((f) => ({ ...f, name: e.target.value }))} />

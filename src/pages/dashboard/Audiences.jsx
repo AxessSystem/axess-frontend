@@ -16,6 +16,21 @@ import CustomSelect from '@/components/ui/CustomSelect'
 
 const API_BASE = import.meta.env.VITE_API_URL || 'https://api.axess.pro'
 
+const MODAL_CLOSE_X = {
+  position: 'absolute',
+  top: 12,
+  left: 12,
+  background: 'none',
+  border: 'none',
+  cursor: 'pointer',
+  color: 'var(--v2-gray-400)',
+  padding: 4,
+  borderRadius: 6,
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+}
+
 const SEGMENT_ICONS = {
   all: Users,
   vip: Crown,
@@ -182,10 +197,14 @@ function CustomerProfileDrawer({ open, onClose, masterRecipientId, businessId, o
           transition={{ type: 'spring', damping: 25, stiffness: 200 }}
           onClick={e => e.stopPropagation()}
           style={{
+            position: 'relative',
             width: 'min(420px, 100vw)', maxWidth: '100%', background: 'var(--v2-dark-2)', borderRight: '1px solid var(--glass-border)',
             overflowY: 'auto', boxShadow: '-8px 0 24px rgba(0,0,0,0.4)',
           }}
         >
+          <button type="button" onClick={onClose} style={MODAL_CLOSE_X} aria-label="סגור">
+            <X size={20} />
+          </button>
           <div style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 20 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
               <h2 style={{ fontFamily: "'Bricolage Grotesque','Outfit',sans-serif", fontWeight: 800, fontSize: 20, color: '#ffffff' }}>כרטיס לקוח</h2>
@@ -193,7 +212,6 @@ function CustomerProfileDrawer({ open, onClose, masterRecipientId, businessId, o
                 {!isEditing && (
                   <button onClick={startEdit} style={{ background: 'none', border: 'none', color: 'var(--v2-gray-400)', cursor: 'pointer', padding: 4 }} title="עריכה"><Pencil size={18} /></button>
                 )}
-                <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--v2-gray-400)', cursor: 'pointer', padding: 4 }}><X size={20} /></button>
               </div>
             </div>
             {loading && <div style={{ textAlign: 'center', color: 'var(--v2-gray-400)', padding: 40 }}>טוען...</div>}
@@ -1291,7 +1309,10 @@ export default function Audiences() {
 
       {showSaveSegmentModal && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 200, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }} onClick={() => setShowSaveSegmentModal(false)}>
-          <div className="glass-card" style={{ padding: 20, width: '100%', maxWidth: 340 }} onClick={e => e.stopPropagation()}>
+          <div className="glass-card" style={{ position: 'relative', padding: 20, width: '100%', maxWidth: 340 }} onClick={e => e.stopPropagation()}>
+            <button type="button" onClick={() => setShowSaveSegmentModal(false)} style={MODAL_CLOSE_X} aria-label="סגור">
+              <X size={20} />
+            </button>
             <div style={{ fontWeight: 700, marginBottom: 12, fontSize: 16 }}>💾 שמור כסגמנט</div>
             <input
               className="form-input input"
@@ -1344,7 +1365,10 @@ export default function Audiences() {
         const segmentTags = [...new Set(recipients.flatMap(r => r.tags || []))].filter(Boolean).sort()
         return (
         <div style={{ position: 'fixed', inset: 0, zIndex: 200, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }} onClick={() => setShowBulkTagModal(false)}>
-          <div className="glass-card" style={{ padding: 20, width: '100%', maxWidth: 340 }} onClick={e => e.stopPropagation()}>
+          <div className="glass-card" style={{ position: 'relative', padding: 20, width: '100%', maxWidth: 340 }} onClick={e => e.stopPropagation()}>
+            <button type="button" onClick={() => setShowBulkTagModal(false)} style={MODAL_CLOSE_X} aria-label="סגור">
+              <X size={20} />
+            </button>
             <div style={{ fontWeight: 700, marginBottom: 16, fontSize: 16 }}>🏷️ תגיות ל-{recipients.length} לקוחות</div>
             <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
               <button type="button" onClick={() => setBulkTagMode('add')} style={{ flex: 1, padding: '8px 12px', borderRadius: 8, border: bulkTagMode === 'add' ? '2px solid var(--v2-primary)' : '1px solid var(--glass-border)', background: bulkTagMode === 'add' ? 'rgba(0,195,122,0.12)' : 'transparent', color: bulkTagMode === 'add' ? 'var(--v2-primary)' : 'var(--v2-gray-400)', fontWeight: 600, cursor: 'pointer' }}>הוסף תגית</button>

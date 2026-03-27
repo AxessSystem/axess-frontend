@@ -18,6 +18,21 @@ import CustomSelect from '@/components/ui/CustomSelect'
 
 const API_BASE = import.meta.env.VITE_API_URL || 'https://api.axess.pro'
 
+const MODAL_CLOSE_X = {
+  position: 'absolute',
+  top: 12,
+  left: 12,
+  background: 'none',
+  border: 'none',
+  cursor: 'pointer',
+  color: 'var(--v2-gray-400)',
+  padding: 4,
+  borderRadius: 6,
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+}
+
 const SELECT_STYLE = {
   width: '100%', padding: '8px 12px', borderRadius: 8,
   border: '1px solid var(--glass-border)', background: 'var(--card)',
@@ -737,6 +752,7 @@ export default function Flows() {
               onClick={(e) => e.stopPropagation()}
               dir="rtl"
               style={{
+                position: 'relative',
                 width: '100%',
                 maxWidth: 520,
                 maxHeight: '85vh',
@@ -748,6 +764,9 @@ export default function Flows() {
                 borderRadius: 12,
               }}
             >
+              <button type="button" onClick={() => !saving && setLibraryOpen(false)} style={MODAL_CLOSE_X} aria-label="סגור">
+                <X size={20} />
+              </button>
               <div
                 style={{
                   padding: '16px 20px',
@@ -758,9 +777,6 @@ export default function Flows() {
                 }}
               >
                 <div style={{ fontWeight: 800, fontSize: 17, color: '#fff' }}>בחר מהספרייה</div>
-                <button type="button" style={{ ...btnGhost, padding: 8 }} onClick={() => setLibraryOpen(false)} aria-label="סגור">
-                  <X size={20} />
-                </button>
               </div>
               <div style={{ overflowY: 'auto', padding: 16, flex: 1 }}>
                 {libraryLoading ? (
@@ -832,6 +848,7 @@ export default function Flows() {
               exit={{ y: 24, opacity: 0 }}
               dir="rtl"
               style={{
+                position: 'relative',
                 width: '100%',
                 maxWidth: 1100,
                 margin: 'auto',
@@ -843,6 +860,9 @@ export default function Flows() {
               }}
               className="flows-editor-panel"
             >
+              <button type="button" onClick={() => !saving && setEditorOpen(false)} style={MODAL_CLOSE_X} aria-label="סגור">
+                <X size={20} />
+              </button>
               <div
                 style={{
                   padding: '16px 20px',
@@ -856,9 +876,6 @@ export default function Flows() {
                 <div style={{ fontWeight: 800, fontSize: 18, color: '#fff' }}>
                   {editingId ? 'עריכת Flow' : 'Flow חדש'}
                 </div>
-                <button type="button" style={{ ...btnGhost, padding: 8 }} onClick={() => !saving && setEditorOpen(false)}>
-                  <X size={22} />
-                </button>
               </div>
 
               <div

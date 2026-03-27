@@ -9,6 +9,21 @@ import { fetchWithAuth, supabase } from '@/lib/supabase'
 import CustomSelect from '@/components/ui/CustomSelect'
 
 const API_BASE = import.meta.env.VITE_API_URL || 'https://api.axess.pro'
+
+const MODAL_CLOSE_X = {
+  position: 'absolute',
+  top: 12,
+  left: 12,
+  background: 'none',
+  border: 'none',
+  cursor: 'pointer',
+  color: 'var(--v2-gray-400)',
+  padding: 4,
+  borderRadius: 6,
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+}
 const PUBLIC_ORIGIN = (import.meta.env.VITE_PUBLIC_SITE_URL || 'https://axess.pro').replace(/\/$/, '')
 
 const cardStyle = {
@@ -617,6 +632,7 @@ export default function ScanManagement() {
               onClick={(e) => e.stopPropagation()}
               dir="rtl"
               style={{
+                position: 'relative',
                 width: '100%',
                 maxWidth: 480,
                 maxHeight: '90vh',
@@ -627,12 +643,10 @@ export default function ScanManagement() {
                 padding: 24,
               }}
             >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-                <span style={{ fontWeight: 800, fontSize: 18, color: '#fff' }}>עמדה חדשה</span>
-                <button type="button" style={{ ...btnGhost, padding: 6 }} onClick={() => setModalOpen(false)}>
-                  <X size={22} />
-                </button>
-              </div>
+              <button type="button" onClick={() => !saving && setModalOpen(false)} style={MODAL_CLOSE_X} aria-label="סגור">
+                <X size={20} />
+              </button>
+              <div style={{ fontWeight: 800, fontSize: 18, color: '#fff', marginBottom: 20 }}>עמדה חדשה</div>
               <label style={{ display: 'block', marginBottom: 14 }}>
                 <span style={{ display: 'block', fontSize: 13, color: 'var(--v2-gray-400)', marginBottom: 6 }}>שם העמדה</span>
                 <input
@@ -772,6 +786,7 @@ export default function ScanManagement() {
               onClick={(e) => e.stopPropagation()}
               dir="rtl"
               style={{
+                position: 'relative',
                 width: '100%',
                 maxWidth: 520,
                 maxHeight: '90vh',
@@ -782,12 +797,10 @@ export default function ScanManagement() {
                 padding: 24,
               }}
             >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-                <span style={{ fontWeight: 800, fontSize: 17, color: '#fff' }}>עריכת סורקים — {editStation.name}</span>
-                <button type="button" style={{ ...btnGhost, padding: 6 }} onClick={() => setEditStation(null)}>
-                  <X size={22} />
-                </button>
-              </div>
+              <button type="button" onClick={() => !savingEdit && setEditStation(null)} style={MODAL_CLOSE_X} aria-label="סגור">
+                <X size={20} />
+              </button>
+              <div style={{ fontWeight: 800, fontSize: 17, color: '#fff', marginBottom: 16 }}>עריכת סורקים — {editStation.name}</div>
               <p style={{ fontSize: 13, color: 'var(--v2-gray-400)', marginBottom: 14 }}>
                 שם וטלפון לכל סורק. &quot;שלח WA&quot; שולח את לינק העמדה לטלפון שצוין.
               </p>
@@ -894,17 +907,16 @@ export default function ScanManagement() {
               onClick={(e) => e.stopPropagation()}
               dir="rtl"
               style={{
+                position: 'relative',
                 ...cardStyle,
                 maxWidth: 400,
                 width: '100%',
               }}
             >
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
-                <span style={{ fontWeight: 800, color: '#fff' }}>סטטיסטיקות</span>
-                <button type="button" style={btnGhost} onClick={() => setStatsItem(null)}>
-                  <X size={18} />
-                </button>
-              </div>
+              <button type="button" onClick={() => setStatsItem(null)} style={MODAL_CLOSE_X} aria-label="סגור">
+                <X size={20} />
+              </button>
+              <div style={{ fontWeight: 800, color: '#fff', marginBottom: 16 }}>סטטיסטיקות</div>
               <div style={{ fontSize: 14, color: 'var(--v2-gray-400)', lineHeight: 1.7 }}>
                 <div>
                   <strong style={{ color: '#fff' }}>סטטוס:</strong> {statsItem.status}
