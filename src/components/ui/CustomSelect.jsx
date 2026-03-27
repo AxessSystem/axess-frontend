@@ -65,15 +65,13 @@ const CustomSelect = ({
           top: 'calc(100% + 4px)',
           right: 0,
           left: 0,
-          background: 'var(--card)',
-          backdropFilter: 'none',
-          WebkitBackdropFilter: 'none',
+          background: '#1e2130',
           border: '1px solid var(--glass-border)',
           borderRadius: 8,
           zIndex: 999,
           maxHeight: 220,
           overflowY: 'auto',
-          boxShadow: '0 4px 20px rgba(0,0,0,0.15)'
+          boxShadow: '0 4px 20px rgba(0,0,0,0.4)'
         }}>
           {options.length === 0 && (
             <div style={{ padding: '10px 12px', color: 'var(--v2-gray-400)', fontSize: 13 }}>
