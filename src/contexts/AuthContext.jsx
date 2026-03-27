@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState, useCallback } from 'react'
 import { supabase } from '@/lib/supabase'
+import { refreshSession, forceLogout } from '@/lib/authManager'
 
 const AuthContext = createContext(null)
 
@@ -135,12 +136,16 @@ export function AuthProvider({ children }) {
       const { data: { session: initialSession }, error } = await supabase.auth.getSession()
       let session = initialSession
       if (error || !session) {
-        const { data: refreshed } = await supabase.auth.refreshSession()
-        if (!refreshed?.session) {
+        try {
+          session = await refreshSession()
+          if (!session) {
+            setLoading(false)
+            return
+          }
+        } catch {
           setLoading(false)
           return
         }
-        session = refreshed.session
       }
       setSession(session)
       if (!session?.user) {
@@ -153,55 +158,46 @@ export function AuthProvider({ children }) {
 
     const handleVisibility = async () => {
       if (document.visibilityState === 'visible') {
-        const { data: { session } } = await supabase.auth.getSession()
+        try {
+          const session = await refreshSession()
+          if (session) {
+            setSession(session)
+          } else {
+            forceLogout()
+          }
+        } catch (e) {
+          console.error('[auth] refresh failed:', e)
+          forceLogout()
+        }
+      }
+    }
+
+    document.addEventListener('visibilitychange', handleVisibility)
+    window.addEventListener('pageshow', handleVisibility)
+    window.addEventListener('focus', handleVisibility)
+
+    const handleOnline = async () => {
+      console.log('[auth] network restored — refreshing session')
+      try {
+        const session = await refreshSession()
         if (session) {
           setSession(session)
         } else {
-          const { data } = await supabase.auth.refreshSession()
-          if (data?.session) {
-            setSession(data.session)
-          }
+          forceLogout()
         }
+      } catch (e) {
+        forceLogout()
       }
     }
-    document.addEventListener('visibilitychange', handleVisibility)
+    window.addEventListener('online', handleOnline)
 
     return () => {
       document.removeEventListener('visibilitychange', handleVisibility)
+      window.removeEventListener('pageshow', handleVisibility)
+      window.removeEventListener('focus', handleVisibility)
+      window.removeEventListener('online', handleOnline)
     }
   }, [])
-
-  useEffect(() => {
-    // iOS Safari — pageshow מופעל כשחוזרים מרקע
-    const handlePageShow = async (e) => {
-      // e.persisted = true כשהדף נטען מ-cache (BFCache) ב-iOS
-      if (e.persisted || document.visibilityState === 'visible') {
-        console.log('[auth] pageshow/resume — refreshing session');
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session) {
-          setSession(session);
-        } else {
-          const { data } = await supabase.auth.refreshSession();
-          if (data?.session) {
-            setSession(data.session);
-          } else {
-            // session מת לגמרי — ניתוק
-            setSession(null);
-            setProfile(null);
-            setBusinessMember(null);
-          }
-        }
-      }
-    };
-
-    window.addEventListener('pageshow', handlePageShow);
-    window.addEventListener('focus', handlePageShow);
-
-    return () => {
-      window.removeEventListener('pageshow', handlePageShow);
-      window.removeEventListener('focus', handlePageShow);
-    };
-  }, []);
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
