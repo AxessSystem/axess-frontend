@@ -12,6 +12,7 @@ import { fetchWithAuth, supabase } from '@/lib/supabase'
 import { useAuth } from '@/contexts/AuthContext'
 import { useRequirePermission } from '@/hooks/useRequirePermission'
 import toast from 'react-hot-toast'
+import CustomSelect from '@/components/ui/CustomSelect'
 
 const API_BASE = import.meta.env.VITE_API_URL || 'https://api.axess.pro'
 
@@ -229,11 +230,18 @@ function CustomerProfileDrawer({ open, onClose, masterRecipientId, businessId, o
                     <div>
                       <div style={{ color: 'var(--v2-gray-500)', fontSize: 11, marginBottom: 2 }}>מגדר</div>
                       {isEditing ? (
-                        <select className="form-input input" value={editForm.gender} onChange={e => setEditForm(f => ({ ...f, gender: e.target.value }))} style={{ width: '100%', fontSize: 13, background: 'var(--v2-dark-2)', border: '1px solid var(--glass-border)', color: '#fff', padding: '8px 12px', borderRadius: 8 }}>
-                          <option value="">לא צוין</option>
-                          <option value="Male">זכר</option>
-                          <option value="Female">נקבה</option>
-                        </select>
+                        <CustomSelect
+                          className="form-input input"
+                          value={editForm.gender}
+                          onChange={(val) => setEditForm(f => ({ ...f, gender: val }))}
+                          style={{ width: '100%', fontSize: 13, background: 'var(--v2-dark-2)', border: '1px solid var(--glass-border)', color: '#fff', padding: '8px 12px', borderRadius: 8 }}
+                          placeholder="לא צוין"
+                          options={[
+                            { value: '', label: 'לא צוין' },
+                            { value: 'Male', label: 'זכר' },
+                            { value: 'Female', label: 'נקבה' },
+                          ]}
+                        />
                       ) : (
                         <div style={{ color: '#fff' }}>{profile.gender === 'Female' ? 'נקבה' : profile.gender === 'Male' ? 'זכר' : 'לא צוין'}</div>
                       )}
@@ -1105,11 +1113,17 @@ export default function Audiences() {
                 <button key={tag} onClick={() => { setActiveTag(tag); setPage(1) }} style={{ padding: '6px 12px', borderRadius: 'var(--radius-full)', fontSize: 12, background: activeTag === tag ? 'var(--v2-primary)' : 'rgba(255,255,255,0.04)', color: activeTag === tag ? 'var(--v2-dark)' : 'var(--v2-gray-400)', border: 'none', cursor: 'pointer' }}>{tag}</button>
               ))}
             </div>
-            <select className="input audience-search-row-3-sort" style={{ width: 'auto' }} value={sortBy} onChange={e => setSortBy(e.target.value)}>
-              <option value="score">מיין: ציון</option>
-              <option value="campaigns">מיין: קמפיינים</option>
-              <option value="name">מיין: שם</option>
-            </select>
+            <CustomSelect
+              className="input audience-search-row-3-sort"
+              style={{ width: 'auto' }}
+              value={sortBy}
+              onChange={(val) => setSortBy(val)}
+              options={[
+                { value: 'score', label: 'מיין: ציון' },
+                { value: 'campaigns', label: 'מיין: קמפיינים' },
+                { value: 'name', label: 'מיין: שם' },
+              ]}
+            />
           </div>
           {/* Two-line gap */}
           <div style={{ marginTop: 24 }} />
@@ -1347,10 +1361,17 @@ export default function Audiences() {
             ) : (
               <div style={{ marginBottom: 12 }}>
                 <label style={{ fontSize: 12, color: 'var(--v2-gray-500)', marginBottom: 6, display: 'block' }}>בחר תגית להסרה</label>
-                <select className="form-input input" value={bulkTagToRemove} onChange={e => setBulkTagToRemove(e.target.value)} style={{ width: '100%', padding: '10px 14px' }}>
-                  <option value="">— בחר תגית —</option>
-                  {segmentTags.map(t => <option key={t} value={t}>{t}</option>)}
-                </select>
+                <CustomSelect
+                  className="form-input input"
+                  value={bulkTagToRemove}
+                  onChange={(val) => setBulkTagToRemove(val)}
+                  style={{ width: '100%', padding: '10px 14px' }}
+                  placeholder="— בחר תגית —"
+                  options={[
+                    { value: '', label: '— בחר תגית —' },
+                    ...segmentTags.map(t => ({ value: t, label: t })),
+                  ]}
+                />
                 {segmentTags.length === 0 && <div style={{ fontSize: 12, color: 'var(--v2-gray-500)', marginTop: 6 }}>אין תגיות בסגמנט</div>}
               </div>
             )}

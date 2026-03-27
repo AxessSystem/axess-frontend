@@ -732,13 +732,12 @@ export default function ScanManagement() {
 
               <label style={{ display: 'block', marginBottom: 20 }}>
                 <span style={{ display: 'block', fontSize: 13, color: 'var(--v2-gray-400)', marginBottom: 6 }}>תוקף</span>
-                <select style={inputStyle} value={formExpire} onChange={(e) => setFormExpire(e.target.value)}>
-                  {EXPIRE_OPTIONS.map((o) => (
-                    <option key={String(o.value)} value={o.value}>
-                      {o.label}
-                    </option>
-                  ))}
-                </select>
+                <CustomSelect
+                  style={inputStyle}
+                  value={formExpire}
+                  onChange={(val) => setFormExpire(val)}
+                  options={EXPIRE_OPTIONS.map((o) => ({ value: o.value, label: o.label }))}
+                />
               </label>
               <button type="button" style={{ ...btnPrimary, width: '100%', justifyContent: 'center' }} disabled={saving} onClick={createStation}>
                 {saving ? 'יוצר…' : 'צור עמדה'}

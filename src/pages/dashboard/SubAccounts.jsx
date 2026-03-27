@@ -728,14 +728,18 @@ export default function SubAccounts() {
               </div>
             )}
             <label className="label">מנהל המחלקה</label>
-            <select style={{ ...SELECT_STYLE, marginBottom: 14 }} value={deptForm.manager_user_id} onChange={(e) => setDeptForm((f) => ({ ...f, manager_user_id: e.target.value }))}>
-              <option value="">— בחר מרשימת הצוות —</option>
-              {staffList.map((s) => (
-                <option key={s.id} value={s.user_id || ''}>
-                  {s.full_name || s.email || s.user_id}
-                </option>
-              ))}
-            </select>
+            <CustomSelect
+              style={{ ...SELECT_STYLE, marginBottom: 14 }}
+              value={deptForm.manager_user_id}
+              onChange={(val) => setDeptForm((f) => ({ ...f, manager_user_id: val }))}
+              options={[
+                { value: '', label: '— בחר מרשימת הצוות —' },
+                ...staffList.map((s) => ({
+                  value: s.user_id || '',
+                  label: s.full_name || s.email || s.user_id,
+                })),
+              ]}
+            />
             <label className="label">תיאור</label>
             <textarea className="input" style={{ marginBottom: 14, minHeight: 72, resize: 'vertical' }} value={deptForm.description} onChange={(e) => setDeptForm((f) => ({ ...f, description: e.target.value }))} />
             <label className="label">קהל יעד</label>
@@ -783,14 +787,20 @@ export default function SubAccounts() {
           <div style={{ background: 'var(--v2-dark-2)', borderRadius: 'var(--radius-lg)', padding: 28, maxWidth: 440, width: '100%', border: '1px solid var(--glass-border)' }} onClick={(e) => e.stopPropagation()} dir="rtl">
             <h3 style={{ marginBottom: 20, fontWeight: 800 }}>PO חדש</h3>
             <label className="label">מחלקה</label>
-            <select className="input" style={{ marginBottom: 14 }} value={poForm.sub_account_id} onChange={(e) => setPoForm((f) => ({ ...f, sub_account_id: e.target.value }))}>
-              <option value="">—</option>
-              {subAccounts.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.department_name}
-                </option>
-              ))}
-            </select>
+            <CustomSelect
+              className="input"
+              style={{ marginBottom: 14, width: '100%' }}
+              value={poForm.sub_account_id}
+              onChange={(val) => setPoForm((f) => ({ ...f, sub_account_id: val }))}
+              placeholder="—"
+              options={[
+                { value: '', label: '—' },
+                ...subAccounts.map((s) => ({
+                  value: s.id,
+                  label: s.department_name,
+                })),
+              ]}
+            />
             <label className="label">מספר PO</label>
             <input className="input" style={{ marginBottom: 14 }} value={poForm.po_number} onChange={(e) => setPoForm((f) => ({ ...f, po_number: e.target.value }))} />
             <label className="label">סכום</label>

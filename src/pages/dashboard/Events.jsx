@@ -7,6 +7,7 @@ import SeatingBuilder from '../../components/SeatingBuilder'
 import Tooltip from '../../components/ui/Tooltip'
 import DateTimePicker from '../../components/ui/DateTimePicker'
 import RichTextEditor from '../../components/ui/RichTextEditor'
+import CustomSelect from '@/components/ui/CustomSelect'
 
 const API_BASE = import.meta.env.VITE_API_URL || 'https://api.axess.pro'
 const FRONTEND_URL = import.meta.env.VITE_FRONTEND_URL || window.location.origin
@@ -322,10 +323,16 @@ function PromotersModal({ event, businessId, onClose, embedded }) {
                     <button onClick={() => setDuplicateTarget(duplicateTarget === ep.id ? null : ep.id)} style={{ padding: '6px 12px', background: 'var(--v2-dark-2)', border: '1px solid var(--glass-border)', color: '#fff', borderRadius: 8, cursor: 'pointer', fontSize: 13 }}>🔄 שכפל לאירוע</button>
                     {duplicateTarget === ep.id && (
                       <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: 4, padding: 8, background: 'var(--v2-dark-3)', borderRadius: 8, border: '1px solid var(--glass-border)', minWidth: 180, zIndex: 10 }}>
-                        <select value="" onChange={e => { const v = e.target.value; if (v) { handleDuplicate(ep, v); setDuplicateTarget(null) } }} style={{ width: '100%', padding: 8, background: 'var(--v2-dark-2)', border: '1px solid var(--glass-border)', color: '#fff', borderRadius: 6 }}>
-                          <option value="">בחר אירוע</option>
-                          {events.filter(ev => ev.id !== event.id).map(ev => <option key={ev.id} value={ev.id}>{ev.title}</option>)}
-                        </select>
+                        <CustomSelect
+                          value=""
+                          onChange={(v) => { if (v) { handleDuplicate(ep, v); setDuplicateTarget(null) } }}
+                          style={{ width: '100%', padding: 8, background: 'var(--v2-dark-2)', border: '1px solid var(--glass-border)', color: '#fff', borderRadius: 6 }}
+                          placeholder="בחר אירוע"
+                          options={[
+                            { value: '', label: 'בחר אירוע' },
+                            ...events.filter(ev => ev.id !== event.id).map(ev => ({ value: ev.id, label: ev.title })),
+                          ]}
+                        />
                       </div>
                     )}
                   </div>
@@ -342,10 +349,16 @@ function PromotersModal({ event, businessId, onClose, embedded }) {
             {addOpen && (
               <div style={{ marginTop: 20, padding: 20, background: 'var(--v2-dark-3)', borderRadius: 12, border: '1px solid var(--glass-border)' }}>
                 <h4 style={{ marginBottom: 12 }}>הוסף יחצ"ן לאירוע</h4>
-                <select value={selPromoterId} onChange={e => setSelPromoterId(e.target.value)} style={{ width: '100%', padding: 12, marginBottom: 12, borderRadius: 8, background: 'var(--v2-dark-2)', border: '1px solid var(--glass-border)', color: '#fff' }}>
-                  <option value="">בחר יחצ"ן</option>
-                  {promoters.filter(p => p.status !== 'inactive').map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                </select>
+                <CustomSelect
+                  value={selPromoterId}
+                  onChange={(val) => setSelPromoterId(val)}
+                  style={{ width: '100%', padding: 12, marginBottom: 12, borderRadius: 8, background: 'var(--v2-dark-2)', border: '1px solid var(--glass-border)', color: '#fff' }}
+                  placeholder='בחר יחצ"ן'
+                  options={[
+                    { value: '', label: 'בחר יחצ"ן' },
+                    ...promoters.filter(p => p.status !== 'inactive').map(p => ({ value: p.id, label: p.name })),
+                  ]}
+                />
                 <div style={{ display: 'flex', gap: 12, marginBottom: 12 }}>
                   <label><input type="radio" checked={commissionType === 'fixed'} onChange={() => setCommissionType('fixed')} /> עמלה קבועה ₪</label>
                   <label><input type="radio" checked={commissionType === 'percent'} onChange={() => setCommissionType('percent')} /> אחוז %</label>
@@ -615,14 +628,26 @@ function EventDetailDrawer({ event, businessId, onClose, onEdit, onRefresh, init
               ) : (
                 <div style={{ marginTop: 16, padding: 20, background: 'var(--v2-dark-3)', borderRadius: 12, border: '1px solid var(--glass-border)' }}>
                   <h4 style={{ marginBottom: 12 }}>הוסף צוות לאירוע</h4>
-                  <select value={selStaffId} onChange={e => setSelStaffId(e.target.value)} style={{ width: '100%', padding: 12, marginBottom: 12, borderRadius: 8, background: 'var(--v2-dark-2)', border: '1px solid var(--glass-border)', color: '#fff' }}>
-                    <option value="">בחר חבר צוות</option>
-                    {staffList.filter(m => !eventStaff.some(es => es.business_member_id === m.id)).map(m => <option key={m.id} value={m.id}>חבר #{m.id?.slice(0, 8)}</option>)}
-                  </select>
-                  <select value={selRoleId} onChange={e => setSelRoleId(e.target.value)} style={{ width: '100%', padding: 12, marginBottom: 12, borderRadius: 8, background: 'var(--v2-dark-2)', border: '1px solid var(--glass-border)', color: '#fff' }}>
-                    <option value="">תפקיד באירוע</option>
-                    {STAFF_ROLES.map(r => <option key={r.id} value={r.id}>{r.label}</option>)}
-                  </select>
+                  <CustomSelect
+                    value={selStaffId}
+                    onChange={(val) => setSelStaffId(val)}
+                    style={{ width: '100%', padding: 12, marginBottom: 12, borderRadius: 8, background: 'var(--v2-dark-2)', border: '1px solid var(--glass-border)', color: '#fff' }}
+                    placeholder="בחר חבר צוות"
+                    options={[
+                      { value: '', label: 'בחר חבר צוות' },
+                      ...staffList.filter(m => !eventStaff.some(es => es.business_member_id === m.id)).map(m => ({ value: m.id, label: `חבר #${m.id?.slice(0, 8)}` })),
+                    ]}
+                  />
+                  <CustomSelect
+                    value={selRoleId}
+                    onChange={(val) => setSelRoleId(val)}
+                    style={{ width: '100%', padding: 12, marginBottom: 12, borderRadius: 8, background: 'var(--v2-dark-2)', border: '1px solid var(--glass-border)', color: '#fff' }}
+                    placeholder="תפקיד באירוע"
+                    options={[
+                      { value: '', label: 'תפקיד באירוע' },
+                      ...STAFF_ROLES.map(r => ({ value: r.id, label: r.label })),
+                    ]}
+                  />
                   <div style={{ display: 'flex', gap: 8 }}>
                     <button onClick={addStaff} disabled={!selStaffId} style={{ padding: '10px 20px', background: 'var(--v2-primary)', color: 'var(--v2-dark)', border: 'none', borderRadius: 8, fontWeight: 600, cursor: selStaffId ? 'pointer' : 'not-allowed' }}>שלח SMS עם פרטי האירוע</button>
                     <button onClick={() => setAddStaffOpen(false)} style={{ padding: '10px 20px', background: 'transparent', border: '1px solid var(--glass-border)', color: 'var(--v2-gray-400)', borderRadius: 8, cursor: 'pointer' }}>ביטול</button>
@@ -1243,11 +1268,16 @@ export default function Events() {
                 </div>
                 <div style={{ marginBottom: 16 }}>
                   <label style={{ display: 'block', marginBottom: 6, color: 'var(--v2-gray-400)' }}>גיל מינימום</label>
-                  <select value={form.age_restriction} onChange={e => setForm(f => ({ ...f, age_restriction: parseInt(e.target.value, 10) }))} style={{ width: '100%', padding: 12, borderRadius: 12, border: '1px solid var(--glass-border)', background: 'var(--v2-dark-3)', color: '#fff' }}>
-                    <option value={0}>ללא הגבלה</option>
-                    <option value={18}>18+</option>
-                    <option value={21}>21+</option>
-                  </select>
+                  <CustomSelect
+                    value={form.age_restriction}
+                    onChange={(val) => setForm(f => ({ ...f, age_restriction: parseInt(val, 10) }))}
+                    style={{ width: '100%', padding: 12, borderRadius: 12, border: '1px solid var(--glass-border)', background: 'var(--v2-dark-3)', color: '#fff' }}
+                    options={[
+                      { value: 0, label: 'ללא הגבלה' },
+                      { value: 18, label: '18+' },
+                      { value: 21, label: '21+' },
+                    ]}
+                  />
                 </div>
                 <div style={{ marginBottom: 24 }}>
                   <label style={{ display: 'block', marginBottom: 6, color: 'var(--v2-gray-400)' }}>קוד לבוש (אופציונלי)</label>

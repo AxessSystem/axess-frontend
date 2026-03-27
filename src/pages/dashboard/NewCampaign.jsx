@@ -9,6 +9,7 @@ import {
   ToggleLeft, ToggleRight, Eye, Phone
 } from 'lucide-react'
 import StepIndicator from '@/components/ui/StepIndicator'
+import CustomSelect from '@/components/ui/CustomSelect'
 
 const API_BASE = import.meta.env.VITE_API_URL || 'https://api.axess.pro'
 const FRONTEND_URL = import.meta.env.VITE_FRONTEND_URL || window.location.origin
@@ -109,10 +110,17 @@ function StepUpload({ onNext, data, setData, businessId }) {
           </div>
         </div>
         {data.linkToEvent && (
-          <select value={data.selectedEventId || ''} onChange={e => setData(d => ({ ...d, selectedEventId: e.target.value || null }))} className="input" style={{ width: '100%' }}>
-            <option value="">בחר אירוע</option>
-            {events.filter(e => e.status === 'published' || e.status === 'active').map(ev => <option key={ev.id} value={ev.id}>{ev.title} — {ev.slug}</option>)}
-          </select>
+          <CustomSelect
+            value={data.selectedEventId || ''}
+            onChange={(val) => setData(d => ({ ...d, selectedEventId: val || null }))}
+            className="input"
+            style={{ width: '100%' }}
+            placeholder="בחר אירוע"
+            options={[
+              { value: '', label: 'בחר אירוע' },
+              ...events.filter(e => e.status === 'published' || e.status === 'active').map(ev => ({ value: ev.id, label: `${ev.title} — ${ev.slug}` })),
+            ]}
+          />
         )}
       </div>
 
@@ -575,11 +583,7 @@ function StepValidator({ onNext, onPrev, data, setData }) {
             </div>
             <div>
               <label className="label">מגבלת מימוש</label>
-              <select style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid var(--glass-border)', background: 'var(--card)', color: 'var(--text)', fontSize: 14, fontFamily: 'inherit', cursor: 'pointer' }} value={data.validatorLimit || 'once'} onChange={e => setData(d => ({ ...d, validatorLimit: e.target.value }))}>
-                <option value="once">פעם אחת</option>
-                <option value="unlimited">ללא הגבלה</option>
-                <option value="3">עד 3 פעמים</option>
-              </select>
+              <CustomSelect style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid var(--glass-border)', background: 'var(--card)', color: 'var(--text)', fontSize: 14, fontFamily: 'inherit', cursor: 'pointer' }} value={data.validatorLimit || 'once'} onChange={(val) => setData(d => ({ ...d, validatorLimit: val }))} options={[{ value: 'once', label: 'פעם אחת' }, { value: 'unlimited', label: 'ללא הגבלה' }, { value: '3', label: 'עד 3 פעמים' }]} />
             </div>
           </div>
         </motion.div>

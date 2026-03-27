@@ -421,10 +421,17 @@ export default function EventPage() {
                   <input type="number" value={customFields[field.id] ?? ''} onChange={e => setCustomFields(f => ({ ...f, [field.id]: e.target.value }))} placeholder={field.placeholder} style={{ width: '100%', padding: 12, borderRadius: 12, border: '1px solid var(--glass-border)', background: 'var(--v2-dark-3)', color: '#fff' }} />
                 )}
                 {field.type === 'select' && (
-                  <select value={customFields[field.id] || ''} onChange={e => setCustomFields(f => ({ ...f, [field.id]: e.target.value }))} style={{ width: '100%', padding: 12, borderRadius: 12, border: '1px solid var(--glass-border)', background: 'var(--v2-dark-3)', color: '#fff' }}>
-                    <option value="">בחר...</option>
-                    {(field.options || []).map(opt => <option key={opt} value={opt}>{opt}</option>)}
-                  </select>
+                  <CustomSelect
+                    light
+                    value={customFields[field.id] || ''}
+                    onChange={val => setCustomFields(f => ({ ...f, [field.id]: val }))}
+                    style={{ width: '100%', padding: 12, borderRadius: 12, border: '1px solid var(--glass-border)', background: 'var(--v2-dark-3)', color: '#fff' }}
+                    placeholder="בחר..."
+                    options={[
+                      { value: '', label: 'בחר...' },
+                      ...(field.options || []).map(opt => ({ value: opt, label: opt })),
+                    ]}
+                  />
                 )}
                 {field.type === 'checkbox' && (
                   <input type="checkbox" checked={!!customFields[field.id]} onChange={e => setCustomFields(f => ({ ...f, [field.id]: e.target.checked }))} style={{ marginLeft: 8 }} />

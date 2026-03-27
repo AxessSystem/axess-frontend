@@ -1,6 +1,7 @@
 import { useState, useMemo, useRef, useEffect } from 'react'
 import { Grid3X3, LayoutGrid, Layers } from 'lucide-react'
 import Tooltip from './ui/Tooltip'
+import CustomSelect from './ui/CustomSelect'
 
 const ZONE_COLORS = { stage_front: '#A855F7', vip_area: '#B8860B', floor: '#2563EB', bar: '#E85D04', custom: '#64748b' }
 const RECT_COLORS = ['#6d28d9', '#1e3a8a', '#991b1b', '#14532d']
@@ -477,13 +478,18 @@ export default function SeatingBuilder({ eventId, initialConfig, onSave, onCance
               <div style={{ display: 'flex', gap: 16, marginBottom: 16, flexWrap: 'wrap' }}>
                 <div>
                   <label style={{ display: 'block', marginBottom: 4, fontSize: 14, color: 'var(--v2-gray-400)' }}>צורת אולם</label>
-                  <select value={theaterShape} onChange={e => setTheaterShape(e.target.value)} style={{ padding: 8, borderRadius: 8, border: '1px solid var(--glass-border)', background: 'var(--v2-dark-3)', color: '#fff' }}>
-                    <option value="straight">ישר</option>
-                    <option value="curved">קמור</option>
-                    <option value="fan">מניפה</option>
-                    <option value="u">U-shape</option>
-                    <option value="square">מרובע</option>
-                  </select>
+                  <CustomSelect
+                    value={theaterShape}
+                    onChange={(val) => setTheaterShape(val)}
+                    style={{ padding: 8, borderRadius: 8, border: '1px solid var(--glass-border)', background: 'var(--v2-dark-3)', color: '#fff' }}
+                    options={[
+                      { value: 'straight', label: 'ישר' },
+                      { value: 'curved', label: 'קמור' },
+                      { value: 'fan', label: 'מניפה' },
+                      { value: 'u', label: 'U-shape' },
+                      { value: 'square', label: 'מרובע' },
+                    ]}
+                  />
                 </div>
                 <div>
                   <label style={{ display: 'block', marginBottom: 4, fontSize: 14, color: 'var(--v2-gray-400)' }}>כמה שורות?</label>
@@ -752,9 +758,12 @@ export default function SeatingBuilder({ eventId, initialConfig, onSave, onCance
                           <span style={{ display: 'block', fontSize: 13, color: 'var(--v2-gray-400)' }}>עד {t.capacity ?? 4} אנשים</span>
                         </div>
                         <input type="number" min={0} value={t.price ?? 0} onChange={e => setClubTables(prev => prev.map((x, j) => j === selectedElement.id ? { ...x, price: parseFloat(e.target.value) || 0 } : x))} placeholder="מחיר ₪" style={{ width: '100%', marginBottom: 8, padding: 10, borderRadius: 8, border: '1px solid var(--glass-border)', background: 'var(--v2-dark-3)', color: '#fff' }} />
-                        <select value={t.zone || 'floor'} onChange={e => setClubTables(prev => prev.map((x, j) => j === selectedElement.id ? { ...x, zone: e.target.value } : x))} style={{ width: '100%', marginBottom: 8, padding: 10, borderRadius: 8, border: '1px solid var(--glass-border)', background: 'var(--v2-dark-3)', color: '#fff' }}>
-                          {ZONE_OPTIONS.map(z => <option key={z} value={z}>{ZONE_LABELS[z]}</option>)}
-                        </select>
+                        <CustomSelect
+                          value={t.zone || 'floor'}
+                          onChange={(val) => setClubTables(prev => prev.map((x, j) => j === selectedElement.id ? { ...x, zone: val } : x))}
+                          style={{ width: '100%', marginBottom: 8, padding: 10, borderRadius: 8, border: '1px solid var(--glass-border)', background: 'var(--v2-dark-3)', color: '#fff' }}
+                          options={ZONE_OPTIONS.map(z => ({ value: z, label: ZONE_LABELS[z] }))}
+                        />
                         <label style={{ display: 'block', marginBottom: 4, fontSize: 14 }}>צבע אזור</label>
                         <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
                           {TABLE_COLORS.map(c => (

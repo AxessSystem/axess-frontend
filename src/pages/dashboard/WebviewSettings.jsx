@@ -1095,13 +1095,13 @@ export default function WebviewSettings() {
               </div>
               <div>
                 <label className="label">סוג עסק (פריט)</label>
-                <select className="input" style={{ marginTop: 4 }} value={itemForm.business_type} onChange={(e) => setItemForm((f) => ({ ...f, business_type: e.target.value }))}>
-                  {UPSELL_BUSINESS_TYPES.map((o) => (
-                    <option key={o.value} value={o.value}>
-                      {o.label}
-                    </option>
-                  ))}
-                </select>
+                <CustomSelect
+                  className="input"
+                  style={{ marginTop: 4 }}
+                  value={itemForm.business_type}
+                  onChange={(val) => setItemForm((f) => ({ ...f, business_type: val }))}
+                  options={UPSELL_BUSINESS_TYPES.map((o) => ({ value: o.value, label: o.label }))}
+                />
               </div>
               <div>
                 <label className="label">כתובת תמונה (אופציונלי)</label>

@@ -6,6 +6,7 @@ import {
 import { useAuth } from '@/contexts/AuthContext'
 import { Copy, MousePointerClick, Users, Eye, Link2, KeyRound, Plus } from 'lucide-react'
 import toast from 'react-hot-toast'
+import CustomSelect from '@/components/ui/CustomSelect'
 
 const API_BASE = (import.meta.env.VITE_API_URL || 'https://api.axess.pro').replace(/\/$/, '')
 const PIXEL_EMBED_HOST = (import.meta.env.VITE_PIXEL_SCRIPT_ORIGIN || 'https://api.axess.pro').replace(/\/$/, '')
@@ -126,9 +127,9 @@ export default function PixelDashboard() {
         }}
       >
         <label style={{ display: 'block', fontSize: 13, color: 'var(--v2-gray-400)', marginBottom: 8 }}>עסק (פורטל עירוני)</label>
-        <select
+        <CustomSelect
           value={selectedBizId}
-          onChange={(e) => setSelectedBizId(e.target.value)}
+          onChange={(val) => setSelectedBizId(val)}
           style={{
             width: '100%',
             maxWidth: 480,
@@ -139,15 +140,15 @@ export default function PixelDashboard() {
             color: '#fff',
             fontSize: 14,
           }}
-        >
-          <option value="">בחר עסק…</option>
-          {businesses.map((b) => (
-            <option key={b.id} value={b.id}>
-              {b.name}
-              {b.portal_slug ? ` — ${b.portal_slug}` : ''}
-            </option>
-          ))}
-        </select>
+          placeholder="בחר עסק…"
+          options={[
+            { value: '', label: 'בחר עסק…' },
+            ...businesses.map((b) => ({
+              value: b.id,
+              label: `${b.name}${b.portal_slug ? ` — ${b.portal_slug}` : ''}`,
+            })),
+          ]}
+        />
         {!citySlug && selectedBizId && (
           <p style={{ margin: '10px 0 0', fontSize: 13, color: '#f59e0b' }}>לעסק זה אין portal_slug — הגדר בשדות העסק לפני שימוש בפיקסל.</p>
         )}

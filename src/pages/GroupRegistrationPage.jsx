@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { Loader2, ArrowRight } from 'lucide-react'
 import toast from 'react-hot-toast'
+import CustomSelect from '@/components/ui/CustomSelect'
 
 const API_BASE = import.meta.env.VITE_API_URL || 'https://api.axess.pro'
 
@@ -135,10 +136,14 @@ export default function GroupRegistrationPage() {
                 </div>
                 <div>
                   <label style={{ display: 'block', marginBottom: 6, color: 'var(--v2-gray-400)' }}>תפקיד</label>
-                  <select value={form.contact_role} onChange={e => updateForm('contact_role', e.target.value)} style={{ width: '100%', padding: 12, borderRadius: 12, border: '1px solid var(--glass-border)', background: 'var(--v2-dark-3)', color: '#fff' }}>
-                    <option value="">בחר תפקיד</option>
-                    {CONTACT_ROLES.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
-                  </select>
+                  <CustomSelect
+                    light
+                    value={form.contact_role}
+                    onChange={(val) => updateForm('contact_role', val)}
+                    style={{ width: '100%', padding: 12, borderRadius: 12, border: '1px solid var(--glass-border)', background: 'var(--v2-dark-3)', color: '#fff' }}
+                    placeholder="בחר תפקיד"
+                    options={[{ value: '', label: 'בחר תפקיד' }, ...CONTACT_ROLES]}
+                  />
                 </div>
                 <div>
                   <label style={{ display: 'block', marginBottom: 6, color: 'var(--v2-gray-400)' }}>שם איש קשר *</label>

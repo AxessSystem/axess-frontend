@@ -600,14 +600,15 @@ function SupervisorPanel({
           {openSection === "assign" && (
             <div className="supervisor-field" style={{ paddingBottom: 8 }}>
               <label>הקצה לנציג</label>
-              <select value={agentId} onChange={(e) => setAgentId(e.target.value)} style={selectStyle}>
-                <option value="">—</option>
-                {(staff || []).map((s) => (
-                  <option key={s.id} value={s.id}>
-                    #{s.role}
-                  </option>
-                ))}
-              </select>
+              <CustomSelect
+                value={agentId}
+                onChange={(val) => setAgentId(val)}
+                style={selectStyle}
+                options={[
+                  { value: '', label: '—' },
+                  ...(staff || []).map((s) => ({ value: s.id, label: `#${s.role}` })),
+                ]}
+              />
               <button type="button" onClick={handleAssign} disabled={assigning}>
                 שמור
               </button>
@@ -642,14 +643,18 @@ function SupervisorPanel({
           </button>
           {openSection === "transfer" && (
             <div className="supervisor-field" style={{ paddingBottom: 8 }}>
-              <select value={transferAgent} onChange={(e) => setTransferAgent(e.target.value)} style={selectStyle}>
-                <option value="">—</option>
-                {onlineAgents.map((a) => (
-                  <option key={a.business_member_id} value={a.business_member_id}>
-                    {a.full_name || a.email || a.business_member_id}
-                  </option>
-                ))}
-              </select>
+              <CustomSelect
+                value={transferAgent}
+                onChange={(val) => setTransferAgent(val)}
+                style={selectStyle}
+                options={[
+                  { value: '', label: '—' },
+                  ...onlineAgents.map((a) => ({
+                    value: a.business_member_id,
+                    label: a.full_name || a.email || a.business_member_id,
+                  })),
+                ]}
+              />
               <button type="button" onClick={handleTransfer} disabled={transferring || !transferAgent}>
                 העבר
               </button>
@@ -1652,12 +1657,18 @@ export default function Inbox({ onUnreadChange }) {
                 <>
                   <div>
                     <label style={{ display: "block", fontSize: 12, color: "var(--v2-gray-500)", marginBottom: 6 }}>תבנית (אם אין חלון 24 שעות)</label>
-                    <select value={newMsgTemplateName} onChange={(e) => setNewMsgTemplateName(e.target.value)} style={{ width: "100%", padding: "10px", borderRadius: 8, border: "1px solid var(--glass-border)", background: "var(--v2-dark-3)", color: "#fff" }}>
-                      <option value="">בחר תבנית...</option>
-                      {(templates || []).filter((t) => t.meta_status === "APPROVED").map((t) => (
-                        <option key={t.id} value={t.template_name}>{t.template_name}</option>
-                      ))}
-                    </select>
+                    <CustomSelect
+                      value={newMsgTemplateName}
+                      onChange={(val) => setNewMsgTemplateName(val)}
+                      style={{ width: "100%", padding: "10px", borderRadius: 8, border: "1px solid var(--glass-border)", background: "var(--v2-dark-3)", color: "#fff" }}
+                      placeholder="בחר תבנית..."
+                      options={[
+                        { value: "", label: "בחר תבנית..." },
+                        ...(templates || [])
+                          .filter((t) => t.meta_status === "APPROVED")
+                          .map((t) => ({ value: t.template_name, label: t.template_name })),
+                      ]}
+                    />
                   </div>
                   {newMsgTemplateName && (() => {
                     const t = (templates || []).find((x) => x.template_name === newMsgTemplateName);

@@ -590,22 +590,26 @@ export default function Staff() {
             }}
           >
             <Filter size={18} style={{ color: 'var(--v2-gray-400)' }} />
-            <select className="input" style={{ minWidth: 160 }} value={logFilterUser} onChange={(e) => setLogFilterUser(e.target.value)}>
-              <option value="">כל המשתמשים</option>
-              {uniqueLogUsers.map(([id, name]) => (
-                <option key={id} value={id}>
-                  {name}
-                </option>
-              ))}
-            </select>
-            <select className="input" style={{ minWidth: 160 }} value={logFilterAction} onChange={(e) => setLogFilterAction(e.target.value)}>
-              <option value="">כל סוגי הפעולות</option>
-              {uniqueLogActions.map((a) => (
-                <option key={a} value={a}>
-                  {a}
-                </option>
-              ))}
-            </select>
+            <CustomSelect
+              className="input"
+              style={{ minWidth: 160 }}
+              value={logFilterUser}
+              onChange={(val) => setLogFilterUser(val)}
+              options={[
+                { value: '', label: 'כל המשתמשים' },
+                ...uniqueLogUsers.map(([id, name]) => ({ value: id, label: name })),
+              ]}
+            />
+            <CustomSelect
+              className="input"
+              style={{ minWidth: 160 }}
+              value={logFilterAction}
+              onChange={(val) => setLogFilterAction(val)}
+              options={[
+                { value: '', label: 'כל סוגי הפעולות' },
+                ...uniqueLogActions.map((a) => ({ value: a, label: a })),
+              ]}
+            />
             <input className="input" type="datetime-local" value={logFilterFrom} onChange={(e) => setLogFilterFrom(e.target.value)} />
             <input className="input" type="datetime-local" value={logFilterTo} onChange={(e) => setLogFilterTo(e.target.value)} />
             <button type="button" className="btn-primary" onClick={loadLogs} style={{ padding: '8px 16px' }}>
@@ -804,13 +808,13 @@ export default function Staff() {
           <div dir="rtl" style={{ background: 'var(--v2-dark-3)', border: '1px solid var(--glass-border)', borderRadius: 'var(--radius-lg)', padding: 24, maxWidth: 400, width: '100%' }} onClick={(e) => e.stopPropagation()}>
             <h3 style={{ fontWeight: 700, fontSize: 18, marginBottom: 16 }}>עריכת חבר צוות</h3>
             <label className="label">תפקיד</label>
-            <select className="input" style={{ marginBottom: 12 }} value={editMember.role} onChange={(e) => setEditMember({ ...editMember, role: e.target.value })}>
-              {ROLE_PRESETS.map((r) => (
-                <option key={r.value} value={r.value}>
-                  {r.label}
-                </option>
-              ))}
-            </select>
+            <CustomSelect
+              className="input"
+              style={{ marginBottom: 12 }}
+              value={editMember.role}
+              onChange={(val) => setEditMember({ ...editMember, role: val })}
+              options={ROLE_PRESETS.map((r) => ({ value: r.value, label: r.label }))}
+            />
             <label className="label">תפקיד מותאם</label>
             <input className="input" style={{ marginBottom: 12 }} value={editMember.custom_role || ''} onChange={(e) => setEditMember({ ...editMember, custom_role: e.target.value })} />
             <button

@@ -484,14 +484,18 @@ export default function SubAccountDetail() {
               </div>
             )}
             <label className="label">מנהל המחלקה</label>
-            <select style={{ ...SELECT_STYLE, marginBottom: 14 }} value={editForm.manager_user_id} onChange={(e) => setEditForm((f) => ({ ...f, manager_user_id: e.target.value }))}>
-              <option value="">— בחר מרשימת הצוות —</option>
-              {staffList.map((s) => (
-                <option key={s.id} value={s.user_id || ''}>
-                  {s.full_name || s.email || s.user_id}
-                </option>
-              ))}
-            </select>
+            <CustomSelect
+              style={{ ...SELECT_STYLE, marginBottom: 14 }}
+              value={editForm.manager_user_id}
+              onChange={(val) => setEditForm((f) => ({ ...f, manager_user_id: val }))}
+              options={[
+                { value: '', label: '— בחר מרשימת הצוות —' },
+                ...staffList.map((s) => ({
+                  value: s.user_id || '',
+                  label: s.full_name || s.email || s.user_id,
+                })),
+              ]}
+            />
             <label className="label">תיאור</label>
             <textarea className="input" style={{ marginBottom: 14, minHeight: 72, resize: 'vertical' }} value={editForm.description} onChange={(e) => setEditForm((f) => ({ ...f, description: e.target.value }))} />
             <label className="label">קהל יעד</label>
