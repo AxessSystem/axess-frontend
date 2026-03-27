@@ -9,6 +9,7 @@ import { QRCodeSVG } from 'qrcode.react'
 import { useAuth } from '@/contexts/AuthContext'
 import { useRequirePermission } from '@/hooks/useRequirePermission'
 import { fetchWithAuth, supabase } from '@/lib/supabase'
+import CustomSelect from '@/components/ui/CustomSelect'
 
 const API_BASE = import.meta.env.VITE_API_URL || 'https://api.axess.pro'
 const PUBLIC_WEBVIEW_ORIGIN = 'https://axess.pro'
@@ -768,18 +769,12 @@ export default function WebviewSettings() {
               </div>
               <div>
                 <label className="label">סוג עסק</label>
-                <select
-                  className="input"
+                <CustomSelect
                   style={{ ...SELECT_STYLE, marginTop: 6 }}
                   value={settingsDraft.business_type}
-                  onChange={(e) => setSettingsDraft((s) => ({ ...s, business_type: e.target.value }))}
-                >
-                  {BUSINESS_TYPE_OPTIONS.map((o) => (
-                    <option key={o.value} value={o.value}>
-                      {o.label}
-                    </option>
-                  ))}
-                </select>
+                  onChange={(val) => setSettingsDraft((s) => ({ ...s, business_type: val }))}
+                  options={BUSINESS_TYPE_OPTIONS.map((o) => ({ value: o.value, label: o.label }))}
+                />
               </div>
               <div>
                 <label className="label">טלפון</label>

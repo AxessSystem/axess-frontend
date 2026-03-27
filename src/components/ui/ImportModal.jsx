@@ -1,6 +1,7 @@
 import { useState, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Upload, X, FileText, Check, ArrowRight, Download, AlertTriangle, XCircle } from 'lucide-react'
+import CustomSelect from '@/components/ui/CustomSelect'
 
 const API_BASE = import.meta.env.VITE_API_URL || 'https://api.axess.pro'
 const MAP_OPTIONS = [
@@ -286,18 +287,15 @@ export default function ImportModal({ isOpen, onClose, businessId, onImportDone 
                             )}
                           </td>
                           <td style={{ padding: 10 }}>
-                            <select
+                            <CustomSelect
                               value={columnMapping[col] || 'skip'}
-                              onChange={e => setColumnMapping(m => ({ ...m, [col]: e.target.value }))}
+                              onChange={val => setColumnMapping(m => ({ ...m, [col]: val }))}
                               style={{
                                 width: '100%', padding: '8px 12px', background: 'var(--v2-dark-3)', border: '1px solid var(--glass-border)',
                                 borderRadius: 'var(--radius-md)', color: '#fff', fontSize: 13,
                               }}
-                            >
-                              {MAP_OPTIONS.map(o => (
-                                <option key={o.value} value={o.value}>{o.label}</option>
-                              ))}
-                            </select>
+                              options={MAP_OPTIONS.map(o => ({ value: o.value, label: o.label }))}
+                            />
                           </td>
                           <td style={{ padding: 10, color: 'var(--v2-gray-400)', fontSize: 13 }}>
                             {preview.preview_rows?.[0]?.[col] ?? '—'}

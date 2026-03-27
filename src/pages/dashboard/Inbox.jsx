@@ -9,6 +9,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useRequirePermission } from "@/hooks/useRequirePermission";
 import { fetchWithAuth, supabase } from "@/lib/supabase";
 import toast from "react-hot-toast";
+import CustomSelect from "@/components/ui/CustomSelect";
 
 const API_BASE = import.meta.env.VITE_API_URL || "https://api.axess.pro";
 
@@ -295,10 +296,10 @@ function ChatSendPanel({
               background: agentOnline ? "#22C55E" : "#9CA3AF",
             }}
           />
-          <select
+          <CustomSelect
             value={agentOnline ? "online" : "away"}
-            onChange={async (e) => {
-              const online = e.target.value === "online";
+            onChange={async (val) => {
+              const online = val === "online";
               onAgentStatusChange?.(online);
               const r = await fetch(`${API_BASE}/api/inbox/agents/status`, {
                 method: "PATCH",
@@ -315,10 +316,11 @@ function ChatSendPanel({
               background: "var(--v2-dark-3)",
               color: "#fff",
             }}
-          >
-            <option value="online">זמין</option>
-            <option value="away">לא זמין</option>
-          </select>
+            options={[
+              { value: "online", label: "זמין" },
+              { value: "away", label: "לא זמין" },
+            ]}
+          />
         </div>
         <span style={{ fontSize: 13, color: "var(--v2-gray-400)" }}>
           מחוברים: {agents?.filter((a) => a.is_online).length || 0}/{agents?.length || 0}
@@ -350,9 +352,10 @@ function ChatSendPanel({
         </div>
       )}
       {messageMode === "message" && sendChannel === "whatsapp" && !waSession && approvedTemplates.length > 0 && (
-        <select
+        <CustomSelect
           value={templateName}
-          onChange={(e) => setTemplateName(e.target.value)}
+          onChange={(val) => setTemplateName(val)}
+          placeholder="תבנית…"
           style={{
             ...SELECT_STYLE,
             height: 36,
@@ -363,14 +366,11 @@ function ChatSendPanel({
             fontSize: 13,
             boxSizing: "border-box",
           }}
-        >
-          <option value="">תבנית…</option>
-          {approvedTemplates.map((t) => (
-            <option key={t.id} value={t.template_name}>
-              {t.template_name}
-            </option>
-          ))}
-        </select>
+          options={[
+            { value: "", label: "תבנית…" },
+            ...approvedTemplates.map((t) => ({ value: t.template_name, label: t.template_name })),
+          ]}
+        />
       )}
       {messageMode === "message" && sendChannel === "whatsapp" && !waSession && templateName && templateVarCount > 0 && (
         <div className="inbox-send-vars">
@@ -1390,16 +1390,15 @@ export default function Inbox({ onUnreadChange }) {
               />
             </div>
             {isSupervisor && staff.length > 0 && (
-              <select
+              <CustomSelect
                 value={agentFilter}
-                onChange={(e) => setAgentFilter(e.target.value)}
+                onChange={(val) => setAgentFilter(val)}
                 style={{ ...SELECT_STYLE, marginBottom: 8, marginTop: 8, padding: "6px 10px", background: "var(--v2-dark-2)", color: "#fff", fontSize: 12 }}
-              >
-                <option value="">כל הנציגים</option>
-                {staff.map((s) => (
-                  <option key={s.id} value={s.id}>#{s.role}</option>
-                ))}
-              </select>
+                options={[
+                  { value: "", label: "כל הנציגים" },
+                  ...staff.map((s) => ({ value: s.id, label: `#${s.role}` })),
+                ]}
+              />
             )}
           </div>
           <div className="inbox-conv-list">

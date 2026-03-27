@@ -7,8 +7,13 @@ const CustomSelect = ({
   onChange, 
   placeholder = 'בחר...', 
   style = {},
-  disabled = false
+  disabled = false,
+  light = false,
+  id,
+  className,
+  ...rest
 }) => {
+  const ariaLabel = rest['aria-label'];
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
 
@@ -24,27 +29,38 @@ const CustomSelect = ({
   }, []);
 
   const selected = options.find(o => String(o.value) === String(value));
+  const panelBg = light ? '#fff' : '#1e2130';
+  const textColor = light ? '#0a1628' : 'var(--text)';
+  const borderCss = `1px solid ${light ? '#e5e7eb' : 'var(--glass-border)'}`;
+  const mutedColor = light ? '#64748b' : 'var(--v2-gray-400)';
+  const triggerBg = light ? '#fff' : (disabled ? 'var(--glass)' : 'var(--card)');
+  const { width: styleWidth, ...triggerExtra } = style || {};
+  const wrapWidth = styleWidth ?? '100%';
+
+  const triggerStyle = {
+    padding: '8px 12px',
+    borderRadius: 8,
+    border: borderCss,
+    background: light ? '#fff' : triggerBg,
+    color: selected ? textColor : mutedColor,
+    cursor: disabled ? 'not-allowed' : 'pointer',
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    fontSize: 14,
+    fontFamily: 'inherit',
+    userSelect: 'none',
+    opacity: disabled ? 0.6 : 1,
+    ...triggerExtra,
+    ...(light ? { background: '#fff', border: borderCss, color: selected ? textColor : mutedColor } : {}),
+  };
 
   return (
-    <div ref={ref} style={{ position: 'relative', width: '100%', ...style }}>
+    <div ref={ref} id={id} className={className} aria-label={ariaLabel} style={{ position: 'relative', width: wrapWidth }}>
       {/* כפתור */}
       <div
         onClick={() => !disabled && setOpen(!open)}
-        style={{
-          padding: '8px 12px',
-          borderRadius: 8,
-          border: '1px solid var(--glass-border)',
-          background: disabled ? 'var(--glass)' : 'var(--card)',
-          color: selected ? 'var(--text)' : 'var(--v2-gray-400)',
-          cursor: disabled ? 'not-allowed' : 'pointer',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          fontSize: 14,
-          fontFamily: 'inherit',
-          userSelect: 'none',
-          opacity: disabled ? 0.6 : 1
-        }}
+        style={triggerStyle}
       >
         <span>{selected?.label || placeholder}</span>
         <ChevronDown 
@@ -52,7 +68,7 @@ const CustomSelect = ({
           style={{ 
             transition: 'transform 0.2s',
             transform: open ? 'rotate(180deg)' : 'rotate(0deg)',
-            color: 'var(--v2-gray-400)',
+            color: mutedColor,
             flexShrink: 0
           }} 
         />
@@ -65,8 +81,9 @@ const CustomSelect = ({
           top: 'calc(100% + 4px)',
           right: 0,
           left: 0,
-          background: '#1e2130',
-          border: '1px solid var(--glass-border)',
+          background: panelBg,
+          color: textColor,
+          border: borderCss,
           borderRadius: 8,
           zIndex: 999,
           maxHeight: 220,
@@ -74,7 +91,7 @@ const CustomSelect = ({
           boxShadow: '0 4px 20px rgba(0,0,0,0.4)'
         }}>
           {options.length === 0 && (
-            <div style={{ padding: '10px 12px', color: 'var(--v2-gray-400)', fontSize: 13 }}>
+            <div style={{ padding: '10px 12px', color: mutedColor, fontSize: 13 }}>
               אין אפשרויות
             </div>
           )}
@@ -87,7 +104,7 @@ const CustomSelect = ({
                 cursor: 'pointer',
                 fontSize: 14,
                 background: String(opt.value) === String(value) ? 'var(--primary)' : 'transparent',
-                color: String(opt.value) === String(value) ? '#fff' : 'var(--text)',
+                color: String(opt.value) === String(value) ? '#fff' : textColor,
                 transition: 'background 0.1s'
               }}
               onMouseEnter={e => {
@@ -99,7 +116,7 @@ const CustomSelect = ({
               onMouseLeave={e => {
                 if (String(opt.value) !== String(value)) {
                   e.currentTarget.style.background = 'transparent';
-                  e.currentTarget.style.color = 'var(--text)';
+                  e.currentTarget.style.color = textColor;
                 }
               }}
             >

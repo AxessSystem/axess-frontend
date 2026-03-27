@@ -4,6 +4,7 @@ import toast from 'react-hot-toast'
 import { useAuth } from '@/contexts/AuthContext'
 import { Search, Tag, Users2, Trash2, RefreshCw } from 'lucide-react'
 import AdminRecipientDrawer from './AdminRecipientDrawer'
+import CustomSelect from '@/components/ui/CustomSelect'
 
 const API_BASE = import.meta.env.VITE_API_URL || 'https://api.axess.pro'
 
@@ -147,40 +148,34 @@ export default function AdminRecipientsPage() {
 
           <div style={{ flex: '0 0 220px', minWidth: 200 }}>
             <label style={{ display: 'block', fontSize: 12, color: 'var(--v2-gray-400)', marginBottom: 6 }}>עסק ספציפי</label>
-            <select
+            <CustomSelect
               value={businessId}
-              onChange={(e) => {
-                setBusinessId(e.target.value)
+              onChange={(val) => {
+                setBusinessId(val)
                 setPage(1)
               }}
               style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid var(--glass-border)', background: 'var(--v2-dark-3)', color: '#fff', fontSize: 13 }}
-            >
-              <option value="">הכל</option>
-              {businesses.map((b) => (
-                <option key={b.id} value={b.id}>
-                  {b.name}
-                </option>
-              ))}
-            </select>
+              options={[
+                { value: '', label: 'הכל' },
+                ...businesses.map((b) => ({ value: b.id, label: b.name })),
+              ]}
+            />
           </div>
 
           <div style={{ flex: '0 0 220px', minWidth: 200 }}>
             <label style={{ display: 'block', fontSize: 12, color: 'var(--v2-gray-400)', marginBottom: 6 }}>סוג עסק</label>
-            <select
+            <CustomSelect
               value={businessType}
-              onChange={(e) => {
-                setBusinessType(e.target.value)
+              onChange={(val) => {
+                setBusinessType(val)
                 setPage(1)
               }}
               style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid var(--glass-border)', background: 'var(--v2-dark-3)', color: '#fff', fontSize: 13 }}
-            >
-              <option value="">הכל</option>
-              {businessTypes.map((t) => (
-                <option key={t} value={t}>
-                  {t}
-                </option>
-              ))}
-            </select>
+              options={[
+                { value: '', label: 'הכל' },
+                ...businessTypes.map((t) => ({ value: t, label: t })),
+              ]}
+            />
           </div>
 
           <div style={{ flex: '0 0 220px', minWidth: 200 }}>

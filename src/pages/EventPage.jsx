@@ -4,6 +4,7 @@ import { MapPin, Calendar, Loader2, Clock, Users } from 'lucide-react'
 import toast from 'react-hot-toast'
 import SeatingModal from '../components/SeatingModal'
 import Tooltip from '../components/ui/Tooltip'
+import CustomSelect from '../components/ui/CustomSelect'
 
 const API_BASE = import.meta.env.VITE_API_URL || 'https://api.axess.pro'
 
@@ -441,9 +442,10 @@ export default function EventPage() {
             ))}
             <div style={{ marginBottom: 16 }}>
               <label style={{ display: 'block', fontSize: 14, color: 'var(--v2-gray-400)', marginBottom: 6 }}>כמות</label>
-              <select
+              <CustomSelect
+                light
                 value={modalQty}
-                onChange={e => setModalQty(parseInt(e.target.value, 10))}
+                onChange={val => setModalQty(parseInt(val, 10))}
                 style={{
                   width: '100%',
                   padding: 12,
@@ -452,11 +454,10 @@ export default function EventPage() {
                   background: 'var(--v2-dark-3)',
                   color: '#fff',
                 }}
-              >
-                {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].filter(n => n <= modalTicket.quantity_available).map(n => (
-                  <option key={n} value={n}>{n}</option>
-                ))}
-              </select>
+                options={[1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+                  .filter(n => n <= modalTicket.quantity_available)
+                  .map(n => ({ value: n, label: String(n) }))}
+              />
             </div>
             {event?.city_code && (
               <div style={{ marginBottom: 12, fontSize: 14 }}>

@@ -5,6 +5,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { Upload, X, FileText, CheckCircle, AlertCircle } from 'lucide-react'
 import Papa from 'papaparse'
 import toast from 'react-hot-toast'
+import CustomSelect from '@/components/ui/CustomSelect'
 
 const GOOUT_FIELD_MAP = {
   'Event Title': 'event_title',
@@ -175,16 +176,15 @@ export default function CSVUploadModal({ eventId, producerId: propProducerId, on
           {isAdmin && !propProducerId && !authProducerId && (
             <div>
               <label className="label">בחר מפיק *</label>
-              <select
+              <CustomSelect
                 value={pickedProducerId}
-                onChange={(e) => setPickedProducerId(e.target.value)}
+                onChange={(val) => setPickedProducerId(val)}
                 className="input"
-              >
-                <option value="">בחר מפיק</option>
-                {(producers || []).map((p) => (
-                  <option key={p.id} value={p.id}>{p.name}</option>
-                ))}
-              </select>
+                options={[
+                  { value: '', label: 'בחר מפיק' },
+                  ...(producers || []).map((p) => ({ value: p.id, label: p.name })),
+                ]}
+              />
             </div>
           )}
 

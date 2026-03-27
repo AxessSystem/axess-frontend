@@ -4,6 +4,7 @@ import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/contexts/AuthContext'
 import { Megaphone, Plus, Send } from 'lucide-react'
 import toast from 'react-hot-toast'
+import CustomSelect from '@/components/ui/CustomSelect'
 
 export default function ProducerMarketing() {
   const { producerId } = useAuth()
@@ -83,16 +84,15 @@ export default function ProducerMarketing() {
           <div className="space-y-4">
             <div>
               <label className="label">אירוע</label>
-              <select
+              <CustomSelect
                 value={selectedEvent}
-                onChange={(e) => setSelectedEvent(e.target.value)}
+                onChange={(val) => setSelectedEvent(val)}
                 className="input"
-              >
-                <option value="">בחר אירוע...</option>
-                {events?.map((ev) => (
-                  <option key={ev.id} value={ev.id}>{ev.name}</option>
-                ))}
-              </select>
+                options={[
+                  { value: '', label: 'בחר אירוע...' },
+                  ...(events?.map((ev) => ({ value: ev.id, label: ev.name })) || []),
+                ]}
+              />
             </div>
             <div>
               <label className="label">תבנית הודעה</label>

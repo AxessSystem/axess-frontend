@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import { LogIn } from 'lucide-react'
 import toast from 'react-hot-toast'
+import CustomSelect from '@/components/ui/CustomSelect'
 
 function normalizePhone(raw) {
   if (!raw) return null
@@ -81,19 +82,19 @@ export default function ManualCheckinForm({ onSuccess }) {
       </h3>
       <div className="flex-1 min-w-[200px]">
         <label className="label">אירוע</label>
-        <select
+        <CustomSelect
           value={eventId}
-          onChange={(e) => setEventId(e.target.value)}
+          onChange={(val) => setEventId(val)}
           className="input"
-          required
-        >
-          <option value="">בחר אירוע</option>
-          {(events || []).map((ev) => (
-            <option key={ev.id} value={ev.id}>
-              {ev.name} — {ev.event_date ? new Date(ev.event_date).toLocaleDateString('he-IL') : ''}
-            </option>
-          ))}
-        </select>
+          style={{ width: '100%' }}
+          options={[
+            { value: '', label: 'בחר אירוע' },
+            ...(events || []).map((ev) => ({
+              value: ev.id,
+              label: `${ev.name} — ${ev.event_date ? new Date(ev.event_date).toLocaleDateString('he-IL') : ''}`,
+            })),
+          ]}
+        />
       </div>
       <div className="flex-1 min-w-[180px]">
         <label className="label">טלפון</label>

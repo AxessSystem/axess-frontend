@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Plus, X } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import toast from 'react-hot-toast'
+import CustomSelect from '@/components/ui/CustomSelect'
 
 const API_BASE = import.meta.env.VITE_API_URL || 'https://api.axess.pro'
 
@@ -138,24 +139,26 @@ export default function AdminNotices() {
               rows={4}
               style={{ width: '100%', padding: 10, marginBottom: 12, borderRadius: 8, border: '1px solid var(--glass-border)', background: 'var(--v2-dark-3)', color: '#fff', resize: 'vertical' }}
             />
-            <select
+            <CustomSelect
               value={form.type}
-              onChange={e => setForm(f => ({ ...f, type: e.target.value }))}
+              onChange={val => setForm(f => ({ ...f, type: val }))}
               style={{ width: '100%', padding: 10, marginBottom: 12, borderRadius: 8, border: '1px solid var(--glass-border)', background: 'var(--v2-dark-3)', color: '#fff' }}
-            >
-              <option value="info">info</option>
-              <option value="warning">warning</option>
-              <option value="maintenance">maintenance</option>
-            </select>
-            <select
+              options={[
+                { value: 'info', label: 'info' },
+                { value: 'warning', label: 'warning' },
+                { value: 'maintenance', label: 'maintenance' },
+              ]}
+            />
+            <CustomSelect
               value={form.target}
-              onChange={e => setForm(f => ({ ...f, target: e.target.value }))}
+              onChange={val => setForm(f => ({ ...f, target: val }))}
               style={{ width: '100%', padding: 10, marginBottom: 12, borderRadius: 8, border: '1px solid var(--glass-border)', background: 'var(--v2-dark-3)', color: '#fff' }}
-            >
-              <option value="all">כולם</option>
-              <option value="type:club">מועדונים</option>
-              <option value="type:municipal">רשויות</option>
-            </select>
+              options={[
+                { value: 'all', label: 'כולם' },
+                { value: 'type:club', label: 'מועדונים' },
+                { value: 'type:municipal', label: 'רשויות' },
+              ]}
+            />
             <input
               type="datetime-local"
               value={form.expires_at}

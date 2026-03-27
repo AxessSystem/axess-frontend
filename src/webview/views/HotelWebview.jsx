@@ -3,6 +3,7 @@ import { BellRing, Sparkles, DoorOpen, ClipboardList } from 'lucide-react'
 import { API_BASE } from '../config'
 import { useWebview } from '../WebviewContext'
 import WebviewWhatsAppAccordion from '../components/WebviewWhatsAppAccordion'
+import CustomSelect from '@/components/ui/CustomSelect'
 
 const TABS = [
   { id: 'room_service', label: 'שירות חדרים', icon: BellRing },
@@ -533,33 +534,31 @@ export default function HotelWebview({ business, items }) {
         >
           <div>
             <label style={{ fontSize: 13, marginBottom: 4, display: 'block' }}>תאריך</label>
-            <select
+            <CustomSelect
+              light
               value={spaDate}
-              onChange={(e) => setSpaDate(e.target.value)}
+              onChange={(val) => setSpaDate(val)}
               style={fieldStyle}
-            >
-              <option value="">בחר תאריך</option>
-              {dateOptions.map((d) => (
-                <option key={d.value} value={d.value}>
-                  {d.label}
-                </option>
-              ))}
-            </select>
+              placeholder="בחר תאריך"
+              options={[
+                { value: '', label: 'בחר תאריך' },
+                ...dateOptions.map((d) => ({ value: d.value, label: d.label })),
+              ]}
+            />
           </div>
           <div>
             <label style={{ fontSize: 13, marginBottom: 4, display: 'block' }}>שעה</label>
-            <select
+            <CustomSelect
+              light
               value={spaTime}
-              onChange={(e) => setSpaTime(e.target.value)}
+              onChange={(val) => setSpaTime(val)}
               style={fieldStyle}
-            >
-              <option value="">בחר שעה</option>
-              {timeOptions.map((t) => (
-                <option key={t} value={t}>
-                  {t}
-                </option>
-              ))}
-            </select>
+              placeholder="בחר שעה"
+              options={[
+                { value: '', label: 'בחר שעה' },
+                ...timeOptions.map((t) => ({ value: t, label: t })),
+              ]}
+            />
           </div>
           <div>
             <label style={{ fontSize: 13, marginBottom: 4, display: 'block' }}>
@@ -636,9 +635,10 @@ export default function HotelWebview({ business, items }) {
             <label style={{ fontSize: 13, marginBottom: 4, display: 'block' }}>
               שעה מבוקשת (12:00–16:00)
             </label>
-            <select
+            <CustomSelect
+              light
               value={lateTime}
-              onChange={(e) => setLateTime(e.target.value)}
+              onChange={(val) => setLateTime(val)}
               style={{
                 padding: '10px 12px',
                 fontSize: 14,
@@ -650,14 +650,12 @@ export default function HotelWebview({ business, items }) {
                 background: 'rgba(15,23,42,0.7)',
                 color: 'var(--wv-text, #fff)',
               }}
-            >
-              <option value="">בחר שעה</option>
-              {['12:00', '13:00', '14:00', '15:00', '16:00'].map((t) => (
-                <option key={t} value={t}>
-                  {t}
-                </option>
-              ))}
-            </select>
+              placeholder="בחר שעה"
+              options={[
+                { value: '', label: 'בחר שעה' },
+                ...['12:00', '13:00', '14:00', '15:00', '16:00'].map((t) => ({ value: t, label: t })),
+              ]}
+            />
           </div>
           {lateStatus && (
             <div

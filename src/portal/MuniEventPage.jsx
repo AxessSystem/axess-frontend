@@ -15,6 +15,7 @@ import {
   X,
 } from 'lucide-react'
 import { COLORS, MUNI_CATEGORIES } from './MuniPortal'
+import CustomSelect from '@/components/ui/CustomSelect'
 
 const API_BASE = import.meta.env.VITE_API_URL || 'https://api.axess.pro'
 
@@ -583,51 +584,51 @@ export default function MuniEventPage() {
                         {field.label} *
                       </label>
                       <div style={{ display: 'flex', gap: 8 }} id="field-birth_date">
-                        <select
+                        <CustomSelect
+                          light
                           style={{ ...getInputStyle('birth_date'), flex: 1, minWidth: 0, width: 'auto' }}
                           value={formData.birth_day || ''}
-                          onChange={(e) => {
-                            setFormData((prev) => ({ ...prev, birth_day: e.target.value }))
+                          onChange={(val) => {
+                            setFormData((prev) => ({ ...prev, birth_day: val }))
                             if (errors.birth_date) setErrors((prev) => ({ ...prev, birth_date: false }))
                           }}
-                        >
-                          <option value="">יום</option>
-                          {Array.from({ length: 31 }, (_, i) => i + 1).map((d) => (
-                            <option key={d} value={String(d)}>
-                              {d}
-                            </option>
-                          ))}
-                        </select>
-                        <select
+                          placeholder="יום"
+                          options={[
+                            { value: '', label: 'יום' },
+                            ...Array.from({ length: 31 }, (_, i) => i + 1).map((d) => ({ value: String(d), label: String(d) })),
+                          ]}
+                        />
+                        <CustomSelect
+                          light
                           style={{ ...getInputStyle('birth_date'), flex: 1.5, minWidth: 0, width: 'auto' }}
                           value={formData.birth_month || ''}
-                          onChange={(e) => {
-                            setFormData((prev) => ({ ...prev, birth_month: e.target.value }))
+                          onChange={(val) => {
+                            setFormData((prev) => ({ ...prev, birth_month: val }))
                             if (errors.birth_date) setErrors((prev) => ({ ...prev, birth_date: false }))
                           }}
-                        >
-                          <option value="">חודש</option>
-                          {HEBREW_MONTHS.map((m, i) => (
-                            <option key={m} value={String(i + 1)}>
-                              {m}
-                            </option>
-                          ))}
-                        </select>
-                        <select
+                          placeholder="חודש"
+                          options={[
+                            { value: '', label: 'חודש' },
+                            ...HEBREW_MONTHS.map((m, i) => ({ value: String(i + 1), label: m })),
+                          ]}
+                        />
+                        <CustomSelect
+                          light
                           style={{ ...getInputStyle('birth_date'), flex: 1.2, minWidth: 0, width: 'auto' }}
                           value={formData.birth_year || ''}
-                          onChange={(e) => {
-                            setFormData((prev) => ({ ...prev, birth_year: e.target.value }))
+                          onChange={(val) => {
+                            setFormData((prev) => ({ ...prev, birth_year: val }))
                             if (errors.birth_date) setErrors((prev) => ({ ...prev, birth_date: false }))
                           }}
-                        >
-                          <option value="">שנה</option>
-                          {Array.from({ length: 100 }, (_, i) => new Date().getFullYear() - i).map((y) => (
-                            <option key={y} value={String(y)}>
-                              {y}
-                            </option>
-                          ))}
-                        </select>
+                          placeholder="שנה"
+                          options={[
+                            { value: '', label: 'שנה' },
+                            ...Array.from({ length: 100 }, (_, i) => new Date().getFullYear() - i).map((y) => ({
+                              value: String(y),
+                              label: String(y),
+                            })),
+                          ]}
+                        />
                       </div>
                       {errors.birth_date && (
                         <span style={{ color: '#ef4444', fontSize: 12, display: 'block', marginTop: 4 }}>שדה חובה</span>
@@ -647,21 +648,20 @@ export default function MuniEventPage() {
                         {field.label} *
                       </label>
                       {field.type === 'select' ? (
-                        <select
+                        <CustomSelect
+                          light
                           style={getInputStyle(field.id)}
                           value={formData[field.id] || ''}
-                          onChange={(e) => {
-                            setFormData((prev) => ({ ...prev, [field.id]: e.target.value }))
+                          onChange={(val) => {
+                            setFormData((prev) => ({ ...prev, [field.id]: val }))
                             if (errors[field.id]) setErrors((prev) => ({ ...prev, [field.id]: false }))
                           }}
-                        >
-                          <option value="">בחר...</option>
-                          {field.options.map((o) => (
-                            <option key={o} value={o}>
-                              {o}
-                            </option>
-                          ))}
-                        </select>
+                          placeholder="בחר..."
+                          options={[
+                            { value: '', label: 'בחר...' },
+                            ...field.options.map((o) => ({ value: o, label: o })),
+                          ]}
+                        />
                       ) : (
                         <input
                           type={field.type}

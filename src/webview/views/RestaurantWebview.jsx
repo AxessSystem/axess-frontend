@@ -6,6 +6,7 @@ import ProductCard from '../components/ProductCard'
 import WebviewWhatsAppAccordion from '../components/WebviewWhatsAppAccordion'
 import WebviewCart from '../components/WebviewCart'
 import { UtensilsCrossed, Calendar, ShoppingCart, Bell } from 'lucide-react'
+import CustomSelect from '@/components/ui/CustomSelect'
 
 const TABS = [
   { id: 'menu', label: 'תפריט', icon: UtensilsCrossed },
@@ -385,39 +386,38 @@ export default function RestaurantWebview({
         >
           <div style={{ width: '100%' }}>
             <label style={{ fontSize: 13, marginBottom: 4, display: 'block' }}>תאריך</label>
-            <select
+            <CustomSelect
+              light
               value={tableDate}
-              onChange={(e) => setTableDate(e.target.value)}
+              onChange={(val) => setTableDate(val)}
               style={fieldStyle}
-            >
-              <option value="">בחר תאריך</option>
-              {dateOptions.map((d) => (
-                <option key={d.value} value={d.value}>
-                  {d.label}
-                </option>
-              ))}
-            </select>
+              placeholder="בחר תאריך"
+              options={[
+                { value: '', label: 'בחר תאריך' },
+                ...dateOptions.map((d) => ({ value: d.value, label: d.label })),
+              ]}
+            />
           </div>
           <div>
             <label style={{ fontSize: 13, marginBottom: 4, display: 'block' }}>שעה</label>
-            <select
+            <CustomSelect
+              light
               value={tableTime}
-              onChange={(e) => setTableTime(e.target.value)}
+              onChange={(val) => setTableTime(val)}
               style={fieldStyle}
-            >
-              <option value="">בחר שעה</option>
-              {timeOptions.map((t) => (
-                <option key={t} value={t}>
-                  {t}
-                </option>
-              ))}
-            </select>
+              placeholder="בחר שעה"
+              options={[
+                { value: '', label: 'בחר שעה' },
+                ...timeOptions.map((t) => ({ value: t, label: t })),
+              ]}
+            />
           </div>
           <div>
             <label style={{ fontSize: 13, marginBottom: 4, display: 'block' }}>מספר אנשים</label>
-            <select
+            <CustomSelect
+              light
               value={tableGuests}
-              onChange={(e) => setTableGuests(Number(e.target.value))}
+              onChange={(val) => setTableGuests(Number(val))}
               style={{
                 padding: '10px 12px',
                 fontSize: 14,
@@ -429,13 +429,11 @@ export default function RestaurantWebview({
                 background: 'rgba(15,23,42,0.7)',
                 color: 'var(--wv-text, #fff)',
               }}
-            >
-              {Array.from({ length: 12 }).map((_, i) => (
-                <option key={i + 1} value={i + 1}>
-                  {i + 1}
-                </option>
-              ))}
-            </select>
+              options={Array.from({ length: 12 }).map((_, i) => ({
+                value: i + 1,
+                label: String(i + 1),
+              }))}
+            />
           </div>
           <div>
             <label style={{ fontSize: 13, marginBottom: 4, display: 'block' }}>הערות (אופציונלי)</label>
@@ -506,18 +504,17 @@ export default function RestaurantWebview({
             <label style={{ fontSize: 13, marginBottom: 4, display: 'block' }}>
               שעת הגעה משוערת
             </label>
-            <select
+            <CustomSelect
+              light
               value={preorderTime}
-              onChange={(e) => setPreorderTime(e.target.value)}
+              onChange={(val) => setPreorderTime(val)}
               style={fieldStyle}
-            >
-              <option value="">בחר שעה</option>
-              {timeOptions.map((t) => (
-                <option key={t} value={t}>
-                  {t}
-                </option>
-              ))}
-            </select>
+              placeholder="בחר שעה"
+              options={[
+                { value: '', label: 'בחר שעה' },
+                ...timeOptions.map((t) => ({ value: t, label: t })),
+              ]}
+            />
           </div>
           {callStatus && (
             <div

@@ -1,3 +1,5 @@
+import CustomSelect from '@/components/ui/CustomSelect'
+
 function tierLabel(event) {
   const c = event?.city_name || event?.city_code || 'העיר'
   return { resident: `תושב/ת ${c}`, visitor: 'אורח/ת (מחוץ לעיר)' }
@@ -31,11 +33,13 @@ export default function FieldsStep({
       <label htmlFor="sr-ticket" style={{ display: 'block', fontWeight: 700 }}>
         סוג כניסה
       </label>
-      <select
+      <CustomSelect
+        light
         id="sr-ticket"
         value={ticketTypeId || ''}
-        onChange={(e) => onTicketChange(e.target.value ? Number(e.target.value) : '')}
+        onChange={(val) => onTicketChange(val ? Number(val) : '')}
         disabled={disabled}
+        placeholder="בחרו…"
         style={{
           width: '100%',
           minHeight: 48,
@@ -45,14 +49,14 @@ export default function FieldsStep({
           borderRadius: 12,
           border: '2px solid var(--muni-border, #e2e8f0)',
         }}
-      >
-        <option value="">בחרו…</option>
-        {ticketTypes.map((tt) => (
-          <option key={tt.id} value={tt.id}>
-            {tt.name} — ₪{Number(tt.price || 0).toFixed(0)}
-          </option>
-        ))}
-      </select>
+        options={[
+          { value: '', label: 'בחרו…' },
+          ...ticketTypes.map((tt) => ({
+            value: tt.id,
+            label: `${tt.name} — ₪${Number(tt.price || 0).toFixed(0)}`,
+          })),
+        ]}
+      />
 
       <label htmlFor="sr-qty" style={{ display: 'block', marginTop: 16, fontWeight: 700 }}>
         כמות

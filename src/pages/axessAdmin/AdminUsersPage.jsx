@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '@/contexts/AuthContext'
+import CustomSelect from '@/components/ui/CustomSelect'
 
 const API_BASE = import.meta.env.VITE_API_URL || 'https://api.axess.pro'
 
@@ -316,9 +317,9 @@ export default function AdminUsersPage() {
                 Audit Log של פעולות אדמין (עד 200 האחרונות).
               </div>
               <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                <select
+                <CustomSelect
                   value={actionFilter}
-                  onChange={(e) => setActionFilter(e.target.value)}
+                  onChange={(val) => setActionFilter(val)}
                   style={{
                     padding: '6px 10px',
                     borderRadius: 999,
@@ -327,11 +328,12 @@ export default function AdminUsersPage() {
                     color: '#fff',
                     fontSize: 12,
                   }}
-                >
-                  <option value="">כל הפעולות</option>
-                  <option value="add_credits">add_credits</option>
-                  <option value="toggle_user_active">toggle_user_active</option>
-                </select>
+                  options={[
+                    { value: '', label: 'כל הפעולות' },
+                    { value: 'add_credits', label: 'add_credits' },
+                    { value: 'toggle_user_active', label: 'toggle_user_active' },
+                  ]}
+                />
                 <button
                   onClick={() => auditQuery.refetch()}
                   style={{

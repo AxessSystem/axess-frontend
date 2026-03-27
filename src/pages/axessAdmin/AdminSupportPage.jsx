@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '@/contexts/AuthContext'
+import CustomSelect from '@/components/ui/CustomSelect'
 
 const API_BASE = import.meta.env.VITE_API_URL || 'https://api.axess.pro'
 
@@ -251,9 +252,9 @@ export default function AdminSupportPage() {
               <label style={{ display: 'block', fontSize: 12, color: 'var(--v2-gray-300)', marginBottom: 4 }}>
                 עסק
               </label>
-              <select
+              <CustomSelect
                 value={creditsBizId}
-                onChange={(e) => setCreditsBizId(e.target.value)}
+                onChange={(val) => setCreditsBizId(val)}
                 style={{
                   width: '100%',
                   padding: '6px 10px',
@@ -264,14 +265,11 @@ export default function AdminSupportPage() {
                   fontSize: 13,
                   marginBottom: 8,
                 }}
-              >
-                <option value="">בחר עסק...</option>
-                {businesses.map((b) => (
-                  <option key={b.id} value={b.id}>
-                    {b.name} ({b.slug})
-                  </option>
-                ))}
-              </select>
+                options={[
+                  { value: '', label: 'בחר עסק...' },
+                  ...businesses.map((b) => ({ value: b.id, label: `${b.name} (${b.slug})` })),
+                ]}
+              />
 
               <label style={{ display: 'block', fontSize: 12, color: 'var(--v2-gray-300)', marginBottom: 4 }}>
                 סכום (₪)
@@ -350,9 +348,9 @@ export default function AdminSupportPage() {
               <label style={{ display: 'block', fontSize: 12, color: 'var(--v2-gray-300)', marginBottom: 4 }}>
                 עסק
               </label>
-              <select
+              <CustomSelect
                 value={waBizId}
-                onChange={(e) => setWaBizId(e.target.value)}
+                onChange={(val) => setWaBizId(val)}
                 style={{
                   width: '100%',
                   padding: '6px 10px',
@@ -363,14 +361,11 @@ export default function AdminSupportPage() {
                   fontSize: 13,
                   marginBottom: 8,
                 }}
-              >
-                <option value="">בחר עסק...</option>
-                {businesses.map((b) => (
-                  <option key={b.id} value={b.id}>
-                    {b.name} ({b.slug})
-                  </option>
-                ))}
-              </select>
+                options={[
+                  { value: '', label: 'בחר עסק...' },
+                  ...businesses.map((b) => ({ value: b.id, label: `${b.name} (${b.slug})` })),
+                ]}
+              />
 
               <label style={{ display: 'block', fontSize: 12, color: 'var(--v2-gray-300)', marginBottom: 4 }}>
                 הודעה

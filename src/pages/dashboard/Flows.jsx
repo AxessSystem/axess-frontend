@@ -14,6 +14,7 @@ import {
 import { useAuth } from '@/contexts/AuthContext'
 import { useRequirePermission } from '@/hooks/useRequirePermission'
 import { fetchWithAuth, supabase } from '@/lib/supabase'
+import CustomSelect from '@/components/ui/CustomSelect'
 
 const API_BASE = import.meta.env.VITE_API_URL || 'https://api.axess.pro'
 
@@ -910,17 +911,12 @@ export default function Flows() {
 
                     <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                       <span style={{ fontSize: 13, color: 'var(--v2-gray-400)' }}>טריגר</span>
-                      <select
+                      <CustomSelect
                         style={{ ...inputStyle, ...SELECT_STYLE }}
                         value={form.trigger_type}
-                        onChange={(e) => setForm((p) => ({ ...p, trigger_type: e.target.value }))}
-                      >
-                        {TRIGGER_OPTIONS.map((o) => (
-                          <option key={o.value} value={o.value}>
-                            {o.label}
-                          </option>
-                        ))}
-                      </select>
+                        onChange={(val) => setForm((p) => ({ ...p, trigger_type: val }))}
+                        options={TRIGGER_OPTIONS.map((o) => ({ value: o.value, label: o.label }))}
+                      />
                     </label>
 
                     {form.trigger_type === 'keyword' && (
@@ -986,11 +982,10 @@ export default function Flows() {
                             </div>
                             <label style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 10 }}>
                               <span style={{ fontSize: 12, color: 'var(--v2-gray-400)' }}>סוג שלב</span>
-                              <select
+                              <CustomSelect
                                 style={{ ...inputStyle, ...SELECT_STYLE }}
                                 value={step.type}
-                                onChange={(e) => {
-                                  const t = e.target.value
+                                onChange={(t) => {
                                   const next = emptyStep(t)
                                   next.id = step.id
                                   setForm((p) => {
@@ -999,13 +994,8 @@ export default function Flows() {
                                     return { ...p, steps }
                                   })
                                 }}
-                              >
-                                {STEP_TYPES.map((st) => (
-                                  <option key={st.type} value={st.type}>
-                                    {st.label}
-                                  </option>
-                                ))}
-                              </select>
+                                options={STEP_TYPES.map((st) => ({ value: st.type, label: st.label }))}
+                              />
                             </label>
 
                             {def.fields.includes('content') && (
@@ -1058,22 +1048,22 @@ export default function Flows() {
                                         updateStep(idx, { options })
                                       }}
                                     />
-                                    <select
+                                    <CustomSelect
                                       style={{ ...inputStyle, ...SELECT_STYLE }}
                                       value={opt.next_step || ''}
-                                      onChange={(e) => {
+                                      onChange={(val) => {
                                         const options = [...(step.options || [])]
-                                        options[oi] = { ...options[oi], next_step: e.target.value }
+                                        options[oi] = { ...options[oi], next_step: val }
                                         updateStep(idx, { options })
                                       }}
-                                    >
-                                      <option value="">— שלב הבא —</option>
-                                      {stepOptionsForMenu.map((so) => (
-                                        <option key={so.id} value={so.id}>
-                                          {so.label} ({so.id.slice(0, 8)}…)
-                                        </option>
-                                      ))}
-                                    </select>
+                                      options={[
+                                        { value: '', label: '— שלב הבא —' },
+                                        ...stepOptionsForMenu.map((so) => ({
+                                          value: so.id,
+                                          label: `${so.label} (${so.id.slice(0, 8)}…)`,
+                                        })),
+                                      ]}
+                                    />
                                   </div>
                                 ))}
                                 <button

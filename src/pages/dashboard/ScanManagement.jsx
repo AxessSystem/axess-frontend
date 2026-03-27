@@ -6,6 +6,7 @@ import { QRCodeCanvas } from 'qrcode.react'
 import { useAuth } from '@/contexts/AuthContext'
 import { useRequirePermission } from '@/hooks/useRequirePermission'
 import { fetchWithAuth, supabase } from '@/lib/supabase'
+import CustomSelect from '@/components/ui/CustomSelect'
 
 const API_BASE = import.meta.env.VITE_API_URL || 'https://api.axess.pro'
 const PUBLIC_ORIGIN = (import.meta.env.VITE_PUBLIC_SITE_URL || 'https://axess.pro').replace(/\/$/, '')
@@ -643,43 +644,40 @@ export default function ScanManagement() {
               </label>
               <label style={{ display: 'block', marginBottom: 14 }}>
                 <span style={{ display: 'block', fontSize: 13, color: 'var(--v2-gray-400)', marginBottom: 6 }}>סוג אובייקט</span>
-                <select
+                <CustomSelect
                   style={{ ...inputStyle, ...SELECT_STYLE }}
                   value={objectType}
-                  onChange={(e) => {
-                    const v = e.target.value
+                  onChange={(v) => {
                     setObjectType(v)
                     setObjectId('')
                     fetchObjects(v)
                   }}
-                >
-                  <option value="">בחר סוג</option>
-                  <option value="event">🎫 אירוע</option>
-                  <option value="validator">✅ Validator</option>
-                  <option value="coupon">🎟️ קופון</option>
-                </select>
+                  options={[
+                    { value: '', label: 'בחר סוג' },
+                    { value: 'event', label: '🎫 אירוע' },
+                    { value: 'validator', label: '✅ Validator' },
+                    { value: 'coupon', label: '🎟️ קופון' },
+                  ]}
+                />
               </label>
               {objectType ? (
                 <label style={{ display: 'block', marginBottom: 14 }}>
                   <span style={{ display: 'block', fontSize: 13, color: 'var(--v2-gray-400)', marginBottom: 6 }}>
                     {objectType === 'event' ? 'אירוע' : objectType === 'validator' ? 'Validator' : 'קופון'}
                   </span>
-                  <select
+                  <CustomSelect
                     style={{ ...inputStyle, ...SELECT_STYLE }}
                     value={objectId}
-                    onChange={(e) => setObjectId(e.target.value)}
-                    required
-                  >
-                    <option value="">
-                      בחר {objectType === 'event' ? 'אירוע' : objectType === 'validator' ? 'Validator' : 'קופון'}
-                    </option>
-                    {objects.map((o) => (
-                      <option key={o.id} value={o.id}>
-                        {o.name || o.slug || o.id}
-                        {o.date ? ` — ${new Date(o.date).toLocaleDateString('he-IL')}` : ''}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={(val) => setObjectId(val)}
+                    placeholder={`בחר ${objectType === 'event' ? 'אירוע' : objectType === 'validator' ? 'Validator' : 'קופון'}`}
+                    options={[
+                      { value: '', label: `בחר ${objectType === 'event' ? 'אירוע' : objectType === 'validator' ? 'Validator' : 'קופון'}` },
+                      ...objects.map((o) => ({
+                        value: o.id,
+                        label: `${o.name || o.slug || o.id}${o.date ? ` — ${new Date(o.date).toLocaleDateString('he-IL')}` : ''}`,
+                      })),
+                    ]}
+                  />
                 </label>
               ) : null}
 

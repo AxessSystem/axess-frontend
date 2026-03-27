@@ -22,6 +22,7 @@ import {
   Users,
   X,
 } from 'lucide-react'
+import CustomSelect from '@/components/ui/CustomSelect'
 
 const API_BASE = import.meta.env.VITE_API_URL || 'https://api.axess.pro'
 
@@ -974,43 +975,42 @@ export default function MuniPortal() {
           }}
         >
           <Filter size={18} color={COLORS.textLight} aria-hidden style={{ flex: '0 0 auto' }} />
-          <select
+          <CustomSelect
+            light
             value={draftDateFrom}
-            onChange={(e) => setDraftDateFrom(e.target.value)}
+            onChange={(val) => setDraftDateFrom(val)}
             style={{
               ...filterSelectBase,
               minWidth: 148,
               color: draftDateFrom ? COLORS.text : '#9ca3af',
             }}
+            placeholder="בחר תאריך התחלה"
             aria-label="בחירת תאריך התחלה"
-          >
-            <option value="">בחר תאריך התחלה</option>
-            {next30Days.map((d) => (
-              <option key={d.value} value={d.value}>
-                {d.label}
-              </option>
-            ))}
-          </select>
-          <select
+            options={[
+              { value: '', label: 'בחר תאריך התחלה' },
+              ...next30Days.map((d) => ({ value: d.value, label: d.label })),
+            ]}
+          />
+          <CustomSelect
+            light
             value={draftDateTo}
-            onChange={(e) => setDraftDateTo(e.target.value)}
+            onChange={(val) => setDraftDateTo(val)}
             style={{
               ...filterSelectBase,
               minWidth: 140,
               color: draftDateTo ? COLORS.text : '#9ca3af',
             }}
+            placeholder="בחר תאריך סיום"
             aria-label="בחירת תאריך סיום"
-          >
-            <option value="">בחר תאריך סיום</option>
-            {next30Days.map((d) => (
-              <option key={`to-${d.value}`} value={d.value}>
-                {d.label}
-              </option>
-            ))}
-          </select>
-          <select
+            options={[
+              { value: '', label: 'בחר תאריך סיום' },
+              ...next30Days.map((d) => ({ value: d.value, label: d.label })),
+            ]}
+          />
+          <CustomSelect
+            light
             value={draftCategory}
-            onChange={(e) => setDraftCategory(e.target.value)}
+            onChange={(val) => setDraftCategory(val)}
             style={{
               height: 44,
               minHeight: 44,
@@ -1023,15 +1023,13 @@ export default function MuniPortal() {
               minWidth: 120,
               boxSizing: 'border-box',
             }}
+            placeholder="קטגוריה"
             aria-label="קטגוריה"
-          >
-            <option value="">קטגוריה</option>
-            {MUNI_CATEGORIES.map((c) => (
-              <option key={c.value} value={c.value}>
-                {c.label}
-              </option>
-            ))}
-          </select>
+            options={[
+              { value: '', label: 'קטגוריה' },
+              ...MUNI_CATEGORIES.map((c) => ({ value: c.value, label: c.label })),
+            ]}
+          />
           <input
             type="text"
             value={draftAudience}
@@ -1051,9 +1049,10 @@ export default function MuniPortal() {
             }}
             aria-label="קהל יעד"
           />
-          <select
+          <CustomSelect
+            light
             value={draftPrice}
-            onChange={(e) => setDraftPrice(e.target.value)}
+            onChange={(val) => setDraftPrice(val)}
             style={{
               height: 44,
               minHeight: 44,
@@ -1066,11 +1065,12 @@ export default function MuniPortal() {
               boxSizing: 'border-box',
             }}
             aria-label="מחיר"
-          >
-            <option value="all">מחיר</option>
-            <option value="free">חינם</option>
-            <option value="paid">בתשלום</option>
-          </select>
+            options={[
+              { value: 'all', label: 'מחיר' },
+              { value: 'free', label: 'חינם' },
+              { value: 'paid', label: 'בתשלום' },
+            ]}
+          />
           <button
             type="button"
             onClick={applyFilters}

@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import { X, Plus, Link2, Loader2 } from 'lucide-react'
 import toast from 'react-hot-toast'
+import CustomSelect from '@/components/ui/CustomSelect'
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000'
 
@@ -175,19 +176,15 @@ export default function AddEventModal({ onClose, onSuccess }) {
         <form onSubmit={handleSubmit} className="p-5 space-y-4">
           <div>
             <label className="label">מפיק *</label>
-            <select
+            <CustomSelect
               value={form.producer_id}
-              onChange={(e) => updateForm('producer_id', e.target.value)}
+              onChange={(val) => updateForm('producer_id', val)}
               className="input"
-              required
-            >
-              <option value="">בחר מפיק</option>
-              {(producers || []).map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name}
-                </option>
-              ))}
-            </select>
+              options={[
+                { value: '', label: 'בחר מפיק' },
+                ...(producers || []).map((p) => ({ value: p.id, label: p.name })),
+              ]}
+            />
           </div>
           <div>
             <label className="label">שם אירוע *</label>

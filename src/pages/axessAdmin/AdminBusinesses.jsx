@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import { Search, MoreVertical, Eye, Edit, BarChart2, AlertTriangle, Trash2 } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import toast from 'react-hot-toast'
+import CustomSelect from '@/components/ui/CustomSelect'
 
 const API_BASE = import.meta.env.VITE_API_URL || 'https://api.axess.pro'
 
@@ -325,27 +326,29 @@ export default function AdminBusinesses() {
             }}
           />
         </div>
-        <select
+        <CustomSelect
           value={type}
-          onChange={e => setType(e.target.value)}
+          onChange={val => setType(val)}
           style={{ padding: '10px 12px', background: 'var(--v2-dark-2)', border: '1px solid var(--glass-border)', borderRadius: 8, color: '#fff', fontSize: 14 }}
-        >
-          <option value="">סוג עסק</option>
-          <option value="club">מועדון</option>
-          <option value="restaurant">מסעדה</option>
-          <option value="municipal">רשות</option>
-          <option value="general">כללי</option>
-        </select>
-        <select
+          options={[
+            { value: '', label: 'סוג עסק' },
+            { value: 'club', label: 'מועדון' },
+            { value: 'restaurant', label: 'מסעדה' },
+            { value: 'municipal', label: 'רשות' },
+            { value: 'general', label: 'כללי' },
+          ]}
+        />
+        <CustomSelect
           value={status}
-          onChange={e => setStatus(e.target.value)}
+          onChange={val => setStatus(val)}
           style={{ padding: '10px 12px', background: 'var(--v2-dark-2)', border: '1px solid var(--glass-border)', borderRadius: 8, color: '#fff', fontSize: 14 }}
-        >
-          <option value="">סטטוס</option>
-          <option value="active">פעיל</option>
-          <option value="trial">ניסיון</option>
-          <option value="suspended">מושעה</option>
-        </select>
+          options={[
+            { value: '', label: 'סטטוס' },
+            { value: 'active', label: 'פעיל' },
+            { value: 'trial', label: 'ניסיון' },
+            { value: 'suspended', label: 'מושעה' },
+          ]}
+        />
       </div>
 
       {isMobile ? (
@@ -609,9 +612,9 @@ export default function AdminBusinesses() {
               </div>
               <div>
                 <label style={{ display: 'block', marginBottom: 4, fontSize: 13, color: 'var(--v2-gray-300)' }}>סוג עסק</label>
-                <select
+                <CustomSelect
                   value={newBizType}
-                  onChange={(e) => setNewBizType(e.target.value)}
+                  onChange={(val) => setNewBizType(val)}
                   style={{
                     width: '100%',
                     padding: '8px 10px',
@@ -621,16 +624,17 @@ export default function AdminBusinesses() {
                     color: '#fff',
                     fontSize: 14,
                   }}
-                >
-                  <option value="">בחר סוג</option>
-                  <option value="restaurant">מסעדה / בר / קפה</option>
-                  <option value="hotel">מלון / אירוח</option>
-                  <option value="retail">חנות / Retail</option>
-                  <option value="event">אולם אירועים / אירוע</option>
-                  <option value="gym">חדר כושר / סטודיו</option>
-                  <option value="municipal">עירייה / מוסד</option>
-                  <option value="general">כללי</option>
-                </select>
+                  options={[
+                    { value: '', label: 'בחר סוג' },
+                    { value: 'restaurant', label: 'מסעדה / בר / קפה' },
+                    { value: 'hotel', label: 'מלון / אירוח' },
+                    { value: 'retail', label: 'חנות / Retail' },
+                    { value: 'event', label: 'אולם אירועים / אירוע' },
+                    { value: 'gym', label: 'חדר כושר / סטודיו' },
+                    { value: 'municipal', label: 'עירייה / מוסד' },
+                    { value: 'general', label: 'כללי' },
+                  ]}
+                />
               </div>
               <div>
                 <label style={{ display: 'block', marginBottom: 4, fontSize: 13, color: 'var(--v2-gray-300)' }}>טלפון</label>
@@ -780,9 +784,9 @@ export default function AdminBusinesses() {
               </div>
               <div>
                 <label style={{ display: 'block', marginBottom: 4, fontSize: 13, color: 'var(--v2-gray-300)' }}>סוג עסק</label>
-                <select
+                <CustomSelect
                   value={editType}
-                  onChange={(e) => setEditType(e.target.value)}
+                  onChange={(val) => setEditType(val)}
                   style={{
                     width: '100%',
                     padding: '8px 10px',
@@ -792,20 +796,21 @@ export default function AdminBusinesses() {
                     color: '#fff',
                     fontSize: 14,
                   }}
-                >
-                  <option value="">בחר סוג</option>
-                  <option value="restaurant">מסעדה</option>
-                  <option value="hotel">מלון</option>
-                  <option value="retail">חנויות / Retail</option>
-                  <option value="event">אולם אירועים / אירוע</option>
-                  <option value="gym">חדר כושר / סטודיו</option>
-                </select>
+                  options={[
+                    { value: '', label: 'בחר סוג' },
+                    { value: 'restaurant', label: 'מסעדה' },
+                    { value: 'hotel', label: 'מלון' },
+                    { value: 'retail', label: 'חנויות / Retail' },
+                    { value: 'event', label: 'אולם אירועים / אירוע' },
+                    { value: 'gym', label: 'חדר כושר / סטודיו' },
+                  ]}
+                />
               </div>
               <div>
                 <label style={{ display: 'block', marginBottom: 4, fontSize: 13, color: 'var(--v2-gray-300)' }}>סטטוס</label>
-                <select
+                <CustomSelect
                   value={editStatus}
-                  onChange={(e) => setEditStatus(e.target.value)}
+                  onChange={(val) => setEditStatus(val)}
                   style={{
                     width: '100%',
                     padding: '8px 10px',
@@ -815,12 +820,13 @@ export default function AdminBusinesses() {
                     color: '#fff',
                     fontSize: 14,
                   }}
-                >
-                  <option value="">ללא שינוי</option>
-                  <option value="active">פעיל</option>
-                  <option value="trial">ניסיון</option>
-                  <option value="suspended">מושעה</option>
-                </select>
+                  options={[
+                    { value: '', label: 'ללא שינוי' },
+                    { value: 'active', label: 'פעיל' },
+                    { value: 'trial', label: 'ניסיון' },
+                    { value: 'suspended', label: 'מושעה' },
+                  ]}
+                />
               </div>
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 8 }}>
                 <button
@@ -906,9 +912,9 @@ export default function AdminBusinesses() {
               </div>
               <div>
                 <label style={{ display: 'block', marginBottom: 4, fontSize: 13, color: 'var(--v2-gray-300)' }}>תפקיד</label>
-                <select
+                <CustomSelect
                   value={memberRole}
-                  onChange={(e) => setMemberRole(e.target.value)}
+                  onChange={(val) => setMemberRole(val)}
                   style={{
                     width: '100%',
                     padding: '8px 10px',
@@ -918,11 +924,12 @@ export default function AdminBusinesses() {
                     color: '#fff',
                     fontSize: 14,
                   }}
-                >
-                  <option value="owner">Owner</option>
-                  <option value="manager">Manager</option>
-                  <option value="staff">Staff</option>
-                </select>
+                  options={[
+                    { value: 'owner', label: 'Owner' },
+                    { value: 'manager', label: 'Manager' },
+                    { value: 'staff', label: 'Staff' },
+                  ]}
+                />
               </div>
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 8 }}>
                 <button

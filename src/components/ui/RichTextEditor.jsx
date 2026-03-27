@@ -1,4 +1,5 @@
 import { useRef, useEffect, useState } from 'react'
+import CustomSelect from '@/components/ui/CustomSelect'
 
 const ROW1_BTNS = [
   { cmd: 'bold', label: 'B' },
@@ -25,6 +26,7 @@ const FONT_SIZES = [
 export default function RichTextEditor({ value = '', onChange, placeholder = 'תאר את האירוע...', minHeight = 200 }) {
   const ref = useRef(null)
   const [previewMode, setPreviewMode] = useState(false)
+  const [fontSizeUi, setFontSizeUi] = useState(2)
 
   useEffect(() => {
     if (ref.current && value) {
@@ -127,14 +129,16 @@ export default function RichTextEditor({ value = '', onChange, placeholder = 'ת
           <button type="button" onClick={() => runCmd('createLink', null, true)} style={{ padding: '6px 10px', background: 'var(--v2-dark-3)', border: '1px solid var(--glass-border)', borderRadius: 6, color: '#fff', cursor: 'pointer' }}>🔗</button>
           <span style={{ flex: 1 }} />
           {/* גודל גופן */}
-          <select
-            onChange={e => runCmd('fontSize', e.target.value)}
-            style={{ padding: 6, background: 'var(--v2-dark-3)', border: '1px solid var(--glass-border)', borderRadius: 6, color: '#fff', fontSize: 13 }}
-          >
-            {FONT_SIZES.map((f, i) => (
-              <option key={i} value={f.value}>{f.label} ({f.px}px)</option>
-            ))}
-          </select>
+          <CustomSelect
+            value={fontSizeUi}
+            onChange={val => {
+              const v = Number(val)
+              setFontSizeUi(v)
+              runCmd('fontSize', v)
+            }}
+            style={{ padding: 6, background: 'var(--v2-dark-3)', border: '1px solid var(--glass-border)', borderRadius: 6, color: '#fff', fontSize: 13, width: 'auto' }}
+            options={FONT_SIZES.map((f) => ({ value: f.value, label: `${f.label} (${f.px}px)` }))}
+          />
           {/* עריכה / תצוגה מקדימה */}
           <span style={{ display: 'flex', gap: 4 }}>
             <button type="button" onClick={() => setPreviewMode(false)} style={{ padding: '6px 10px', background: previewMode ? 'transparent' : 'var(--v2-primary)', border: '1px solid var(--glass-border)', borderRadius: 6, color: previewMode ? 'var(--v2-gray-400)' : 'var(--v2-dark)', cursor: 'pointer', fontWeight: 600 }}>✏️ עריכה</button>

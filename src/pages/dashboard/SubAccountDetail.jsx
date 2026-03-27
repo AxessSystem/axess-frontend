@@ -4,6 +4,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { useRequirePermission } from '@/hooks/useRequirePermission'
 import { ArrowRight, Building2, Users, Calendar, Settings2 } from 'lucide-react'
 import toast from 'react-hot-toast'
+import CustomSelect from '@/components/ui/CustomSelect'
 
 const API_BASE = import.meta.env.VITE_API_URL || 'https://api.axess.pro'
 
@@ -409,24 +410,21 @@ export default function SubAccountDetail() {
             <label className="label">שם מחלקה</label>
             <input className="input" style={{ marginBottom: 14 }} value={editForm.name} onChange={(e) => setEditForm((f) => ({ ...f, name: e.target.value }))} />
             <label className="label">סוג</label>
-            <select
+            <CustomSelect
               style={{ ...SELECT_STYLE, marginBottom: showAddType ? 8 : 14 }}
               value={editForm.department_type}
-              onChange={(e) => {
-                if (e.target.value === '__add_new__') {
+              onChange={(val) => {
+                if (val === '__add_new__') {
                   setShowAddType(true)
                   return
                 }
-                setEditForm((f) => ({ ...f, department_type: e.target.value }))
+                setEditForm((f) => ({ ...f, department_type: val }))
               }}
-            >
-              {[...BASE_DEPT_TYPES, ...customTypes].map((t) => (
-                <option key={t.value} value={t.value}>
-                  {t.label}
-                </option>
-              ))}
-              <option value="__add_new__">+ הוסף סוג חדש...</option>
-            </select>
+              options={[
+                ...[...BASE_DEPT_TYPES, ...customTypes].map((t) => ({ value: t.value, label: t.label })),
+                { value: '__add_new__', label: '+ הוסף סוג חדש...' },
+              ]}
+            />
             {showAddType && (
               <div style={{ display: 'flex', gap: 8, marginBottom: 14, flexWrap: 'wrap' }}>
                 <input

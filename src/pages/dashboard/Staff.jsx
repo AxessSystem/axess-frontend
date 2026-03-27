@@ -14,6 +14,7 @@ import {
 import toast from 'react-hot-toast'
 import { useAuth } from '@/contexts/AuthContext'
 import { useRequirePermission } from '@/hooks/useRequirePermission'
+import CustomSelect from '@/components/ui/CustomSelect'
 
 const API_BASE = import.meta.env.VITE_API_URL || 'https://api.axess.pro'
 
@@ -674,23 +675,24 @@ export default function Staff() {
               </div>
               <div>
                 <label className="label">תפקיד</label>
-                <select
+                <CustomSelect
                   value={inviteRole}
-                  onChange={(e) => onInviteRoleChange(e.target.value)}
+                  onChange={(val) => onInviteRoleChange(val)}
                   style={{ ...SELECT_STYLE, padding: '10px 12px' }}
-                >
-                  <option value="">בחר תפקיד</option>
-                  <option value="manager">מנהל</option>
-                  <option value="inbox_agent">נציג שירות</option>
-                  <option value="event_producer">מפיק אירועים</option>
-                  <option value="campaign_manager">מנהל קמפיינים</option>
-                  <option value="scanner">סורק</option>
-                  <option value="analyst">אנליסט</option>
-                  <option value="coordinator">רכז</option>
-                  <option value="division_head">מנהל אגף</option>
-                  <option value="department_manager">מנהל מחלקה</option>
-                  <option value="external_auditor">צופה חיצוני</option>
-                </select>
+                  options={[
+                    { value: '', label: 'בחר תפקיד' },
+                    { value: 'manager', label: 'מנהל' },
+                    { value: 'inbox_agent', label: 'נציג שירות' },
+                    { value: 'event_producer', label: 'מפיק אירועים' },
+                    { value: 'campaign_manager', label: 'מנהל קמפיינים' },
+                    { value: 'scanner', label: 'סורק' },
+                    { value: 'analyst', label: 'אנליסט' },
+                    { value: 'coordinator', label: 'רכז' },
+                    { value: 'division_head', label: 'מנהל אגף' },
+                    { value: 'department_manager', label: 'מנהל מחלקה' },
+                    { value: 'external_auditor', label: 'צופה חיצוני' },
+                  ]}
+                />
               </div>
               <div>
                 <label className="label">כותרת מותאמת (אופציונלי)</label>

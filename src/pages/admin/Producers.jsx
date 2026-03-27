@@ -4,6 +4,7 @@ import { supabase } from '@/lib/supabase'
 import { Plus, CheckCircle, XCircle, Phone, Building2, Users, MessageCircle, UserPlus, Search } from 'lucide-react'
 import toast from 'react-hot-toast'
 import AddProducerModal from '@/components/ui/AddProducerModal'
+import CustomSelect from '@/components/ui/CustomSelect'
 
 const LEAD_STATUS_OPTIONS = [
   { value: '', label: 'כל הסטטוסים' },
@@ -147,15 +148,12 @@ export default function AdminProducers() {
                 className="input pl-9 w-full"
               />
             </div>
-            <select
+            <CustomSelect
               value={leadStatusFilter}
-              onChange={(e) => setLeadStatusFilter(e.target.value)}
+              onChange={(val) => setLeadStatusFilter(val)}
               className="input w-auto"
-            >
-              {LEAD_STATUS_OPTIONS.map((o) => (
-                <option key={o.value || 'all'} value={o.value}>{o.label}</option>
-              ))}
-            </select>
+              options={LEAD_STATUS_OPTIONS.map((o) => ({ value: o.value, label: o.label }))}
+            />
           </div>
         </div>
       )}
