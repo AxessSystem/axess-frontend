@@ -5,11 +5,11 @@ const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
-    autoRefreshToken: false, // אנחנו מנהלים לבד
+    autoRefreshToken: false,
     persistSession: true,
     detectSessionInUrl: true,
-    storage: localStorage,
-  },
+    storage: localStorage
+  }
 })
 
 export { fetchWithAuth } from './api'
