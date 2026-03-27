@@ -59,6 +59,7 @@
   --v2-gray-400: #94A3B8;
   --v2-gray-600: #475569;
   --v2-white: #FFFFFF;
+  --card: var(--v2-dark-2, #1a1d2e);
 
   /* Typography Scale */
   --text-hero: clamp(52px, 8vw, 82px);

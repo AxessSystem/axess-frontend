@@ -27,7 +27,7 @@ const MODAL_CLOSE_X = {
 const PUBLIC_ORIGIN = (import.meta.env.VITE_PUBLIC_SITE_URL || 'https://axess.pro').replace(/\/$/, '')
 
 const cardStyle = {
-  background: 'var(--card)',
+  background: 'var(--card, var(--v2-dark-2, #1a1d2e))',
   border: '1px solid var(--glass-border)',
   borderRadius: 12,
   padding: 20,
@@ -69,7 +69,7 @@ const inputStyle = {
 
 const SELECT_STYLE = {
   width: '100%', padding: '8px 12px', borderRadius: 8,
-  border: '1px solid var(--glass-border)', background: 'var(--card)',
+  border: '1px solid var(--glass-border)', background: 'var(--card, var(--v2-dark-2, #1a1d2e))',
   color: 'var(--text)', fontSize: 14, fontFamily: 'inherit',
   cursor: 'pointer', WebkitAppearance: 'none', appearance: 'none',
 }
@@ -631,7 +631,7 @@ export default function ScanManagement() {
               onClick={(e) => e.stopPropagation()}
               dir="rtl"
               style={{
-                background: 'var(--card)',
+                background: 'var(--card, var(--v2-dark-2, #1a1d2e))',
                 borderRadius: 12,
                 padding: 24,
                 border: '1px solid var(--glass-border)',
@@ -790,7 +790,7 @@ export default function ScanManagement() {
                 maxWidth: 520,
                 maxHeight: '90vh',
                 overflow: 'auto',
-                background: 'var(--card)',
+                background: 'var(--card, var(--v2-dark-2, #1a1d2e))',
                 border: '1px solid var(--glass-border)',
                 borderRadius: 12,
                 padding: 24,
