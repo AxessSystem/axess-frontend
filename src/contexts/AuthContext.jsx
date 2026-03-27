@@ -1,6 +1,74 @@
 import { createContext, useContext, useEffect, useState, useCallback } from 'react'
 import { supabase } from '@/lib/supabase'
-import { getValidSession, safeRefresh } from '@/lib/authCore'
+import { forceLogout } from '@/lib/authManager'
+
+async function getValidSession() {
+  const { data } = await supabase.auth.getSession()
+  return data.session || null
+}
+
+async function safeRefresh() {
+  try {
+    const { data, error } = await supabase.auth.refreshSession()
+    if (error || !data?.session) return null
+    return data.session
+  } catch (e) {
+    console.error('[authCore] safeRefresh failed:', e)
+    return null
+  }
+}
+
+let isRetrying = false
+
+export async function apiFetch(url, options = {}) {
+  try {
+    const token = (await safeRefresh())?.access_token
+    if (!options.headers) options.headers = {}
+    if (token) options.headers.Authorization = `Bearer ${token}`
+
+    let res = await fetch(url, options)
+    if (res.status === 401 && !isRetrying) {
+      isRetrying = true
+      try {
+        const refreshed = await safeRefresh()
+        if (!refreshed) {
+          forceLogout()
+          throw new Error('Unauthorized')
+        }
+        options.headers.Authorization = `Bearer ${refreshed.access_token}`
+        res = await fetch(url, options)
+      } finally {
+        isRetrying = false
+      }
+    }
+
+    return res
+  } catch (e) {
+    console.error('[apiFetch] error:', e)
+    throw e
+  }
+}
+
+export async function safeQuery(builder) {
+  try {
+    const session = await safeRefresh()
+    if (!session) {
+      forceLogout()
+      throw new Error('Unauthorized')
+    }
+
+    await supabase.auth.setSession({
+      access_token: session.access_token,
+      refresh_token: session.refresh_token,
+    })
+    const { data, error } = await builder
+    if (error) throw error
+    return data
+  } catch (e) {
+    console.error('[safeQuery] failed:', e)
+    throw e
+  }
+}
 
 const AuthContext = createContext(null)
 
@@ -11,118 +79,73 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true)
   const [identityReady, setIdentityReady] = useState(false)
 
-  // -----------------------------
-  // 🧠 PROFILE
-  // -----------------------------
   const fetchProfile = useCallback(async (userId) => {
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('*, producers(id, name, producer_phone, business_name, is_active)')
-      .eq('id', userId)
-      .single()
-
-    if (error) {
-      console.error('Profile fetch error:', error)
-      return null
-    }
-    return data
+    return await safeQuery(
+      supabase.from('profiles').select('*, producers(*)').eq('id', userId).single(),
+    )
   }, [])
 
   const fetchBusinessMember = useCallback(async (userId) => {
-    try {
-      const { data: members, error } = await supabase
+    const members = await safeQuery(
+      supabase
         .from('business_members')
-        .select('role, permissions, business_id')
+        .select('*')
         .eq('user_id', userId)
         .eq('status', 'active')
-        .limit(1)
-
-      if (error || !members?.length) return null
-
-      const m = members[0]
-
-      const { data: rp } = await supabase
-        .from('role_permissions')
-        .select('permissions')
-        .eq('role', m.role)
-        .single()
-
-      const rolePerms = rp?.permissions || {}
-      const overrides = m.permissions || {}
-
-      return {
-        role: m.role,
-        permissions: { ...rolePerms, ...overrides },
-        permissionOverrides: overrides,
-        businessId: m.business_id,
-      }
-    } catch (err) {
-      console.error('fetchBusinessMember error:', err)
-      return null
-    }
-  }, [])
-
-  // -----------------------------
-  // 🚀 INIT (FIXED)
-  // -----------------------------
-  useEffect(() => {
-    const init = async () => {
-      const session = await getValidSession(supabase)
-      setSession(session)
-      setLoading(false)
-    }
-
-    init()
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        if (event === 'SIGNED_OUT') {
-          setSession(null)
-          setProfile(null)
-          setBusinessMember(null)
-          setIdentityReady(true)
-        } else {
-          setSession(session)
-        }
-      }
+        .limit(1),
     )
-
-    return () => subscription.unsubscribe()
+    if (!members?.length) return null
+    const m = members[0]
+    const rolePerms = await safeQuery(
+      supabase.from('role_permissions').select('permissions').eq('role', m.role).single(),
+    )
+    const overrides = m.permissions && typeof m.permissions === 'object' ? m.permissions : {}
+    const merged = { ...(rolePerms?.permissions || {}), ...overrides }
+    return {
+      ...m,
+      permissions: merged,
+      permissionOverrides: overrides,
+    }
   }, [])
 
-  // -----------------------------
-  // 📱 iOS FIX (SINGLE LISTENER)
-  // -----------------------------
   useEffect(() => {
-    let lastRun = 0
+    let debounceTimeout = null
 
-    const handleVisibility = async () => {
-      if (document.visibilityState !== 'visible') return
-
-      const now = Date.now()
-      if (now - lastRun < 3000) return
-      lastRun = now
-
-      const session = await safeRefresh(supabase)
-      if (session) {
-        setSession(session)
-      }
+    const doRefresh = async () => {
+      clearTimeout(debounceTimeout)
+      debounceTimeout = setTimeout(async () => {
+        try {
+          const newSession = await safeRefresh()
+          if (newSession) setSession(newSession)
+        } catch (e) {
+          console.warn('[auth] doRefresh failed:', e)
+        }
+      }, 3000)
     }
+
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') doRefresh()
+    }
+    const handleOnline = () => doRefresh()
 
     document.addEventListener('visibilitychange', handleVisibility)
+    window.addEventListener('online', handleOnline)
+
+    ;(async () => {
+      const s = await getValidSession()
+      if (s) setSession(s)
+      setLoading(false)
+    })()
 
     return () => {
+      clearTimeout(debounceTimeout)
       document.removeEventListener('visibilitychange', handleVisibility)
+      window.removeEventListener('online', handleOnline)
     }
   }, [])
 
-  // -----------------------------
-  // 👤 LOAD USER DATA
-  // -----------------------------
   useEffect(() => {
-    const userId = session?.user?.id
-
-    if (!userId) {
+    if (!session?.user?.id) {
       setProfile(null)
       setBusinessMember(null)
       setIdentityReady(true)
@@ -134,82 +157,59 @@ export function AuthProvider({ children }) {
 
     const load = async () => {
       try {
-        const profileData = await fetchProfile(userId)
-        if (cancelled) return
-
-        if (profileData?.is_axess_admin) {
-          setProfile(profileData)
-          setBusinessMember(null)
-        } else {
-          const bm = await fetchBusinessMember(userId)
-          if (cancelled) return
-
-          setProfile(profileData)
+        const p = await fetchProfile(session.user.id)
+        const bm = await fetchBusinessMember(session.user.id)
+        if (!cancelled) {
+          setProfile(p)
           setBusinessMember(bm)
         }
       } catch (e) {
-        if (!cancelled) {
-          console.error('Auth load failed:', e)
-          setProfile(null)
-          setBusinessMember(null)
-        }
+        if (!cancelled) console.error(e)
       } finally {
-        if (!cancelled) {
-          setIdentityReady(true)
-        }
+        if (!cancelled) setIdentityReady(true)
       }
     }
 
     load()
-
-    return () => { cancelled = true }
+    return () => {
+      cancelled = true
+    }
   }, [session?.user?.id, fetchProfile, fetchBusinessMember])
-
-  // -----------------------------
-  // 🔐 AUTH ACTIONS
-  // -----------------------------
-  const signIn = async (email, password) => {
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password })
-    if (error) throw error
-    return data
-  }
 
   const signOut = async () => {
     await supabase.auth.signOut()
-    setSession(null)
     setProfile(null)
+    setSession(null)
     setBusinessMember(null)
   }
 
-  // -----------------------------
-  // 🎯 PERMISSIONS (UNCHANGED)
-  // -----------------------------
   const hasPermission = useCallback(
     (key) => {
       if (!businessMember) return false
       if (businessMember.role === 'owner') return true
-
       const overrides = businessMember.permissionOverrides || {}
       if (key in overrides) return !!overrides[key]
-
       return !!businessMember.permissions?.[key]
     },
-    [businessMember]
+    [businessMember],
   )
 
   return (
-    <AuthContext.Provider value={{
-      session,
-      profile,
-      businessMember,
-      loading,
-      identityReady,
-      user: session?.user,
-      businessId: businessMember?.businessId ?? null,
-      hasPermission,
-      signIn,
-      signOut,
-    }}>
+    <AuthContext.Provider
+      value={{
+        session,
+        profile,
+        businessMember,
+        loading,
+        identityReady,
+        hasPermission,
+        memberRole: businessMember?.role,
+        businessId: businessMember?.business_id,
+        safeQuery,
+        apiFetch,
+        signOut,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   )
