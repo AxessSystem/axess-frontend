@@ -108,7 +108,7 @@ function CustomerProfileDrawer({ open, onClose, masterRecipientId, businessId, o
     if (editForm.birth_date !== undefined) body.birth_date = editForm.birth_date || null
     if (editForm.id_number !== undefined) body.id_number = editForm.id_number
     try {
-      const r = await fetch(`${API_BASE}/api/admin/recipients/${profile.id}/profile`, { method: 'PATCH', headers, body: JSON.stringify(body) })
+      const r = await fetchWithAuth(`${API_BASE}/api/admin/recipients/${profile.id}/profile`, { method: 'PATCH', headers, body: JSON.stringify(body) })
       const data = await r.json().catch(() => ({}))
       if (!r.ok) throw new Error(data.message || data.error || `HTTP ${r.status}`)
       setIsEditing(false)
