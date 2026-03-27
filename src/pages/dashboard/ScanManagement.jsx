@@ -616,12 +616,11 @@ export default function ScanManagement() {
             style={{
               position: 'fixed',
               inset: 0,
-              background: 'rgba(0,0,0,0.7)',
-              zIndex: 200,
+              background: 'rgba(0,0,0,0.5)',
+              zIndex: 100,
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              padding: 16,
             }}
             onClick={() => !saving && setModalOpen(false)}
           >
@@ -632,15 +631,15 @@ export default function ScanManagement() {
               onClick={(e) => e.stopPropagation()}
               dir="rtl"
               style={{
-                position: 'relative',
-                width: '100%',
-                maxWidth: 480,
-                maxHeight: '90vh',
-                overflow: 'auto',
                 background: 'var(--card)',
-                border: '1px solid var(--glass-border)',
                 borderRadius: 12,
                 padding: 24,
+                border: '1px solid var(--glass-border)',
+                position: 'relative',
+                width: '100%',
+                maxWidth: 500,
+                maxHeight: '90vh',
+                overflowY: 'auto',
               }}
             >
               <button type="button" onClick={() => !saving && setModalOpen(false)} style={MODAL_CLOSE_X} aria-label="סגור">
