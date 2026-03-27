@@ -66,6 +66,8 @@ const CustomSelect = ({
           right: 0,
           left: 0,
           background: 'var(--card)',
+          backdropFilter: 'none',
+          WebkitBackdropFilter: 'none',
           border: '1px solid var(--glass-border)',
           borderRadius: 8,
           zIndex: 999,
@@ -92,12 +94,14 @@ const CustomSelect = ({
               }}
               onMouseEnter={e => {
                 if (String(opt.value) !== String(value)) {
-                  e.currentTarget.style.background = 'var(--glass)';
+                  e.currentTarget.style.background = 'rgba(0,195,122,0.15)';
+                  e.currentTarget.style.color = '#00C37A';
                 }
               }}
               onMouseLeave={e => {
                 if (String(opt.value) !== String(value)) {
                   e.currentTarget.style.background = 'transparent';
+                  e.currentTarget.style.color = 'var(--text)';
                 }
               }}
             >
