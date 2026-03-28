@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Search, Users, Phone, Tag, X, ShoppingBag, Activity, Clock, Upload, Crown, RefreshCw, Sparkles, CheckCircle, Radio, Scan, AlertTriangle, Ticket, Cake, Send, Calendar, Pencil, Workflow, Plus, Zap, Download, Save } from 'lucide-react'
+import { Search, Users, Phone, Tag, X, ShoppingBag, Activity, Clock, Upload, Crown, RefreshCw, Sparkles, CheckCircle, Radio, Scan, AlertTriangle, Ticket, Cake, Send, Calendar, Pencil, Workflow, Plus, Zap, Download, Save, Trash2, Filter } from 'lucide-react'
 import EngagementScore from '@/components/ui/EngagementScore'
 import EmptyState from '@/components/ui/EmptyState'
 import ImportModal from '@/components/ui/ImportModal'
@@ -68,6 +68,38 @@ const PRESET_SEGMENTS = [
   { id: 'by_campaign', name: 'לפי קמפיין', description: 'סינון לקוחות לפי קמפיין ספציפי', dataSource: 'native', category: 'engagement' },
   { id: 'by_event', name: 'לפי אירוע', description: 'סינון לקוחות לפי אירוע ספציפי שהשתתפו בו', dataSource: 'historical', category: 'data' },
 ]
+
+const FILTER_LABELS = {
+  gender: 'מגדר',
+  age_min: 'גיל מינימום',
+  age_max: 'גיל מקסימום',
+  city: 'עיר',
+  tags: 'תגיות',
+  search: 'חיפוש',
+}
+
+function filterRecipientsByAudienceFilters(list, f) {
+  if (!f || typeof f !== 'object' || !Object.keys(f).length) return list
+  const searchQ = f.search ? String(f.search).trim() : ''
+  const tag = Array.isArray(f.tags) && f.tags.length ? f.tags[0] : ''
+  const gender = f.gender && f.gender !== 'all' ? String(f.gender) : ''
+  const ageMinN = f.age_min != null && f.age_min !== '' ? Number(f.age_min) : null
+  const ageMaxN = f.age_max != null && f.age_max !== '' ? Number(f.age_max) : null
+  const city = f.city ? String(f.city).trim() : ''
+  return list.filter((r) => {
+    if (searchQ && !((r.name && String(r.name).includes(searchQ)) || (r.phone && String(r.phone).includes(searchQ)))) return false
+    if (tag && !(Array.isArray(r.tags) && r.tags.includes(tag))) return false
+    if (gender && String(r.gender || '') !== gender) return false
+    if ((ageMinN != null && !Number.isNaN(ageMinN)) || (ageMaxN != null && !Number.isNaN(ageMaxN))) {
+      if (!r.birth_date) return false
+      const age = Math.floor((Date.now() - new Date(r.birth_date)) / 31557600000)
+      if (ageMinN != null && !Number.isNaN(ageMinN) && age < ageMinN) return false
+      if (ageMaxN != null && !Number.isNaN(ageMaxN) && age > ageMaxN) return false
+    }
+    if (city && r.city && !String(r.city).includes(city)) return false
+    return true
+  })
+}
 
 function CustomerProfileDrawer({ open, onClose, masterRecipientId, businessId, onTagUpdate }) {
   const navigate = useNavigate()
@@ -467,6 +499,11 @@ export default function Audiences() {
   const [lastWhereClause, setLastWhereClause] = useState('')
   const [search, setSearch] = useState('')
   const [activeTag, setActiveTag] = useState('הכל')
+  const [genderFilter, setGenderFilter] = useState('all')
+  const [ageMin, setAgeMin] = useState('')
+  const [ageMax, setAgeMax] = useState('')
+  const [cityFilter, setCityFilter] = useState('')
+  const [tagFilter, setTagFilter] = useState('')
   const [sortBy, setSortBy] = useState('score')
   const [selectedCustomerId, setSelectedCustomerId] = useState(null)
   const [importOpen, setImportOpen] = useState(false)
@@ -706,11 +743,76 @@ export default function Audiences() {
     setLoading(false)
   }
 
+  const applySegmentFilters = (seg) => {
+    const f = seg.filters && typeof seg.filters === 'object' ? seg.filters : {}
+    if (f.gender) setGenderFilter(f.gender)
+    else setGenderFilter('all')
+    if (f.age_min != null && f.age_min !== '') setAgeMin(String(f.age_min))
+    else setAgeMin('')
+    if (f.age_max != null && f.age_max !== '') setAgeMax(String(f.age_max))
+    else setAgeMax('')
+    if (f.city) setCityFilter(String(f.city))
+    else setCityFilter('')
+    if (f.tags?.[0]) {
+      setTagFilter(f.tags[0])
+      setActiveTag(f.tags[0])
+    } else {
+      setTagFilter('')
+      setActiveTag('הכל')
+    }
+    if (f.search) setSearch(String(f.search))
+    else setSearch('')
+    setActiveCategory('all_cat')
+    setPage(1)
+  }
+
+  const deleteSegment = async (id) => {
+    try {
+      const r = await fetchWithAuth(`${API_BASE}/api/audiences/segments/${id}`, { method: 'DELETE', headers: h() }, session, onUnauthorized)
+      if (!r.ok) {
+        const data = await r.json().catch(() => ({}))
+        throw new Error(data.error || `HTTP ${r.status}`)
+      }
+      queryClient.invalidateQueries({ queryKey: ['segments', businessId] })
+      const segRes = await fetchWithAuth(`${API_BASE}/api/admin/segments`, { headers: h() }, session, onUnauthorized)
+      const segData = segRes.ok ? await segRes.json() : {}
+      setSegments({ presets: PRESET_SEGMENTS, saved: segData?.saved || [] })
+      toast.success('סגמנט נמחק')
+    } catch (e) {
+      toast.error(e.message || 'שגיאה')
+    }
+  }
+
+  const sendToSegment = (seg) => {
+    const phones = filterRecipientsByAudienceFilters(recipients, seg.filters || {}).map((r) => r.phone).filter(Boolean)
+    if (!phones.length) {
+      toast.error('אין נמענים תואמים')
+      return
+    }
+    sessionStorage.setItem('campaign_recipients', JSON.stringify(phones))
+    sessionStorage.setItem('campaign_segment_name', seg.name || '')
+    navigate('/dashboard/new-campaign')
+  }
+
   const filtered = recipients
-    .filter(r => {
+    .filter((r) => {
       const matchSearch = !search || (r.name && String(r.name).includes(search)) || (r.phone && String(r.phone).includes(search))
-      const matchTag = activeTag === 'הכל' || (Array.isArray(r.tags) && r.tags.includes(activeTag))
-      return matchSearch && matchTag
+      const effectiveTag = tagFilter || (activeTag !== 'הכל' ? activeTag : '')
+      const matchTag = !effectiveTag || (Array.isArray(r.tags) && r.tags.includes(effectiveTag))
+      const matchGender = !genderFilter || genderFilter === 'all' || String(r.gender || '') === genderFilter
+      let matchAge = true
+      const minN = ageMin !== '' && ageMin != null ? Number(ageMin) : null
+      const maxN = ageMax !== '' && ageMax != null ? Number(ageMax) : null
+      if ((minN != null && !Number.isNaN(minN)) || (maxN != null && !Number.isNaN(maxN))) {
+        if (!r.birth_date) matchAge = false
+        else {
+          const age = Math.floor((Date.now() - new Date(r.birth_date)) / 31557600000)
+          if (minN != null && !Number.isNaN(minN) && age < minN) matchAge = false
+          if (maxN != null && !Number.isNaN(maxN) && age > maxN) matchAge = false
+        }
+      }
+      const matchCity = !cityFilter || (r.city && String(r.city).includes(String(cityFilter).trim()))
+      return matchSearch && matchTag && matchGender && matchAge && matchCity
     })
     .sort((a, b) => {
       if (sortBy === 'score') return (b.score || 0) - (a.score || 0)
@@ -927,13 +1029,105 @@ export default function Audiences() {
       {activeCategory === 'saved' ? (
         segments.saved?.length > 0 ? (
           <div style={{ marginBottom: '16px' }}>
-            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-              {segments.saved.map(seg => (
-                <button key={seg.id} className="btn-ghost" style={{ fontSize: '12px' }} onClick={() => runSaved(seg)}>
-                  {seg.name} ({seg.use_count || 0})
-                </button>
-              ))}
-            </div>
+            {segments.saved.map((seg) => (
+              <div
+                key={seg.id}
+                style={{
+                  background: 'var(--card)',
+                  borderRadius: 12,
+                  padding: 16,
+                  border: '1px solid var(--glass-border)',
+                  marginBottom: 12,
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                  <h4 style={{ margin: 0, fontSize: 15, fontWeight: 700 }}>
+                    {seg.is_default && '⭐ '}{seg.name}
+                  </h4>
+                  {!seg.is_default && (
+                    <button
+                      type="button"
+                      onClick={() => deleteSegment(seg.id)}
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#EF4444' }}
+                      aria-label="מחק סגמנט"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  )}
+                </div>
+                {seg.filters && Object.keys(seg.filters).length > 0 && (
+                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 10 }}>
+                    {Object.entries(seg.filters).map(([key, val]) => (
+                      <span
+                        key={key}
+                        style={{
+                          padding: '2px 8px',
+                          borderRadius: 12,
+                          fontSize: 11,
+                          background: 'rgba(0,195,122,0.1)',
+                          color: '#00C37A',
+                          border: '1px solid rgba(0,195,122,0.3)',
+                        }}
+                      >
+                        {FILTER_LABELS[key] || key}: {Array.isArray(val) ? val.join(', ') : val}
+                      </span>
+                    ))}
+                  </div>
+                )}
+                <p style={{ margin: '0 0 12px', fontSize: 13, color: 'var(--v2-gray-400)' }}>
+                  {seg.count || seg.recipient_count || 0} אנשי קשר
+                </p>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const hasSavedFilters =
+                        seg.type === 'saved_audience' ||
+                        (seg.filters && typeof seg.filters === 'object' && Object.keys(seg.filters).length > 0)
+                      if (hasSavedFilters) applySegmentFilters(seg)
+                      else runSaved(seg)
+                    }}
+                    style={{
+                      padding: '6px 12px',
+                      borderRadius: 8,
+                      border: '1px solid var(--glass-border)',
+                      background: 'var(--glass-bg)',
+                      color: 'var(--text)',
+                      fontSize: 12,
+                      cursor: 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 4,
+                    }}
+                  >
+                    <Filter size={12} />{' '}
+                    {seg.type === 'saved_audience' ||
+                    (seg.filters && typeof seg.filters === 'object' && Object.keys(seg.filters).length > 0)
+                      ? 'החל פילטרים'
+                      : 'טען רשימה'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => sendToSegment(seg)}
+                    style={{
+                      padding: '6px 12px',
+                      borderRadius: 8,
+                      border: 'none',
+                      background: '#00C37A',
+                      color: '#000',
+                      fontSize: 12,
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 4,
+                    }}
+                  >
+                    <Send size={12} /> שלח קמפיין
+                  </button>
+                </div>
+              </div>
+            ))}
           </div>
         ) : (
           <div style={{ fontSize: '13px', color: 'var(--v2-gray-500)', marginBottom: '16px' }}>אין סגמנטים שמורים</div>
@@ -1108,14 +1302,14 @@ export default function Audiences() {
           <div className="audience-search-row" style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center' }}>
             <div className="audience-search-row-1" style={{ flex: '1 1 200px', minWidth: 0, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               <input placeholder="🔍 חפש לפי שם או טלפון..." className="form-input input" style={{ flex: 1, minWidth: 180, fontSize: '13px' }} value={search} onChange={e => { setSearch(e.target.value); setPage(1) }} />
-              <button className={activeTag === 'הכל' ? 'btn-primary' : 'btn-ghost'} onClick={() => setActiveTag('הכל')}>הכל</button>
+              <button className={activeTag === 'הכל' ? 'btn-primary' : 'btn-ghost'} onClick={() => { setActiveTag('הכל'); setTagFilter(''); setPage(1) }}>הכל</button>
             </div>
           </div>
           {/* Row 2: segment buttons + sort — aligned left */}
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center', justifyContent: 'flex-start', marginTop: 10 }}>
             <div className="audience-search-row-2-tags" style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
               {ALL_TAGS.filter(t => t !== 'הכל').map(tag => (
-                <button key={tag} onClick={() => { setActiveTag(tag); setPage(1) }} style={{ padding: '6px 12px', borderRadius: 'var(--radius-full)', fontSize: 12, background: activeTag === tag ? 'var(--v2-primary)' : 'rgba(255,255,255,0.04)', color: activeTag === tag ? 'var(--v2-dark)' : 'var(--v2-gray-400)', border: 'none', cursor: 'pointer' }}>{tag}</button>
+                <button key={tag} onClick={() => { setActiveTag(tag); setTagFilter(''); setPage(1) }} style={{ padding: '6px 12px', borderRadius: 'var(--radius-full)', fontSize: 12, background: activeTag === tag ? 'var(--v2-primary)' : 'rgba(255,255,255,0.04)', color: activeTag === tag ? 'var(--v2-dark)' : 'var(--v2-gray-400)', border: 'none', cursor: 'pointer' }}>{tag}</button>
               ))}
             </div>
             <CustomSelect
@@ -1350,6 +1544,14 @@ export default function Audiences() {
               type="button"
               onClick={async () => {
                 if (!segmentName.trim()) return
+                const activeFilters = {
+                  ...(genderFilter && genderFilter !== 'all' ? { gender: genderFilter } : {}),
+                  ...(ageMin ? { age_min: ageMin } : {}),
+                  ...(ageMax ? { age_max: ageMax } : {}),
+                  ...(cityFilter ? { city: cityFilter } : {}),
+                  ...(tagFilter ? { tags: [tagFilter] } : (activeTag !== 'הכל' ? { tags: [activeTag] } : {})),
+                  ...(search ? { search: search } : {}),
+                }
                 try {
                   const r = await fetchWithAuth(
                     `${API_BASE}/api/audiences/segments`,
@@ -1358,7 +1560,7 @@ export default function Audiences() {
                       headers: h(),
                       body: JSON.stringify({
                         name: segmentName.trim(),
-                        recipient_ids: recipients.map((rec) => rec.id),
+                        filters: activeFilters,
                         recipient_count: recipients.length,
                         business_id: businessId,
                       }),
