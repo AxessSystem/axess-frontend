@@ -17,9 +17,9 @@ import {
   X,
   LayoutGrid,
   CircleDot,
-  CalendarClock,
   Ban,
   Plus,
+  Search,
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import Badge from '@/components/ui/Badge'
@@ -28,20 +28,20 @@ import CustomSelect from '@/components/ui/CustomSelect'
 
 const API_BASE = import.meta.env.VITE_API_URL || 'https://api.axess.pro'
 
-const TYPE_ICONS = {
-  event: <Ticket size={18} />,
-  ticket: <Ticket size={18} />,
-  coupon: <Tag size={18} />,
-  membership: <Users size={18} />,
-  benefit: <Users size={18} />,
-  general: <Star size={18} />,
-  confirm: <Star size={18} />,
+const TYPE_CONFIG = {
+  event: { icon: <Ticket size={18} />, color: '#3B82F6', label: 'אירוע' },
+  coupon: { icon: <Tag size={18} />, color: '#00C37A', label: 'קופון' },
+  membership: { icon: <Users size={18} />, color: '#8B5CF6', label: 'חברות' },
+  general: { icon: <Star size={18} />, color: '#F59E0B', label: 'כללי' },
+  ticket: { icon: <Ticket size={18} />, color: '#3B82F6', label: 'כרטיס' },
+  benefit: { icon: <Star size={18} />, color: '#EC4899', label: 'הטבה' },
+  confirm: { icon: <Star size={18} />, color: '#F59E0B', label: 'כללי' },
 }
 
 const FILTER_TABS_META = [
   { value: 'all', label: 'הכל', Icon: LayoutGrid },
   { value: 'active', label: 'פעיל', Icon: CircleDot },
-  { value: 'scheduled', label: 'מתוזמן', Icon: CalendarClock },
+  { value: 'redeemed', label: 'מומש', Icon: CheckCircle },
   { value: 'expired', label: 'פג תוקף', Icon: Ban },
 ]
 
@@ -202,6 +202,10 @@ export default function Validators() {
   const [listLoading, setListLoading] = useState(true)
   const [selected, setSelected] = useState(null)
   const [filter, setFilter] = useState('all')
+  const [typeFilter, setTypeFilter] = useState('all')
+  const [search, setSearch] = useState('')
+  const [customSlug, setCustomSlug] = useState('')
+  const [slugEdited, setSlugEdited] = useState(false)
   const [showCreate, setShowCreate] = useState(false)
   const [form, setForm] = useState({
     name: '',
@@ -240,12 +244,34 @@ export default function Validators() {
     loadValidators()
   }, [loadValidators])
 
-  const filtered = validators.filter((v) => filter === 'all' || v.status === filter)
+  useEffect(() => {
+    if (!showCreate || slugEdited || !form.name) return
+    const auto = form.name
+      .toLowerCase()
+      .replace(/\s+/g, '-')
+      .replace(/[^a-z0-9-]/g, '')
+      .substring(0, 30)
+    setCustomSlug(auto || '')
+  }, [form.name, slugEdited, showCreate])
+
+  useEffect(() => {
+    if (!showCreate) {
+      setCustomSlug('')
+      setSlugEdited(false)
+    }
+  }, [showCreate])
+
+  const filtered = validators.filter((v) => {
+    const matchTab = filter === 'all' || v.status === filter
+    const matchType = typeFilter === 'all' || v.type === typeFilter
+    const matchSearch = !search || v.title?.toLowerCase().includes(search.toLowerCase())
+    return matchTab && matchType && matchSearch
+  })
 
   const filterCounts = {
     all: validators.length,
     active: validators.filter((v) => v.status === 'active').length,
-    scheduled: validators.filter((v) => v.status === 'scheduled').length,
+    redeemed: validators.filter((v) => v.status === 'redeemed').length,
     expired: validators.filter((v) => v.status === 'expired').length,
   }
 
@@ -261,64 +287,16 @@ export default function Validators() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }} dir="rtl">
-      <div style={{ marginBottom: 24 }}>
-        <h1 style={{ fontSize: 24, fontWeight: 800, margin: '0 0 6px' }}>Validators</h1>
-        <p style={{ fontSize: 14, color: 'var(--v2-gray-400)', margin: 0 }}>ניהול כרטיסי אימות וסריקה לאירועים</p>
-      </div>
-
       <div
         style={{
           display: 'flex',
           justifyContent: 'space-between',
-          alignItems: 'flex-end',
-          marginBottom: 20,
+          alignItems: 'center',
+          gap: 16,
+          marginBottom: 4,
           flexWrap: 'wrap',
-          gap: 12,
-          borderBottom: '1px solid var(--glass-border)',
-          paddingBottom: 16,
         }}
       >
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-          {FILTER_TABS_META.map((tab) => {
-            const Icon = tab.Icon
-            const isActive = filter === tab.value
-            const count = filterCounts[tab.value]
-            return (
-              <button
-                key={tab.value}
-                type="button"
-                onClick={() => setFilter(tab.value)}
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: 8,
-                  padding: '10px 16px',
-                  borderRadius: 10,
-                  border: `1px solid ${isActive ? 'var(--v2-primary)' : 'var(--glass-border)'}`,
-                  background: isActive ? 'rgba(0,195,122,0.12)' : 'transparent',
-                  color: isActive ? '#fff' : 'var(--v2-gray-400)',
-                  cursor: 'pointer',
-                  fontWeight: 600,
-                  fontSize: 14,
-                }}
-              >
-                <Icon size={18} />
-                {tab.label}
-                <span
-                  style={{
-                    fontSize: 11,
-                    padding: '1px 6px',
-                    borderRadius: 9999,
-                    background: isActive ? 'rgba(0,0,0,0.2)' : 'rgba(255,255,255,0.08)',
-                  }}
-                >
-                  {count}
-                </span>
-              </button>
-            )
-          })}
-        </div>
-
         <button
           type="button"
           onClick={() => setShowCreate(true)}
@@ -338,6 +316,105 @@ export default function Validators() {
         >
           <Plus size={16} /> Validator חדש
         </button>
+        <div style={{ textAlign: 'right' }}>
+          <h1 style={{ fontSize: 24, fontWeight: 800, margin: '0 0 6px' }}>Validators</h1>
+          <p style={{ fontSize: 14, color: 'var(--v2-gray-400)', margin: 0 }}>ניהול כרטיסי אימות וסריקה לאירועים</p>
+        </div>
+      </div>
+
+      <div
+        style={{
+          display: 'flex',
+          flexWrap: 'wrap',
+          gap: 8,
+          marginBottom: 12,
+          paddingBottom: 16,
+          borderBottom: '1px solid var(--glass-border)',
+        }}
+      >
+        {FILTER_TABS_META.map((tab) => {
+          const Icon = tab.Icon
+          const isActive = filter === tab.value
+          const count = filterCounts[tab.value]
+          return (
+            <button
+              key={tab.value}
+              type="button"
+              onClick={() => setFilter(tab.value)}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 8,
+                padding: '10px 16px',
+                borderRadius: 10,
+                border: `1px solid ${isActive ? 'var(--v2-primary)' : 'var(--glass-border)'}`,
+                background: isActive ? 'rgba(0,195,122,0.12)' : 'transparent',
+                color: isActive ? '#fff' : 'var(--v2-gray-400)',
+                cursor: 'pointer',
+                fontWeight: 600,
+                fontSize: 14,
+              }}
+            >
+              <Icon size={18} />
+              {tab.label}
+              <span
+                style={{
+                  fontSize: 11,
+                  padding: '1px 6px',
+                  borderRadius: 9999,
+                  background: isActive ? 'rgba(0,0,0,0.2)' : 'rgba(255,255,255,0.08)',
+                }}
+              >
+                {count}
+              </span>
+            </button>
+          )
+        })}
+      </div>
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 20, flexWrap: 'wrap' }}>
+        <CustomSelect
+          value={typeFilter}
+          onChange={setTypeFilter}
+          options={[
+            { value: 'all', label: 'כל הסוגים' },
+            { value: 'event', label: 'אירוע' },
+            { value: 'coupon', label: 'קופון' },
+            { value: 'membership', label: 'חברות' },
+            { value: 'general', label: 'כללי' },
+          ]}
+          style={{ width: 140 }}
+        />
+        <div style={{ position: 'relative', flex: 1, minWidth: 160 }}>
+          <Search
+            size={14}
+            style={{
+              position: 'absolute',
+              right: 10,
+              top: '50%',
+              transform: 'translateY(-50%)',
+              color: 'var(--v2-gray-400)',
+              pointerEvents: 'none',
+            }}
+          />
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="חיפוש..."
+            style={{
+              width: '100%',
+              height: 36,
+              paddingRight: 32,
+              paddingLeft: 12,
+              borderRadius: 8,
+              border: '1px solid var(--glass-border)',
+              background: 'var(--card)',
+              color: 'var(--text)',
+              fontSize: 13,
+              boxSizing: 'border-box',
+            }}
+          />
+        </div>
       </div>
 
       {listLoading ? (
@@ -347,7 +424,7 @@ export default function Validators() {
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 14 }}>
           {filtered.map((v, i) => {
-            const typeIcon = TYPE_ICONS[v.type] || TYPE_ICONS.general
+            const config = TYPE_CONFIG[v.type] || TYPE_CONFIG.general
             const redemptionRate = v.total > 0 ? Math.round((v.redeemed / v.total) * 100) : 0
             const activeCount = typeof v.active_count === 'number' ? v.active_count : 0
             const createdLabel = v.createdLabel || v.expiry
@@ -378,14 +455,14 @@ export default function Validators() {
               >
                 <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 14 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <span style={{ display: 'flex', alignItems: 'center', color: '#fff', flexShrink: 0 }}>{typeIcon}</span>
+                    <span style={{ display: 'flex', alignItems: 'center', color: config.color, flexShrink: 0 }}>{config.icon}</span>
                     <div>
                       <div style={{ fontSize: 14, fontWeight: 600, color: '#ffffff' }}>{v.title}</div>
                       <div style={{ fontSize: 12, color: 'var(--v2-gray-400)', marginTop: 2 }}>{v.campaign}</div>
                     </div>
                   </div>
                   <Badge variant={v.status === 'active' ? 'active' : v.status === 'expired' ? 'danger' : 'scheduled'}>
-                    {v.status === 'active' ? 'פעיל' : v.status === 'expired' ? 'פג תוקף' : 'מתוזמן'}
+                    {v.status === 'active' ? 'פעיל' : v.status === 'expired' ? 'פג תוקף' : v.status === 'redeemed' ? 'מומש' : 'מתוזמן'}
                   </Badge>
                 </div>
 
@@ -573,6 +650,57 @@ export default function Validators() {
                   ללא תוקף
                 </label>
               </div>
+              <div style={{ marginBottom: 4 }}>
+                <label style={{ fontSize: 12, color: 'var(--v2-gray-400)', marginBottom: 4, display: 'block' }}>לינק מעקב</label>
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 0,
+                    border: '1px solid var(--glass-border)',
+                    borderRadius: 8,
+                    overflow: 'hidden',
+                  }}
+                >
+                  <span
+                    style={{
+                      padding: '0 10px',
+                      height: 40,
+                      display: 'flex',
+                      alignItems: 'center',
+                      background: 'var(--glass)',
+                      color: 'var(--v2-gray-400)',
+                      fontSize: 12,
+                      whiteSpace: 'nowrap',
+                      borderLeft: '1px solid var(--glass-border)',
+                    }}
+                  >
+                    axess.pro/v/
+                  </span>
+                  <input
+                    value={customSlug}
+                    onChange={(e) => {
+                      setCustomSlug(e.target.value)
+                      setSlugEdited(true)
+                    }}
+                    placeholder="my-validator"
+                    style={{
+                      flex: 1,
+                      height: 40,
+                      border: 'none',
+                      background: 'var(--card)',
+                      color: 'var(--text)',
+                      padding: '0 12px',
+                      fontSize: 14,
+                      outline: 'none',
+                      direction: 'ltr',
+                    }}
+                  />
+                </div>
+                <p style={{ fontSize: 11, color: 'var(--v2-gray-400)', margin: '4px 0 0' }}>
+                  axess.pro/v/{customSlug || '...'} ← לינק מעקב ייחודי
+                </p>
+              </div>
               <button
                 type="button"
                 onClick={async () => {
@@ -580,7 +708,7 @@ export default function Validators() {
                   const res = await fetch(`${API_BASE.replace(/\/$/, '')}/api/validators`, {
                     method: 'POST',
                     headers: authHeaders(),
-                    body: JSON.stringify({ ...form, business_id: businessId }),
+                    body: JSON.stringify({ ...form, slug: customSlug || undefined, business_id: businessId }),
                   })
                   const data = await res.json().catch(() => ({}))
                   if (res.ok && data.validator) {
