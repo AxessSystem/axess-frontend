@@ -98,14 +98,18 @@ export function AuthProvider({ children }) {
 
     const handleVisibility = async () => {
       if (document.visibilityState !== 'visible') return
-
       const now = Date.now()
       if (now - lastRun < 3000) return
       lastRun = now
 
-      const session = await safeRefresh(supabase)
-      if (session) {
-        setSession(session)
+      const newSession = await safeRefresh(supabase)
+      if (newSession) {
+        setSession(newSession)
+        // טען מחדש את businessMember אם חסר:
+        if (!businessMember && newSession.user?.id) {
+          const bm = await fetchBusinessMember(newSession.user.id)
+          if (bm) setBusinessMember(bm)
+        }
       }
     }
 
