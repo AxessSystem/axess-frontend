@@ -1,11 +1,25 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, Legend,
 } from 'recharts'
 import { useAuth } from '@/contexts/AuthContext'
 import { supabase } from '@/lib/supabase'
-import { Copy, MousePointerClick, Users, Eye, KeyRound, Plus, TrendingUp } from 'lucide-react'
+import CustomSelect from '@/components/ui/CustomSelect'
+import {
+  Copy,
+  MousePointerClick,
+  Users,
+  Eye,
+  KeyRound,
+  Plus,
+  TrendingUp,
+  Search,
+  Share2,
+  ExternalLink,
+  Trash2,
+  X,
+} from 'lucide-react'
 import toast from 'react-hot-toast'
 
 const API_BASE = (import.meta.env.VITE_API_URL || 'https://api.axess.pro').replace(/\/$/, '')
@@ -14,6 +28,28 @@ const PIXEL_EMBED_HOST = (import.meta.env.VITE_PIXEL_SCRIPT_ORIGIN || 'https://a
 const GO_DISPLAY_ORIGIN = (import.meta.env.VITE_MAGIC_LINK_ORIGIN || API_BASE).replace(/\/$/, '')
 /** דף Auth Connect ציבורי */
 const AUTH_SITE_ORIGIN = (import.meta.env.VITE_SITE_ORIGIN || 'https://axess.pro').replace(/\/$/, '')
+
+const LINK_COLORS = {
+  event: '#3B82F6',
+  portal: '#8B5CF6',
+  webview: '#F59E0B',
+  magic: '#00C37A',
+  auth: '#EC4899',
+  validator: '#F97316',
+  campaign: '#06B6D4',
+  custom: '#6B7280',
+}
+
+const LINK_TYPE_LABELS = {
+  event: 'אירוע',
+  portal: 'פורטל',
+  webview: 'Webview',
+  magic: 'Magic Link',
+  auth: 'Auth Connect',
+  validator: 'Validator',
+  campaign: 'קמפיין',
+  custom: 'מותאם',
+}
 
 function copyToClipboard(text, msg = 'הועתק') {
   navigator.clipboard.writeText(text).then(() => toast.success(msg)).catch(() => toast.error('העתקה נכשלה'))
@@ -27,6 +63,13 @@ export default function PixelSettings() {
   const [authReturnUrl, setAuthReturnUrl] = useState('')
   const [newPartnerName, setNewPartnerName] = useState('')
   const [newPartnerSlug, setNewPartnerSlug] = useState('')
+  const [activeTab, setActiveTab] = useState('pixel')
+  const [links, setLinks] = useState([])
+  const [linksLoading, setLinksLoading] = useState(false)
+  const [linkFilter, setLinkFilter] = useState('all')
+  const [linkSearch, setLinkSearch] = useState('')
+  const [showAddLink, setShowAddLink] = useState(false)
+  const [newLink, setNewLink] = useState({ name: '', url: '', type: 'custom' })
 
   const authHeaders =
     session?.access_token && businessId
@@ -36,6 +79,28 @@ export default function PixelSettings() {
           'Content-Type': 'application/json',
         }
       : null
+
+  const fetchWithAuth = useCallback(
+    (url, options = {}) =>
+      fetch(url, {
+        ...options,
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+          'X-Business-Id': businessId,
+          ...(options.headers || {}),
+        },
+      }),
+    [session?.access_token, businessId]
+  )
+
+  useEffect(() => {
+    if (activeTab !== 'mylinks') return
+    setLinksLoading(true)
+    fetchWithAuth(`${API_BASE}/api/pixel/my-links`)
+      .then((r) => r.json())
+      .then((d) => setLinks(d.links || []))
+      .finally(() => setLinksLoading(false))
+  }, [activeTab, businessId, fetchWithAuth])
 
   useEffect(() => {
     if (!businessId) return
@@ -119,6 +184,15 @@ export default function PixelSettings() {
       ? `${GO_DISPLAY_ORIGIN}/go?to=${encodeURIComponent(magicUrl.trim())}&city=${encodeURIComponent(citySlug)}`
       : ''
 
+  const filteredLinks = links.filter((l) => {
+    const matchType = linkFilter === 'all' || l.type === linkFilter
+    const matchSearch =
+      !linkSearch ||
+      l.name?.toLowerCase().includes(linkSearch.toLowerCase()) ||
+      l.url?.toLowerCase().includes(linkSearch.toLowerCase())
+    return matchType && matchSearch
+  })
+
   if (!businessId) {
     return (
       <div dir="rtl" style={{ padding: 24, color: 'var(--v2-gray-400)' }}>
@@ -134,6 +208,43 @@ export default function PixelSettings() {
         מעקב באתר העירייה/הארגון, קישורי מעבר לאירועים ומפתחות לשותפים
       </p>
 
+      <div style={{ display: 'flex', gap: 8, marginBottom: 20, flexWrap: 'wrap' }}>
+        <button
+          type="button"
+          onClick={() => setActiveTab('pixel')}
+          style={{
+            padding: '8px 14px',
+            borderRadius: 8,
+            border: '1px solid var(--glass-border)',
+            background: activeTab === 'pixel' ? 'var(--glass)' : 'transparent',
+            color: '#fff',
+            fontWeight: 600,
+            fontSize: 14,
+            cursor: 'pointer',
+          }}
+        >
+          Pixel &amp; כלים
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab('mylinks')}
+          style={{
+            padding: '8px 14px',
+            borderRadius: 8,
+            border: '1px solid var(--glass-border)',
+            background: activeTab === 'mylinks' ? 'var(--glass)' : 'transparent',
+            color: '#fff',
+            fontWeight: 600,
+            fontSize: 14,
+            cursor: 'pointer',
+          }}
+        >
+          הלינקים שלי
+        </button>
+      </div>
+
+      {activeTab === 'pixel' && (
+        <>
       {/* 1 — קוד הטמעה */}
       <div style={{ background: 'var(--card, var(--v2-dark-2))', borderRadius: 12, padding: 16, marginBottom: 20, border: '1px solid var(--glass-border)' }}>
         <h3 style={{ margin: '0 0 8px', fontSize: 17, color: '#fff' }}>קוד הטמעה לאתר שלך</h3>
@@ -520,6 +631,352 @@ export default function PixelSettings() {
           <p style={{ margin: 0, fontSize: 14, color: 'var(--v2-gray-400)' }}>
             ניהול מפתחות Partner API זמין לבעל העסק בלבד.
           </p>
+        </div>
+      )}
+        </>
+      )}
+
+      {activeTab === 'mylinks' && (
+        <div style={{ background: 'var(--card, var(--v2-dark-2))', borderRadius: 12, padding: 16, marginBottom: 20, border: '1px solid var(--glass-border)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+            <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: '#fff' }}>הלינקים שלי</h3>
+            <button
+              type="button"
+              onClick={() => setShowAddLink(true)}
+              style={{
+                padding: '8px 16px',
+                borderRadius: 8,
+                border: 'none',
+                background: '#00C37A',
+                color: '#000',
+                fontWeight: 700,
+                fontSize: 14,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+              }}
+            >
+              <Plus size={16} /> הוסף לינק
+            </button>
+          </div>
+
+          <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
+            <div style={{ position: 'relative', flex: 1, minWidth: 200 }}>
+              <Search
+                size={14}
+                style={{
+                  position: 'absolute',
+                  right: 10,
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  color: 'var(--v2-gray-400)',
+                  pointerEvents: 'none',
+                }}
+              />
+              <input
+                value={linkSearch}
+                onChange={(e) => setLinkSearch(e.target.value)}
+                placeholder="חיפוש לינק..."
+                style={{
+                  width: '100%',
+                  height: 36,
+                  paddingRight: 32,
+                  paddingLeft: 12,
+                  borderRadius: 8,
+                  border: '1px solid var(--glass-border)',
+                  background: 'var(--card)',
+                  color: 'var(--text)',
+                  fontSize: 13,
+                  boxSizing: 'border-box',
+                }}
+              />
+            </div>
+            <CustomSelect
+              value={linkFilter}
+              onChange={setLinkFilter}
+              options={[
+                { value: 'all', label: 'כל הסוגים' },
+                { value: 'event', label: 'אירועים' },
+                { value: 'portal', label: 'פורטל' },
+                { value: 'webview', label: 'Webview' },
+                { value: 'magic', label: 'Magic Links' },
+                { value: 'auth', label: 'Auth Connect' },
+                { value: 'validator', label: 'Validators' },
+                { value: 'custom', label: 'מותאם' },
+              ]}
+              style={{ width: 160 }}
+            />
+          </div>
+
+          {linksLoading ? (
+            <p style={{ color: 'var(--v2-gray-400)', textAlign: 'center', padding: 24 }}>טוען...</p>
+          ) : filteredLinks.length === 0 ? (
+            <p style={{ color: 'var(--v2-gray-400)', textAlign: 'center', padding: 24 }}>אין לינקים</p>
+          ) : (
+            <div style={{ border: '1px solid var(--glass-border)', borderRadius: 10, overflow: 'hidden' }}>
+              {filteredLinks.map((link, idx) => (
+                <div
+                  key={link.id}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 12,
+                    padding: '12px 16px',
+                    borderBottom: idx < filteredLinks.length - 1 ? '1px solid var(--glass-border)' : 'none',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = 'var(--glass)'
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = 'transparent'
+                  }}
+                >
+                  <span
+                    style={{
+                      padding: '3px 10px',
+                      borderRadius: 12,
+                      fontSize: 11,
+                      fontWeight: 600,
+                      background: `${LINK_COLORS[link.type] || '#6B7280'}22`,
+                      color: LINK_COLORS[link.type] || '#6B7280',
+                      border: `1px solid ${(LINK_COLORS[link.type] || '#6B7280')}44`,
+                      whiteSpace: 'nowrap',
+                      flexShrink: 0,
+                    }}
+                  >
+                    {LINK_TYPE_LABELS[link.type] || link.type}
+                  </span>
+
+                  <span
+                    style={{
+                      fontWeight: 600,
+                      fontSize: 14,
+                      flex: 1,
+                      minWidth: 0,
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    {link.name}
+                  </span>
+
+                  <a
+                    href={link.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                      color: '#00C37A',
+                      fontSize: 12,
+                      maxWidth: 180,
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    {link.url}
+                  </a>
+
+                  <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+                    {[
+                      {
+                        icon: <Copy size={14} />,
+                        title: 'העתק',
+                        onClick: () => {
+                          navigator.clipboard.writeText(link.url)
+                          toast.success('הועתק!')
+                        },
+                      },
+                      {
+                        icon: <Share2 size={14} />,
+                        title: 'שתף',
+                        onClick: () =>
+                          navigator.share
+                            ? navigator.share({ title: link.name, url: link.url })
+                            : navigator.clipboard.writeText(link.url),
+                      },
+                    ].map((btn) => (
+                      <button
+                        key={btn.title}
+                        type="button"
+                        onClick={btn.onClick}
+                        title={btn.title}
+                        style={{
+                          background: 'var(--glass)',
+                          border: '1px solid var(--glass-border)',
+                          borderRadius: 8,
+                          padding: '6px 8px',
+                          cursor: 'pointer',
+                          color: 'var(--text)',
+                          display: 'flex',
+                          alignItems: 'center',
+                        }}
+                      >
+                        {btn.icon}
+                      </button>
+                    ))}
+                    <a
+                      href={link.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{
+                        background: 'var(--glass)',
+                        border: '1px solid var(--glass-border)',
+                        borderRadius: 8,
+                        padding: '6px 8px',
+                        cursor: 'pointer',
+                        color: 'var(--text)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        textDecoration: 'none',
+                      }}
+                      title="פתח"
+                    >
+                      <ExternalLink size={14} />
+                    </a>
+                    {link.type === 'custom' && (
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          const id = link.id.replace('custom_', '')
+                          await fetchWithAuth(`${API_BASE}/api/pixel/my-links/${id}`, { method: 'DELETE' })
+                          setLinks((prev) => prev.filter((l) => l.id !== link.id))
+                          toast.success('נמחק')
+                        }}
+                        title="מחק"
+                        style={{
+                          background: 'var(--glass)',
+                          border: '1px solid var(--glass-border)',
+                          borderRadius: 8,
+                          padding: '6px 8px',
+                          cursor: 'pointer',
+                          color: '#EF4444',
+                          display: 'flex',
+                          alignItems: 'center',
+                        }}
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {showAddLink && (
+            <div
+              style={{
+                position: 'fixed',
+                inset: 0,
+                background: 'rgba(0,0,0,0.5)',
+                zIndex: 1000,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: 16,
+              }}
+            >
+              <div
+                style={{
+                  background: 'var(--card, var(--v2-dark-2, #1a1d2e))',
+                  borderRadius: 12,
+                  padding: 24,
+                  width: '100%',
+                  maxWidth: 440,
+                  position: 'relative',
+                  border: '1px solid var(--glass-border)',
+                }}
+              >
+                <button
+                  type="button"
+                  onClick={() => setShowAddLink(false)}
+                  style={{
+                    position: 'absolute',
+                    top: 12,
+                    left: 12,
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                    color: 'var(--v2-gray-400)',
+                  }}
+                >
+                  <X size={20} />
+                </button>
+                <h3 style={{ margin: '0 0 20px', fontSize: 16, fontWeight: 700, color: '#fff' }}>הוסף לינק</h3>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  <input
+                    value={newLink.name}
+                    onChange={(e) => setNewLink({ ...newLink, name: e.target.value })}
+                    placeholder="שם הלינק"
+                    style={{
+                      height: 40,
+                      borderRadius: 8,
+                      border: '1px solid var(--glass-border)',
+                      background: 'var(--glass)',
+                      color: 'var(--text)',
+                      padding: '0 12px',
+                      fontSize: 14,
+                      width: '100%',
+                      boxSizing: 'border-box',
+                    }}
+                  />
+                  <input
+                    value={newLink.url}
+                    onChange={(e) => setNewLink({ ...newLink, url: e.target.value })}
+                    placeholder="https://..."
+                    style={{
+                      height: 40,
+                      borderRadius: 8,
+                      border: '1px solid var(--glass-border)',
+                      background: 'var(--glass)',
+                      color: 'var(--text)',
+                      padding: '0 12px',
+                      fontSize: 14,
+                      direction: 'ltr',
+                      width: '100%',
+                      boxSizing: 'border-box',
+                    }}
+                  />
+                  <CustomSelect
+                    value={newLink.type}
+                    onChange={(val) => setNewLink({ ...newLink, type: val })}
+                    options={Object.entries(LINK_TYPE_LABELS).map(([value, label]) => ({ value, label }))}
+                  />
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      if (!newLink.name || !newLink.url) return
+                      await fetchWithAuth(`${API_BASE}/api/pixel/my-links`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(newLink),
+                      })
+                      setShowAddLink(false)
+                      setNewLink({ name: '', url: '', type: 'custom' })
+                      const d = await fetchWithAuth(`${API_BASE}/api/pixel/my-links`).then((r) => r.json())
+                      setLinks(d.links || [])
+                      toast.success('לינק נוסף!')
+                    }}
+                    style={{
+                      height: 44,
+                      borderRadius: 8,
+                      border: 'none',
+                      background: '#00C37A',
+                      color: '#000',
+                      fontWeight: 700,
+                      fontSize: 15,
+                      cursor: 'pointer',
+                      width: '100%',
+                    }}
+                  >
+                    שמור לינק
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>
