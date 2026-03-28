@@ -51,6 +51,11 @@ const LINK_TYPE_LABELS = {
   custom: 'מותאם',
 }
 
+const PIXEL_PAGE_TABS = [
+  { id: 'pixel', label: 'Pixel & כלים' },
+  { id: 'mylinks', label: 'הלינקים שלי' },
+]
+
 function copyToClipboard(text, msg = 'הועתק') {
   navigator.clipboard.writeText(text).then(() => toast.success(msg)).catch(() => toast.error('העתקה נכשלה'))
 }
@@ -209,38 +214,26 @@ export default function PixelSettings() {
       </p>
 
       <div style={{ display: 'flex', gap: 8, marginBottom: 20, flexWrap: 'wrap' }}>
-        <button
-          type="button"
-          onClick={() => setActiveTab('pixel')}
-          style={{
-            padding: '8px 14px',
-            borderRadius: 8,
-            border: '1px solid var(--glass-border)',
-            background: activeTab === 'pixel' ? 'var(--glass)' : 'transparent',
-            color: '#fff',
-            fontWeight: 600,
-            fontSize: 14,
-            cursor: 'pointer',
-          }}
-        >
-          Pixel &amp; כלים
-        </button>
-        <button
-          type="button"
-          onClick={() => setActiveTab('mylinks')}
-          style={{
-            padding: '8px 14px',
-            borderRadius: 8,
-            border: '1px solid var(--glass-border)',
-            background: activeTab === 'mylinks' ? 'var(--glass)' : 'transparent',
-            color: '#fff',
-            fontWeight: 600,
-            fontSize: 14,
-            cursor: 'pointer',
-          }}
-        >
-          הלינקים שלי
-        </button>
+        {PIXEL_PAGE_TABS.map((tab) => (
+          <button
+            key={tab.id}
+            type="button"
+            onClick={() => setActiveTab(tab.id)}
+            style={{
+              padding: '8px 18px',
+              borderRadius: 8,
+              border: 'none',
+              background: activeTab === tab.id ? 'var(--primary)' : 'var(--glass)',
+              color: activeTab === tab.id ? '#fff' : 'var(--text)',
+              fontWeight: activeTab === tab.id ? 700 : 400,
+              cursor: 'pointer',
+              fontSize: 14,
+              transition: 'all 0.15s',
+            }}
+          >
+            {tab.label}
+          </button>
+        ))}
       </div>
 
       {activeTab === 'pixel' && (
@@ -748,35 +741,35 @@ export default function PixelSettings() {
                     {LINK_TYPE_LABELS[link.type] || link.type}
                   </span>
 
-                  <span
-                    style={{
-                      fontWeight: 600,
-                      fontSize: 14,
-                      flex: 1,
-                      minWidth: 0,
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                      whiteSpace: 'nowrap',
-                    }}
-                  >
-                    {link.name}
-                  </span>
-
-                  <a
-                    href={link.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    style={{
-                      color: '#00C37A',
-                      fontSize: 12,
-                      maxWidth: 180,
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                      whiteSpace: 'nowrap',
-                    }}
-                  >
-                    {link.url}
-                  </a>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <p
+                      style={{
+                        margin: 0,
+                        fontWeight: 600,
+                        fontSize: 14,
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      {link.name}
+                    </p>
+                    <a
+                      href={link.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{
+                        color: '#00C37A',
+                        fontSize: 12,
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                        display: 'block',
+                      }}
+                    >
+                      {link.url}
+                    </a>
+                  </div>
 
                   <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
                     {[
