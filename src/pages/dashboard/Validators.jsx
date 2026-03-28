@@ -35,12 +35,12 @@ const TYPE_CONFIG = {
   confirm: { icon: <Star size={18} />, color: '#F59E0B', label: 'כללי' },
 }
 
-const STATUS_TABS = [
-  { label: 'הכל', value: 'all' },
-  { label: 'פעיל', value: 'active' },
-  { label: 'מומש', value: 'redeemed' },
-  { label: 'פג תוקף', value: 'expired' },
-]
+const TAB_TO_STATUS = {
+  הכל: null,
+  פעיל: 'active',
+  מומש: 'redeemed',
+  'פג תוקף': 'expired',
+}
 
 /* ── QR Modal ── */
 function QRModal({ validator, onClose }) {
@@ -198,7 +198,7 @@ export default function Validators() {
   const [validators, setValidators] = useState([])
   const [listLoading, setListLoading] = useState(true)
   const [selected, setSelected] = useState(null)
-  const [filter, setFilter] = useState('all')
+  const [activeTab, setActiveTab] = useState('הכל')
   const [typeFilter, setTypeFilter] = useState('all')
   const [search, setSearch] = useState('')
   const [customSlug, setCustomSlug] = useState('')
@@ -260,7 +260,8 @@ export default function Validators() {
   }, [showCreate])
 
   const filtered = validators.filter((v) => {
-    const matchTab = filter === 'all' || v.status === filter
+    const statusFilter = TAB_TO_STATUS[activeTab]
+    const matchTab = statusFilter == null || v.status === statusFilter
     const matchType = typeFilter === 'all' || v.type === typeFilter
     const matchSearch = !search || v.title?.toLowerCase().includes(search.toLowerCase())
     return matchTab && matchType && matchSearch
@@ -286,23 +287,26 @@ export default function Validators() {
       </div>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
-        {STATUS_TABS.map((tab) => (
+        {['הכל', 'פעיל', 'מומש', 'פג תוקף'].map((tab) => (
           <button
-            key={tab.value}
+            key={tab}
             type="button"
-            onClick={() => setFilter(tab.value)}
+            onClick={() => setActiveTab(tab)}
             style={{
-              padding: '8px 16px',
-              borderRadius: 8,
-              border: 'none',
-              background: filter === tab.value ? 'var(--primary)' : 'var(--glass)',
-              color: filter === tab.value ? '#fff' : 'var(--text)',
-              fontWeight: filter === tab.value ? 700 : 400,
+              padding: '10px 16px',
+              borderRadius: 10,
+              border: activeTab === tab ? 'none' : '1px solid var(--glass-border)',
+              background: activeTab === tab ? 'rgba(0,195,122,0.12)' : 'transparent',
+              color: activeTab === tab ? 'var(--v2-primary)' : 'var(--text)',
+              fontWeight: activeTab === tab ? 700 : 400,
               cursor: 'pointer',
-              fontSize: 13,
+              fontSize: 14,
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
             }}
           >
-            {tab.label}
+            {tab}
           </button>
         ))}
         <div style={{ flex: 1 }} />
