@@ -1326,17 +1326,40 @@ export default function Audiences() {
           </div>
           {/* Two-line gap */}
           <div style={{ marginTop: 24 }} />
-          {/* Row 3: count (24px green bold + "אנשי קשר" 14px white) + refresh to the left */}
+          {/* Row 3: מציג X אנשי קשר + שמור כסגמנט + רענן */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 12 }}>
-            <div style={{ textAlign: 'right', flex: 1 }}>
-              <span style={{ fontSize: 24, fontWeight: 700, color: 'var(--v2-primary)' }}>{loadingRecipients || loading ? 'טוען...' : filtered.length}</span>
-              <span style={{ fontSize: 14, color: '#fff', marginRight: 6 }}> אנשי קשר</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, flex: 1, flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, flexWrap: 'wrap' }}>
+                <span style={{ fontSize: 13, color: 'var(--v2-gray-400)' }}>מציג</span>
+                <span style={{ fontSize: 24, fontWeight: 700, color: 'var(--v2-primary)' }}>{loadingRecipients || loading ? 'טוען...' : filtered.length}</span>
+                <span style={{ fontSize: 14, color: '#fff' }}>אנשי קשר</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowSaveSegment(true)}
+                disabled={recipients.length === 0}
+                style={{
+                  padding: '6px 14px',
+                  borderRadius: 8,
+                  border: 'none',
+                  background: recipients.length > 0 ? '#00C37A' : 'var(--glass-bg)',
+                  color: recipients.length > 0 ? '#000' : 'var(--v2-gray-400)',
+                  fontWeight: 600,
+                  fontSize: 13,
+                  cursor: recipients.length > 0 ? 'pointer' : 'not-allowed',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                }}
+              >
+                <Save size={14} /> שמור כסגמנט ({recipients.length})
+              </button>
             </div>
             <button
               type="button"
               onClick={() => refreshRecipients()}
               disabled={loadingRecipients}
-              style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', fontSize: 13, background: 'var(--v2-dark-3)', border: '1px solid var(--glass-border)', borderRadius: 'var(--radius-md)', color: 'var(--v2-gray-300)', cursor: loadingRecipients ? 'not-allowed' : 'pointer' }}
+              style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', fontSize: 13, background: 'var(--v2-dark-3)', border: '1px solid var(--glass-border)', borderRadius: 'var(--radius-md)', color: 'var(--v2-gray-300)', cursor: loadingRecipients ? 'not-allowed' : 'pointer', flexShrink: 0 }}
               title="רענן"
             >
               <RefreshCw size={14} /> רענן
