@@ -221,7 +221,7 @@ export default function Validators() {
   const [showSend, setShowSend] = useState(false)
   const [sendTemplate, setSendTemplate] = useState(null)
   const [sendMode, setSendMode] = useState('audience')
-  const [selectedAudience, setSelectedAudience] = useState('')
+  const [selectedAudiences, setSelectedAudiences] = useState([])
   const [manualNumbers, setManualNumbers] = useState('')
   const [audiences, setAudiences] = useState([])
   const [sendChannel, setSendChannel] = useState('whatsapp')
@@ -325,9 +325,13 @@ export default function Validators() {
   })
 
   const recipientCount =
-    sendMode === 'manual' || sendMode === 'import'
-      ? manualNumbers.split('\n').filter((n) => n.trim().replace(/\D/g, '').length >= 9).length
-      : audiences.find((a) => String(a.id) === String(selectedAudience))?.recipient_count || 0
+    sendMode === 'manual'
+      ? manualNumbers.split('\n').filter((n) => n.trim().length > 8).length
+      : sendMode === 'audience'
+        ? audiences
+            .filter((a) => selectedAudiences.some((sid) => String(sid) === String(a.id)))
+            .reduce((sum, a) => sum + (a.recipient_count || 0), 0)
+        : 0
 
   if (!validatorsAllowed) return null
 
@@ -577,7 +581,7 @@ export default function Validators() {
                           setSendTemplate(t)
                           setShowSend(true)
                           setSendMode('audience')
-                          setSelectedAudience('')
+                          setSelectedAudiences([])
                           setManualNumbers('')
                           setSendChannel('whatsapp')
                         }}
@@ -809,15 +813,90 @@ export default function Validators() {
               </div>
 
               {sendMode === 'audience' && (
-                <CustomSelect
-                  value={selectedAudience}
-                  onChange={setSelectedAudience}
-                  placeholder="בחר קהל..."
-                  options={audiences.map((a) => ({
-                    value: a.id,
-                    label: `${a.name} (${a.recipient_count || 0} אנשים)`,
-                  }))}
-                />
+                <div>
+                  {audiences.length === 0 ? (
+                    <div
+                      style={{
+                        background: 'rgba(245,158,11,0.1)',
+                        border: '1px solid rgba(245,158,11,0.3)',
+                        borderRadius: 8,
+                        padding: 16,
+                        textAlign: 'center',
+                      }}
+                    >
+                      <p style={{ margin: '0 0 8px', fontWeight: 600, color: '#F59E0B' }}>אין קהלים שמורים עדיין</p>
+                      <p style={{ margin: '0 0 12px', fontSize: 13, color: 'var(--v2-gray-400)' }}>
+                        צור קהל שמור בדף &quot;קהלים&quot; — סגמנט של לקוחות שתרצה לשלוח אליהם
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => window.open('/dashboard/audiences', '_blank')}
+                        style={{
+                          padding: '8px 16px',
+                          borderRadius: 8,
+                          border: 'none',
+                          background: 'var(--primary)',
+                          color: '#fff',
+                          fontWeight: 600,
+                          fontSize: 13,
+                          cursor: 'pointer',
+                        }}
+                      >
+                        עבור לקהלים →
+                      </button>
+                    </div>
+                  ) : (
+                    <div
+                      style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: 8,
+                        maxHeight: 200,
+                        overflowY: 'auto',
+                      }}
+                    >
+                      {audiences.map((a) => (
+                        <label
+                          key={a.id}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 10,
+                            padding: '10px 12px',
+                            borderRadius: 8,
+                            cursor: 'pointer',
+                            border: `1px solid ${
+                              selectedAudiences.some((sid) => String(sid) === String(a.id))
+                                ? 'var(--primary)'
+                                : 'var(--glass-border)'
+                            }`,
+                            background: selectedAudiences.some((sid) => String(sid) === String(a.id))
+                              ? 'rgba(0,195,122,0.08)'
+                              : 'transparent',
+                          }}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={selectedAudiences.some((sid) => String(sid) === String(a.id))}
+                            onChange={(e) => {
+                              setSelectedAudiences((prev) =>
+                                e.target.checked
+                                  ? [...prev, a.id]
+                                  : prev.filter((id) => String(id) !== String(a.id))
+                              )
+                            }}
+                          />
+                          <div style={{ flex: 1 }}>
+                            <p style={{ margin: 0, fontWeight: 600, fontSize: 14 }}>{a.name}</p>
+                            <p style={{ margin: 0, fontSize: 12, color: 'var(--v2-gray-400)' }}>
+                              {a.recipient_count || 0} אנשים
+                            </p>
+                          </div>
+                        </label>
+                      ))}
+                    </div>
+                  )}
+                </div>
               )}
 
               {sendMode === 'manual' && (
@@ -902,23 +981,48 @@ export default function Validators() {
                   .split('\n')
                   .map((n) => n.trim())
                   .filter((n) => n.replace(/\D/g, '').length >= 9)
-                const body =
-                  sendMode === 'audience'
-                    ? { audience_id: selectedAudience, channel: sendChannel }
-                    : { phone_numbers: numbers, channel: sendChannel }
                 setSendSubmitting(true)
                 try {
-                  const r = await fetch(
-                    `${API_BASE.replace(/\/$/, '')}/api/validator-templates/${sendTemplate.id}/send`,
-                    { method: 'POST', headers: authHeaders(), body: JSON.stringify(body) }
-                  )
-                  const d = await r.json().catch(() => ({}))
-                  if (!r.ok) {
-                    toast.error(d.error || 'שגיאה בשליחה')
-                    return
+                  let totalCreated = 0
+                  if (sendMode === 'audience') {
+                    if (!selectedAudiences.length) {
+                      toast.error('בחר לפחות קהל אחד')
+                      return
+                    }
+                    for (const audienceId of selectedAudiences) {
+                      const r = await fetch(
+                        `${API_BASE.replace(/\/$/, '')}/api/validator-templates/${sendTemplate.id}/send`,
+                        {
+                          method: 'POST',
+                          headers: authHeaders(),
+                          body: JSON.stringify({ audience_id: audienceId, channel: sendChannel }),
+                        }
+                      )
+                      const d = await r.json().catch(() => ({}))
+                      if (!r.ok) {
+                        toast.error(d.error || 'שגיאה בשליחה')
+                        return
+                      }
+                      totalCreated += d.created ?? 0
+                    }
+                  } else {
+                    const r = await fetch(
+                      `${API_BASE.replace(/\/$/, '')}/api/validator-templates/${sendTemplate.id}/send`,
+                      {
+                        method: 'POST',
+                        headers: authHeaders(),
+                        body: JSON.stringify({ phone_numbers: numbers, channel: sendChannel }),
+                      }
+                    )
+                    const d = await r.json().catch(() => ({}))
+                    if (!r.ok) {
+                      toast.error(d.error || 'שגיאה בשליחה')
+                      return
+                    }
+                    totalCreated = d.created ?? 0
                   }
                   setShowSend(false)
-                  toast.success(`נשלח ל-${d.created ?? 0} נמענים!`)
+                  toast.success(`נשלח ל-${totalCreated} נמענים!`)
                   loadValidators()
                   loadTemplates()
                 } finally {
