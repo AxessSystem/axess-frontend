@@ -2,13 +2,19 @@ import { useState, useEffect, useCallback } from 'react'
 import { useRequirePermission } from '@/hooks/useRequirePermission'
 import { useAuth } from '@/contexts/AuthContext'
 import { motion, AnimatePresence } from 'framer-motion'
+import { QRCodeSVG } from 'qrcode.react'
 import {
   QrCode,
-  ExternalLink,
-  Copy,
+  Ticket,
+  Tag,
+  Users,
+  Star,
   CheckCircle,
-  X,
   Clock,
+  Link,
+  Copy,
+  ExternalLink,
+  X,
   LayoutGrid,
   CircleDot,
   CalendarClock,
@@ -22,11 +28,14 @@ import CustomSelect from '@/components/ui/CustomSelect'
 
 const API_BASE = import.meta.env.VITE_API_URL || 'https://api.axess.pro'
 
-const TYPE_LABELS = {
-  coupon: { label: 'קופון', icon: '🎫' },
-  ticket: { label: 'כרטיס', icon: '🎟️' },
-  benefit: { label: 'הטבה', icon: '🎁' },
-  confirm: { label: 'אישור', icon: '✅' },
+const TYPE_ICONS = {
+  event: <Ticket size={18} />,
+  ticket: <Ticket size={18} />,
+  coupon: <Tag size={18} />,
+  membership: <Users size={18} />,
+  benefit: <Users size={18} />,
+  general: <Star size={18} />,
+  confirm: <Star size={18} />,
 }
 
 const FILTER_TABS_META = [
@@ -110,25 +119,11 @@ function QRModal({ validator, onClose }) {
             marginBottom: 16,
           }}
         >
-          <div
-            style={{
-              width: 160,
-              height: 160,
-              background: '#F8FAFC',
-              borderRadius: 8,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <div style={{ textAlign: 'center' }}>
-              <QrCode size={60} style={{ color: '#0F172A', margin: '0 auto 8px' }} />
-              <div style={{ fontSize: 12, color: '#64748B' }}>QR Code</div>
-            </div>
-          </div>
+          <QRCodeSVG value={url} size={160} level="M" includeMargin />
         </div>
 
-        <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+        <div style={{ display: 'flex', gap: 8, marginBottom: 16, alignItems: 'center' }}>
+          <Link size={14} style={{ color: 'var(--v2-gray-400)', flexShrink: 0 }} aria-hidden />
           <div
             style={{
               flex: 1,
@@ -208,7 +203,13 @@ export default function Validators() {
   const [selected, setSelected] = useState(null)
   const [filter, setFilter] = useState('all')
   const [showCreate, setShowCreate] = useState(false)
-  const [form, setForm] = useState({ name: '', description: '', type: 'event' })
+  const [form, setForm] = useState({
+    name: '',
+    description: '',
+    type: 'event',
+    expires_at: '',
+    no_expiry: true,
+  })
 
   const authHeaders = useCallback(
     () => ({
@@ -346,7 +347,7 @@ export default function Validators() {
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 14 }}>
           {filtered.map((v, i) => {
-            const typeInfo = TYPE_LABELS[v.type] || TYPE_LABELS.coupon
+            const typeIcon = TYPE_ICONS[v.type] || TYPE_ICONS.general
             const redemptionRate = v.total > 0 ? Math.round((v.redeemed / v.total) * 100) : 0
             const activeCount = typeof v.active_count === 'number' ? v.active_count : 0
             const createdLabel = v.createdLabel || v.expiry
@@ -377,7 +378,7 @@ export default function Validators() {
               >
                 <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 14 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <span style={{ fontSize: 24 }}>{typeInfo.icon}</span>
+                    <span style={{ display: 'flex', alignItems: 'center', color: '#fff', flexShrink: 0 }}>{typeIcon}</span>
                     <div>
                       <div style={{ fontSize: 14, fontWeight: 600, color: '#ffffff' }}>{v.title}</div>
                       <div style={{ fontSize: 12, color: 'var(--v2-gray-400)', marginTop: 2 }}>{v.campaign}</div>
@@ -536,6 +537,42 @@ export default function Validators() {
                   { value: 'general', label: 'כללי' },
                 ]}
               />
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <input
+                  type="date"
+                  value={form.expires_at}
+                  onChange={(e) => setForm({ ...form, expires_at: e.target.value })}
+                  disabled={form.no_expiry}
+                  style={{
+                    flex: 1,
+                    height: 40,
+                    borderRadius: 8,
+                    border: '1px solid var(--glass-border)',
+                    background: form.no_expiry ? 'var(--glass)' : 'var(--card)',
+                    color: 'var(--text)',
+                    padding: '0 12px',
+                    fontSize: 14,
+                    opacity: form.no_expiry ? 0.5 : 1,
+                  }}
+                />
+                <label
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    fontSize: 13,
+                    cursor: 'pointer',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={form.no_expiry}
+                    onChange={(e) => setForm({ ...form, no_expiry: e.target.checked, expires_at: '' })}
+                  />
+                  ללא תוקף
+                </label>
+              </div>
               <button
                 type="button"
                 onClick={async () => {
@@ -547,9 +584,16 @@ export default function Validators() {
                   })
                   const data = await res.json().catch(() => ({}))
                   if (res.ok && data.validator) {
+                    const validatorUrl = data.validator_url || `https://axess.pro/v/${data.validator.slug}`
                     setShowCreate(false)
-                    setForm({ name: '', description: '', type: 'event' })
-                    toast.success('Validator נוצר!')
+                    setForm({
+                      name: '',
+                      description: '',
+                      type: 'event',
+                      expires_at: '',
+                      no_expiry: true,
+                    })
+                    toast.success(`Validator נוצר — ${validatorUrl}`)
                     loadValidators()
                   } else {
                     toast.error(data.error || 'שגיאה ביצירה')
@@ -557,10 +601,11 @@ export default function Validators() {
                 }}
                 style={{
                   height: 44,
+                  width: '100%',
                   borderRadius: 8,
                   border: 'none',
-                  background: 'var(--primary)',
-                  color: '#fff',
+                  background: '#00C37A',
+                  color: '#000',
                   fontWeight: 700,
                   fontSize: 15,
                   cursor: 'pointer',
