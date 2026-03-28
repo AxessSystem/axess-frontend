@@ -97,21 +97,37 @@ export function AuthProvider({ children }) {
     let lastRun = 0
 
     const handleVisibility = async () => {
-      if (document.visibilityState !== 'visible') return
-      const now = Date.now()
-      if (now - lastRun < 3000) return
-      lastRun = now
+      if (document.visibilityState !== 'visible') return;
+      const now = Date.now();
+      if (now - lastRun < 3000) return;
+      lastRun = now;
 
-      const newSession = await safeRefresh(supabase)
-      if (newSession) {
-        setSession(newSession)
-        // טען מחדש את businessMember אם חסר:
-        if (!businessMember && newSession.user?.id) {
-          const bm = await fetchBusinessMember(newSession.user.id)
-          if (bm) setBusinessMember(bm)
+      // קבל session עדכני
+      const { data: { session: currentSession } } = await supabase.auth.getSession();
+
+      if (!currentSession) {
+        // נסה refresh
+        const newSession = await safeRefresh(supabase);
+        if (newSession) {
+          setSession(newSession);
+        }
+        return;
+      }
+
+      // session קיים — בדוק אם businessMember חסר
+      setSession(currentSession);
+
+      if (!businessMember && currentSession.user?.id) {
+        const bm = await fetchBusinessMember(currentSession.user.id);
+        if (bm) setBusinessMember(bm);
+
+        // טען גם profile אם חסר
+        if (!profile) {
+          const p = await fetchProfile(currentSession.user.id);
+          if (p) setProfile(p);
         }
       }
-    }
+    };
 
     document.addEventListener('visibilitychange', handleVisibility)
 
