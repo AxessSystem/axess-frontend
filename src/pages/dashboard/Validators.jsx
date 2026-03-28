@@ -17,6 +17,7 @@ import {
   X,
   Plus,
   Search,
+  Upload,
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import Badge from '@/components/ui/Badge'
@@ -36,11 +37,25 @@ const TYPE_CONFIG = {
   custom: { icon: <Star size={18} />, color: '#EC4899', label: 'מותאם אישית' },
 }
 
-const TAB_TO_STATUS = {
-  הכל: null,
-  פעיל: 'active',
-  מומש: 'redeemed',
-  'פג תוקף': 'expired',
+const STATUS_TABS = ['הכל', 'תבניות', 'פעיל', 'מומש', 'פג תוקף']
+
+function templateToEditForm(t) {
+  const dc = t.display_config && typeof t.display_config === 'object' ? t.display_config : {}
+  const rc = t.redemption_config && typeof t.redemption_config === 'object' ? t.redemption_config : {}
+  return {
+    id: t.id,
+    name: t.name || '',
+    description: dc.subtitle || '',
+    type: t.type || 'event',
+    customType: t.custom_type_name || '',
+    expires_at: t.expires_at ? String(t.expires_at).slice(0, 10) : '',
+    no_expiry: !t.expires_at,
+    binding_type: t.binding_type || 'standalone',
+    binding_id: t.binding_id ? String(t.binding_id) : '',
+    channels: Array.isArray(t.channels) && t.channels.length ? [...t.channels] : ['whatsapp'],
+    max_uses: t.max_uses ?? null,
+    single_use: rc.single_use !== false,
+  }
 }
 
 /* ── QR Modal ── */
@@ -200,8 +215,16 @@ export default function Validators() {
   const [listLoading, setListLoading] = useState(true)
   const [templates, setTemplates] = useState([])
   const [templatesLoading, setTemplatesLoading] = useState(false)
-  const [sendForTemplate, setSendForTemplate] = useState(null)
-  const [sendAudienceRaw, setSendAudienceRaw] = useState('')
+  const [showEditTemplate, setShowEditTemplate] = useState(false)
+  const [editForm, setEditForm] = useState(null)
+  const [editSaving, setEditSaving] = useState(false)
+  const [showSend, setShowSend] = useState(false)
+  const [sendTemplate, setSendTemplate] = useState(null)
+  const [sendMode, setSendMode] = useState('audience')
+  const [selectedAudience, setSelectedAudience] = useState('')
+  const [manualNumbers, setManualNumbers] = useState('')
+  const [audiences, setAudiences] = useState([])
+  const [sendChannel, setSendChannel] = useState('whatsapp')
   const [sendSubmitting, setSendSubmitting] = useState(false)
   const [selected, setSelected] = useState(null)
   const [activeTab, setActiveTab] = useState('הכל')
@@ -272,19 +295,39 @@ export default function Validators() {
     loadTemplates()
   }, [loadTemplates])
 
-  const filtered = validators.filter((v) => {
-    const statusFilter = TAB_TO_STATUS[activeTab]
-    const matchTab = statusFilter == null || v.status === statusFilter
-    const matchType = typeFilter === 'all' || v.type === typeFilter
-    const matchSearch = !search || v.title?.toLowerCase().includes(search.toLowerCase())
+  useEffect(() => {
+    if (!showSend || !businessId || !session?.access_token) return
+    fetch(`${API_BASE.replace(/\/$/, '')}/api/audiences?business_id=${encodeURIComponent(businessId)}`, {
+      headers: authHeaders(),
+    })
+      .then((r) => (r.ok ? r.json() : { audiences: [] }))
+      .then((d) => setAudiences(d.audiences || []))
+      .catch(() => setAudiences([]))
+  }, [showSend, businessId, session?.access_token, authHeaders])
+
+  const filtered = (activeTab === 'תבניות' ? templates : validators).filter((v) => {
+    if (activeTab === 'תבניות') {
+      const matchType = typeFilter === 'all' || typeFilter === 'templates' ? true : v.type === typeFilter
+      const matchSearch = !search || v.name?.toLowerCase().includes(search.toLowerCase())
+      return matchType && matchSearch
+    }
+    const matchTab =
+      activeTab === 'הכל' ||
+      (activeTab === 'פעיל' && v.status === 'active') ||
+      (activeTab === 'מומש' && v.status === 'redeemed') ||
+      (activeTab === 'פג תוקף' && v.status === 'expired')
+    const matchType = typeFilter === 'all' || typeFilter === 'templates' ? true : v.type === typeFilter
+    const matchSearch =
+      !search ||
+      v.title?.toLowerCase().includes(search.toLowerCase()) ||
+      v.name?.toLowerCase().includes(search.toLowerCase())
     return matchTab && matchType && matchSearch
   })
 
-  const filteredTemplates = templates.filter((t) => {
-    const matchType = typeFilter === 'all' || t.type === typeFilter
-    const matchSearch = !search || t.name?.toLowerCase().includes(search.toLowerCase())
-    return matchType && matchSearch
-  })
+  const recipientCount =
+    sendMode === 'manual' || sendMode === 'import'
+      ? manualNumbers.split('\n').filter((n) => n.trim().replace(/\D/g, '').length >= 9).length
+      : audiences.find((a) => String(a.id) === String(selectedAudience))?.recipient_count || 0
 
   if (!validatorsAllowed) return null
 
@@ -306,7 +349,7 @@ export default function Validators() {
       </div>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
-        {['הכל', 'פעיל', 'מומש', 'פג תוקף'].map((tab) => (
+        {STATUS_TABS.map((tab) => (
           <button
             key={tab}
             type="button"
@@ -360,6 +403,7 @@ export default function Validators() {
             { value: 'coupon', label: 'קופון' },
             { value: 'membership', label: 'חברות' },
             { value: 'general', label: 'כללי' },
+            { value: 'templates', label: 'תבניות' },
           ]}
           style={{ width: 140 }}
         />
@@ -395,268 +439,280 @@ export default function Validators() {
         </div>
       </div>
 
-      {templatesLoading ? (
-        <p style={{ color: 'var(--v2-gray-400)', textAlign: 'center', padding: 8 }}>טוען תבניות…</p>
-      ) : null}
-
-      {filteredTemplates.length > 0 ? (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 14 }}>
-          {filteredTemplates.map((t, i) => {
-            const config = TYPE_CONFIG[t.type] || TYPE_CONFIG.general
-            const typeLabel = t.type === 'custom' && t.custom_type_name ? t.custom_type_name : config.label
-            const agg = validators.find((v) => v.title === t.name)
-            const totalIssued = agg?.total ?? 0
-            const redeemedIssued = agg?.redeemed ?? 0
-            const activeIssued = typeof agg?.active_count === 'number' ? agg.active_count : 0
-            const redemptionRate = totalIssued > 0 ? Math.round((redeemedIssued / totalIssued) * 100) : 0
-            const channelsLabel = Array.isArray(t.channels) && t.channels.length ? t.channels.join(', ') : '—'
-            const createdLabel = t.created_at ? new Date(t.created_at).toLocaleDateString('he-IL') : '—'
-
-            return (
-              <motion.div
-                key={t.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.06 }}
-                style={{
-                  background: 'var(--v2-dark-3)',
-                  border: '1px solid var(--glass-border)',
-                  borderRadius: 'var(--radius-lg)',
-                  padding: '18px',
-                  cursor: 'default',
-                  transition: 'border-color 0.25s, transform 0.25s',
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.borderColor = 'var(--v2-primary)'
-                  e.currentTarget.style.transform = 'translateY(-2px)'
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.borderColor = 'var(--glass-border)'
-                  e.currentTarget.style.transform = 'none'
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 14 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <span style={{ display: 'flex', alignItems: 'center', color: config.color, flexShrink: 0 }}>{config.icon}</span>
-                    <div>
-                      <div style={{ fontSize: 14, fontWeight: 600, color: '#ffffff' }}>{t.name}</div>
-                      <div style={{ fontSize: 12, color: 'var(--v2-gray-400)', marginTop: 2 }}>{typeLabel}</div>
-                    </div>
-                  </div>
-                  <Badge variant="scheduled">תבנית</Badge>
-                </div>
-
-                <div
-                  style={{
-                    fontSize: 11,
-                    color: 'var(--v2-gray-400)',
-                    background: 'rgba(255,255,255,0.04)',
-                    borderRadius: 'var(--radius-sm)',
-                    padding: '6px 10px',
-                    marginBottom: 14,
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap',
-                  }}
-                  title={channelsLabel}
-                >
-                  ערוצים: {channelsLabel}
-                </div>
-
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, marginBottom: 14 }}>
-                  <div style={{ textAlign: 'center' }}>
-                    <div style={{ fontFamily: "'Bricolage Grotesque',monospace", fontWeight: 800, fontSize: 18, color: '#ffffff' }}>
-                      {totalIssued.toLocaleString('he-IL')}
-                    </div>
-                    <div style={{ fontSize: 11, color: 'var(--v2-gray-400)', marginTop: 2 }}>מופעים</div>
-                  </div>
-                  <div style={{ textAlign: 'center' }}>
-                    <div style={{ fontFamily: "'Bricolage Grotesque',monospace", fontWeight: 800, fontSize: 18, color: 'var(--v2-accent)' }}>
-                      {redeemedIssued.toLocaleString('he-IL')}
-                    </div>
-                    <div style={{ fontSize: 11, color: 'var(--v2-gray-400)', marginTop: 2 }}>מומשו</div>
-                  </div>
-                  <div style={{ textAlign: 'center' }}>
-                    <div style={{ fontFamily: "'Bricolage Grotesque',monospace", fontWeight: 800, fontSize: 18, color: 'var(--v2-primary)' }}>
-                      {activeIssued.toLocaleString('he-IL')}
-                    </div>
-                    <div style={{ fontSize: 11, color: 'var(--v2-gray-400)', marginTop: 2 }}>פעילים</div>
-                  </div>
-                </div>
-
-                {totalIssued > 0 && (
-                  <div style={{ width: '100%', background: 'rgba(255,255,255,0.06)', borderRadius: 9999, height: 6, marginBottom: 12 }}>
-                    <div
-                      style={{
-                        height: '100%',
-                        borderRadius: 9999,
-                        background: 'var(--v2-accent)',
-                        width: `${redemptionRate}%`,
-                        transition: 'width 1s ease',
-                      }}
-                    />
-                  </div>
-                )}
-
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 12, color: 'var(--v2-gray-400)', marginBottom: 10 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                    <Clock size={11} /> נוצר {createdLabel}
-                  </div>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSendForTemplate(t)
-                    setSendAudienceRaw('')
-                  }}
-                  style={{
-                    width: '100%',
-                    padding: '10px 14px',
-                    borderRadius: 8,
-                    border: 'none',
-                    background: 'var(--primary)',
-                    color: '#fff',
-                    fontWeight: 600,
-                    fontSize: 13,
-                    cursor: 'pointer',
-                  }}
-                >
-                  שלח לקהל
-                </button>
-              </motion.div>
-            )
-          })}
-        </div>
-      ) : null}
-
-      {listLoading ? (
+      {activeTab === 'תבניות' && templatesLoading ? (
         <p style={{ color: 'var(--v2-gray-400)', textAlign: 'center', padding: 24 }}>טוען…</p>
-      ) : filtered.length === 0 && filteredTemplates.length === 0 && !templatesLoading ? (
-        <EmptyState icon="🎫" title="אין Validators" description="צור Validator חדש כדי לראות אותם כאן" />
-      ) : filtered.length > 0 ? (
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
-            gap: 14,
-            marginTop: filteredTemplates.length > 0 ? 14 : 0,
-          }}
-        >
-          {filtered.map((v, i) => {
-            const config = TYPE_CONFIG[v.type] || TYPE_CONFIG.general
-            const redemptionRate = v.total > 0 ? Math.round((v.redeemed / v.total) * 100) : 0
-            const activeCount = typeof v.active_count === 'number' ? v.active_count : 0
-            const createdLabel = v.createdLabel || v.expiry
+      ) : activeTab !== 'תבניות' && listLoading ? (
+        <p style={{ color: 'var(--v2-gray-400)', textAlign: 'center', padding: 24 }}>טוען…</p>
+      ) : filtered.length === 0 ? (
+        <EmptyState icon="🎫" title="אין פריטים" description="צור תבנית או שלח כרטיסים כדי לראות כאן" />
+      ) : (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 14 }}>
+          {activeTab === 'תבניות'
+            ? filtered.map((t, i) => {
+                const config = TYPE_CONFIG[t.type] || TYPE_CONFIG.general
+                const typeLabel = t.type === 'custom' && t.custom_type_name ? t.custom_type_name : config.label
+                const agg = validators.find((v) => v.title === t.name)
+                const totalIssued = agg?.total ?? 0
+                const redeemedIssued = agg?.redeemed ?? 0
+                const activeIssued = typeof agg?.active_count === 'number' ? agg.active_count : 0
+                const redemptionRate = totalIssued > 0 ? Math.round((redeemedIssued / totalIssued) * 100) : 0
+                const channelsLabel = Array.isArray(t.channels) && t.channels.length ? t.channels.join(', ') : '—'
+                const createdLabel = t.created_at ? new Date(t.created_at).toLocaleDateString('he-IL') : '—'
 
-            return (
-              <motion.div
-                key={`${v.id}-${v.title}`}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.06 }}
-                onClick={() => setSelected(v)}
-                style={{
-                  background: 'var(--v2-dark-3)',
-                  border: '1px solid var(--glass-border)',
-                  borderRadius: 'var(--radius-lg)',
-                  padding: '18px',
-                  cursor: 'pointer',
-                  transition: 'border-color 0.25s, transform 0.25s',
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.borderColor = 'var(--v2-primary)'
-                  e.currentTarget.style.transform = 'translateY(-2px)'
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.borderColor = 'var(--glass-border)'
-                  e.currentTarget.style.transform = 'none'
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 14 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <span style={{ display: 'flex', alignItems: 'center', color: config.color, flexShrink: 0 }}>{config.icon}</span>
-                    <div>
-                      <div style={{ fontSize: 14, fontWeight: 600, color: '#ffffff' }}>{v.title}</div>
-                      <div style={{ fontSize: 12, color: 'var(--v2-gray-400)', marginTop: 2 }}>{v.campaign}</div>
+                return (
+                  <motion.div
+                    key={t.id}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: i * 0.06 }}
+                    style={{
+                      background: 'var(--v2-dark-3)',
+                      border: '1px solid var(--glass-border)',
+                      borderRadius: 'var(--radius-lg)',
+                      padding: '18px',
+                      cursor: 'default',
+                      transition: 'border-color 0.25s, transform 0.25s',
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.borderColor = 'var(--v2-primary)'
+                      e.currentTarget.style.transform = 'translateY(-2px)'
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.borderColor = 'var(--glass-border)'
+                      e.currentTarget.style.transform = 'none'
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 14 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <span style={{ display: 'flex', alignItems: 'center', color: config.color, flexShrink: 0 }}>{config.icon}</span>
+                        <div>
+                          <div style={{ fontSize: 14, fontWeight: 600, color: '#ffffff' }}>{t.name}</div>
+                          <div style={{ fontSize: 12, color: 'var(--v2-gray-400)', marginTop: 2 }}>{typeLabel}</div>
+                        </div>
+                      </div>
+                      <Badge variant="scheduled">תבנית</Badge>
                     </div>
-                  </div>
-                  <Badge variant={v.status === 'active' ? 'active' : v.status === 'expired' ? 'danger' : 'scheduled'}>
-                    {v.status === 'active' ? 'פעיל' : v.status === 'expired' ? 'פג תוקף' : v.status === 'redeemed' ? 'מומש' : 'מתוזמן'}
-                  </Badge>
-                </div>
 
-                <div
-                  style={{
-                    fontSize: 11,
-                    color: 'var(--v2-gray-400)',
-                    background: 'rgba(255,255,255,0.04)',
-                    borderRadius: 'var(--radius-sm)',
-                    padding: '6px 10px',
-                    marginBottom: 14,
-                    fontFamily: 'monospace',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap',
-                  }}
-                >
-                  /v/{v.slug}
-                </div>
-
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, marginBottom: 14 }}>
-                  <div style={{ textAlign: 'center' }}>
-                    <div style={{ fontFamily: "'Bricolage Grotesque',monospace", fontWeight: 800, fontSize: 18, color: '#ffffff' }}>
-                      {v.total.toLocaleString('he-IL')}
-                    </div>
-                    <div style={{ fontSize: 11, color: 'var(--v2-gray-400)', marginTop: 2 }}>נשלחו</div>
-                  </div>
-                  <div style={{ textAlign: 'center' }}>
-                    <div style={{ fontFamily: "'Bricolage Grotesque',monospace", fontWeight: 800, fontSize: 18, color: 'var(--v2-accent)' }}>
-                      {v.redeemed.toLocaleString('he-IL')}
-                    </div>
-                    <div style={{ fontSize: 11, color: 'var(--v2-gray-400)', marginTop: 2 }}>מומשו</div>
-                  </div>
-                  <div style={{ textAlign: 'center' }}>
-                    <div style={{ fontFamily: "'Bricolage Grotesque',monospace", fontWeight: 800, fontSize: 18, color: 'var(--v2-primary)' }}>
-                      {activeCount.toLocaleString('he-IL')}
-                    </div>
-                    <div style={{ fontSize: 11, color: 'var(--v2-gray-400)', marginTop: 2 }}>פעילים</div>
-                  </div>
-                </div>
-
-                {v.total > 0 && (
-                  <div style={{ width: '100%', background: 'rgba(255,255,255,0.06)', borderRadius: 9999, height: 6, marginBottom: 12 }}>
                     <div
                       style={{
-                        height: '100%',
-                        borderRadius: 9999,
-                        background: 'var(--v2-accent)',
-                        width: `${redemptionRate}%`,
-                        transition: 'width 1s ease',
+                        fontSize: 11,
+                        color: 'var(--v2-gray-400)',
+                        background: 'rgba(255,255,255,0.04)',
+                        borderRadius: 'var(--radius-sm)',
+                        padding: '6px 10px',
+                        marginBottom: 14,
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
                       }}
-                    />
-                  </div>
-                )}
+                      title={channelsLabel}
+                    >
+                      ערוצים: {channelsLabel}
+                    </div>
 
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 12, color: 'var(--v2-gray-400)' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                    <Clock size={11} /> נוצר {createdLabel}
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 4, color: 'var(--v2-primary)' }}>
-                    <QrCode size={11} /> QR Code
-                  </div>
-                </div>
-              </motion.div>
-            )
-          })}
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, marginBottom: 14 }}>
+                      <div style={{ textAlign: 'center' }}>
+                        <div style={{ fontFamily: "'Bricolage Grotesque',monospace", fontWeight: 800, fontSize: 18, color: '#ffffff' }}>
+                          {totalIssued.toLocaleString('he-IL')}
+                        </div>
+                        <div style={{ fontSize: 11, color: 'var(--v2-gray-400)', marginTop: 2 }}>מופעים</div>
+                      </div>
+                      <div style={{ textAlign: 'center' }}>
+                        <div style={{ fontFamily: "'Bricolage Grotesque',monospace", fontWeight: 800, fontSize: 18, color: 'var(--v2-accent)' }}>
+                          {redeemedIssued.toLocaleString('he-IL')}
+                        </div>
+                        <div style={{ fontSize: 11, color: 'var(--v2-gray-400)', marginTop: 2 }}>מומשו</div>
+                      </div>
+                      <div style={{ textAlign: 'center' }}>
+                        <div style={{ fontFamily: "'Bricolage Grotesque',monospace", fontWeight: 800, fontSize: 18, color: 'var(--v2-primary)' }}>
+                          {activeIssued.toLocaleString('he-IL')}
+                        </div>
+                        <div style={{ fontSize: 11, color: 'var(--v2-gray-400)', marginTop: 2 }}>פעילים</div>
+                      </div>
+                    </div>
+
+                    {totalIssued > 0 && (
+                      <div style={{ width: '100%', background: 'rgba(255,255,255,0.06)', borderRadius: 9999, height: 6, marginBottom: 12 }}>
+                        <div
+                          style={{
+                            height: '100%',
+                            borderRadius: 9999,
+                            background: 'var(--v2-accent)',
+                            width: `${redemptionRate}%`,
+                            transition: 'width 1s ease',
+                          }}
+                        />
+                      </div>
+                    )}
+
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 12, color: 'var(--v2-gray-400)', marginBottom: 10 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                        <Clock size={11} /> נוצר {createdLabel}
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditForm(templateToEditForm(t))
+                          setShowEditTemplate(true)
+                        }}
+                        style={{
+                          flex: 1,
+                          background: 'var(--glass)',
+                          border: '1px solid var(--glass-border)',
+                          borderRadius: 8,
+                          padding: '10px 10px',
+                          cursor: 'pointer',
+                          fontSize: 13,
+                          color: 'var(--text)',
+                        }}
+                      >
+                        ✏️ ערוך
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSendTemplate(t)
+                          setShowSend(true)
+                          setSendMode('audience')
+                          setSelectedAudience('')
+                          setManualNumbers('')
+                          setSendChannel('whatsapp')
+                        }}
+                        style={{
+                          flex: 1,
+                          padding: '10px 10px',
+                          borderRadius: 8,
+                          border: 'none',
+                          background: 'var(--primary)',
+                          color: '#fff',
+                          fontWeight: 600,
+                          fontSize: 13,
+                          cursor: 'pointer',
+                        }}
+                      >
+                        שלח לקהל
+                      </button>
+                    </div>
+                  </motion.div>
+                )
+              })
+            : filtered.map((v, i) => {
+                const config = TYPE_CONFIG[v.type] || TYPE_CONFIG.general
+                const redemptionRate = v.total > 0 ? Math.round((v.redeemed / v.total) * 100) : 0
+                const activeCount = typeof v.active_count === 'number' ? v.active_count : 0
+                const createdLabel = v.createdLabel || v.expiry
+
+                return (
+                  <motion.div
+                    key={`${v.id}-${v.title}`}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: i * 0.06 }}
+                    onClick={() => setSelected(v)}
+                    style={{
+                      background: 'var(--v2-dark-3)',
+                      border: '1px solid var(--glass-border)',
+                      borderRadius: 'var(--radius-lg)',
+                      padding: '18px',
+                      cursor: 'pointer',
+                      transition: 'border-color 0.25s, transform 0.25s',
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.borderColor = 'var(--v2-primary)'
+                      e.currentTarget.style.transform = 'translateY(-2px)'
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.borderColor = 'var(--glass-border)'
+                      e.currentTarget.style.transform = 'none'
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 14 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <span style={{ display: 'flex', alignItems: 'center', color: config.color, flexShrink: 0 }}>{config.icon}</span>
+                        <div>
+                          <div style={{ fontSize: 14, fontWeight: 600, color: '#ffffff' }}>{v.title}</div>
+                          <div style={{ fontSize: 12, color: 'var(--v2-gray-400)', marginTop: 2 }}>{v.campaign}</div>
+                        </div>
+                      </div>
+                      <Badge variant={v.status === 'active' ? 'active' : v.status === 'expired' ? 'danger' : 'scheduled'}>
+                        {v.status === 'active' ? 'פעיל' : v.status === 'expired' ? 'פג תוקף' : v.status === 'redeemed' ? 'מומש' : 'מתוזמן'}
+                      </Badge>
+                    </div>
+
+                    <div
+                      style={{
+                        fontSize: 11,
+                        color: 'var(--v2-gray-400)',
+                        background: 'rgba(255,255,255,0.04)',
+                        borderRadius: 'var(--radius-sm)',
+                        padding: '6px 10px',
+                        marginBottom: 14,
+                        fontFamily: 'monospace',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      /v/{v.slug}
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, marginBottom: 14 }}>
+                      <div style={{ textAlign: 'center' }}>
+                        <div style={{ fontFamily: "'Bricolage Grotesque',monospace", fontWeight: 800, fontSize: 18, color: '#ffffff' }}>
+                          {v.total.toLocaleString('he-IL')}
+                        </div>
+                        <div style={{ fontSize: 11, color: 'var(--v2-gray-400)', marginTop: 2 }}>נשלחו</div>
+                      </div>
+                      <div style={{ textAlign: 'center' }}>
+                        <div style={{ fontFamily: "'Bricolage Grotesque',monospace", fontWeight: 800, fontSize: 18, color: 'var(--v2-accent)' }}>
+                          {v.redeemed.toLocaleString('he-IL')}
+                        </div>
+                        <div style={{ fontSize: 11, color: 'var(--v2-gray-400)', marginTop: 2 }}>מומשו</div>
+                      </div>
+                      <div style={{ textAlign: 'center' }}>
+                        <div style={{ fontFamily: "'Bricolage Grotesque',monospace", fontWeight: 800, fontSize: 18, color: 'var(--v2-primary)' }}>
+                          {activeCount.toLocaleString('he-IL')}
+                        </div>
+                        <div style={{ fontSize: 11, color: 'var(--v2-gray-400)', marginTop: 2 }}>פעילים</div>
+                      </div>
+                    </div>
+
+                    {v.total > 0 && (
+                      <div style={{ width: '100%', background: 'rgba(255,255,255,0.06)', borderRadius: 9999, height: 6, marginBottom: 12 }}>
+                        <div
+                          style={{
+                            height: '100%',
+                            borderRadius: 9999,
+                            background: 'var(--v2-accent)',
+                            width: `${redemptionRate}%`,
+                            transition: 'width 1s ease',
+                          }}
+                        />
+                      </div>
+                    )}
+
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 12, color: 'var(--v2-gray-400)' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                        <Clock size={11} /> נוצר {createdLabel}
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 4, color: 'var(--v2-primary)' }}>
+                        <QrCode size={11} /> QR Code
+                      </div>
+                    </div>
+                  </motion.div>
+                )
+              })}
         </div>
-      ) : null}
+      )}
 
       <AnimatePresence>
         {selected && <QRModal validator={selected} onClose={() => setSelected(null)} />}
       </AnimatePresence>
 
-      {sendForTemplate && (
+      {showSend && sendTemplate && (
         <div
           style={{
             position: 'fixed',
@@ -668,107 +724,503 @@ export default function Validators() {
             justifyContent: 'center',
             padding: 16,
           }}
-          onClick={() => !sendSubmitting && setSendForTemplate(null)}
         >
           <div
-            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: 'var(--card, #1a1d2e)',
+              borderRadius: 12,
+              padding: 24,
+              maxWidth: 480,
+              width: '100%',
+              position: 'relative',
+              border: '1px solid var(--glass-border)',
+              maxHeight: '90vh',
+              overflowY: 'auto',
+            }}
+          >
+            <button
+              type="button"
+              onClick={() => !sendSubmitting && setShowSend(false)}
+              style={{
+                position: 'absolute',
+                top: 12,
+                left: 12,
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                color: 'var(--v2-gray-400)',
+              }}
+            >
+              <X size={20} />
+            </button>
+            <h3 style={{ margin: '0 0 4px', fontSize: 16, fontWeight: 700 }}>שלח תבנית: {sendTemplate.name}</h3>
+            <p style={{ color: 'var(--v2-gray-400)', fontSize: 13, margin: '0 0 20px' }}>כל נמען יקבל כרטיס ייחודי</p>
+
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ fontSize: 13, fontWeight: 600, marginBottom: 8, display: 'block' }}>ערוץ שליחה</label>
+              <div style={{ display: 'flex', gap: 8 }}>
+                {['whatsapp', 'sms'].map((ch) => (
+                  <button
+                    key={ch}
+                    type="button"
+                    onClick={() => setSendChannel(ch)}
+                    style={{
+                      padding: '8px 16px',
+                      borderRadius: 8,
+                      border: 'none',
+                      cursor: 'pointer',
+                      background: sendChannel === ch ? (ch === 'whatsapp' ? '#22C55E' : '#3B82F6') : 'var(--glass)',
+                      color: sendChannel === ch ? '#fff' : 'var(--text)',
+                      fontWeight: 600,
+                      fontSize: 13,
+                    }}
+                  >
+                    {ch === 'whatsapp' ? '💬 WhatsApp' : '📱 SMS'}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ fontSize: 13, fontWeight: 600, marginBottom: 8, display: 'block' }}>קהל יעד</label>
+              <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
+                {[
+                  { id: 'audience', label: 'קהל שמור' },
+                  { id: 'manual', label: 'הזן ידנית' },
+                  { id: 'import', label: 'ייבוא קובץ' },
+                ].map((m) => (
+                  <button
+                    key={m.id}
+                    type="button"
+                    onClick={() => setSendMode(m.id)}
+                    style={{
+                      padding: '6px 14px',
+                      borderRadius: 8,
+                      border: 'none',
+                      cursor: 'pointer',
+                      background: sendMode === m.id ? 'var(--primary)' : 'var(--glass)',
+                      color: sendMode === m.id ? '#fff' : 'var(--text)',
+                      fontSize: 13,
+                    }}
+                  >
+                    {m.label}
+                  </button>
+                ))}
+              </div>
+
+              {sendMode === 'audience' && (
+                <CustomSelect
+                  value={selectedAudience}
+                  onChange={setSelectedAudience}
+                  placeholder="בחר קהל..."
+                  options={audiences.map((a) => ({
+                    value: a.id,
+                    label: `${a.name} (${a.recipient_count || 0} אנשים)`,
+                  }))}
+                />
+              )}
+
+              {sendMode === 'manual' && (
+                <textarea
+                  value={manualNumbers}
+                  onChange={(e) => setManualNumbers(e.target.value)}
+                  placeholder={'הזן מספרי טלפון — כל מספר בשורה נפרדת:\n0501234567\n0521234567'}
+                  style={{
+                    width: '100%',
+                    minHeight: 120,
+                    borderRadius: 8,
+                    border: '1px solid var(--glass-border)',
+                    background: 'var(--glass)',
+                    color: 'var(--text)',
+                    padding: 12,
+                    fontSize: 13,
+                    direction: 'ltr',
+                    resize: 'vertical',
+                    boxSizing: 'border-box',
+                  }}
+                />
+              )}
+
+              {sendMode === 'import' && (
+                <div
+                  style={{
+                    border: '2px dashed var(--glass-border)',
+                    borderRadius: 8,
+                    padding: 24,
+                    textAlign: 'center',
+                    cursor: 'pointer',
+                  }}
+                  onClick={() => document.getElementById('validator-import-file')?.click()}
+                >
+                  <input
+                    id="validator-import-file"
+                    type="file"
+                    accept=".csv,.xlsx,.xls"
+                    hidden
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0]
+                      if (!file) return
+                      const text = await file.text()
+                      const numbers = text
+                        .split('\n')
+                        .map((l) => (l.split(',')[0] || '').trim().replace(/\D/g, ''))
+                        .filter((n) => n.length >= 9)
+                      setManualNumbers(numbers.join('\n'))
+                      setSendMode('manual')
+                    }}
+                  />
+                  <Upload size={24} style={{ color: 'var(--v2-gray-400)', marginBottom: 8 }} />
+                  <p style={{ color: 'var(--v2-gray-400)', fontSize: 13, margin: 0 }}>גרור קובץ CSV/Excel או לחץ לבחירה</p>
+                </div>
+              )}
+            </div>
+
+            {recipientCount > 0 && (
+              <div
+                style={{
+                  background: 'rgba(0,195,122,0.1)',
+                  border: '1px solid rgba(0,195,122,0.3)',
+                  borderRadius: 8,
+                  padding: 12,
+                  marginBottom: 16,
+                }}
+              >
+                <p style={{ margin: 0, fontSize: 14, color: '#00C37A', fontWeight: 600 }}>
+                  ✅ יישלח ל-{recipientCount} נמענים
+                </p>
+                <p style={{ margin: '4px 0 0', fontSize: 12, color: 'var(--v2-gray-400)' }}>
+                  כל נמען יקבל כרטיס ייחודי עם QR code אישי
+                </p>
+              </div>
+            )}
+
+            <button
+              type="button"
+              disabled={recipientCount === 0 || sendSubmitting}
+              onClick={async () => {
+                const numbers = manualNumbers
+                  .split('\n')
+                  .map((n) => n.trim())
+                  .filter((n) => n.replace(/\D/g, '').length >= 9)
+                const body =
+                  sendMode === 'audience'
+                    ? { audience_id: selectedAudience, channel: sendChannel }
+                    : { phone_numbers: numbers, channel: sendChannel }
+                setSendSubmitting(true)
+                try {
+                  const r = await fetch(
+                    `${API_BASE.replace(/\/$/, '')}/api/validator-templates/${sendTemplate.id}/send`,
+                    { method: 'POST', headers: authHeaders(), body: JSON.stringify(body) }
+                  )
+                  const d = await r.json().catch(() => ({}))
+                  if (!r.ok) {
+                    toast.error(d.error || 'שגיאה בשליחה')
+                    return
+                  }
+                  setShowSend(false)
+                  toast.success(`נשלח ל-${d.created ?? 0} נמענים!`)
+                  loadValidators()
+                  loadTemplates()
+                } finally {
+                  setSendSubmitting(false)
+                }
+              }}
+              style={{
+                height: 44,
+                width: '100%',
+                borderRadius: 8,
+                border: 'none',
+                background: recipientCount > 0 ? '#00C37A' : 'var(--glass)',
+                color: recipientCount > 0 ? '#000' : 'var(--v2-gray-400)',
+                fontWeight: 700,
+                fontSize: 15,
+                cursor: recipientCount > 0 ? 'pointer' : 'not-allowed',
+              }}
+            >
+              {recipientCount > 0 ? `שלח ל-${recipientCount} נמענים` : 'בחר קהל לשליחה'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {showEditTemplate && editForm && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.5)',
+            zIndex: 1000,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 16,
+          }}
+        >
+          <div
             style={{
               background: 'var(--card, #1a1d2e)',
               borderRadius: 12,
               padding: 24,
               maxWidth: 440,
               width: '100%',
+              position: 'relative',
               border: '1px solid var(--glass-border)',
+              maxHeight: '90vh',
+              overflowY: 'auto',
             }}
           >
-            <h3 style={{ margin: '0 0 12px', fontSize: 16, fontWeight: 700 }}>שלח לקהל — {sendForTemplate.name}</h3>
-            <p style={{ fontSize: 13, color: 'var(--v2-gray-400)', margin: '0 0 8px' }}>
-              מזהי נמען (master_recipient UUID), מופרדים בפסיק או שורה חדשה
-            </p>
-            <textarea
-              value={sendAudienceRaw}
-              onChange={(e) => setSendAudienceRaw(e.target.value)}
-              rows={4}
-              dir="ltr"
+            <button
+              type="button"
+              onClick={() => !editSaving && setShowEditTemplate(false)}
               style={{
-                width: '100%',
-                boxSizing: 'border-box',
-                borderRadius: 8,
-                border: '1px solid var(--glass-border)',
-                background: 'var(--glass)',
-                color: 'var(--text)',
-                padding: 10,
-                fontSize: 13,
-                marginBottom: 12,
-                resize: 'vertical',
+                position: 'absolute',
+                top: 12,
+                left: 12,
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                color: 'var(--v2-gray-400)',
               }}
-            />
-            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-              <button
-                type="button"
-                disabled={sendSubmitting}
-                onClick={() => setSendForTemplate(null)}
+            >
+              <X size={20} />
+            </button>
+            <h3 style={{ margin: '0 0 20px', fontSize: 16, fontWeight: 700 }}>ערוך תבנית</h3>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <input
+                placeholder="שם התבנית"
+                value={editForm.name}
+                onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
                 style={{
-                  padding: '8px 14px',
+                  height: 40,
                   borderRadius: 8,
                   border: '1px solid var(--glass-border)',
-                  background: 'transparent',
+                  background: 'var(--glass)',
                   color: 'var(--text)',
-                  cursor: 'pointer',
+                  padding: '0 12px',
+                  fontSize: 14,
                 }}
-              >
-                ביטול
-              </button>
+              />
+              <input
+                placeholder="תיאור (אופציונלי)"
+                value={editForm.description}
+                onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
+                style={{
+                  height: 40,
+                  borderRadius: 8,
+                  border: '1px solid var(--glass-border)',
+                  background: 'var(--glass)',
+                  color: 'var(--text)',
+                  padding: '0 12px',
+                  fontSize: 14,
+                }}
+              />
+              <CustomSelect
+                value={editForm.type}
+                onChange={(val) => setEditForm({ ...editForm, type: val })}
+                options={[
+                  { value: 'event', label: 'אירוע' },
+                  { value: 'coupon', label: 'קופון' },
+                  { value: 'membership', label: 'חברות' },
+                  { value: 'general', label: 'כללי' },
+                  { value: 'custom', label: '+ מותאם אישית' },
+                ]}
+              />
+              {editForm.type === 'custom' && (
+                <input
+                  value={editForm.customType}
+                  onChange={(e) => setEditForm({ ...editForm, customType: e.target.value })}
+                  placeholder="שם הסוג המותאם (למשל: הנחת עובד)"
+                  style={{
+                    height: 40,
+                    borderRadius: 8,
+                    border: '1px solid var(--glass-border)',
+                    background: 'var(--glass)',
+                    color: 'var(--text)',
+                    padding: '0 12px',
+                    fontSize: 14,
+                    width: '100%',
+                    boxSizing: 'border-box',
+                  }}
+                />
+              )}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <input
+                  type="date"
+                  value={editForm.expires_at}
+                  onChange={(e) => setEditForm({ ...editForm, expires_at: e.target.value })}
+                  disabled={editForm.no_expiry}
+                  style={{
+                    flex: 1,
+                    height: 40,
+                    borderRadius: 8,
+                    border: '1px solid var(--glass-border)',
+                    background: editForm.no_expiry ? 'var(--glass)' : 'var(--card)',
+                    color: 'var(--text)',
+                    padding: '0 12px',
+                    fontSize: 14,
+                    opacity: editForm.no_expiry ? 0.5 : 1,
+                  }}
+                />
+                <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                  <input
+                    type="checkbox"
+                    checked={editForm.no_expiry}
+                    onChange={(e) => setEditForm({ ...editForm, no_expiry: e.target.checked, expires_at: '' })}
+                  />
+                  ללא תוקף
+                </label>
+              </div>
+              <div>
+                <label style={{ fontSize: 13, fontWeight: 600, marginBottom: 6, display: 'block' }}>שיוך</label>
+                <CustomSelect
+                  value={editForm.binding_type}
+                  onChange={(val) => setEditForm({ ...editForm, binding_type: val, binding_id: '' })}
+                  options={[
+                    { value: 'standalone', label: 'עצמאי — שלח לקהל' },
+                    { value: 'event', label: 'קשור לאירוע' },
+                    { value: 'campaign', label: 'קשור לקמפיין' },
+                    { value: 'webview', label: 'קשור ל-Webview' },
+                  ]}
+                />
+              </div>
+              {editForm.binding_type !== 'standalone' && (
+                <input
+                  placeholder="מזהה שיוך (UUID)"
+                  value={editForm.binding_id}
+                  onChange={(e) => setEditForm({ ...editForm, binding_id: e.target.value })}
+                  style={{
+                    height: 40,
+                    borderRadius: 8,
+                    border: '1px solid var(--glass-border)',
+                    background: 'var(--glass)',
+                    color: 'var(--text)',
+                    padding: '0 12px',
+                    fontSize: 14,
+                    direction: 'ltr',
+                  }}
+                />
+              )}
+              <div>
+                <label style={{ fontSize: 13, fontWeight: 600, marginBottom: 6, display: 'block' }}>ערוצי שליחה</label>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  {['whatsapp', 'sms', 'email'].map((ch) => (
+                    <label key={ch} style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: 13 }}>
+                      <input
+                        type="checkbox"
+                        checked={editForm.channels?.includes(ch)}
+                        onChange={(e) => {
+                          const channels = editForm.channels || []
+                          setEditForm({
+                            ...editForm,
+                            channels: e.target.checked ? [...channels, ch] : channels.filter((c) => c !== ch),
+                          })
+                        }}
+                      />
+                      {ch === 'whatsapp' ? 'WhatsApp' : ch === 'sms' ? 'SMS' : 'מייל'}
+                    </label>
+                  ))}
+                </div>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                <input
+                  type="number"
+                  min={0}
+                  placeholder="מקס׳ שימושים (ריק = ללא הגבלה)"
+                  value={editForm.max_uses ?? ''}
+                  onChange={(e) =>
+                    setEditForm({
+                      ...editForm,
+                      max_uses: e.target.value === '' ? null : Number(e.target.value),
+                    })
+                  }
+                  style={{
+                    flex: 1,
+                    minWidth: 120,
+                    height: 40,
+                    borderRadius: 8,
+                    border: '1px solid var(--glass-border)',
+                    background: 'var(--glass)',
+                    color: 'var(--text)',
+                    padding: '0 12px',
+                    fontSize: 14,
+                  }}
+                />
+                <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, cursor: 'pointer' }}>
+                  <input
+                    type="checkbox"
+                    checked={editForm.single_use}
+                    onChange={(e) => setEditForm({ ...editForm, single_use: e.target.checked })}
+                  />
+                  שימוש יחיד
+                </label>
+              </div>
               <button
                 type="button"
-                disabled={sendSubmitting}
+                disabled={editSaving || !editForm.name}
                 onClick={async () => {
-                  const audience_ids = sendAudienceRaw
-                    .split(/[\s,]+/)
-                    .map((s) => s.trim())
-                    .filter(Boolean)
-                  if (!audience_ids.length) {
-                    toast.error('הוסף לפחות מזהה אחד')
-                    return
+                  let expiresAtVal = null
+                  if (!editForm.no_expiry && editForm.expires_at && String(editForm.expires_at).trim()) {
+                    const d = new Date(`${String(editForm.expires_at).trim()}T23:59:59.999Z`)
+                    if (!Number.isNaN(d.getTime())) expiresAtVal = d.toISOString()
                   }
-                  setSendSubmitting(true)
+                  const display_config = {
+                    title: String(editForm.name).trim(),
+                    subtitle: editForm.description ? String(editForm.description).trim() : '',
+                  }
+                  const redemption_config = {
+                    max_uses: editForm.max_uses != null ? editForm.max_uses : null,
+                    single_use: editForm.single_use,
+                  }
+                  const typePayload = editForm.type === 'custom' ? 'custom' : editForm.type
+                  const custom_type_name =
+                    editForm.type === 'custom' ? (editForm.customType || '').trim() || null : null
+                  setEditSaving(true)
                   try {
                     const res = await fetch(
-                      `${API_BASE.replace(/\/$/, '')}/api/validator-templates/${sendForTemplate.id}/send`,
+                      `${API_BASE.replace(/\/$/, '')}/api/validator-templates/${editForm.id}`,
                       {
-                        method: 'POST',
+                        method: 'PATCH',
                         headers: authHeaders(),
                         body: JSON.stringify({
-                          audience_ids,
-                          channels: sendForTemplate.channels,
+                          name: editForm.name,
+                          type: typePayload,
+                          custom_type_name,
+                          display_config,
+                          channels: editForm.channels?.length ? editForm.channels : ['whatsapp'],
+                          max_uses: editForm.max_uses,
+                          expires_at: expiresAtVal,
+                          binding_type: editForm.binding_type,
+                          binding_id: editForm.binding_id || null,
+                          redemption_config,
                         }),
                       }
                     )
                     const data = await res.json().catch(() => ({}))
-                    if (res.ok) {
-                      toast.success(`נוצרו ${data.created ?? 0} מופעים`)
-                      setSendForTemplate(null)
-                      setSendAudienceRaw('')
-                      loadValidators()
-                      loadTemplates()
-                    } else {
-                      toast.error(data.error || 'שגיאה בשליחה')
+                    if (!res.ok) {
+                      toast.error(data.error || 'שגיאה בעדכון')
+                      return
                     }
+                    setShowEditTemplate(false)
+                    setEditForm(null)
+                    loadTemplates()
+                    toast.success('תבנית עודכנה!')
                   } finally {
-                    setSendSubmitting(false)
+                    setEditSaving(false)
                   }
                 }}
                 style={{
-                  padding: '8px 14px',
+                  height: 44,
+                  width: '100%',
                   borderRadius: 8,
                   border: 'none',
-                  background: 'var(--primary)',
-                  color: '#fff',
-                  fontWeight: 600,
+                  background: '#00C37A',
+                  color: '#000',
+                  fontWeight: 700,
+                  fontSize: 15,
                   cursor: 'pointer',
                 }}
               >
-                {sendSubmitting ? 'שולח…' : 'שלח'}
+                {editSaving ? 'שומר…' : 'שמור שינויים'}
               </button>
             </div>
           </div>
