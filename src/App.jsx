@@ -184,6 +184,16 @@ export default function App() {
             <Route path="/terms" element={<Terms />} />
             <Route path="/privacy" element={<Privacy />} />
             <Route path="/auth" element={<AuthConnect />} />
+            {/* Route זמני לדיבאג: */}
+            <Route path="/auth-debug" element={
+              <div style={{ padding: 20, fontFamily: 'monospace', fontSize: 12 }}>
+                <h3>Auth Logs</h3>
+                <pre>{JSON.parse(localStorage.getItem('auth_logs') || '[]').join('\n')}</pre>
+                <button onClick={() => { localStorage.removeItem('auth_logs'); window.location.reload(); }}>
+                  נקה
+                </button>
+              </div>
+            } />
             <Route path="/v/:slug" element={<Validator />} />
             <Route path="/e/:slug" element={<EventPage />} />
             <Route path="/e/:slug/group-register" element={<GroupRegistrationPage />} />

@@ -66,30 +66,45 @@ export function AuthProvider({ children }) {
   // 🚀 INIT (FIXED)
   // -----------------------------
   useEffect(() => {
+    const mobileLog = (msg) => {
+      try {
+        const logs = JSON.parse(localStorage.getItem('auth_logs') || '[]');
+        logs.push(`${new Date().toISOString().slice(11, 19)} ${msg}`);
+        if (logs.length > 20) logs.shift();
+        localStorage.setItem('auth_logs', JSON.stringify(logs));
+      } catch (e) {}
+    };
+
     const init = async () => {
-      console.log('[auth] init started');
-      const session = await getValidSession(supabase);
-      console.log('[auth] session:', session ? 'exists' : 'null');
+      mobileLog('init started');
+      let session = null;
+      try {
+        session = await getValidSession(supabase);
+        mobileLog(`session: ${session ? 'exists' : 'null'}`);
+      } catch (e) {
+        mobileLog(`getValidSession error: ${e.message}`);
+      }
+
       setSession(session);
 
       if (session?.user?.id) {
-        console.log('[auth] loading businessMember for:', session.user.id);
+        mobileLog(`loading bm for: ${session.user.id.slice(0, 8)}`);
         try {
           const [bm, p] = await Promise.all([
             fetchBusinessMember(session.user.id),
             fetchProfile(session.user.id)
           ]);
-          console.log('[auth] businessMember:', bm ? bm.role : 'null');
-          console.log('[auth] profile:', p ? 'loaded' : 'null');
+          mobileLog(`bm: ${bm ? bm.role : 'null'}`);
+          mobileLog(`profile: ${p ? 'ok' : 'null'}`);
           if (bm) setBusinessMember(bm);
           if (p) setProfile(p);
         } catch (e) {
-          console.error('[auth] init load failed:', e);
+          mobileLog(`load error: ${e.message}`);
         }
       }
 
       setLoading(false);
-      console.log('[auth] init complete');
+      mobileLog('init complete');
     };
 
     init()
