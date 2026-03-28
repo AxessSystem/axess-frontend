@@ -201,8 +201,6 @@ export default function Validators() {
   const [activeTab, setActiveTab] = useState('הכל')
   const [typeFilter, setTypeFilter] = useState('all')
   const [search, setSearch] = useState('')
-  const [customSlug, setCustomSlug] = useState('')
-  const [slugEdited, setSlugEdited] = useState(false)
   const [showCreate, setShowCreate] = useState(false)
   const [form, setForm] = useState({
     name: '',
@@ -211,6 +209,11 @@ export default function Validators() {
     customType: '',
     expires_at: '',
     no_expiry: true,
+    binding_type: 'standalone',
+    binding_id: '',
+    channels: ['whatsapp'],
+    max_uses: null,
+    single_use: true,
   })
 
   const authHeaders = useCallback(
@@ -241,23 +244,6 @@ export default function Validators() {
   useEffect(() => {
     loadValidators()
   }, [loadValidators])
-
-  useEffect(() => {
-    if (!showCreate || slugEdited || !form.name) return
-    const auto = form.name
-      .toLowerCase()
-      .replace(/\s+/g, '-')
-      .replace(/[^a-z0-9-]/g, '')
-      .substring(0, 30)
-    setCustomSlug(auto || '')
-  }, [form.name, slugEdited, showCreate])
-
-  useEffect(() => {
-    if (!showCreate) {
-      setCustomSlug('')
-      setSlugEdited(false)
-    }
-  }, [showCreate])
 
   const filtered = validators.filter((v) => {
     const statusFilter = TAB_TO_STATUS[activeTab]
@@ -533,10 +519,10 @@ export default function Validators() {
             >
               <X size={20} />
             </button>
-            <h3 style={{ margin: '0 0 20px', fontSize: 16, fontWeight: 700 }}>צור Validator חדש</h3>
+            <h3 style={{ margin: '0 0 20px', fontSize: 16, fontWeight: 700 }}>צור תבנית</h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               <input
-                placeholder="שם ה-Validator"
+                placeholder="שם התבנית"
                 value={form.name}
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
                 style={{
@@ -628,69 +614,132 @@ export default function Validators() {
                   ללא תוקף
                 </label>
               </div>
-              <div style={{ marginBottom: 4 }}>
-                <label style={{ fontSize: 12, color: 'var(--v2-gray-400)', marginBottom: 4, display: 'block' }}>לינק מעקב</label>
-                <div
+              <div>
+                <label style={{ fontSize: 13, fontWeight: 600, marginBottom: 6, display: 'block' }}>שיוך</label>
+                <CustomSelect
+                  value={form.binding_type}
+                  onChange={(val) => setForm({ ...form, binding_type: val, binding_id: '' })}
+                  options={[
+                    { value: 'standalone', label: 'עצמאי — שלח לקהל' },
+                    { value: 'event', label: 'קשור לאירוע' },
+                    { value: 'campaign', label: 'קשור לקמפיין' },
+                    { value: 'webview', label: 'קשור ל-Webview' },
+                  ]}
+                />
+              </div>
+              {form.binding_type !== 'standalone' && (
+                <input
+                  placeholder="מזהה שיוך (UUID)"
+                  value={form.binding_id}
+                  onChange={(e) => setForm({ ...form, binding_id: e.target.value })}
                   style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 0,
-                    border: '1px solid var(--glass-border)',
+                    height: 40,
                     borderRadius: 8,
-                    overflow: 'hidden',
+                    border: '1px solid var(--glass-border)',
+                    background: 'var(--glass)',
+                    color: 'var(--text)',
+                    padding: '0 12px',
+                    fontSize: 14,
+                    direction: 'ltr',
                   }}
-                >
-                  <span
-                    style={{
-                      padding: '0 10px',
-                      height: 40,
-                      display: 'flex',
-                      alignItems: 'center',
-                      background: 'var(--glass)',
-                      color: 'var(--v2-gray-400)',
-                      fontSize: 12,
-                      whiteSpace: 'nowrap',
-                      borderLeft: '1px solid var(--glass-border)',
-                    }}
-                  >
-                    axess.pro/v/
-                  </span>
-                  <input
-                    value={customSlug}
-                    onChange={(e) => {
-                      setCustomSlug(e.target.value)
-                      setSlugEdited(true)
-                    }}
-                    placeholder="my-validator"
-                    style={{
-                      flex: 1,
-                      height: 40,
-                      border: 'none',
-                      background: 'var(--card)',
-                      color: 'var(--text)',
-                      padding: '0 12px',
-                      fontSize: 14,
-                      outline: 'none',
-                      direction: 'ltr',
-                    }}
-                  />
+                />
+              )}
+              <div>
+                <label style={{ fontSize: 13, fontWeight: 600, marginBottom: 6, display: 'block' }}>ערוצי שליחה</label>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  {['whatsapp', 'sms', 'email'].map((ch) => (
+                    <label
+                      key={ch}
+                      style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: 13 }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={form.channels?.includes(ch)}
+                        onChange={(e) => {
+                          const channels = form.channels || []
+                          setForm({
+                            ...form,
+                            channels: e.target.checked ? [...channels, ch] : channels.filter((c) => c !== ch),
+                          })
+                        }}
+                      />
+                      {ch === 'whatsapp' ? 'WhatsApp' : ch === 'sms' ? 'SMS' : 'מייל'}
+                    </label>
+                  ))}
                 </div>
-                <p style={{ fontSize: 11, color: 'var(--v2-gray-400)', margin: '4px 0 0' }}>
-                  axess.pro/v/{customSlug || '...'} ← לינק מעקב ייחודי
-                </p>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                <input
+                  type="number"
+                  min={0}
+                  placeholder="מקס׳ שימושים (ריק = ללא הגבלה)"
+                  value={form.max_uses ?? ''}
+                  onChange={(e) =>
+                    setForm({
+                      ...form,
+                      max_uses: e.target.value === '' ? null : Number(e.target.value),
+                    })
+                  }
+                  style={{
+                    flex: 1,
+                    minWidth: 120,
+                    height: 40,
+                    borderRadius: 8,
+                    border: '1px solid var(--glass-border)',
+                    background: 'var(--glass)',
+                    color: 'var(--text)',
+                    padding: '0 12px',
+                    fontSize: 14,
+                  }}
+                />
+                <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, cursor: 'pointer' }}>
+                  <input
+                    type="checkbox"
+                    checked={form.single_use}
+                    onChange={(e) => setForm({ ...form, single_use: e.target.checked })}
+                  />
+                  שימוש יחיד
+                </label>
               </div>
               <button
                 type="button"
                 onClick={async () => {
                   if (!form.name) return
-                  const res = await fetch(`${API_BASE.replace(/\/$/, '')}/api/validators`, {
+                  let expiresAtVal = null
+                  if (!form.no_expiry && form.expires_at && String(form.expires_at).trim()) {
+                    const d = new Date(`${String(form.expires_at).trim()}T23:59:59.999Z`)
+                    if (!Number.isNaN(d.getTime())) expiresAtVal = d.toISOString()
+                  }
+                  const display_config = {
+                    title: String(form.name).trim(),
+                    subtitle: form.description ? String(form.description).trim() : '',
+                  }
+                  const redemption_config = {
+                    max_uses: form.max_uses != null ? form.max_uses : null,
+                    single_use: form.single_use,
+                  }
+                  const typePayload = form.type === 'custom' ? 'custom' : form.type
+                  const custom_type_name =
+                    form.type === 'custom' ? (form.customType || '').trim() || null : null
+                  const res = await fetch(`${API_BASE.replace(/\/$/, '')}/api/validator-templates`, {
                     method: 'POST',
                     headers: authHeaders(),
-                    body: JSON.stringify({ ...form, slug: customSlug || undefined, business_id: businessId }),
+                    body: JSON.stringify({
+                      name: form.name,
+                      type: typePayload,
+                      custom_type_name,
+                      display_config,
+                      channels: form.channels?.length ? form.channels : ['whatsapp'],
+                      message_templates: {},
+                      max_uses: form.max_uses,
+                      expires_at: expiresAtVal,
+                      binding_type: form.binding_type,
+                      binding_id: form.binding_id || null,
+                      redemption_config,
+                    }),
                   })
                   const data = await res.json().catch(() => ({}))
-                  if (res.ok && data.validator) {
-                    const validatorUrl = data.validator_url || `https://axess.pro/v/${data.validator.slug}`
+                  if (res.ok && data.template) {
                     setShowCreate(false)
                     setForm({
                       name: '',
@@ -699,8 +748,13 @@ export default function Validators() {
                       customType: '',
                       expires_at: '',
                       no_expiry: true,
+                      binding_type: 'standalone',
+                      binding_id: '',
+                      channels: ['whatsapp'],
+                      max_uses: null,
+                      single_use: true,
                     })
-                    toast.success(`Validator נוצר — ${validatorUrl}`)
+                    toast.success('תבנית נוצרה בהצלחה')
                     loadValidators()
                   } else {
                     toast.error(data.error || 'שגיאה ביצירה')
@@ -718,7 +772,7 @@ export default function Validators() {
                   cursor: 'pointer',
                 }}
               >
-                צור Validator
+                צור תבנית
               </button>
             </div>
           </div>
