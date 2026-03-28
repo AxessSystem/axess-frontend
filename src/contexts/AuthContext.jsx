@@ -67,24 +67,29 @@ export function AuthProvider({ children }) {
   // -----------------------------
   useEffect(() => {
     const init = async () => {
+      console.log('[auth] init started');
       const session = await getValidSession(supabase);
+      console.log('[auth] session:', session ? 'exists' : 'null');
       setSession(session);
 
-      // טען businessMember ו-profile גם ב-init
       if (session?.user?.id) {
+        console.log('[auth] loading businessMember for:', session.user.id);
         try {
           const [bm, p] = await Promise.all([
             fetchBusinessMember(session.user.id),
             fetchProfile(session.user.id)
           ]);
+          console.log('[auth] businessMember:', bm ? bm.role : 'null');
+          console.log('[auth] profile:', p ? 'loaded' : 'null');
           if (bm) setBusinessMember(bm);
           if (p) setProfile(p);
         } catch (e) {
-          console.warn('[auth] init load failed:', e);
+          console.error('[auth] init load failed:', e);
         }
       }
 
       setLoading(false);
+      console.log('[auth] init complete');
     };
 
     init()
