@@ -219,7 +219,7 @@ export default function Validators() {
     [session, businessId]
   )
 
-  useEffect(() => {
+  const loadValidators = useCallback(() => {
     if (!businessId || !session?.access_token) {
       setValidators([])
       setListLoading(false)
@@ -234,6 +234,10 @@ export default function Validators() {
       .catch(() => setValidators([]))
       .finally(() => setListLoading(false))
   }, [businessId, session?.access_token, authHeaders])
+
+  useEffect(() => {
+    loadValidators()
+  }, [loadValidators])
 
   const filtered = validators.filter((v) => filter === 'all' || v.status === filter)
 
@@ -344,10 +348,12 @@ export default function Validators() {
           {filtered.map((v, i) => {
             const typeInfo = TYPE_LABELS[v.type] || TYPE_LABELS.coupon
             const redemptionRate = v.total > 0 ? Math.round((v.redeemed / v.total) * 100) : 0
+            const activeCount = typeof v.active_count === 'number' ? v.active_count : 0
+            const createdLabel = v.createdLabel || v.expiry
 
             return (
               <motion.div
-                key={v.id}
+                key={`${v.id}-${v.title}`}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: i * 0.06 }}
@@ -414,9 +420,9 @@ export default function Validators() {
                   </div>
                   <div style={{ textAlign: 'center' }}>
                     <div style={{ fontFamily: "'Bricolage Grotesque',monospace", fontWeight: 800, fontSize: 18, color: 'var(--v2-primary)' }}>
-                      {redemptionRate}%
+                      {activeCount.toLocaleString('he-IL')}
                     </div>
-                    <div style={{ fontSize: 11, color: 'var(--v2-gray-400)', marginTop: 2 }}>אחוז</div>
+                    <div style={{ fontSize: 11, color: 'var(--v2-gray-400)', marginTop: 2 }}>פעילים</div>
                   </div>
                 </div>
 
@@ -436,7 +442,7 @@ export default function Validators() {
 
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 12, color: 'var(--v2-gray-400)' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                    <Clock size={11} /> עד {v.expiry}
+                    <Clock size={11} /> נוצר {createdLabel}
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 4, color: 'var(--v2-primary)' }}>
                     <QrCode size={11} /> QR Code
@@ -540,11 +546,11 @@ export default function Validators() {
                     body: JSON.stringify({ ...form, business_id: businessId }),
                   })
                   const data = await res.json().catch(() => ({}))
-                  if (data.validator) {
-                    setValidators((prev) => [data.validator, ...prev])
+                  if (res.ok && data.validator) {
                     setShowCreate(false)
                     setForm({ name: '', description: '', type: 'event' })
                     toast.success('Validator נוצר!')
+                    loadValidators()
                   } else {
                     toast.error(data.error || 'שגיאה ביצירה')
                   }
