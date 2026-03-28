@@ -15,9 +15,6 @@ import {
   Copy,
   ExternalLink,
   X,
-  LayoutGrid,
-  CircleDot,
-  Ban,
   Plus,
   Search,
 } from 'lucide-react'
@@ -38,11 +35,11 @@ const TYPE_CONFIG = {
   confirm: { icon: <Star size={18} />, color: '#F59E0B', label: 'כללי' },
 }
 
-const FILTER_TABS_META = [
-  { value: 'all', label: 'הכל', Icon: LayoutGrid },
-  { value: 'active', label: 'פעיל', Icon: CircleDot },
-  { value: 'redeemed', label: 'מומש', Icon: CheckCircle },
-  { value: 'expired', label: 'פג תוקף', Icon: Ban },
+const STATUS_TABS = [
+  { label: 'הכל', value: 'all' },
+  { label: 'פעיל', value: 'active' },
+  { label: 'מומש', value: 'redeemed' },
+  { label: 'פג תוקף', value: 'expired' },
 ]
 
 /* ── QR Modal ── */
@@ -211,6 +208,7 @@ export default function Validators() {
     name: '',
     description: '',
     type: 'event',
+    customType: '',
     expires_at: '',
     no_expiry: true,
   })
@@ -268,13 +266,6 @@ export default function Validators() {
     return matchTab && matchType && matchSearch
   })
 
-  const filterCounts = {
-    all: validators.length,
-    active: validators.filter((v) => v.status === 'active').length,
-    redeemed: validators.filter((v) => v.status === 'redeemed').length,
-    expired: validators.filter((v) => v.status === 'expired').length,
-  }
-
   if (!validatorsAllowed) return null
 
   if (!businessId) {
@@ -287,16 +278,34 @@ export default function Validators() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }} dir="rtl">
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          gap: 16,
-          marginBottom: 4,
-          flexWrap: 'wrap',
-        }}
-      >
+      <div style={{ marginBottom: 20 }}>
+        <h1 style={{ fontSize: 24, fontWeight: 800, margin: '0 0 6px', textAlign: 'right' }}>Validators</h1>
+        <p style={{ fontSize: 14, color: 'var(--v2-gray-400)', margin: 0, textAlign: 'right' }}>
+          ניהול ויצירת כרטיסי אימות וסריקה מסוגים שונים — אירועים, קופונים, חברי מועדון, הנחות וסוג מותאם אישית
+        </p>
+      </div>
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
+        {STATUS_TABS.map((tab) => (
+          <button
+            key={tab.value}
+            type="button"
+            onClick={() => setFilter(tab.value)}
+            style={{
+              padding: '8px 16px',
+              borderRadius: 8,
+              border: 'none',
+              background: filter === tab.value ? 'var(--primary)' : 'var(--glass)',
+              color: filter === tab.value ? '#fff' : 'var(--text)',
+              fontWeight: filter === tab.value ? 700 : 400,
+              cursor: 'pointer',
+              fontSize: 13,
+            }}
+          >
+            {tab.label}
+          </button>
+        ))}
+        <div style={{ flex: 1 }} />
         <button
           type="button"
           onClick={() => setShowCreate(true)}
@@ -316,63 +325,9 @@ export default function Validators() {
         >
           <Plus size={16} /> Validator חדש
         </button>
-        <div style={{ textAlign: 'right' }}>
-          <h1 style={{ fontSize: 24, fontWeight: 800, margin: '0 0 6px' }}>Validators</h1>
-          <p style={{ fontSize: 14, color: 'var(--v2-gray-400)', margin: 0 }}>ניהול כרטיסי אימות וסריקה לאירועים</p>
-        </div>
       </div>
 
-      <div
-        style={{
-          display: 'flex',
-          flexWrap: 'wrap',
-          gap: 8,
-          marginBottom: 12,
-          paddingBottom: 16,
-          borderBottom: '1px solid var(--glass-border)',
-        }}
-      >
-        {FILTER_TABS_META.map((tab) => {
-          const Icon = tab.Icon
-          const isActive = filter === tab.value
-          const count = filterCounts[tab.value]
-          return (
-            <button
-              key={tab.value}
-              type="button"
-              onClick={() => setFilter(tab.value)}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 8,
-                padding: '10px 16px',
-                borderRadius: 10,
-                border: `1px solid ${isActive ? 'var(--v2-primary)' : 'var(--glass-border)'}`,
-                background: isActive ? 'rgba(0,195,122,0.12)' : 'transparent',
-                color: isActive ? '#fff' : 'var(--v2-gray-400)',
-                cursor: 'pointer',
-                fontWeight: 600,
-                fontSize: 14,
-              }}
-            >
-              <Icon size={18} />
-              {tab.label}
-              <span
-                style={{
-                  fontSize: 11,
-                  padding: '1px 6px',
-                  borderRadius: 9999,
-                  background: isActive ? 'rgba(0,0,0,0.2)' : 'rgba(255,255,255,0.08)',
-                }}
-              >
-                {count}
-              </span>
-            </button>
-          )
-        })}
-      </div>
-
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 20, flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', gap: 8, marginBottom: 20, flexWrap: 'wrap', alignItems: 'center' }}>
         <CustomSelect
           value={typeFilter}
           onChange={setTypeFilter}
@@ -385,7 +340,7 @@ export default function Validators() {
           ]}
           style={{ width: 140 }}
         />
-        <div style={{ position: 'relative', flex: 1, minWidth: 160 }}>
+        <div style={{ position: 'relative', flex: 1 }}>
           <Search
             size={14}
             style={{
@@ -608,12 +563,31 @@ export default function Validators() {
                 value={form.type}
                 onChange={(val) => setForm({ ...form, type: val })}
                 options={[
-                  { value: 'event', label: 'כניסה לאירוע' },
+                  { value: 'event', label: 'אירוע' },
                   { value: 'coupon', label: 'קופון' },
                   { value: 'membership', label: 'חברות' },
                   { value: 'general', label: 'כללי' },
+                  { value: 'custom', label: '+ מותאם אישית' },
                 ]}
               />
+              {form.type === 'custom' && (
+                <input
+                  value={form.customType}
+                  onChange={(e) => setForm({ ...form, customType: e.target.value })}
+                  placeholder="שם הסוג המותאם (למשל: הנחת עובד)"
+                  style={{
+                    height: 40,
+                    borderRadius: 8,
+                    border: '1px solid var(--glass-border)',
+                    background: 'var(--glass)',
+                    color: 'var(--text)',
+                    padding: '0 12px',
+                    fontSize: 14,
+                    width: '100%',
+                    boxSizing: 'border-box',
+                  }}
+                />
+              )}
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                 <input
                   type="date"
@@ -718,6 +692,7 @@ export default function Validators() {
                       name: '',
                       description: '',
                       type: 'event',
+                      customType: '',
                       expires_at: '',
                       no_expiry: true,
                     })
