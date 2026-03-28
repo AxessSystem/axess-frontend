@@ -33,6 +33,7 @@ const TYPE_CONFIG = {
   ticket: { icon: <Ticket size={18} />, color: '#3B82F6', label: 'כרטיס' },
   benefit: { icon: <Star size={18} />, color: '#EC4899', label: 'הטבה' },
   confirm: { icon: <Star size={18} />, color: '#F59E0B', label: 'כללי' },
+  custom: { icon: <Star size={18} />, color: '#EC4899', label: 'מותאם אישית' },
 }
 
 const TAB_TO_STATUS = {
@@ -197,6 +198,11 @@ export default function Validators() {
   const { session, businessId } = useAuth()
   const [validators, setValidators] = useState([])
   const [listLoading, setListLoading] = useState(true)
+  const [templates, setTemplates] = useState([])
+  const [templatesLoading, setTemplatesLoading] = useState(false)
+  const [sendForTemplate, setSendForTemplate] = useState(null)
+  const [sendAudienceRaw, setSendAudienceRaw] = useState('')
+  const [sendSubmitting, setSendSubmitting] = useState(false)
   const [selected, setSelected] = useState(null)
   const [activeTab, setActiveTab] = useState('הכל')
   const [typeFilter, setTypeFilter] = useState('all')
@@ -241,9 +247,30 @@ export default function Validators() {
       .finally(() => setListLoading(false))
   }, [businessId, session?.access_token, authHeaders])
 
+  const loadTemplates = useCallback(async () => {
+    if (!businessId || !session?.access_token) {
+      setTemplates([])
+      return
+    }
+    setTemplatesLoading(true)
+    try {
+      const r = await fetch(`${API_BASE.replace(/\/$/, '')}/api/validator-templates`, { headers: authHeaders() })
+      const d = r.ok ? await r.json() : { templates: [] }
+      setTemplates(d.templates || [])
+    } catch {
+      setTemplates([])
+    } finally {
+      setTemplatesLoading(false)
+    }
+  }, [businessId, session?.access_token, authHeaders])
+
   useEffect(() => {
     loadValidators()
   }, [loadValidators])
+
+  useEffect(() => {
+    loadTemplates()
+  }, [loadTemplates])
 
   const filtered = validators.filter((v) => {
     const statusFilter = TAB_TO_STATUS[activeTab]
@@ -251,6 +278,12 @@ export default function Validators() {
     const matchType = typeFilter === 'all' || v.type === typeFilter
     const matchSearch = !search || v.title?.toLowerCase().includes(search.toLowerCase())
     return matchTab && matchType && matchSearch
+  })
+
+  const filteredTemplates = templates.filter((t) => {
+    const matchType = typeFilter === 'all' || t.type === typeFilter
+    const matchSearch = !search || t.name?.toLowerCase().includes(search.toLowerCase())
+    return matchType && matchSearch
   })
 
   if (!validatorsAllowed) return null
@@ -362,12 +395,154 @@ export default function Validators() {
         </div>
       </div>
 
+      {templatesLoading ? (
+        <p style={{ color: 'var(--v2-gray-400)', textAlign: 'center', padding: 8 }}>טוען תבניות…</p>
+      ) : null}
+
+      {filteredTemplates.length > 0 ? (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 14 }}>
+          {filteredTemplates.map((t, i) => {
+            const config = TYPE_CONFIG[t.type] || TYPE_CONFIG.general
+            const typeLabel = t.type === 'custom' && t.custom_type_name ? t.custom_type_name : config.label
+            const agg = validators.find((v) => v.title === t.name)
+            const totalIssued = agg?.total ?? 0
+            const redeemedIssued = agg?.redeemed ?? 0
+            const activeIssued = typeof agg?.active_count === 'number' ? agg.active_count : 0
+            const redemptionRate = totalIssued > 0 ? Math.round((redeemedIssued / totalIssued) * 100) : 0
+            const channelsLabel = Array.isArray(t.channels) && t.channels.length ? t.channels.join(', ') : '—'
+            const createdLabel = t.created_at ? new Date(t.created_at).toLocaleDateString('he-IL') : '—'
+
+            return (
+              <motion.div
+                key={t.id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: i * 0.06 }}
+                style={{
+                  background: 'var(--v2-dark-3)',
+                  border: '1px solid var(--glass-border)',
+                  borderRadius: 'var(--radius-lg)',
+                  padding: '18px',
+                  cursor: 'default',
+                  transition: 'border-color 0.25s, transform 0.25s',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.borderColor = 'var(--v2-primary)'
+                  e.currentTarget.style.transform = 'translateY(-2px)'
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.borderColor = 'var(--glass-border)'
+                  e.currentTarget.style.transform = 'none'
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 14 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <span style={{ display: 'flex', alignItems: 'center', color: config.color, flexShrink: 0 }}>{config.icon}</span>
+                    <div>
+                      <div style={{ fontSize: 14, fontWeight: 600, color: '#ffffff' }}>{t.name}</div>
+                      <div style={{ fontSize: 12, color: 'var(--v2-gray-400)', marginTop: 2 }}>{typeLabel}</div>
+                    </div>
+                  </div>
+                  <Badge variant="scheduled">תבנית</Badge>
+                </div>
+
+                <div
+                  style={{
+                    fontSize: 11,
+                    color: 'var(--v2-gray-400)',
+                    background: 'rgba(255,255,255,0.04)',
+                    borderRadius: 'var(--radius-sm)',
+                    padding: '6px 10px',
+                    marginBottom: 14,
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                  }}
+                  title={channelsLabel}
+                >
+                  ערוצים: {channelsLabel}
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, marginBottom: 14 }}>
+                  <div style={{ textAlign: 'center' }}>
+                    <div style={{ fontFamily: "'Bricolage Grotesque',monospace", fontWeight: 800, fontSize: 18, color: '#ffffff' }}>
+                      {totalIssued.toLocaleString('he-IL')}
+                    </div>
+                    <div style={{ fontSize: 11, color: 'var(--v2-gray-400)', marginTop: 2 }}>מופעים</div>
+                  </div>
+                  <div style={{ textAlign: 'center' }}>
+                    <div style={{ fontFamily: "'Bricolage Grotesque',monospace", fontWeight: 800, fontSize: 18, color: 'var(--v2-accent)' }}>
+                      {redeemedIssued.toLocaleString('he-IL')}
+                    </div>
+                    <div style={{ fontSize: 11, color: 'var(--v2-gray-400)', marginTop: 2 }}>מומשו</div>
+                  </div>
+                  <div style={{ textAlign: 'center' }}>
+                    <div style={{ fontFamily: "'Bricolage Grotesque',monospace", fontWeight: 800, fontSize: 18, color: 'var(--v2-primary)' }}>
+                      {activeIssued.toLocaleString('he-IL')}
+                    </div>
+                    <div style={{ fontSize: 11, color: 'var(--v2-gray-400)', marginTop: 2 }}>פעילים</div>
+                  </div>
+                </div>
+
+                {totalIssued > 0 && (
+                  <div style={{ width: '100%', background: 'rgba(255,255,255,0.06)', borderRadius: 9999, height: 6, marginBottom: 12 }}>
+                    <div
+                      style={{
+                        height: '100%',
+                        borderRadius: 9999,
+                        background: 'var(--v2-accent)',
+                        width: `${redemptionRate}%`,
+                        transition: 'width 1s ease',
+                      }}
+                    />
+                  </div>
+                )}
+
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 12, color: 'var(--v2-gray-400)', marginBottom: 10 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <Clock size={11} /> נוצר {createdLabel}
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSendForTemplate(t)
+                    setSendAudienceRaw('')
+                  }}
+                  style={{
+                    width: '100%',
+                    padding: '10px 14px',
+                    borderRadius: 8,
+                    border: 'none',
+                    background: 'var(--primary)',
+                    color: '#fff',
+                    fontWeight: 600,
+                    fontSize: 13,
+                    cursor: 'pointer',
+                  }}
+                >
+                  שלח לקהל
+                </button>
+              </motion.div>
+            )
+          })}
+        </div>
+      ) : null}
+
       {listLoading ? (
         <p style={{ color: 'var(--v2-gray-400)', textAlign: 'center', padding: 24 }}>טוען…</p>
-      ) : filtered.length === 0 ? (
+      ) : filtered.length === 0 && filteredTemplates.length === 0 && !templatesLoading ? (
         <EmptyState icon="🎫" title="אין Validators" description="צור Validator חדש כדי לראות אותם כאן" />
-      ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 14 }}>
+      ) : filtered.length > 0 ? (
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
+            gap: 14,
+            marginTop: filteredTemplates.length > 0 ? 14 : 0,
+          }}
+        >
           {filtered.map((v, i) => {
             const config = TYPE_CONFIG[v.type] || TYPE_CONFIG.general
             const redemptionRate = v.total > 0 ? Math.round((v.redeemed / v.total) * 100) : 0
@@ -475,11 +650,130 @@ export default function Validators() {
             )
           })}
         </div>
-      )}
+      ) : null}
 
       <AnimatePresence>
         {selected && <QRModal validator={selected} onClose={() => setSelected(null)} />}
       </AnimatePresence>
+
+      {sendForTemplate && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.5)',
+            zIndex: 1000,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 16,
+          }}
+          onClick={() => !sendSubmitting && setSendForTemplate(null)}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: 'var(--card, #1a1d2e)',
+              borderRadius: 12,
+              padding: 24,
+              maxWidth: 440,
+              width: '100%',
+              border: '1px solid var(--glass-border)',
+            }}
+          >
+            <h3 style={{ margin: '0 0 12px', fontSize: 16, fontWeight: 700 }}>שלח לקהל — {sendForTemplate.name}</h3>
+            <p style={{ fontSize: 13, color: 'var(--v2-gray-400)', margin: '0 0 8px' }}>
+              מזהי נמען (master_recipient UUID), מופרדים בפסיק או שורה חדשה
+            </p>
+            <textarea
+              value={sendAudienceRaw}
+              onChange={(e) => setSendAudienceRaw(e.target.value)}
+              rows={4}
+              dir="ltr"
+              style={{
+                width: '100%',
+                boxSizing: 'border-box',
+                borderRadius: 8,
+                border: '1px solid var(--glass-border)',
+                background: 'var(--glass)',
+                color: 'var(--text)',
+                padding: 10,
+                fontSize: 13,
+                marginBottom: 12,
+                resize: 'vertical',
+              }}
+            />
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+              <button
+                type="button"
+                disabled={sendSubmitting}
+                onClick={() => setSendForTemplate(null)}
+                style={{
+                  padding: '8px 14px',
+                  borderRadius: 8,
+                  border: '1px solid var(--glass-border)',
+                  background: 'transparent',
+                  color: 'var(--text)',
+                  cursor: 'pointer',
+                }}
+              >
+                ביטול
+              </button>
+              <button
+                type="button"
+                disabled={sendSubmitting}
+                onClick={async () => {
+                  const audience_ids = sendAudienceRaw
+                    .split(/[\s,]+/)
+                    .map((s) => s.trim())
+                    .filter(Boolean)
+                  if (!audience_ids.length) {
+                    toast.error('הוסף לפחות מזהה אחד')
+                    return
+                  }
+                  setSendSubmitting(true)
+                  try {
+                    const res = await fetch(
+                      `${API_BASE.replace(/\/$/, '')}/api/validator-templates/${sendForTemplate.id}/send`,
+                      {
+                        method: 'POST',
+                        headers: authHeaders(),
+                        body: JSON.stringify({
+                          audience_ids,
+                          channels: sendForTemplate.channels,
+                        }),
+                      }
+                    )
+                    const data = await res.json().catch(() => ({}))
+                    if (res.ok) {
+                      toast.success(`נוצרו ${data.created ?? 0} מופעים`)
+                      setSendForTemplate(null)
+                      setSendAudienceRaw('')
+                      loadValidators()
+                      loadTemplates()
+                    } else {
+                      toast.error(data.error || 'שגיאה בשליחה')
+                    }
+                  } finally {
+                    setSendSubmitting(false)
+                  }
+                }}
+                style={{
+                  padding: '8px 14px',
+                  borderRadius: 8,
+                  border: 'none',
+                  background: 'var(--primary)',
+                  color: '#fff',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                }}
+              >
+                {sendSubmitting ? 'שולח…' : 'שלח'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {showCreate && (
         <div
@@ -755,7 +1049,7 @@ export default function Validators() {
                       single_use: true,
                     })
                     toast.success('תבנית נוצרה בהצלחה')
-                    loadValidators()
+                    loadTemplates()
                   } else {
                     toast.error(data.error || 'שגיאה ביצירה')
                   }
