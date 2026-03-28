@@ -51,11 +51,6 @@ const LINK_TYPE_LABELS = {
   custom: 'מותאם',
 }
 
-const PIXEL_PAGE_TABS = [
-  { id: 'pixel', label: 'Pixel & כלים' },
-  { id: 'mylinks', label: 'הלינקים שלי' },
-]
-
 function copyToClipboard(text, msg = 'הועתק') {
   navigator.clipboard.writeText(text).then(() => toast.success(msg)).catch(() => toast.error('העתקה נכשלה'))
 }
@@ -213,11 +208,13 @@ export default function PixelSettings() {
         מעקב באתר העירייה/הארגון, קישורי מעבר לאירועים ומפתחות לשותפים
       </p>
 
-      <div style={{ display: 'flex', gap: 8, marginBottom: 20, flexWrap: 'wrap' }}>
-        {PIXEL_PAGE_TABS.map((tab) => (
+      <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
+        {[
+          { id: 'pixel', label: 'Pixel & כלים' },
+          { id: 'mylinks', label: 'הלינקים שלי' },
+        ].map((tab) => (
           <button
             key={tab.id}
-            type="button"
             onClick={() => setActiveTab(tab.id)}
             style={{
               padding: '8px 18px',
