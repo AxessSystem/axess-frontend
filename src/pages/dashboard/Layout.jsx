@@ -7,7 +7,7 @@ import {
   PieChart, Globe,
 } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
-import { supabase } from '@/lib/supabase'
+import { supabase, fetchWithAuth } from '@/lib/supabase'
 
 const API_BASE = import.meta.env.VITE_API_URL || 'https://api.axess.pro'
 
@@ -498,7 +498,7 @@ export default function DashboardClientLayout() {
 
   useEffect(() => {
     if (!businessId) return
-    fetch(`${API_BASE}/api/admin/business-config?business_id=${businessId}`)
+    fetchWithAuth(`${API_BASE}/api/admin/business-config?business_id=${businessId}`)
       .then(r => r.ok ? r.json() : null)
       .then(setBusinessConfig)
       .catch(() => setBusinessConfig(null))
@@ -506,7 +506,7 @@ export default function DashboardClientLayout() {
 
   useEffect(() => {
     const type = businessConfig?.type_key || 'all'
-    fetch(`${API_BASE}/api/system-notices?business_type=${type}`)
+    fetchWithAuth(`${API_BASE}/api/system-notices?business_type=${type}`)
       .then(r => r.ok ? r.json() : [])
       .then(setSystemNotices)
       .catch(() => setSystemNotices([]))
