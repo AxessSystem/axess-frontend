@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -725,20 +725,6 @@ export default function Audiences() {
 
   const ALL_TAGS = ['הכל', 'VIP', 'לקוח קבוע', 'חדש']
 
-  const currentFilters = useMemo(() => ({
-    activeSegment,
-    activeCategory,
-    search,
-    activeTag,
-    sortBy,
-    selectedCampaign,
-    campaignFilter,
-    selectedEvents,
-    liveHours,
-    nlQuery: lastWhereClause ? nlQuery : '',
-    lastWhereClause: lastWhereClause || '',
-  }), [activeSegment, activeCategory, search, activeTag, sortBy, selectedCampaign, campaignFilter, selectedEvents, liveHours, nlQuery, lastWhereClause])
-
   if (!audiencesAllowed) return null
 
   return (
@@ -1304,29 +1290,29 @@ export default function Audiences() {
               <button disabled={page === totalPages} onClick={() => setPage(p => p + 1)} style={{ padding: '6px 12px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)', background: page === totalPages ? 'rgba(255,255,255,0.04)' : 'transparent', color: 'var(--text-secondary)', cursor: page === totalPages ? 'not-allowed' : 'pointer' }}>הבא</button>
             </div>
           )}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', borderTop: '1px solid var(--glass-border)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 0', borderTop: '1px solid var(--glass-border)' }}>
             <span style={{ fontSize: 13, color: 'var(--v2-gray-400)' }}>
-              מציג {filtered.length} תוצאות
+              מציג {recipients.length} תוצאות
             </span>
             <button
               type="button"
               onClick={() => setShowSaveSegment(true)}
-              disabled={filtered.length === 0}
+              disabled={recipients.length === 0}
               style={{
-                padding: '8px 16px',
+                padding: '6px 14px',
                 borderRadius: 8,
                 border: 'none',
-                background: filtered.length > 0 ? '#00C37A' : 'var(--glass-bg)',
-                color: filtered.length > 0 ? '#000' : 'var(--v2-gray-400)',
+                background: recipients.length > 0 ? '#00C37A' : 'var(--glass-bg)',
+                color: recipients.length > 0 ? '#000' : 'var(--v2-gray-400)',
                 fontWeight: 600,
                 fontSize: 13,
-                cursor: filtered.length > 0 ? 'pointer' : 'not-allowed',
+                cursor: recipients.length > 0 ? 'pointer' : 'not-allowed',
                 display: 'flex',
                 alignItems: 'center',
                 gap: 6,
               }}
             >
-              <Save size={14} /> שמור כסגמנט ({filtered.length})
+              <Save size={14} /> שמור כסגמנט ({recipients.length})
             </button>
           </div>
           </>
@@ -1358,12 +1344,12 @@ export default function Audiences() {
               }}
             />
             <p style={{ fontSize: 13, color: 'var(--v2-gray-400)', margin: '0 0 16px' }}>
-              {filtered.length} אנשים יישמרו בסגמנט זה
+              {recipients.length} אנשים יישמרו בסגמנט זה
             </p>
             <button
               type="button"
               onClick={async () => {
-                if (!segmentName.trim() || !businessId) return
+                if (!segmentName.trim()) return
                 try {
                   const r = await fetchWithAuth(
                     `${API_BASE}/api/audiences/segments`,
@@ -1372,8 +1358,8 @@ export default function Audiences() {
                       headers: h(),
                       body: JSON.stringify({
                         name: segmentName.trim(),
-                        filters: currentFilters,
-                        recipient_ids: filtered.map(rec => rec.master_recipient_id || rec.id).filter(Boolean),
+                        recipient_ids: recipients.map((rec) => rec.id),
+                        recipient_count: recipients.length,
                         business_id: businessId,
                       }),
                     },
