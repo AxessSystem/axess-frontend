@@ -728,6 +728,9 @@ export default function Inbox({ onUnreadChange }) {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("הכל");
   const [activeTab, setActiveTab] = useState("conversations");
+  const [inboxView, setInboxView] = useState("conversations");
+  const [contacts, setContacts] = useState([]);
+  const [contactsSearch, setContactsSearch] = useState("");
   const [search, setSearch] = useState("");
   const [agentFilter, setAgentFilter] = useState("");
   const [selectedConv, setSelectedConv] = useState(null);
@@ -816,6 +819,22 @@ export default function Inbox({ onUnreadChange }) {
     };
   }, [recipientSearch, session?.access_token, businessId, authHeaders]);
 
+  useEffect(() => {
+    if (inboxView !== "contacts" || !businessId || !session?.access_token) return;
+    const ac = new AbortController();
+    fetch(
+      `${API_BASE}/api/inbox/contacts?search=${encodeURIComponent(contactsSearch)}`,
+      { headers: authHeaders(), signal: ac.signal },
+    )
+      .then((r) => (r.ok ? r.json() : { contacts: [] }))
+      .then((d) => setContacts(d.contacts || []))
+      .catch(() => {
+        if (ac.signal.aborted) return;
+        setContacts([]);
+      });
+    return () => ac.abort();
+  }, [inboxView, businessId, contactsSearch, session?.access_token, authHeaders]);
+
   const apiFetch = useCallback(
     async (path, opts = {}) => {
       const r = await fetch(`${API_BASE}${path}`, {
@@ -849,6 +868,36 @@ export default function Inbox({ onUnreadChange }) {
     },
     enabled: !!session?.access_token && !!businessId,
   });
+
+  const startConversation = useCallback(
+    async (contact) => {
+      const phone = contact?.phone;
+      if (!phone) return;
+      const existing = conversations.find((c) => c.customer_phone === phone);
+      if (existing) {
+        setSelectedConv(existing);
+        setInboxView("conversations");
+        return;
+      }
+      try {
+        const r = await fetch(`${API_BASE}/api/inbox/conversations/start`, {
+          method: "POST",
+          headers: authHeaders(),
+          body: JSON.stringify({ phone, channel: "whatsapp" }),
+        });
+        const data = await r.json().catch(() => ({}));
+        if (!r.ok) throw new Error(data.error || "שגיאה");
+        if (data.conversation) {
+          setInboxView("conversations");
+          refetchConversations();
+          setTimeout(() => setSelectedConv(data.conversation), 500);
+        }
+      } catch (e) {
+        toast.error(e.message || "שגיאה");
+      }
+    },
+    [conversations, authHeaders, refetchConversations],
+  );
 
   const activeConversationId = selectedConv?.id ?? null;
 
@@ -1345,6 +1394,129 @@ export default function Inbox({ onUnreadChange }) {
             flexDirection: "column",
           }}
         >
+          <div style={{ display: "flex", gap: 8, padding: "8px 12px", borderBottom: "1px solid var(--glass-border)", flexShrink: 0 }}>
+            {[
+              { id: "conversations", label: "שיחות" },
+              { id: "contacts", label: "אנשי קשר" },
+            ].map((tab) => (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setInboxView(tab.id)}
+                style={{
+                  padding: "6px 16px",
+                  borderRadius: 8,
+                  border: "none",
+                  background: inboxView === tab.id ? "var(--v2-primary)" : "var(--glass-bg)",
+                  color: inboxView === tab.id ? "#fff" : "var(--text, #fff)",
+                  fontWeight: inboxView === tab.id ? 700 : 400,
+                  cursor: "pointer",
+                  fontSize: 13,
+                }}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+          {inboxView === "contacts" ? (
+            <div style={{ flex: 1, overflowY: "auto", minHeight: 0 }}>
+              <div style={{ padding: "8px 12px" }}>
+                <input
+                  placeholder="חיפוש איש קשר..."
+                  value={contactsSearch}
+                  onChange={(e) => setContactsSearch(e.target.value)}
+                  dir="rtl"
+                  style={{
+                    width: "100%",
+                    height: 36,
+                    borderRadius: 8,
+                    border: "1px solid var(--glass-border)",
+                    background: "var(--card)",
+                    color: "var(--text, #fff)",
+                    padding: "0 12px",
+                    fontSize: 13,
+                    boxSizing: "border-box",
+                  }}
+                />
+              </div>
+              {contacts.map((contact) => (
+                <div
+                  key={contact.id}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") startConversation(contact);
+                  }}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 10,
+                    padding: "10px 12px",
+                    cursor: "pointer",
+                    borderBottom: "1px solid var(--glass-border)",
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = "var(--glass-bg)";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = "transparent";
+                  }}
+                  onClick={() => startConversation(contact)}
+                >
+                  <div
+                    style={{
+                      width: 36,
+                      height: 36,
+                      borderRadius: "50%",
+                      background: "var(--v2-primary)",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      fontSize: 14,
+                      fontWeight: 700,
+                      color: "#fff",
+                      flexShrink: 0,
+                    }}
+                  >
+                    {(contact.first_name?.[0] || contact.phone?.[0] || "?").toUpperCase()}
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <p style={{ margin: 0, fontWeight: 600, fontSize: 14, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {contact.first_name
+                        ? `${contact.first_name} ${contact.last_name || ""}`.trim()
+                        : contact.phone}
+                    </p>
+                    <p style={{ margin: 0, fontSize: 12, color: "var(--v2-gray-400)" }} dir="ltr">
+                      {contact.phone}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      startConversation(contact);
+                    }}
+                    style={{
+                      padding: "6px 12px",
+                      borderRadius: 8,
+                      border: "none",
+                      background: "var(--glass-bg)",
+                      color: "var(--text, #fff)",
+                      fontSize: 12,
+                      cursor: "pointer",
+                      flexShrink: 0,
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 4,
+                    }}
+                  >
+                    <MessageCircle size={12} /> שיחה
+                  </button>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <>
           <div className="inbox-list-header">
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
               <h2 style={{ margin: 0, fontSize: 18 }}>אינבוקס מאוחד</h2>
@@ -1489,6 +1661,8 @@ export default function Inbox({ onUnreadChange }) {
               ))
             )}
           </div>
+            </>
+          )}
         </div>
 
         <div

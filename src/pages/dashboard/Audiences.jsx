@@ -1,8 +1,8 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Search, Users, Phone, Tag, X, ShoppingBag, Activity, Clock, Upload, Crown, RefreshCw, Sparkles, CheckCircle, Radio, Scan, AlertTriangle, Ticket, Cake, Send, Calendar, Pencil, Workflow, Plus, Zap, Download } from 'lucide-react'
+import { Search, Users, Phone, Tag, X, ShoppingBag, Activity, Clock, Upload, Crown, RefreshCw, Sparkles, CheckCircle, Radio, Scan, AlertTriangle, Ticket, Cake, Send, Calendar, Pencil, Workflow, Plus, Zap, Download, Save } from 'lucide-react'
 import EngagementScore from '@/components/ui/EngagementScore'
 import EmptyState from '@/components/ui/EmptyState'
 import ImportModal from '@/components/ui/ImportModal'
@@ -474,8 +474,8 @@ export default function Audiences() {
   const [bulkTagMode, setBulkTagMode] = useState('add') // 'add' | 'remove'
   const [bulkTag, setBulkTag] = useState('')
   const [bulkTagToRemove, setBulkTagToRemove] = useState('')
-  const [showSaveSegmentModal, setShowSaveSegmentModal] = useState(false)
-  const [saveSegmentName, setSaveSegmentName] = useState('')
+  const [showSaveSegment, setShowSaveSegment] = useState(false)
+  const [segmentName, setSegmentName] = useState('')
 
   const [showFlowDropdown, setShowFlowDropdown] = useState(false)
   const [flowsList, setFlowsList] = useState([])
@@ -725,18 +725,19 @@ export default function Audiences() {
 
   const ALL_TAGS = ['הכל', 'VIP', 'לקוח קבוע', 'חדש']
 
-  const canSaveAsSegment = recipients.length > 0 && (
-    activeSegment === 'by_event' ||
-    activeSegment === 'by_campaign' ||
-    !!lastWhereClause
-  )
-  const defaultSaveSegmentName = activeSegment === 'by_event'
-    ? (selectedEvents?.length ? selectedEvents.join(', ') : 'אירוע')
-    : activeSegment === 'by_campaign'
-      ? (campaigns.find(c => c.id === selectedCampaign)?.name || (campaigns.find(c => c.id === selectedCampaign)?.message || '').substring(0, 40) || 'קמפיין')
-      : lastWhereClause
-        ? (nlQuery?.substring(0, 40) || 'סגמנט AI')
-        : ''
+  const currentFilters = useMemo(() => ({
+    activeSegment,
+    activeCategory,
+    search,
+    activeTag,
+    sortBy,
+    selectedCampaign,
+    campaignFilter,
+    selectedEvents,
+    liveHours,
+    nlQuery: lastWhereClause ? nlQuery : '',
+    lastWhereClause: lastWhereClause || '',
+  }), [activeSegment, activeCategory, search, activeTag, sortBy, selectedCampaign, campaignFilter, selectedEvents, liveHours, nlQuery, lastWhereClause])
 
   if (!audiencesAllowed) return null
 
@@ -1303,60 +1304,109 @@ export default function Audiences() {
               <button disabled={page === totalPages} onClick={() => setPage(p => p + 1)} style={{ padding: '6px 12px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)', background: page === totalPages ? 'rgba(255,255,255,0.04)' : 'transparent', color: 'var(--text-secondary)', cursor: page === totalPages ? 'not-allowed' : 'pointer' }}>הבא</button>
             </div>
           )}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', borderTop: '1px solid var(--glass-border)' }}>
+            <span style={{ fontSize: 13, color: 'var(--v2-gray-400)' }}>
+              מציג {filtered.length} תוצאות
+            </span>
+            <button
+              type="button"
+              onClick={() => setShowSaveSegment(true)}
+              disabled={filtered.length === 0}
+              style={{
+                padding: '8px 16px',
+                borderRadius: 8,
+                border: 'none',
+                background: filtered.length > 0 ? '#00C37A' : 'var(--glass-bg)',
+                color: filtered.length > 0 ? '#000' : 'var(--v2-gray-400)',
+                fontWeight: 600,
+                fontSize: 13,
+                cursor: filtered.length > 0 ? 'pointer' : 'not-allowed',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+              }}
+            >
+              <Save size={14} /> שמור כסגמנט ({filtered.length})
+            </button>
+          </div>
           </>
         )}
       </div>
 
-      {showSaveSegmentModal && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 200, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }} onClick={() => setShowSaveSegmentModal(false)}>
-          <div className="glass-card" style={{ position: 'relative', padding: 20, width: '100%', maxWidth: 340 }} onClick={e => e.stopPropagation()}>
-            <button type="button" onClick={() => setShowSaveSegmentModal(false)} style={MODAL_CLOSE_X} aria-label="סגור">
+      {showSaveSegment && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={() => setShowSaveSegment(false)}>
+          <div style={{ background: 'var(--card, #1a1d2e)', borderRadius: 12, padding: 24, maxWidth: 400, width: '100%', position: 'relative', border: '1px solid var(--glass-border)' }} onClick={e => e.stopPropagation()}>
+            <button type="button" onClick={() => setShowSaveSegment(false)} style={{ position: 'absolute', top: 12, left: 12, background: 'none', border: 'none', cursor: 'pointer', color: 'var(--v2-gray-400)' }} aria-label="סגור">
               <X size={20} />
             </button>
-            <div style={{ fontWeight: 700, marginBottom: 12, fontSize: 16 }}>💾 שמור כסגמנט</div>
+            <h3 style={{ margin: '0 0 16px', fontSize: 16, fontWeight: 700 }}>שמור סגמנט</h3>
             <input
-              className="form-input input"
-              placeholder="שם הסגמנט"
-              value={saveSegmentName}
-              onChange={e => setSaveSegmentName(e.target.value)}
-              style={{ width: '100%', marginBottom: 12, padding: '10px 14px' }}
+              value={segmentName}
+              onChange={e => setSegmentName(e.target.value)}
+              placeholder="שם הסגמנט (למשל: לקוחות VIP)"
+              style={{
+                width: '100%',
+                height: 40,
+                borderRadius: 8,
+                border: '1px solid var(--glass-border)',
+                background: 'var(--glass-bg)',
+                color: 'var(--text)',
+                padding: '0 12px',
+                fontSize: 14,
+                marginBottom: 12,
+                boxSizing: 'border-box',
+              }}
             />
-            <div style={{ display: 'flex', gap: 8 }}>
-              <button className="btn-primary" style={{ flex: 1 }} disabled={!saveSegmentName.trim()} onClick={async () => {
+            <p style={{ fontSize: 13, color: 'var(--v2-gray-400)', margin: '0 0 16px' }}>
+              {filtered.length} אנשים יישמרו בסגמנט זה
+            </p>
+            <button
+              type="button"
+              onClick={async () => {
+                if (!segmentName.trim() || !businessId) return
                 try {
-                  let body
-                  if (activeSegment === 'by_event') {
-                    body = { name: saveSegmentName.trim(), filter_type: 'by_event', filter_params: { eventTitles: selectedEvents }, recipient_count: recipients.length }
-                  } else if (activeSegment === 'by_campaign') {
-                    body = { name: saveSegmentName.trim(), filter_type: 'by_campaign', filter_params: { campaignId: selectedCampaign, campaignFilter }, recipient_count: recipients.length }
-                  } else {
-                    body = { name: saveSegmentName.trim(), whereClause: lastWhereClause, description: nlQuery, createdBy: 'ai', recipient_count: recipients.length }
-                  }
                   const r = await fetchWithAuth(
-                    `${API_BASE}/api/admin/segments`,
-                    { method: 'POST', headers: h(), body: JSON.stringify(body) },
+                    `${API_BASE}/api/audiences/segments`,
+                    {
+                      method: 'POST',
+                      headers: h(),
+                      body: JSON.stringify({
+                        name: segmentName.trim(),
+                        filters: currentFilters,
+                        recipient_ids: filtered.map(rec => rec.master_recipient_id || rec.id).filter(Boolean),
+                        business_id: businessId,
+                      }),
+                    },
                     session,
                     onUnauthorized,
                   )
                   const data = await r.json().catch(() => ({}))
                   if (!r.ok) throw new Error(data.message || data.error || `HTTP ${r.status}`)
-                  setShowSaveSegmentModal(false)
-                  setSaveSegmentName('')
-                  toast.success('הסגמנט נשמר')
-                  const segRes = await fetchWithAuth(
-                    `${API_BASE}/api/admin/segments`,
-                    { headers: h() },
-                    session,
-                    onUnauthorized,
-                  )
+                  setShowSaveSegment(false)
+                  setSegmentName('')
+                  toast.success('סגמנט נשמר!')
+                  queryClient.invalidateQueries({ queryKey: ['segments', businessId] })
+                  const segRes = await fetchWithAuth(`${API_BASE}/api/admin/segments`, { headers: h() }, session, onUnauthorized)
                   const segData = segRes.ok ? await segRes.json() : {}
-                  setSegments(prev => ({ presets: PRESET_SEGMENTS, saved: segData?.saved || [] }))
+                  setSegments({ presets: PRESET_SEGMENTS, saved: segData?.saved || [] })
                 } catch (e) {
                   toast.error(e.message || 'שגיאה בשמירה')
                 }
-              }}>שמור</button>
-              <button className="btn-ghost" onClick={() => { setShowSaveSegmentModal(false); setSaveSegmentName(''); }}>ביטול</button>
-            </div>
+              }}
+              style={{
+                height: 44,
+                width: '100%',
+                borderRadius: 8,
+                border: 'none',
+                background: '#00C37A',
+                color: '#000',
+                fontWeight: 700,
+                fontSize: 15,
+                cursor: 'pointer',
+              }}
+            >
+              שמור סגמנט
+            </button>
           </div>
         </div>
       )}
