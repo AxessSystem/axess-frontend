@@ -1191,14 +1191,19 @@ export default function DashboardClientLayout() {
 
         {/* ── MOBILE BOTTOM NAV ── */}
         <nav
-          className="lg:hidden"
+          className="bottom-nav lg:hidden"
           style={{
-            background: 'var(--v2-dark-2)',
-            borderTop: '1px solid var(--glass-border)',
-            padding: '8px 4px',
             display: 'flex',
+            overflowX: 'auto',
+            overflowY: 'hidden',
+            WebkitOverflowScrolling: 'touch',
+            scrollbarWidth: 'none',
+            msOverflowStyle: 'none',
+            borderTop: '1px solid var(--glass-border)',
+            background: 'var(--card)',
+            padding: '0 4px',
+            gap: 0,
             alignItems: 'center',
-            justifyContent: 'space-around',
             position: 'fixed',
             bottom: 0,
             left: 0,
@@ -1216,7 +1221,9 @@ export default function DashboardClientLayout() {
                 flexDirection: 'column',
                 alignItems: 'center',
                 gap: 2,
-                padding: '6px 12px',
+                flexShrink: 0,
+                minWidth: 64,
+                padding: '8px 12px',
                 borderRadius: 'var(--radius-md)',
                 textDecoration: 'none',
                 color: isActive ? 'var(--v2-primary)' : 'var(--v2-gray-400)',
