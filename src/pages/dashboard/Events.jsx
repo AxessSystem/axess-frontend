@@ -7,7 +7,7 @@ import {
   Star, Music, Edit, Send, BarChart2, Plus,
   Clock, CheckCircle, XCircle, Eye, Share2,
   Megaphone, QrCode, ChevronLeft,
-  Key, Copy, Copy as CopyIcon, Trash2,
+  Key, Copy, Copy as CopyIcon, Trash2, ExternalLink,
   Check, X, Save, Mail, Sparkles, User,
 } from 'lucide-react'
 import toast from 'react-hot-toast'
@@ -819,7 +819,6 @@ export default function Events() {
   const [layouts, setLayouts] = useState([])
   const [menuBuilderOpen, setMenuBuilderOpen] = useState(false)
   const [layoutBuilderOpen, setLayoutBuilderOpen] = useState(false)
-  const [editEventId, setEditEventId] = useState(null)
   const [publishSuccessEvent, setPublishSuccessEvent] = useState(null)
   const [deleteConfirm, setDeleteConfirm] = useState(null)
   const { session, businessId } = useAuth()
@@ -840,6 +839,8 @@ export default function Events() {
   const [drafts, setDrafts] = useState([])
   const [closeWizardModalOpen, setCloseWizardModalOpen] = useState(false)
   const [draftDeleteConfirm, setDraftDeleteConfirm] = useState(null)
+  const [editModalEvent, setEditModalEvent] = useState(null)
+  const [editForm, setEditForm] = useState({})
 
   const saveDraft = () => {
     const draftsArr = JSON.parse(localStorage.getItem('axess_event_drafts') || '[]')
@@ -892,7 +893,6 @@ export default function Events() {
     if (template === 'theater') setForm(f => ({ ...f, seating: { enabled: true, template_type: 'theater' } }))
     if (template === 'tables') setForm(f => ({ ...f, seating: { enabled: true, template_type: 'club' } }))
     setStep(1)
-    setEditEventId(null)
     setCloseWizardModalOpen(false)
     setWizardOpen(true)
   }
@@ -906,13 +906,13 @@ export default function Events() {
     setStep(1)
   }
 
-  const filteredEvents = events.filter(ev => {
-    const s = ev.status || 'draft'
-    if (activeTab === 'הכל') return true
-    if (activeTab === 'טיוטות') return s === 'draft'
-    if (activeTab === 'פעילים') return s === 'published' || s === 'active'
-    if (activeTab === 'הסתיים') return s === 'archived' || s === 'cancelled'
-    return true
+  const filteredEvents = events.filter(e => {
+    if (e.portal_visible === true) return false
+    return activeTab === 'הכל' ? true
+      : activeTab === 'פעילים' ? e.status === 'active'
+        : activeTab === 'טיוטות' ? e.status === 'draft'
+          : activeTab === 'הסתיים' ? e.status === 'ended'
+            : true
   })
 
   const formatEventDate = (dateVal) => {
@@ -941,8 +941,51 @@ export default function Events() {
   }
 
   const openEditFromCard = (ev) => {
-    setEditEventId(ev.id)
-    openWizard()
+    setEditModalEvent(ev)
+  }
+
+  useEffect(() => {
+    if (!editModalEvent) {
+      setEditForm({})
+      return
+    }
+    setEditForm({
+      title: editModalEvent.title || '',
+      venue_name: editModalEvent.venue_name || '',
+      venue_address: editModalEvent.venue_address || '',
+      doors_open: editModalEvent.doors_open || null,
+      event_end: editModalEvent.event_end || null,
+      cover_image_url: editModalEvent.cover_image_url || editModalEvent.image_url || '',
+      description: editModalEvent.description || '',
+    })
+  }, [editModalEvent])
+
+  const saveEditModal = async () => {
+    if (!editModalEvent) return
+    try {
+      const body = {
+        title: editForm.title,
+        venue_name: editForm.venue_name || null,
+        venue_address: editForm.venue_address || null,
+        location: editForm.venue_address || editForm.venue_name || null,
+        doors_open: editForm.doors_open || null,
+        event_end: editForm.event_end || null,
+        cover_image_url: editForm.cover_image_url || null,
+        description: editForm.description || null,
+      }
+      const res = await fetch(`${API_BASE}/api/admin/events/${editModalEvent.id}`, {
+        method: 'PATCH',
+        headers: authHeaders(),
+        body: JSON.stringify(body),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'שגיאה')
+      setEvents(prev => prev.map(x => (x.id === editModalEvent.id ? { ...x, ...body, ...data } : x)))
+      setEditModalEvent(null)
+      toast.success('נשמר')
+    } catch (e) {
+      toast.error(e.message || 'שגיאה')
+    }
   }
 
   const openCampaignFromCard = (ev) => {
@@ -1366,6 +1409,24 @@ export default function Events() {
                       <p style={{ margin: 0, fontSize: 11, color: 'var(--v2-gray-400)' }}>הכנסה</p>
                     </div>
                   </div>
+
+                  <a
+                    href={`https://axess.pro/e/${ev.slug}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 4,
+                      fontSize: 12,
+                      color: '#00C37A',
+                      textDecoration: 'none',
+                      marginBottom: 12,
+                    }}
+                    onClick={e => e.stopPropagation()}
+                  >
+                    <ExternalLink size={12} /> צפה באירוע
+                  </a>
 
                   <div style={{ display: 'flex', gap: 8 }}>
                     <button
@@ -1866,14 +1927,57 @@ export default function Events() {
         <FloorStatusModal event={floorStatusEvent} onClose={() => setFloorStatusEvent(null)} />
       )}
 
+      {/* Edit event modal (not create wizard) */}
+      {editModalEvent && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 210, display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={() => setEditModalEvent(null)}>
+          <div dir="rtl" style={{ position: 'relative', background: 'var(--v2-dark-2)', borderRadius: 16, padding: 24, maxWidth: 480, width: '90%', maxHeight: '90vh', overflowY: 'auto', border: '1px solid var(--glass-border)' }} onClick={e => e.stopPropagation()}>
+            <button type="button" onClick={() => setEditModalEvent(null)} style={MODAL_CLOSE_X} aria-label="סגור"><X size={20} /></button>
+            <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 20 }}>עריכת אירוע</h2>
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ display: 'block', marginBottom: 6, color: 'var(--v2-gray-400)', fontSize: 14 }}>שם האירוע</label>
+              <input value={editForm.title ?? ''} onChange={e => setEditForm(f => ({ ...f, title: e.target.value }))} style={{ width: '100%', padding: 12, borderRadius: 12, border: '1px solid var(--glass-border)', background: 'var(--v2-dark-3)', color: '#fff' }} />
+            </div>
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ display: 'block', marginBottom: 6, color: 'var(--v2-gray-400)', fontSize: 14 }}>שם המקום</label>
+              <input value={editForm.venue_name ?? ''} onChange={e => setEditForm(f => ({ ...f, venue_name: e.target.value }))} style={{ width: '100%', padding: 12, borderRadius: 12, border: '1px solid var(--glass-border)', background: 'var(--v2-dark-3)', color: '#fff' }} />
+            </div>
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ display: 'block', marginBottom: 6, color: 'var(--v2-gray-400)', fontSize: 14 }}>כתובת</label>
+              <input value={editForm.venue_address ?? ''} onChange={e => setEditForm(f => ({ ...f, venue_address: e.target.value }))} style={{ width: '100%', padding: 12, borderRadius: 12, border: '1px solid var(--glass-border)', background: 'var(--v2-dark-3)', color: '#fff' }} />
+            </div>
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ display: 'block', marginBottom: 6, color: 'var(--v2-gray-400)', fontSize: 14 }}>תיאור קצר</label>
+              <textarea value={editForm.description ?? ''} onChange={e => setEditForm(f => ({ ...f, description: e.target.value }))} rows={3} style={{ width: '100%', padding: 12, borderRadius: 12, border: '1px solid var(--glass-border)', background: 'var(--v2-dark-3)', color: '#fff', resize: 'vertical' }} />
+            </div>
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ display: 'block', marginBottom: 6, color: 'var(--v2-gray-400)', fontSize: 14 }}>תמונת שער (URL)</label>
+              <input value={editForm.cover_image_url ?? ''} onChange={e => setEditForm(f => ({ ...f, cover_image_url: e.target.value }))} style={{ width: '100%', padding: 12, borderRadius: 12, border: '1px solid var(--glass-border)', background: 'var(--v2-dark-3)', color: '#fff' }} />
+            </div>
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ display: 'block', marginBottom: 6, color: 'var(--v2-gray-400)', fontSize: 14 }}>פתיחת דלתות</label>
+              <DateTimePicker value={editForm.doors_open ?? null} onChange={v => setEditForm(f => ({ ...f, doors_open: v }))} placeholder="בחר תאריך ושעה" />
+            </div>
+            <div style={{ marginBottom: 24 }}>
+              <label style={{ display: 'block', marginBottom: 6, color: 'var(--v2-gray-400)', fontSize: 14 }}>סיום אירוע</label>
+              <DateTimePicker value={editForm.event_end ?? null} onChange={v => setEditForm(f => ({ ...f, event_end: v }))} placeholder="בחר תאריך ושעה" />
+            </div>
+            <div style={{ display: 'flex', gap: 12 }}>
+              <button type="button" onClick={() => setEditModalEvent(null)} style={{ flex: 1, padding: 14, borderRadius: 12, border: '1px solid var(--glass-border)', background: 'transparent', color: 'var(--v2-gray-400)', cursor: 'pointer', fontWeight: 600 }}>ביטול</button>
+              <button type="button" onClick={saveEditModal} style={{ flex: 1, padding: 14, borderRadius: 12, border: 'none', background: 'var(--v2-primary)', color: 'var(--v2-dark)', cursor: 'pointer', fontWeight: 700 }}>שמור</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Event Detail Drawer */}
       {detailEvent && (
         <EventDetailDrawer
+          key={detailEvent.id}
           event={detailEvent}
           businessId={businessId}
           initialTab={detailEventTab}
           onClose={() => { setDetailEvent(null); setDetailEventTab('overview') }}
-          onEdit={(ev) => { setDetailEvent(null); setDetailEventTab('overview'); setEditEventId(ev?.id); openWizard() }}
+          onEdit={(ev) => { setDetailEvent(null); setDetailEventTab('overview'); setEditModalEvent(ev) }}
           onRefresh={() => fetch(`${API_BASE}/api/admin/events?business_id=${businessId}`).then(r => r.ok ? r.json() : []).then(setEvents)}
         />
       )}
