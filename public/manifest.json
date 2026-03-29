@@ -2,7 +2,7 @@
   "name": "AXESS",
   "short_name": "AXESS",
   "description": "כל הקהל שלך. מקום אחד.",
-  "start_url": "/",
+  "start_url": "/login",
   "display": "standalone",
   "background_color": "#0a1628",
   "theme_color": "#0a1628",
