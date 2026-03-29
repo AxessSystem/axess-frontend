@@ -861,22 +861,12 @@ export default function Events() {
     setDrafts(JSON.parse(localStorage.getItem('axess_event_drafts') || '[]'))
   }
 
-  console.log('[events] businessId:', businessId);
-
   useEffect(() => {
-    console.log('[events] useEffect businessId:', businessId);
     if (!businessId || businessId === 'null') return;
     fetch(`${API_BASE}/api/admin/events?business_id=${businessId}`, { headers: authHeaders() })
       .then(r => r.ok ? r.json() : [])
-      .then(data => { 
-        console.log('[events] loaded:', data.length);
-        setEvents(data); 
-        setLoading(false); 
-      })
-      .catch(e => { 
-        console.error('[events] error:', e);
-        setLoading(false); 
-      })
+      .then(data => { setEvents(data); setLoading(false) })
+      .catch(() => setLoading(false))
   }, [businessId, authHeaders])
 
   useEffect(() => {
