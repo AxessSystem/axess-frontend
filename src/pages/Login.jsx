@@ -259,7 +259,7 @@ export default function Login() {
       <div style={{ width: '100%', maxWidth: 420, position: 'relative', zIndex: 1 }}>
         <div style={{ textAlign: 'center', marginBottom: 32, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
           <QRLogo />
-          <p style={{ color: 'var(--v2-gray-400)', fontSize: 14, marginTop: 4 }}>SMS Marketing Platform</p>
+          <p style={{ color: 'var(--v2-gray-400)', fontSize: 14, marginTop: 4 }}>כל הקהל שלך. מקום אחד.</p>
         </div>
 
         <div style={{ background: 'var(--v2-dark-3)', border: '1px solid var(--glass-border)', borderRadius: 'var(--radius-lg)', padding: '28px 24px' }}>
