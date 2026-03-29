@@ -66,46 +66,31 @@ export function AuthProvider({ children }) {
   // 🚀 INIT (FIXED)
   // -----------------------------
   useEffect(() => {
-    const mobileLog = (msg) => {
-      try {
-        const logs = JSON.parse(localStorage.getItem('auth_logs') || '[]');
-        logs.push(`${new Date().toISOString().slice(11, 19)} ${msg}`);
-        if (logs.length > 20) logs.shift();
-        localStorage.setItem('auth_logs', JSON.stringify(logs));
-      } catch (e) {}
-    };
-
     const init = async () => {
-      mobileLog('init started');
-      let session = null;
+      let session = null
       try {
-        session = await getValidSession(supabase);
-        mobileLog(`session: ${session ? 'exists' : 'null'}`);
+        session = await getValidSession(supabase)
       } catch (e) {
-        mobileLog(`getValidSession error: ${e.message}`);
+        // ignore
       }
 
-      setSession(session);
+      setSession(session)
 
       if (session?.user?.id) {
-        mobileLog(`loading bm for: ${session.user.id.slice(0, 8)}`);
         try {
           const [bm, p] = await Promise.all([
             fetchBusinessMember(session.user.id),
             fetchProfile(session.user.id)
-          ]);
-          mobileLog(`bm: ${bm ? bm.role : 'null'}`);
-          mobileLog(`profile: ${p ? 'ok' : 'null'}`);
-          if (bm) setBusinessMember(bm);
-          if (p) setProfile(p);
+          ])
+          if (bm) setBusinessMember(bm)
+          if (p) setProfile(p)
         } catch (e) {
-          mobileLog(`load error: ${e.message}`);
+          // ignore
         }
       }
 
-      setLoading(false);
-      mobileLog('init complete');
-    };
+      setLoading(false)
+    }
 
     init()
 
