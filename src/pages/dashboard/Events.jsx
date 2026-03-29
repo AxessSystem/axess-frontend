@@ -918,12 +918,14 @@ export default function Events() {
   }
 
   const filteredEvents = events.filter(e => {
-    if (e.portal_visible === true) return false
-    return activeTab === 'הכל' ? true
-      : activeTab === 'פעילים' ? e.status === 'active'
-        : activeTab === 'טיוטות' ? e.status === 'draft'
-          : activeTab === 'הסתיים' ? e.status === 'ended'
-            : true
+    // הצג את כל האירועים של העסק — לא לסנן לפי portal_visible
+    const matchTab =
+      activeTab === 'הכל' ? true
+        : activeTab === 'פעילים' ? (e.status === 'active' || e.status === 'published')
+          : activeTab === 'טיוטות' ? e.status === 'draft'
+            : (activeTab === 'הסתיימו' || activeTab === 'הסתיים') ? (e.status === 'ended' || e.status === 'archived')
+              : true
+    return matchTab
   })
 
   const formatEventDate = (dateVal) => {
