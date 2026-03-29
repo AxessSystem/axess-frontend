@@ -1191,19 +1191,14 @@ export default function DashboardClientLayout() {
 
         {/* ── MOBILE BOTTOM NAV ── */}
         <nav
-          className="bottom-nav lg:hidden"
+          className="lg:hidden"
           style={{
-            display: 'flex',
-            overflowX: 'auto',
-            overflowY: 'hidden',
-            WebkitOverflowScrolling: 'touch',
-            scrollbarWidth: 'none',
-            msOverflowStyle: 'none',
+            background: 'var(--v2-dark-2)',
             borderTop: '1px solid var(--glass-border)',
-            background: 'var(--card)',
-            padding: '0 4px',
-            gap: 0,
+            padding: '8px 4px',
+            display: 'flex',
             alignItems: 'center',
+            justifyContent: 'space-around',
             position: 'fixed',
             bottom: 0,
             left: 0,

@@ -710,21 +710,6 @@
   /* RTL-aware flex */
   .flex-rtl { flex-direction: row; }
 
-  .bottom-nav {
-    justify-content: flex-start;
-  }
-
-  /* סרגל תחתון גלוי רק מתחת ל־lg (1024px); space-around במסכים רחבים — לא במובייל צר */
-  @media (min-width: 768px) and (max-width: 1023.98px) {
-    .bottom-nav {
-      justify-content: space-around;
-    }
-  }
-
-  .bottom-nav::-webkit-scrollbar {
-    display: none;
-  }
-
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after {
       animation-duration: 0.01ms !important;
