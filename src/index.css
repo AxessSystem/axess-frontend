@@ -710,6 +710,10 @@
   /* RTL-aware flex */
   .flex-rtl { flex-direction: row; }
 
+  .bottom-nav::-webkit-scrollbar {
+    display: none;
+  }
+
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after {
       animation-duration: 0.01ms !important;
