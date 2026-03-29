@@ -1,7 +1,14 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { useRequirePermission } from '@/hooks/useRequirePermission'
-import { Calendar, Plus, TrendingUp, ExternalLink, Key, Copy, Edit3, Copy as CopyIcon, Trash2, Users, BarChart2, Armchair, LayoutGrid, MapPin, Check, X, Send, Link2, CheckCircle, XCircle } from 'lucide-react'
+import {
+  Calendar, MapPin, Users, DollarSign, Ticket,
+  Star, Music, Edit, Send, BarChart2, Plus,
+  Clock, CheckCircle, XCircle, Eye, Share2,
+  Megaphone, QrCode, ChevronLeft,
+  Key, Copy, Copy as CopyIcon, Trash2,
+  Check, X, Save, Mail, Sparkles, User,
+} from 'lucide-react'
 import toast from 'react-hot-toast'
 import SeatingBuilder from '../../components/SeatingBuilder'
 import Tooltip from '../../components/ui/Tooltip'
@@ -171,7 +178,18 @@ function FloorStatusModal({ event, onClose }) {
                 {selectedSeat.booking.guests?.length > 0 && (
                   <div style={{ fontSize: 13, marginBottom: 12 }}>
                     {selectedSeat.booking.guests.map(g => (
-                      <div key={g.id}>👤 {g.name || '-'} — {g.payment_status === 'paid' ? '✅ שולם' : g.payment_status === 'waived' ? '🎟️ נכנס' : '⏳ ממתין'}</div>
+                      <div key={g.id} style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                        <User size={14} color="#00C37A" />
+                        <span>{g.name || '-'}</span>
+                        <span>—</span>
+                        {g.payment_status === 'paid' ? (
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><CheckCircle size={14} color="#00C37A" /> שולם</span>
+                        ) : g.payment_status === 'waived' ? (
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><Ticket size={14} color="#00C37A" /> נכנס</span>
+                        ) : (
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><Clock size={14} color="#00C37A" /> ממתין</span>
+                        )}
+                      </div>
                     ))}
                   </div>
                 )}
@@ -337,10 +355,10 @@ function PromotersModal({ event, businessId, onClose, embedded }) {
                   </div>
                 )}
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                  <button onClick={() => copyLink(ep)} style={{ padding: '6px 12px', background: 'var(--v2-primary)', color: 'var(--v2-dark)', border: 'none', borderRadius: 8, cursor: 'pointer', fontSize: 13 }}>📋 העתק לינק</button>
-                  <button onClick={() => openStats(ep)} style={{ padding: '6px 12px', background: 'var(--v2-dark-2)', border: '1px solid var(--glass-border)', color: '#fff', borderRadius: 8, cursor: 'pointer', fontSize: 13 }}>📊 סטטיסטיקות</button>
+                  <button onClick={() => copyLink(ep)} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 12px', background: 'var(--v2-primary)', color: 'var(--v2-dark)', border: 'none', borderRadius: 8, cursor: 'pointer', fontSize: 13 }}><Copy size={14} color="var(--v2-dark)" /> העתק לינק</button>
+                  <button onClick={() => openStats(ep)} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 12px', background: 'var(--v2-dark-2)', border: '1px solid var(--glass-border)', color: '#fff', borderRadius: 8, cursor: 'pointer', fontSize: 13 }}><BarChart2 size={14} color="#00C37A" /> סטטיסטיקות</button>
                   <div style={{ position: 'relative' }}>
-                    <button onClick={() => setDuplicateTarget(duplicateTarget === ep.id ? null : ep.id)} style={{ padding: '6px 12px', background: 'var(--v2-dark-2)', border: '1px solid var(--glass-border)', color: '#fff', borderRadius: 8, cursor: 'pointer', fontSize: 13 }}>🔄 שכפל לאירוע</button>
+                    <button onClick={() => setDuplicateTarget(duplicateTarget === ep.id ? null : ep.id)} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 12px', background: 'var(--v2-dark-2)', border: '1px solid var(--glass-border)', color: '#fff', borderRadius: 8, cursor: 'pointer', fontSize: 13 }}><CopyIcon size={14} color="#00C37A" /> שכפל לאירוע</button>
                     {duplicateTarget === ep.id && (
                       <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: 4, padding: 8, background: 'var(--v2-dark-3)', borderRadius: 8, border: '1px solid var(--glass-border)', minWidth: 180, zIndex: 10 }}>
                         <CustomSelect
@@ -356,7 +374,7 @@ function PromotersModal({ event, businessId, onClose, embedded }) {
                       </div>
                     )}
                   </div>
-                  <button onClick={() => handleRemove(ep)} style={{ padding: '6px 12px', background: 'transparent', border: '1px solid #ef4444', color: '#ef4444', borderRadius: 8, cursor: 'pointer', fontSize: 13 }}>🗑️ הסר מאירוע</button>
+                  <button onClick={() => handleRemove(ep)} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 12px', background: 'transparent', border: '1px solid #ef4444', color: '#ef4444', borderRadius: 8, cursor: 'pointer', fontSize: 13 }}><Trash2 size={14} color="#ef4444" /> הסר מאירוע</button>
                 </div>
               </div>
             ))}
@@ -446,10 +464,10 @@ function PromotersModal({ event, businessId, onClose, embedded }) {
 }
 
 const STAFF_ROLES = [
-  { id: 'door_staff', label: '🚪 צוות כניסות' },
-  { id: 'table_manager', label: '🪑 מנהל שולחנות' },
-  { id: 'bar_staff', label: '🍹 צוות בר' },
-  { id: 'promoter_manager', label: '📢 מנהל יחצ"נים' },
+  { id: 'door_staff', label: 'צוות כניסות' },
+  { id: 'table_manager', label: 'מנהל שולחנות' },
+  { id: 'bar_staff', label: 'צוות בר' },
+  { id: 'promoter_manager', label: 'מנהל יחצ"נים' },
 ]
 
 function EventDetailDrawer({ event, businessId, onClose, onEdit, onRefresh, initialTab = 'overview' }) {
@@ -540,7 +558,7 @@ function EventDetailDrawer({ event, businessId, onClose, onEdit, onRefresh, init
               <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 4 }}>{event?.title}</h2>
               {eventDate && <div style={{ color: 'var(--v2-gray-400)', fontSize: 14 }}>{new Date(eventDate).toLocaleDateString('he-IL', { dateStyle: 'medium', timeStyle: 'short' })}</div>}
             </div>
-            <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--v2-gray-400)', cursor: 'pointer', padding: 4, fontSize: 20 }}>×</button>
+            <button type="button" onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--v2-gray-400)', cursor: 'pointer', padding: 4, display: 'flex', alignItems: 'center' }} aria-label="סגור"><ChevronLeft size={22} color="#00C37A" /></button>
           </div>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
             <span style={{ fontSize: 12, padding: '4px 10px', borderRadius: 'var(--radius-full)', background: statusColor(event?.status || 'draft'), color: (event?.status === 'published' || event?.status === 'active') ? 'var(--v2-dark)' : '#fff' }}>
@@ -584,13 +602,13 @@ function EventDetailDrawer({ event, businessId, onClose, onEdit, onRefresh, init
                   {pendingApprovals.map(o => (
                     <div key={o.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 0', borderBottom: '1px solid var(--glass-border)', gap: 12 }}>
                       <div>
-                        <span style={{ fontWeight: 600 }}>👤 {(o.first_name || '') + ' ' + (o.last_name || '') || 'לקוח'}</span>
+                        <span style={{ fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 6 }}><User size={14} color="#00C37A" />{(o.first_name || '') + ' ' + (o.last_name || '') || 'לקוח'}</span>
                         <span style={{ color: 'var(--v2-gray-400)', marginRight: 8 }}> — {o.phone}</span>
                         <div style={{ fontSize: 12, color: 'var(--v2-gray-400)' }}>{o.created_at ? new Date(o.created_at).toLocaleString('he-IL') : ''}</div>
                       </div>
                       <div style={{ display: 'flex', gap: 8 }}>
-                        <button onClick={async () => { try { const r = await fetch(`${API_BASE}/api/admin/orders/${o.id}/approve`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ approved_by: 'dashboard' }) }); if (!r.ok) throw new Error(); const pend = await fetch(`${API_BASE}/api/admin/events/${event.id}/pending-approvals`).then(res => res.json()); setPendingApprovals(pend); toast.success('אושר'); onRefresh?.(); } catch (e) { toast.error('שגיאה') } }} style={{ padding: '6px 12px', background: 'var(--v2-primary)', color: 'var(--v2-dark)', border: 'none', borderRadius: 8, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}>✅ אשר</button>
-                        <button onClick={async () => { try { const r = await fetch(`${API_BASE}/api/admin/orders/${o.id}/reject`, { method: 'POST' }); if (!r.ok) throw new Error(); const pend = await fetch(`${API_BASE}/api/admin/events/${event.id}/pending-approvals`).then(res => res.json()); setPendingApprovals(pend); toast.success('נדחה'); onRefresh?.(); } catch (e) { toast.error('שגיאה') } }} style={{ padding: '6px 12px', background: 'transparent', border: '1px solid #ef4444', color: '#ef4444', borderRadius: 8, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}>❌ דחה</button>
+                        <button onClick={async () => { try { const r = await fetch(`${API_BASE}/api/admin/orders/${o.id}/approve`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ approved_by: 'dashboard' }) }); if (!r.ok) throw new Error(); const pend = await fetch(`${API_BASE}/api/admin/events/${event.id}/pending-approvals`).then(res => res.json()); setPendingApprovals(pend); toast.success('אושר'); onRefresh?.(); } catch (e) { toast.error('שגיאה') } }} style={{ padding: '6px 12px', background: 'var(--v2-primary)', color: 'var(--v2-dark)', border: 'none', borderRadius: 8, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}><CheckCircle size={14} color="var(--v2-dark)" /> אשר</button>
+                        <button onClick={async () => { try { const r = await fetch(`${API_BASE}/api/admin/orders/${o.id}/reject`, { method: 'POST' }); if (!r.ok) throw new Error(); const pend = await fetch(`${API_BASE}/api/admin/events/${event.id}/pending-approvals`).then(res => res.json()); setPendingApprovals(pend); toast.success('נדחה'); onRefresh?.(); } catch (e) { toast.error('שגיאה') } }} style={{ padding: '6px 12px', background: 'transparent', border: '1px solid #ef4444', color: '#ef4444', borderRadius: 8, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}><XCircle size={14} color="#ef4444" /> דחה</button>
                       </div>
                     </div>
                   ))}
@@ -612,17 +630,20 @@ function EventDetailDrawer({ event, businessId, onClose, onEdit, onRefresh, init
             <>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginBottom: 24 }}>
                 {[
-                  { key: 'event_invite', icon: '📨', title: 'הזמנה לאירוע', desc: 'שלח שבוע לפני האירוע', preview: 'היי {{שם}}, מזמינים אותך ל...' },
-                  { key: 'event_reminder', icon: '⏰', title: 'תזכורת', desc: 'שלח יום לפני האירוע', preview: 'מחר! {{שם_אירוע}} — הכרטיס שלך:' },
-                  { key: 'event_followup', icon: '🎉', title: 'Follow-up', desc: 'שלח יום אחרי האירוע', preview: 'תודה שהגעת! הנה הטבה לאירוע הבא:' },
-                ].map(tpl => (
+                  { key: 'event_invite', Icon: Mail, title: 'הזמנה לאירוע', desc: 'שלח שבוע לפני האירוע', preview: 'היי {{שם}}, מזמינים אותך ל...' },
+                  { key: 'event_reminder', Icon: Clock, title: 'תזכורת', desc: 'שלח יום לפני האירוע', preview: 'מחר! {{שם_אירוע}} — הכרטיס שלך:' },
+                  { key: 'event_followup', Icon: Sparkles, title: 'Follow-up', desc: 'שלח יום אחרי האירוע', preview: 'תודה שהגעת! הנה הטבה לאירוע הבא:' },
+                ].map(tpl => {
+                  const TplIcon = tpl.Icon
+                  return (
                   <div key={tpl.key} style={{ padding: 16, background: 'var(--v2-dark-3)', borderRadius: 12, border: '1px solid var(--glass-border)' }}>
-                    <div style={{ fontSize: 18, marginBottom: 4 }}>{tpl.icon} {tpl.title}</div>
+                    <div style={{ fontSize: 18, marginBottom: 4, display: 'flex', alignItems: 'center', gap: 8 }}><TplIcon size={20} color="#00C37A" /> {tpl.title}</div>
                     <div style={{ fontSize: 12, color: 'var(--v2-gray-400)', marginBottom: 8 }}>{tpl.desc}</div>
                     <div style={{ fontSize: 13, color: 'var(--v2-gray-400)', marginBottom: 12, fontStyle: 'italic' }}>{tpl.preview}</div>
                     <button onClick={() => setCreateCampaignTemplate(tpl.key)} style={{ padding: '8px 16px', background: 'var(--v2-primary)', color: 'var(--v2-dark)', border: 'none', borderRadius: 8, fontWeight: 600, cursor: 'pointer' }}>צור קמפיין</button>
                   </div>
-                ))}
+                  )
+                })}
               </div>
               <div style={{ marginBottom: 16 }}>
                 <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>קמפיינים קיימים</div>
@@ -784,7 +805,7 @@ export default function Events() {
   const [loading, setLoading] = useState(true)
   const [wizardOpen, setWizardOpen] = useState(false)
   const [wizardTemplate, setWizardTemplate] = useState('regular')
-  const [tab, setTab] = useState('all')
+  const [activeTab, setActiveTab] = useState('הכל')
   const [step, setStep] = useState(1)
   const [form, setForm] = useState(defaultForm())
   const [menus, setMenus] = useState([])
@@ -873,17 +894,54 @@ export default function Events() {
     setStep(1)
   }
 
-  const statusLabel = s => ({ draft: 'טיוטה', published: 'פעיל', active: 'פעיל', cancelled: 'בוטל', archived: 'הסתיים' }[s] || s)
-  const statusColor = s => ({ draft: 'var(--v2-gray-400)', published: 'var(--v2-primary)', active: 'var(--v2-primary)', cancelled: '#ef4444', archived: '#3b82f6' }[s] || 'var(--v2-gray-400)')
-
   const filteredEvents = events.filter(ev => {
     const s = ev.status || 'draft'
-    if (tab === 'all') return true
-    if (tab === 'drafts') return s === 'draft'
-    if (tab === 'active') return s === 'published' || s === 'active'
-    if (tab === 'ended') return s === 'archived' || s === 'cancelled'
+    if (activeTab === 'הכל') return true
+    if (activeTab === 'טיוטות') return s === 'draft'
+    if (activeTab === 'פעילים') return s === 'published' || s === 'active'
+    if (activeTab === 'הסתיים') return s === 'archived' || s === 'cancelled'
     return true
   })
+
+  const formatEventDate = (dateVal) => {
+    if (!dateVal) return '—'
+    try {
+      return new Date(dateVal).toLocaleDateString('he-IL', { dateStyle: 'medium', timeStyle: 'short' })
+    } catch {
+      return '—'
+    }
+  }
+
+  const eventCardUiStatus = (ev) => {
+    const s = ev.status || 'draft'
+    if (s === 'draft') return 'draft'
+    if (s === 'published' || s === 'active') return 'active'
+    return 'ended'
+  }
+
+  const eventCapacityApprox = (ev) => {
+    if (ev.capacity != null && ev.capacity !== '') return Number(ev.capacity) || 0
+    const types = ev.ticket_types
+    if (Array.isArray(types) && types.length) {
+      return types.reduce((sum, t) => sum + (Number(t.quantity_total) || 0), 0)
+    }
+    return 0
+  }
+
+  const openEditFromCard = (ev) => {
+    setEditEventId(ev.id)
+    openWizard()
+  }
+
+  const openCampaignFromCard = (ev) => {
+    setDetailEvent(ev)
+    setDetailEventTab('campaigns')
+  }
+
+  const openStatsFromCard = (ev) => {
+    setDetailEvent(ev)
+    setDetailEventTab('stats')
+  }
 
   const addTicketType = () => {
     setForm(f => ({ ...f, ticket_types: [...f.ticket_types, { name: '', price: 0, quantity_total: null }] }))
@@ -1053,45 +1111,55 @@ export default function Events() {
 
   return (
     <div dir="rtl" style={{ padding: 'var(--space-3)' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24, flexWrap: 'wrap', gap: 16 }}>
-        <h1 style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 24, fontWeight: 800 }}>אירועים</h1>
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          <button onClick={() => openWizard('regular')} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '12px 20px', borderRadius: 'var(--radius-full)', background: 'var(--v2-primary)', color: 'var(--v2-dark)', fontWeight: 700, border: 'none', cursor: 'pointer' }}>
-            <Calendar size={18} /> צור אירוע
-          </button>
-          <button onClick={() => openWizard('theater')} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '12px 20px', borderRadius: 'var(--radius-full)', background: 'var(--v2-dark-3)', border: '1px solid var(--glass-border)', color: '#fff', fontWeight: 600, cursor: 'pointer' }}>
-            <Armchair size={18} /> צור ישיבת תיאטרון
-          </button>
-          <button onClick={() => openWizard('tables')} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '12px 20px', borderRadius: 'var(--radius-full)', background: 'var(--v2-dark-3)', border: '1px solid var(--glass-border)', color: '#fff', fontWeight: 600, cursor: 'pointer' }}>
-            <LayoutGrid size={18} /> צור כרטיס שולחנות
-          </button>
-        </div>
+      <div style={{ marginBottom: 20 }}>
+        <h1 style={{ fontSize: 24, fontWeight: 800, margin: '0 0 6px' }}>אירועים</h1>
+        <p style={{ fontSize: 14, color: 'var(--v2-gray-400)', margin: 0, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+          <Megaphone size={16} color="#00C37A" aria-hidden />
+          צור וניהל אירועים, שלח קמפיינים, עקוב אחר מכירות והגעה
+        </p>
       </div>
 
-      {/* Tabs */}
-      <div style={{ display: 'flex', gap: 4, marginBottom: 24 }}>
-        {[
-          { key: 'all', label: 'הכל' },
-          { key: 'drafts', label: 'טיוטות' },
-          { key: 'active', label: 'פעילים' },
-          { key: 'ended', label: 'הסתיים' },
-        ].map(t => (
-          <button
-            key={t.key}
-            onClick={() => setTab(t.key)}
-            style={{
-              padding: '10px 20px',
-              borderRadius: 'var(--radius-full)',
-              background: tab === t.key ? 'var(--v2-primary)' : 'var(--v2-dark-3)',
-              color: tab === t.key ? 'var(--v2-dark)' : 'var(--v2-gray-400)',
-              fontWeight: 600,
-              border: 'none',
-              cursor: 'pointer',
-            }}
-          >
-            {t.label}
-          </button>
-        ))}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          {['הכל', 'טיוטות', 'פעילים', 'הסתיים'].map(tabLabel => (
+            <button
+              key={tabLabel}
+              type="button"
+              onClick={() => setActiveTab(tabLabel)}
+              style={{
+                padding: '10px 16px',
+                borderRadius: 10,
+                border: activeTab === tabLabel ? 'none' : '1px solid var(--glass-border)',
+                background: activeTab === tabLabel ? 'rgba(0,195,122,0.12)' : 'transparent',
+                color: activeTab === tabLabel ? 'var(--v2-primary)' : 'var(--text)',
+                fontWeight: activeTab === tabLabel ? 700 : 400,
+                cursor: 'pointer',
+                fontSize: 14,
+              }}
+            >
+              {tabLabel}
+            </button>
+          ))}
+        </div>
+        <button
+          type="button"
+          onClick={() => openWizard('regular')}
+          style={{
+            padding: '10px 20px',
+            borderRadius: 10,
+            border: 'none',
+            background: '#00C37A',
+            color: '#000',
+            fontWeight: 700,
+            fontSize: 14,
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+          }}
+        >
+          <Plus size={18} /> צור אירוע
+        </button>
       </div>
 
       {/* טיוטות שמורות */}
@@ -1109,8 +1177,8 @@ export default function Events() {
                   <div style={{ fontWeight: 600, marginBottom: 4 }}>{d.title || 'ללא שם'}</div>
                   <div style={{ fontSize: 12, color: 'var(--v2-gray-400)', marginBottom: 8 }}>נשמר: {timeStr}</div>
                   <div style={{ display: 'flex', gap: 8 }}>
-                    <button onClick={() => { setForm(d); setStep(1); setWizardOpen(true); setCloseWizardModalOpen(false) }} style={{ padding: '6px 12px', background: 'var(--v2-primary)', color: 'var(--v2-dark)', border: 'none', borderRadius: 8, cursor: 'pointer', fontSize: 13 }}>✏️ ערוך</button>
-                    <button onClick={() => setDraftDeleteConfirm(d)} style={{ padding: '6px 12px', background: 'var(--v2-dark-2)', border: '1px solid var(--glass-border)', color: 'var(--v2-gray-400)', borderRadius: 8, cursor: 'pointer', fontSize: 13 }}>🗑️ מחק</button>
+                    <button type="button" onClick={() => { setForm(d); setStep(1); setWizardOpen(true); setCloseWizardModalOpen(false) }} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 12px', background: 'var(--v2-primary)', color: 'var(--v2-dark)', border: 'none', borderRadius: 8, cursor: 'pointer', fontSize: 13 }}><Edit size={14} color="var(--v2-dark)" /> ערוך</button>
+                    <button type="button" onClick={() => setDraftDeleteConfirm(d)} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 12px', background: 'var(--v2-dark-2)', border: '1px solid var(--glass-border)', color: 'var(--v2-gray-400)', borderRadius: 8, cursor: 'pointer', fontSize: 13 }}><Trash2 size={14} color="#00C37A" /> מחק</button>
                   </div>
                 </div>
               )
@@ -1131,10 +1199,19 @@ export default function Events() {
             textAlign: 'center',
           }}
         >
-          <Calendar size={48} style={{ color: 'var(--v2-gray-400)', marginBottom: 16 }} />
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, marginBottom: 16 }}>
+            <Calendar size={40} color="#00C37A" />
+            <Music size={32} color="var(--v2-gray-400)" />
+            <Star size={28} color="#00C37A" />
+          </div>
           <div style={{ fontSize: 18, fontWeight: 600, marginBottom: 8 }}>אין אירועים עדיין</div>
-          <div style={{ color: 'var(--v2-gray-400)', marginBottom: 24 }}>צור אירוע ראשון וקבל קישור לשיתוף</div>
+          <div style={{ color: 'var(--v2-gray-400)', marginBottom: 24, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, flexWrap: 'wrap' }}>
+            <Eye size={16} color="#00C37A" />
+            צור אירוע ראשון וקבל קישור לשיתוף
+            <Share2 size={16} color="#00C37A" />
+          </div>
           <button
+            type="button"
             onClick={() => openWizard()}
             style={{
               padding: '12px 24px',
@@ -1144,79 +1221,205 @@ export default function Events() {
               fontWeight: 700,
               border: 'none',
               cursor: 'pointer',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 8,
             }}
           >
+            <Plus size={18} />
             צור אירוע
           </button>
         </div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 20 }}>
-          {filteredEvents.map(ev => (
-            <div
-              key={ev.id}
-              onClick={() => { setDetailEvent(ev); setDetailEventTab('overview') }}
-              style={{
-                background: 'var(--v2-dark-3)',
-                border: '1px solid var(--glass-border)',
-                borderRadius: 'var(--radius-lg)',
-                overflow: 'hidden',
-                transition: 'border-color 0.2s, box-shadow 0.2s',
-                cursor: 'pointer',
-              }}
-              onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--v2-primary)'; e.currentTarget.style.boxShadow = 'var(--shadow-glow-green)' }}
-              onMouseLeave={e => { e.currentTarget.style.borderColor = ''; e.currentTarget.style.boxShadow = '' }}
-            >
-              <div style={{ height: 140, background: 'var(--v2-dark-2)', overflow: 'hidden' }}>
-                {(ev.cover_image_url || ev.image_url) ? (
-                  <img src={ev.cover_image_url || ev.image_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                ) : (
-                  <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--v2-gray-400)' }}>📅</div>
-                )}
-              </div>
-              <div style={{ padding: 16 }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-                  <span style={{ fontWeight: 700, fontSize: 18 }}>{ev.title}</span>
-                  <span style={{ fontSize: 12, padding: '4px 10px', borderRadius: 'var(--radius-full)', background: statusColor(ev.status || 'draft'), color: ev.status === 'published' || ev.status === 'active' ? 'var(--v2-dark)' : '#fff' }}>
-                    {statusLabel(ev.status || 'draft')}
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))',
+          gap: 20,
+        }}
+        >
+          {filteredEvents.map(ev => {
+            const uiStatus = eventCardUiStatus(ev)
+            const dateRaw = ev.doors_open || ev.date || ev.event_end
+            const loc = ev.venue_address || ev.venue_name || ev.location || '—'
+            const ticketsSold = ev.tickets_sold ?? ev.total_sold ?? 0
+            const cap = eventCapacityApprox(ev)
+            const revenue = ev.revenue ?? ev.total_revenue ?? 0
+            return (
+              <div
+                key={ev.id}
+                role="button"
+                tabIndex={0}
+                onClick={() => { setDetailEvent(ev); setDetailEventTab('overview') }}
+                onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setDetailEvent(ev); setDetailEventTab('overview') } }}
+                style={{
+                  background: 'var(--card)',
+                  borderRadius: 16,
+                  overflow: 'hidden',
+                  border: '1px solid var(--glass-border)',
+                  transition: 'transform 0.2s, box-shadow 0.2s',
+                  cursor: 'pointer',
+                }}
+                onMouseEnter={e => {
+                  e.currentTarget.style.transform = 'translateY(-2px)'
+                  e.currentTarget.style.boxShadow = '0 8px 30px rgba(0,0,0,0.2)'
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.transform = 'translateY(0)'
+                  e.currentTarget.style.boxShadow = 'none'
+                }}
+              >
+                <div style={{ position: 'relative', height: 180, overflow: 'hidden' }}>
+                  <img
+                    src={ev.cover_image_url || ev.image_url || 'https://images.unsplash.com/photo-1540039155733?w=600'}
+                    alt={ev.title || ''}
+                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                  />
+                  <div style={{
+                    position: 'absolute',
+                    inset: 0,
+                    background: 'linear-gradient(to bottom, transparent 40%, rgba(0,0,0,0.7))',
+                  }}
+                  />
+                  <span style={{
+                    position: 'absolute',
+                    top: 12,
+                    right: 12,
+                    padding: '4px 10px',
+                    borderRadius: 20,
+                    fontSize: 12,
+                    fontWeight: 700,
+                    background: uiStatus === 'active' ? '#00C37A' : uiStatus === 'draft' ? '#F59E0B' : 'rgba(255,255,255,0.2)',
+                    color: uiStatus === 'active' ? '#000' : '#fff',
+                  }}
+                  >
+                    {uiStatus === 'active' ? 'פעיל' : uiStatus === 'draft' ? 'טיוטה' : 'הסתיים'}
+                  </span>
+                  <span style={{
+                    position: 'absolute',
+                    top: 12,
+                    left: 12,
+                    padding: '4px 10px',
+                    borderRadius: 20,
+                    fontSize: 12,
+                    background: 'rgba(0,0,0,0.5)',
+                    color: '#fff',
+                  }}
+                  >
+                    {ev.event_category || 'אירוע'}
                   </span>
                 </div>
-                {(ev.doors_open || ev.date || ev.event_end) && (
-                  <div style={{ color: 'var(--v2-gray-400)', fontSize: 14, marginBottom: 12 }}>
-                    {new Date(ev.doors_open || ev.date || ev.event_end).toLocaleDateString('he-IL', { dateStyle: 'medium', timeStyle: 'short' })}
+
+                <div style={{ padding: '16px' }}>
+                  <h3 style={{ margin: '0 0 8px', fontSize: 17, fontWeight: 800 }}>{ev.title}</h3>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 14 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--v2-gray-400)' }}>
+                      <Calendar size={14} color="#00C37A" />
+                      <span>{formatEventDate(dateRaw)}</span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--v2-gray-400)' }}>
+                      <MapPin size={14} color="#00C37A" />
+                      <span>{loc}</span>
+                    </div>
                   </div>
-                )}
-                {ev.venue_name && <div style={{ color: 'var(--v2-gray-400)', fontSize: 14, marginBottom: 12 }}>{ev.venue_name}</div>}
-                <div style={{ display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap' }} onClick={e => e.stopPropagation()}>
-                  <button onClick={() => { setEditEventId(ev.id); openWizard() }} style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '6px 12px', background: 'var(--v2-dark-2)', border: '1px solid var(--glass-border)', borderRadius: 8, color: '#fff', cursor: 'pointer', fontSize: 13 }}>
-                    <Edit3 size={14} /> ערוך
-                  </button>
-                  <button onClick={() => handleDuplicate(ev)} style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '6px 12px', background: 'var(--v2-dark-2)', border: '1px solid var(--glass-border)', borderRadius: 8, color: '#fff', cursor: 'pointer', fontSize: 13 }}>
-                    <CopyIcon size={14} /> שכפל
-                  </button>
-                  <button onClick={() => setDeleteConfirm(ev)} style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '6px 12px', background: 'transparent', border: '1px solid #ef4444', borderRadius: 8, color: '#ef4444', cursor: 'pointer', fontSize: 13 }}>
-                    <Trash2 size={14} /> מחק
-                  </button>
-                </div>
-                <div style={{ display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
-                  <button onClick={e => { e.stopPropagation(); setDetailEvent(ev); setDetailEventTab('promoters') }} style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'var(--v2-primary)', fontSize: 13, background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
-                    <Users size={12} /> יחצ"נים
-                  </button>
-                  <button onClick={() => openStaffModal(ev)} style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'var(--v2-primary)', fontSize: 13, background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
-                    <Key size={12} /> עמדות סריקה
-                  </button>
-                  <button onClick={() => setFloorStatusEvent(ev)} style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'var(--v2-primary)', fontSize: 13, background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
-                    <MapPin size={12} /> ניהול ערב
-                  </button>
-                  <a href={`${FRONTEND_URL}/e/${ev.slug}`} target="_blank" rel="noopener noreferrer" style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'var(--v2-primary)', fontSize: 13, textDecoration: 'none' }}>
-                    <ExternalLink size={12} /> פתח דף
-                  </a>
-                  <Link to="/dashboard/reports" style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'var(--v2-gray-400)', fontSize: 13, textDecoration: 'none' }}>
-                    <TrendingUp size={12} /> אנליטיקה
-                  </Link>
+
+                  <div style={{
+                    display: 'flex',
+                    gap: 12,
+                    padding: '10px 0',
+                    borderTop: '1px solid var(--glass-border)',
+                    borderBottom: '1px solid var(--glass-border)',
+                    marginBottom: 14,
+                  }}
+                  >
+                    <div style={{ flex: 1, textAlign: 'center' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
+                        <Ticket size={14} color="#00C37A" />
+                        <span style={{ fontWeight: 700, fontSize: 15 }}>{ticketsSold}</span>
+                      </div>
+                      <p style={{ margin: 0, fontSize: 11, color: 'var(--v2-gray-400)' }}>נמכרו</p>
+                    </div>
+                    <div style={{ flex: 1, textAlign: 'center' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
+                        <Users size={14} color="#00C37A" />
+                        <span style={{ fontWeight: 700, fontSize: 15 }}>{cap}</span>
+                      </div>
+                      <p style={{ margin: 0, fontSize: 11, color: 'var(--v2-gray-400)' }}>כמות</p>
+                    </div>
+                    <div style={{ flex: 1, textAlign: 'center' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
+                        <DollarSign size={14} color="#00C37A" />
+                        <span style={{ fontWeight: 700, fontSize: 15 }}>₪{revenue}</span>
+                      </div>
+                      <p style={{ margin: 0, fontSize: 11, color: 'var(--v2-gray-400)' }}>הכנסה</p>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button
+                      type="button"
+                      onClick={e => { e.stopPropagation(); openEditFromCard(ev) }}
+                      style={{
+                        flex: 1,
+                        height: 36,
+                        borderRadius: 8,
+                        border: '1px solid var(--glass-border)',
+                        background: 'var(--glass)',
+                        color: 'var(--text)',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: 6,
+                        fontSize: 13,
+                      }}
+                    >
+                      <Edit size={14} color="#00C37A" /> ערוך
+                    </button>
+                    <button
+                      type="button"
+                      onClick={e => { e.stopPropagation(); openCampaignFromCard(ev) }}
+                      style={{
+                        flex: 1,
+                        height: 36,
+                        borderRadius: 8,
+                        border: 'none',
+                        background: 'rgba(0,195,122,0.12)',
+                        color: '#00C37A',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: 6,
+                        fontSize: 13,
+                        fontWeight: 600,
+                      }}
+                    >
+                      <Send size={14} /> קמפיין
+                    </button>
+                    <button
+                      type="button"
+                      onClick={e => { e.stopPropagation(); openStatsFromCard(ev) }}
+                      style={{
+                        width: 36,
+                        height: 36,
+                        borderRadius: 8,
+                        border: '1px solid var(--glass-border)',
+                        background: 'var(--glass)',
+                        color: 'var(--text)',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      <BarChart2 size={14} color="#00C37A" />
+                    </button>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
+            )
+          })}
         </div>
       )}
 
@@ -1392,17 +1595,63 @@ export default function Events() {
               <>
                 <div style={{ marginBottom: 16 }}>
                   <label style={{ display: 'block', marginBottom: 6, color: 'var(--v2-gray-400)' }}>תפריטים <Tooltip text="תפריט מקושר לאירוע יוצג ב-Validator של הלקוח" /></label>
-                  <select multiple value={form.linked_menu_ids || []} onChange={e => setForm(f => ({ ...f, linked_menu_ids: [...e.target.selectedOptions].map(o => o.value) }))} style={{ width: '100%', padding: 12, borderRadius: 12, border: '1px solid var(--glass-border)', background: 'var(--v2-dark-3)', color: '#fff', minHeight: 80 }}>
-                    {menus.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
-                  </select>
-                  <button onClick={() => setMenuBuilderOpen(true)} style={{ marginTop: 8, padding: '8px 16px', background: 'var(--v2-dark-3)', border: '1px solid var(--glass-border)', borderRadius: 8, color: '#fff', cursor: 'pointer' }}>צור תפריט חדש</button>
+                  <CustomSelect
+                    value=""
+                    onChange={(val) => { if (val) setForm(f => ({ ...f, linked_menu_ids: [...new Set([...(f.linked_menu_ids || []), String(val)])] })) }}
+                    placeholder="הוסף תפריט לקישור"
+                    style={{ width: '100%', padding: 12, borderRadius: 12, border: '1px solid var(--glass-border)', background: 'var(--v2-dark-3)', color: '#fff' }}
+                    options={(() => {
+                      const avail = menus.filter(m => !(form.linked_menu_ids || []).map(String).includes(String(m.id)))
+                      let placeholderLabel = 'בחר תפריט להוספה'
+                      if (!menus.length) placeholderLabel = 'אין תפריטים — צור תפריט חדש'
+                      else if (!avail.length) placeholderLabel = 'כל התפריטים כבר קשורים'
+                      return [{ value: '', label: placeholderLabel }, ...avail.map(m => ({ value: m.id, label: m.name }))]
+                    })()}
+                  />
+                  {(form.linked_menu_ids || []).length > 0 && (
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 10 }}>
+                      {(form.linked_menu_ids || []).map(id => {
+                        const m = menus.find(x => String(x.id) === String(id))
+                        return (
+                          <span key={id} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 10px', background: 'var(--v2-dark-2)', borderRadius: 8, fontSize: 13, border: '1px solid var(--glass-border)' }}>
+                            {m?.name || id}
+                            <button type="button" onClick={() => setForm(f => ({ ...f, linked_menu_ids: (f.linked_menu_ids || []).filter(x => String(x) !== String(id)) }))} style={{ background: 'none', border: 'none', color: 'var(--v2-gray-400)', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center' }} aria-label="הסר תפריט"><X size={14} /></button>
+                          </span>
+                        )
+                      })}
+                    </div>
+                  )}
+                  <button type="button" onClick={() => setMenuBuilderOpen(true)} style={{ marginTop: 8, padding: '8px 16px', background: 'var(--v2-dark-3)', border: '1px solid var(--glass-border)', borderRadius: 8, color: '#fff', cursor: 'pointer' }}>צור תפריט חדש</button>
                 </div>
                 <div style={{ marginBottom: 24 }}>
                   <label style={{ display: 'block', marginBottom: 6, color: 'var(--v2-gray-400)' }}>סקיצות <Tooltip text="סקיצה שמורה ניתנת לשימוש חוזר באירועים עתידיים" /></label>
-                  <select multiple value={form.linked_layout_ids || []} onChange={e => setForm(f => ({ ...f, linked_layout_ids: [...e.target.selectedOptions].map(o => o.value) }))} style={{ width: '100%', padding: 12, borderRadius: 12, border: '1px solid var(--glass-border)', background: 'var(--v2-dark-3)', color: '#fff', minHeight: 80 }}>
-                    {layouts.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
-                  </select>
-                  <button onClick={() => setLayoutBuilderOpen(true)} style={{ marginTop: 8, padding: '8px 16px', background: 'var(--v2-dark-3)', border: '1px solid var(--glass-border)', borderRadius: 8, color: '#fff', cursor: 'pointer' }}>צור סקיצה חדשה</button>
+                  <CustomSelect
+                    value=""
+                    onChange={(val) => { if (val) setForm(f => ({ ...f, linked_layout_ids: [...new Set([...(f.linked_layout_ids || []), String(val)])] })) }}
+                    placeholder="הוסף סקיצה לקישור"
+                    style={{ width: '100%', padding: 12, borderRadius: 12, border: '1px solid var(--glass-border)', background: 'var(--v2-dark-3)', color: '#fff' }}
+                    options={(() => {
+                      const avail = layouts.filter(l => !(form.linked_layout_ids || []).map(String).includes(String(l.id)))
+                      let placeholderLabel = 'בחר סקיצה להוספה'
+                      if (!layouts.length) placeholderLabel = 'אין סקיצות — צור סקיצה חדשה'
+                      else if (!avail.length) placeholderLabel = 'כל הסקיצות כבר קשורות'
+                      return [{ value: '', label: placeholderLabel }, ...avail.map(l => ({ value: l.id, label: l.name }))]
+                    })()}
+                  />
+                  {(form.linked_layout_ids || []).length > 0 && (
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 10 }}>
+                      {(form.linked_layout_ids || []).map(id => {
+                        const l = layouts.find(x => String(x.id) === String(id))
+                        return (
+                          <span key={id} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 10px', background: 'var(--v2-dark-2)', borderRadius: 8, fontSize: 13, border: '1px solid var(--glass-border)' }}>
+                            {l?.name || id}
+                            <button type="button" onClick={() => setForm(f => ({ ...f, linked_layout_ids: (f.linked_layout_ids || []).filter(x => String(x) !== String(id)) }))} style={{ background: 'none', border: 'none', color: 'var(--v2-gray-400)', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center' }} aria-label="הסר סקיצה"><X size={14} /></button>
+                          </span>
+                        )
+                      })}
+                    </div>
+                  )}
+                  <button type="button" onClick={() => setLayoutBuilderOpen(true)} style={{ marginTop: 8, padding: '8px 16px', background: 'var(--v2-dark-3)', border: '1px solid var(--glass-border)', borderRadius: 8, color: '#fff', cursor: 'pointer' }}>צור סקיצה חדשה</button>
                 </div>
               </>
             )}
@@ -1540,7 +1789,7 @@ export default function Events() {
             <button type="button" onClick={() => setCloseWizardModalOpen(false)} style={MODAL_CLOSE_X} aria-label="סגור">
               <X size={20} />
             </button>
-            <div style={{ fontSize: 36, marginBottom: 12 }}>💾</div>
+            <div style={{ marginBottom: 12, display: 'flex', justifyContent: 'center' }}><Save size={40} color="#00C37A" /></div>
             <h3 style={{ marginBottom: 8 }}>האירוע נשמר כטיוטה</h3>
             <p style={{ color: 'var(--v2-gray-400)', fontSize: 14, marginBottom: 20 }}>תמצא אותו בקטע הטיוטות</p>
             <button onClick={doCloseWizard} style={{ padding: '12px 24px', background: 'var(--v2-primary)', color: 'var(--v2-dark)', border: 'none', borderRadius: 'var(--radius-full)', fontWeight: 700, cursor: 'pointer' }}>סגור</button>
@@ -1586,7 +1835,7 @@ export default function Events() {
             <button type="button" onClick={() => setPublishSuccessEvent(null)} style={MODAL_CLOSE_X} aria-label="סגור">
               <X size={20} />
             </button>
-            <div style={{ fontSize: 48, marginBottom: 16 }}>🎉</div>
+            <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'center' }}><Sparkles size={48} color="#00C37A" /></div>
             <h2 style={{ fontSize: 22, fontWeight: 700, marginBottom: 12 }}>האירוע פורסם!</h2>
             <div style={{ color: 'var(--v2-gray-400)', marginBottom: 16, fontSize: 14 }}>קישור לשיתוף:</div>
             <div style={{ padding: 12, background: 'var(--v2-dark-3)', borderRadius: 8, marginBottom: 16, wordBreak: 'break-all', fontSize: 14 }}>axess.me/e/{publishSuccessEvent.slug}</div>
@@ -1678,7 +1927,7 @@ export default function Events() {
             >
               <X size={20} />
             </button>
-            <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 8 }}>🔑 עמדות סריקה — {staffModalEvent.title}</h2>
+            <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 8, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}><QrCode size={22} color="#00C37A" /> עמדות סריקה — {staffModalEvent.title}</h2>
             <div style={{ color: 'var(--v2-gray-400)', fontSize: 14, marginBottom: 24 }}>צור לינקים לעמדות סריקה בודדות (כניסה ראשית, בר, VIP וכו׳)</div>
 
             {/* Existing tokens */}
