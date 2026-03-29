@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { useRequirePermission } from '@/hooks/useRequirePermission'
+import { useAuth } from '@/contexts/AuthContext'
 import {
   Calendar, MapPin, Users, DollarSign, Ticket,
   Star, Music, Edit, Send, BarChart2, Plus,
@@ -815,7 +816,7 @@ export default function Events() {
   const [editEventId, setEditEventId] = useState(null)
   const [publishSuccessEvent, setPublishSuccessEvent] = useState(null)
   const [deleteConfirm, setDeleteConfirm] = useState(null)
-  const businessId = 'placeholder' // TODO: from AuthContext/profile
+  const { session, businessId } = useAuth()
   const [staffModalEvent, setStaffModalEvent] = useState(null)
   const [promotersModalEvent, setPromotersModalEvent] = useState(null)
   const [detailEvent, setDetailEvent] = useState(null)
