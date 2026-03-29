@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Link } from 'react-router-dom'
 import { useRequirePermission } from '@/hooks/useRequirePermission'
 import { useAuth } from '@/contexts/AuthContext'
@@ -208,6 +208,12 @@ function FloorStatusModal({ event, onClose }) {
 }
 
 function PromotersModal({ event, businessId, onClose, embedded }) {
+  const { session } = useAuth()
+  const authHeaders = useCallback(() => ({
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${session?.access_token}`,
+    'X-Business-Id': businessId
+  }), [session, businessId])
   const [promoters, setPromoters] = useState([])
   const [eventPromoters, setEventPromoters] = useState([])
   const [loading, setLoading] = useState(true)
@@ -230,9 +236,9 @@ function PromotersModal({ event, businessId, onClose, embedded }) {
     Promise.all([
       fetch(`${API_BASE}/api/admin/promoters?business_id=${businessId}`).then(r => r.ok ? r.json() : []),
       fetch(`${API_BASE}/api/admin/events/${event.id}/promoters`).then(r => r.ok ? r.json() : []),
-      fetch(`${API_BASE}/api/admin/events?business_id=${businessId}`).then(r => r.ok ? r.json() : []),
+      fetch(`${API_BASE}/api/admin/events?business_id=${businessId}`, { headers: authHeaders() }).then(r => r.ok ? r.json() : []),
     ]).then(([p, ep, ev]) => { setPromoters(p); setEventPromoters(ep); setEvents(ev); setLoading(false) }).catch(() => setLoading(false))
-  }, [event.id, businessId])
+  }, [event.id, businessId, authHeaders])
 
   const refreshPromoters = () => {
     fetch(`${API_BASE}/api/admin/events/${event.id}/promoters`).then(r => r.ok ? r.json() : []).then(setEventPromoters)
@@ -817,6 +823,11 @@ export default function Events() {
   const [publishSuccessEvent, setPublishSuccessEvent] = useState(null)
   const [deleteConfirm, setDeleteConfirm] = useState(null)
   const { session, businessId } = useAuth()
+  const authHeaders = useCallback(() => ({
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${session?.access_token}`,
+    'X-Business-Id': businessId
+  }), [session, businessId])
   const [staffModalEvent, setStaffModalEvent] = useState(null)
   const [promotersModalEvent, setPromotersModalEvent] = useState(null)
   const [detailEvent, setDetailEvent] = useState(null)
@@ -850,11 +861,11 @@ export default function Events() {
   }
 
   useEffect(() => {
-    fetch(`${API_BASE}/api/admin/events?business_id=${businessId}`)
+    fetch(`${API_BASE}/api/admin/events?business_id=${businessId}`, { headers: authHeaders() })
       .then(r => r.ok ? r.json() : [])
       .then(data => { setEvents(data); setLoading(false) })
       .catch(() => setLoading(false))
-  }, [businessId])
+  }, [businessId, authHeaders])
 
   useEffect(() => {
     if (!businessId) return
@@ -994,7 +1005,7 @@ export default function Events() {
       const body = buildEventPayload()
       const res = await fetch(`${API_BASE}/api/admin/events`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authHeaders(),
         body: JSON.stringify(body),
       })
       const data = await res.json()
