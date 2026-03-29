@@ -1,10 +1,18 @@
-<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <rect width="32" height="32" rx="8" fill="url(#grad)"/>
-  <text x="16" y="22" font-family="Arial Black, sans-serif" font-size="18" font-weight="900" text-anchor="middle" fill="white">A</text>
-  <defs>
-    <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#25D366"/>
-      <stop offset="100%" stop-color="#128C7E"/>
-    </linearGradient>
-  </defs>
+<svg width="40" height="40" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect x="1" y="1" width="34" height="34" rx="6" stroke="#00C37A" stroke-width="1.5" fill="#161E2E" />
+  <rect x="5" y="5" width="10" height="10" rx="2" fill="#00C37A" />
+  <rect x="7" y="7" width="6" height="6" rx="1" fill="#161E2E" />
+  <rect x="9" y="9" width="2" height="2" fill="#00C37A" />
+  <rect x="21" y="5" width="10" height="10" rx="2" fill="#00C37A" />
+  <rect x="23" y="7" width="6" height="6" rx="1" fill="#161E2E" />
+  <rect x="25" y="9" width="2" height="2" fill="#00C37A" />
+  <rect x="5" y="21" width="10" height="10" rx="2" fill="#00C37A" />
+  <rect x="7" y="23" width="6" height="6" rx="1" fill="#161E2E" />
+  <rect x="9" y="25" width="2" height="2" fill="#00C37A" />
+  <rect x="17" y="5" width="2" height="2" fill="#00C37A" />
+  <rect x="17" y="9" width="2" height="2" fill="#00C37A" />
+  <rect x="21" y="17" width="2" height="2" fill="#00C37A" />
+  <rect x="25" y="17" width="2" height="2" fill="#00C37A" />
+  <rect x="17" y="21" width="2" height="2" fill="#00C37A" />
+  <rect x="25" y="25" width="2" height="2" fill="#00C37A" />
 </svg>
