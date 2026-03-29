@@ -487,6 +487,18 @@ export default function DashboardClientLayout() {
     return () => document.removeEventListener('click', onClose)
   }, [notificationsDropdownOpen])
 
+  // אחרי טעינת unread count — שלח ל-SW:
+  useEffect(() => {
+    const total = (inboxUnreadCount || 0) + (notificationsUnreadCount || 0)
+
+    if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+      navigator.serviceWorker.controller.postMessage({
+        type: 'UPDATE_BADGE',
+        count: total,
+      })
+    }
+  }, [inboxUnreadCount, notificationsUnreadCount])
+
   const impersonation = (() => {
     try {
       const s = sessionStorage.getItem('axess_impersonate')
