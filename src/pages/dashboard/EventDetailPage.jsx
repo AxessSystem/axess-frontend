@@ -8,6 +8,7 @@ import {
 import toast from 'react-hot-toast'
 import { useAuth } from '@/contexts/AuthContext'
 import CustomSelect from '@/components/ui/CustomSelect'
+import { exportToExcel, exportEventReport, exportAudienceToExcel } from '@/utils/exportExcel'
 
 const API_BASE = import.meta.env.VITE_API_URL || 'https://api.axess.pro'
 const PUBLIC_WEBVIEW_ORIGIN = 'https://axess.pro'
@@ -59,40 +60,6 @@ function formatDate(dateVal) {
   }
 }
 
-function downloadReport(orders, event) {
-  const esc = (v) => {
-    if (v == null || v === '') return ''
-    const s = String(v)
-    if (/[",\n\r]/.test(s)) return `"${s.replace(/"/g, '""')}"`
-    return s
-  }
-  const headers = ['מספר עסקה', 'שם', 'שם משפחה', 'טלפון', 'ת.לידה', 'מין', 'סוג כרטיס', 'סכום', 'סטטוס', 'דיוור', 'אינסטגרם', 'ת"ז', 'יחצ"ן', 'תאריך']
-  const rows = orders.map((o) => [
-    o.id?.slice(0, 8),
-    o.first_name,
-    o.last_name,
-    o.phone,
-    o.birth_date || '',
-    o.gender || '',
-    o.ticket_type || 'רגיל',
-    o.total_price || o.amount || 0,
-    o.status,
-    o.allow_marketing ? 'כן' : 'לא',
-    o.instagram || '',
-    o.id_number || '',
-    o.promoter_name || '',
-    o.created_at ? new Date(o.created_at).toLocaleDateString('he-IL') : '',
-  ])
-  const csv = [headers, ...rows].map((r) => r.map(esc).join(',')).join('\n')
-  const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = `${event.title}-${new Date().toLocaleDateString('he-IL')}.csv`
-  a.click()
-  URL.revokeObjectURL(url)
-}
-
 function downloadChannelReport(ordersData, channelName) {
   const headers = ['שם', 'שם משפחה', 'נייד', 'מייל', 'סוג כרטיס', 'סכום',
     'מזהה עסקה', 'ת"ז', 'יחצ"ן', 'אינסטגרם', 'ערוץ', 'תאריך']
@@ -124,35 +91,6 @@ function calcExpenseVat(exp) {
     return { total: total + vat, vat, beforeVat: total }
   }
   return { total, vat: 0, beforeVat: total }
-}
-
-function exportExpensesToExcel(expenses, event) {
-  const headers = ['תאריך', 'קטגוריה', 'פריט/ספק', 'כמות', 'מחיר', 'מע"מ', 'סה"כ', 'סוג חשבונית', 'מ\' חשבונית', 'סטטוס', 'הערות']
-  const rows = expenses.map((exp) => {
-    const { total, vat } = calcExpenseVat(exp)
-    return [
-      exp.expense_date ? new Date(exp.expense_date).toLocaleDateString('he-IL') : '',
-      EXPENSE_CATEGORIES.find((c) => c.value === exp.category)?.label || exp.category,
-      exp.vendor_name || exp.item_name || '',
-      exp.quantity || 1,
-      parseFloat(exp.amount || 0),
-      vat,
-      total,
-      INVOICE_TYPES.find((t) => t.value === exp.invoice_type)?.label || '',
-      exp.invoice_number || '',
-      PAYMENT_STATUS[exp.payment_status]?.label || '',
-      exp.notes || '',
-    ]
-  })
-
-  const csv = [headers, ...rows].map((r) => r.join(',')).join('\n')
-  const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = `הוצאות-${event?.title || 'אירוע'}-${event?.date ? new Date(event.date).toLocaleDateString('he-IL') : new Date().toLocaleDateString('he-IL')}.csv`
-  a.click()
-  URL.revokeObjectURL(url)
 }
 
 function FoodCostRow({ barRevenue, tablesRevenue, foodCostPct, foodCostBase, onUpdate }) {
@@ -872,6 +810,56 @@ export default function EventDetailPage() {
 
   const totalRevenue = approved.reduce((sum, o) => sum + (o.total_price || o.amount || 0), 0)
 
+  const calcVatForExport = (amount) => {
+    if (reportSettings.vat_mode === 'exempt') return 0
+    if (reportSettings.vat_mode === 'included') return amount / 1.18 * 0.18
+    if (reportSettings.vat_mode === 'excluded') return amount * 0.18
+    return 0
+  }
+
+  const handleExportFullReport = () => {
+    exportEventReport(event, orders, financials, reportSettings, calcExpenseVat, calcVatForExport)
+  }
+
+  const handleExportAudience = (ordersData) => {
+    exportToExcel([{
+      name: 'קהל האירוע',
+      title: `קהל — ${event?.title}`,
+      headers: ['שם', 'שם משפחה', 'טלפון', 'מייל', 'סוג כרטיס', 'סכום', 'סטטוס', 'יחצ"ן', 'אינסטגרם', 'ת"ז', 'ערוץ', 'תאריך'],
+      rows: ordersData.map((o) => [
+        o.first_name, o.last_name, o.phone, o.email || '',
+        o.ticket_type || 'רגיל', o.total_price || 0,
+        o.status === 'approved' ? 'מאושר' : o.status === 'pending' ? 'ממתין' : 'בוטל',
+        o.promoter_name || '', o.instagram || '', o.id_number || '',
+        o.sales_channel || 'axess',
+        o.created_at ? new Date(o.created_at).toLocaleDateString('he-IL') : '',
+      ]),
+    }], `קהל-${event?.title}`)
+  }
+
+  const handleExportExpenses = () => {
+    exportToExcel([{
+      name: 'הוצאות',
+      title: `הוצאות — ${event?.title}`,
+      headers: ['תאריך', 'קטגוריה', 'פריט/ספק', 'כמות', 'מחיר', 'מע"מ', 'סה"כ', 'מע"מ ₪', 'חשבונית', 'מ\' חשבונית', 'סטטוס', 'הערות'],
+      rows: financials.expenses.map((exp) => {
+        const { total, vat } = calcExpenseVat(exp)
+        return [
+          exp.expense_date ? new Date(exp.expense_date).toLocaleDateString('he-IL') : '',
+          EXPENSE_CATEGORIES.find((c) => c.value === exp.category)?.label || exp.category,
+          exp.vendor_name || exp.item_name || '',
+          exp.quantity || 1, exp.amount || 0,
+          exp.vat_mode === 'included' ? 'כולל' : exp.vat_mode === 'excluded' ? 'לא כולל' : 'פטור',
+          total, vat,
+          INVOICE_TYPES.find((t) => t.value === exp.invoice_type)?.label || '',
+          exp.invoice_number || '',
+          PAYMENT_STATUS[exp.payment_status]?.label || '',
+          exp.notes || '',
+        ]
+      }),
+    }], `הוצאות-${event?.title}`)
+  }
+
   return (
     <div style={{ padding: '0 0 40px' }}>
       <div style={{
@@ -930,7 +918,7 @@ export default function EventDetailPage() {
           </a>
           <button
             type="button"
-            onClick={() => downloadReport(orders, event)}
+            onClick={() => handleExportAudience(orders)}
             style={{
               padding: '8px 14px', borderRadius: 8,
               background: 'var(--glass)', border: '1px solid var(--glass-border)',
@@ -1151,7 +1139,7 @@ export default function EventDetailPage() {
               {ordersTab !== 'interested' && (
                 <button
                   type="button"
-                  onClick={() => downloadReport(filteredOrders, event)}
+                  onClick={() => handleExportAudience(filteredOrders)}
                   style={{
                     marginRight: 'auto', padding: '6px 14px', borderRadius: 8,
                     border: '1px solid var(--glass-border)', background: 'var(--glass)',
@@ -1389,50 +1377,6 @@ export default function EventDetailPage() {
             ...dbExpenses,
             ...(localTemplate !== null ? localTemplate.filter((t) => !dbExpenses.some((e) => e.category === t.category)) : templateRows),
           ]
-
-          const exportPnLReport = () => {
-            const lines = [
-              [`דוח רווח והפסד — ${event?.title}`],
-              [`תאריך: ${event?.date ? new Date(event.date).toLocaleDateString('he-IL') : ''}`],
-              [],
-              ['הכנסות', '', ''],
-              ['מקור', 'סכום', 'נטו'],
-              ['AXESS — מכירות דיגיטל', axessRevenue, Math.round(axessRevenue - calcVat(axessRevenue))],
-              ...financials.revenues.map((r) => [
-                REVENUE_SOURCES.find((s) => s.value === r.source)?.label || r.source,
-                parseFloat(r.amount || 0),
-                Math.round(parseFloat(r.amount || 0) - calcVat(parseFloat(r.amount || 0))),
-              ]),
-              ['סה"כ הכנסות', totalRevenueFull, Math.round(totalRevenueFull - calcVat(totalRevenueFull))],
-              [],
-              ['הוצאות', '', ''],
-              ['קטגוריה', 'פריט', 'סכום', 'מע"מ', 'סה"כ', 'סטטוס'],
-              ...financials.expenses.map((exp) => {
-                const { total, vat } = calcExpenseVat(exp)
-                return [
-                  EXPENSE_CATEGORIES.find((c) => c.value === exp.category)?.label || exp.category,
-                  exp.vendor_name || exp.item_name || '',
-                  parseFloat(exp.amount || 0),
-                  vat,
-                  total,
-                  PAYMENT_STATUS[exp.payment_status]?.label || '',
-                ]
-              }),
-              [`פוד קוסט (${reportSettings.food_cost_pct}%)`, '', foodCostAmount],
-              ['סה"כ הוצאות', '', totalExpensesWithVat],
-              [],
-              [netProfit >= 0 ? 'רווח נקי' : 'הפסד', '', Math.abs(netProfit)],
-            ]
-
-            const csv = lines.map((r) => r.join(',')).join('\n')
-            const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' })
-            const url = URL.createObjectURL(blob)
-            const a = document.createElement('a')
-            a.href = url
-            a.download = `דוח-רווח-הפסד-${event?.title || 'אירוע'}-${new Date().toLocaleDateString('he-IL')}.csv`
-            a.click()
-            URL.revokeObjectURL(url)
-          }
 
           return (
             <div>
@@ -1898,7 +1842,7 @@ export default function EventDetailPage() {
                         <td colSpan={8} style={{ padding: '10px 12px', textAlign: 'left' }}>
                           <button
                             type="button"
-                            onClick={() => exportExpensesToExcel(financials.expenses, event)}
+                            onClick={() => handleExportExpenses()}
                             style={{
                               padding: '6px 14px', borderRadius: 8, border: 'none',
                               background: '#00C37A', color: '#000',
@@ -1926,7 +1870,7 @@ export default function EventDetailPage() {
                   </h3>
                   <button
                     type="button"
-                    onClick={() => exportPnLReport()}
+                    onClick={() => handleExportFullReport()}
                     style={{
                       padding: '8px 16px', borderRadius: 8, border: 'none',
                       background: '#00C37A', color: '#000', fontWeight: 700,
