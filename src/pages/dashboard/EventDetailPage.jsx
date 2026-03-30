@@ -1055,18 +1055,43 @@ export default function EventDetailPage() {
           const totalRevenueFull = totalManualRevenue + axessRevenueFull
           const vatAmountFull = calcVat(totalRevenueFull)
           const revenueNetVatFull = totalRevenueFull - vatAmountFull
-          const totalExpensesFull = financials.expenses.reduce((s, e) => s + parseFloat(e.amount || 0) * parseInt(e.quantity || 1, 10), 0)
           const barRevenue = financials.revenues.find((r) => r.source === 'bar')?.amount || 0
           const tablesRevenue = financials.revenues.find((r) => r.source === 'tables')?.amount || 0
           const foodCostAmount = Math.round(
             (reportSettings.food_cost_base ?? (parseFloat(barRevenue) + parseFloat(tablesRevenue)))
             * ((reportSettings.food_cost_pct || 20) / 100),
           )
-          const totalExpensesWithFoodCost = totalExpensesFull + foodCostAmount
-          const netProfitFull = revenueNetVatFull - totalExpensesWithFoodCost
+
+          const calcExpenseVat = (exp) => {
+            const total = parseFloat(exp.amount || 0) * parseInt(exp.quantity || 1, 10)
+            if (exp.vat_mode === 'included') {
+              const vat = Math.round((total / 1.18) * 0.18)
+              return { total, vat, beforeVat: total - vat }
+            }
+            if (exp.vat_mode === 'excluded') {
+              const vat = Math.round(total * 0.18)
+              return { total: total + vat, vat, beforeVat: total }
+            }
+            return { total, vat: 0, beforeVat: total }
+          }
+
+          const expenseSummary = financials.expenses.reduce((acc, exp) => {
+            const { total, vat, beforeVat } = calcExpenseVat(exp)
+            return {
+              totalWithVat: acc.totalWithVat + total,
+              totalVat: acc.totalVat + vat,
+              totalBeforeVat: acc.totalBeforeVat + beforeVat,
+            }
+          }, { totalWithVat: 0, totalVat: 0, totalBeforeVat: 0 })
+
+          const totalExpensesWithVat = Math.round(expenseSummary.totalWithVat + foodCostAmount)
+          const totalExpensesVat = Math.round(expenseSummary.totalVat)
+          const totalExpensesBeforeVat = Math.round(expenseSummary.totalBeforeVat + foodCostAmount)
+
+          const netProfit = Math.round(revenueNetVatFull - totalExpensesBeforeVat)
           const ordersNonCancelled = orders.filter((o) => o.status !== 'cancelled')
           const avgTicketPriceFull = ordersNonCancelled.length > 0 ? axessRevenueFull / ordersNonCancelled.length : 0
-          const breakEvenFull = avgTicketPriceFull > 0 ? Math.ceil(totalExpensesWithFoodCost / avgTicketPriceFull) : 0
+          const breakEvenFull = avgTicketPriceFull > 0 ? Math.ceil(totalExpensesWithVat / avgTicketPriceFull) : 0
           const peakCrowd = financials.crowd_stats.reduce((max, s) => Math.max(max, s.simultaneous || 0), 0)
           const dbExpenses = financials.expenses
           const templateRows = EXPENSE_CATEGORIES
@@ -1126,8 +1151,8 @@ export default function EventDetailPage() {
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12, marginBottom: 24 }}>
                 {[
                   { label: 'סה"כ מחזור', value: `₪${totalRevenueFull.toLocaleString()}`, color: '#00C37A', sub: `נטו מע"מ: ₪${Math.round(revenueNetVatFull).toLocaleString()}` },
-                  { label: 'סה"כ הוצאות', value: `₪${Math.round(totalExpensesWithFoodCost).toLocaleString()}`, color: '#EF4444', sub: `${financials.expenses.length} פריטים` },
-                  { label: 'רווח נקי', value: `₪${Math.round(netProfitFull).toLocaleString()}`, color: netProfitFull >= 0 ? '#00C37A' : '#EF4444', sub: netProfitFull >= 0 ? '✅ רווחי' : '❌ הפסד' },
+                  { label: 'סה"כ הוצאות', value: `₪${totalExpensesWithVat.toLocaleString()}`, color: '#EF4444', sub: `${financials.expenses.length} פריטים` },
+                  { label: 'רווח נקי', value: `₪${netProfit.toLocaleString()}`, color: netProfit >= 0 ? '#00C37A' : '#EF4444', sub: netProfit >= 0 ? '✅ רווחי' : '❌ הפסד' },
                   { label: 'Break Even', value: `${breakEvenFull} כרטיסים`, color: '#8B5CF6', sub: `נמכרו ${ordersNonCancelled.length}` },
                 ].map((kpi) => (
                   <div key={kpi.label} style={{ background: 'var(--card)', borderRadius: 12, padding: 16, border: '1px solid var(--glass-border)' }}>
@@ -1419,10 +1444,14 @@ export default function EventDetailPage() {
                         onUpdate={(pct, base) => setReportSettings((s) => ({ ...s, food_cost_pct: pct, food_cost_base: base }))}
                       />
                       <tr style={{ borderTop: '2px solid var(--glass-border)', background: 'var(--glass)' }}>
-                        <td colSpan={6} style={{ padding: '10px', fontWeight: 800, fontSize: 14 }}>סה"כ הוצאות</td>
-                        <td style={{ padding: '10px', fontWeight: 800, fontSize: 14, color: '#EF4444' }}>
-                          ₪
-                          {Math.round(totalExpensesWithFoodCost || totalExpensesFull).toLocaleString()}
+                        <td colSpan={6} style={{ padding: '10px 12px', fontWeight: 800, fontSize: 14 }}>
+                          סה"כ הוצאות
+                        </td>
+                        <td style={{ padding: '10px 12px', fontWeight: 800, fontSize: 14, color: '#EF4444' }}>
+                          ₪{totalExpensesWithVat.toLocaleString()}
+                          <span style={{ fontSize: 11, color: 'var(--v2-gray-400)', fontWeight: 400, display: 'block' }}>
+                            מע"מ: ₪{totalExpensesVat.toLocaleString()}
+                          </span>
                         </td>
                         <td colSpan={5} />
                       </tr>
