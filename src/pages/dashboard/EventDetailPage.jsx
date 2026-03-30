@@ -707,7 +707,7 @@ export default function EventDetailPage() {
           { icon: <CheckCircle size={20} />, value: approved.length, label: 'מאושרים', color: '#00C37A', onNav: () => { setActiveTab('audience'); setOrdersTab('approved') } },
           { icon: <Clock size={20} />, value: pending.length, label: 'ממתינים', color: '#F59E0B', onNav: () => { setActiveTab('audience'); setOrdersTab('pending') } },
           { icon: <XCircle size={20} />, value: cancelled.length, label: 'מבוטלים', color: '#EF4444', onNav: () => { setActiveTab('audience'); setOrdersTab('cancelled') } },
-          { icon: <DollarSign size={20} />, value: `₪${totalRevenue.toLocaleString()}`, label: 'הכנסה', color: '#3B82F6', onNav: () => { setActiveTab('finance') } },
+          { icon: <DollarSign size={20} />, value: `₪${totalRevenue.toLocaleString()}`, label: 'הכנסה', color: '#3B82F6', onNav: () => { setActiveTab('financials') } },
           { icon: <Users size={20} />, value: orders.length, label: 'סה"כ רשומים', color: '#8B5CF6', onNav: () => { setActiveTab('audience'); setOrdersTab('all') } },
           { icon: <QrCode size={20} />, value: checkedIn.length, label: 'צ\'ק אין', color: '#00C37A', onNav: () => { setActiveTab('audience'); setOrdersTab('checkin') } },
           { icon: <Eye size={20} />, value: event.views_count || 0, label: 'צפיות', color: '#06B6D4' },
@@ -736,7 +736,6 @@ export default function EventDetailPage() {
         {[
           { id: 'overview', label: 'סקירה' },
           { id: 'audience', label: 'קהל' },
-          { id: 'finance', label: 'כספים' },
           { id: 'financials', label: 'כספים מלא' },
           { id: 'campaigns', label: 'קמפיינים' },
           { id: 'channels', label: 'ערוצי מכירה' },
@@ -1041,42 +1040,6 @@ export default function EventDetailPage() {
               </table>
             </div>
             )}
-          </div>
-        )}
-
-        {activeTab === 'finance' && (
-          <div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 12, marginBottom: 20 }}>
-              {[
-                { label: 'הכנסה כוללת', value: `₪${totalRevenue.toLocaleString()}`, color: '#00C37A' },
-                { label: 'ממוצע לכרטיס', value: `₪${approved.length > 0 ? Math.round(totalRevenue / approved.length) : 0}`, color: '#3B82F6' },
-                { label: 'סה"כ עסקאות', value: approved.length, color: '#8B5CF6' },
-              ].map((stat) => (
-                <div
-                  key={stat.label}
-                  style={{
-                    background: 'var(--card)', borderRadius: 12, padding: 20,
-                    border: '1px solid var(--glass-border)', textAlign: 'center',
-                  }}
-                >
-                  <div style={{ fontSize: 24, fontWeight: 800, color: stat.color }}>{stat.value}</div>
-                  <div style={{ fontSize: 13, color: 'var(--v2-gray-400)', marginTop: 4 }}>{stat.label}</div>
-                </div>
-              ))}
-            </div>
-            <button
-              type="button"
-              onClick={() => downloadReport(approved, event)}
-              style={{
-                padding: '10px 20px', borderRadius: 8, border: 'none',
-                background: '#00C37A', color: '#000',
-                fontWeight: 700, cursor: 'pointer', fontSize: 14,
-                display: 'flex', alignItems: 'center', gap: 8,
-              }}
-            >
-              <Download size={16} />
-              הורד דוח Excel מלא
-            </button>
           </div>
         )}
 
