@@ -12,6 +12,31 @@ import CustomSelect from '@/components/ui/CustomSelect'
 const API_BASE = import.meta.env.VITE_API_URL || 'https://api.axess.pro'
 const PUBLIC_WEBVIEW_ORIGIN = 'https://axess.pro'
 
+const EXPENSE_CATEGORIES = [
+  { value: 'staff', label: 'כוח אדם' },
+  { value: 'lineup', label: 'ליינאפ' },
+  { value: 'marketing', label: 'שיווק' },
+  { value: 'operations', label: 'תפעול' },
+  { value: 'fixed', label: 'עלויות קבועות' },
+  { value: 'other', label: 'שונות' },
+]
+
+const REVENUE_SOURCES = [
+  { value: 'cash_entry', label: 'כניסות מזומן' },
+  { value: 'credit_entry', label: 'כניסות אשראי' },
+  { value: 'bar', label: 'בר' },
+  { value: 'tables', label: 'שולחנות' },
+  { value: 'storage', label: 'שמירת חפצים' },
+  { value: 'other', label: 'אחר' },
+]
+
+const PAYMENT_STATUS = {
+  paid: { label: 'שולם', color: '#00C37A' },
+  pending: { label: 'לא שולם', color: '#F59E0B' },
+  partial: { label: 'חלקי', color: '#3B82F6' },
+  dispute: { label: 'מחלוקת', color: '#EF4444' },
+}
+
 function formatDate(dateVal) {
   if (!dateVal) return '—'
   try {
@@ -99,6 +124,16 @@ export default function EventDetailPage() {
   const [manualChannelRevenue, setManualChannelRevenue] = useState('')
   const [selectedChannel, setSelectedChannel] = useState('all')
   const [channelOrders, setChannelOrders] = useState([])
+  const [financials, setFinancials] = useState({ expenses: [], revenues: [], crowd_stats: [], axess_revenue: null })
+  const [vendors, setVendors] = useState([])
+  const [showAddExpense, setShowAddExpense] = useState(false)
+  const [showAddRevenue, setShowAddRevenue] = useState(false)
+  const [showAddCrowd, setShowAddCrowd] = useState(false)
+  const [expenseForm, setExpenseForm] = useState({
+    category: 'staff', item_name: '', amount: '', quantity: 1, payment_status: 'pending', vendor_id: '', invoice_number: '',
+  })
+  const [revenueForm, setRevenueForm] = useState({ source: 'cash_entry', label: '', amount: '' })
+  const [crowdForm, setCrowdForm] = useState({ entries: '', exits: '', simultaneous: '', is_peak: false })
 
   const authHeaders = useCallback(() => ({
     'Content-Type': 'application/json',
@@ -116,13 +151,24 @@ export default function EventDetailPage() {
       fetch(`${API_BASE}/api/webview/settings`, { headers: hdrs }).then((r) => (r.ok ? r.json() : {})),
       fetch(`${API_BASE}/api/admin/events/${id}/interests`, { headers: hdrs }).then((r) => (r.ok ? r.json() : { interests: [] })),
       fetch(`${API_BASE}/api/admin/events/${id}/channels`, { headers: hdrs }).then((r) => (r.ok ? r.json() : { channels: [] })),
-    ]).then(([ev, ord, waData, webSettings, intData, chData]) => {
+      fetch(`${API_BASE}/api/admin/events/${id}/financials`, { headers: hdrs }).then((r) => (r.ok ? r.json() : {
+        expenses: [], revenues: [], crowd_stats: [], axess_revenue: null,
+      })),
+      fetch(`${API_BASE}/api/admin/vendors`, { headers: hdrs }).then((r) => (r.ok ? r.json() : { vendors: [] })),
+    ]).then(([ev, ord, waData, webSettings, intData, chData, finData, vendData]) => {
       setEvent(ev && !ev.error ? ev : null)
       setOrders(Array.isArray(ord) ? ord : ord.orders || [])
       setWebviewAnalyticsRows(waData?.stats || [])
       setWebviewBusinessSlug(webSettings?.business?.slug || '')
       setInterests(intData?.interests || [])
       setChannels(Array.isArray(chData?.channels) ? chData.channels : [])
+      setFinancials({
+        expenses: Array.isArray(finData?.expenses) ? finData.expenses : [],
+        revenues: Array.isArray(finData?.revenues) ? finData.revenues : [],
+        crowd_stats: Array.isArray(finData?.crowd_stats) ? finData.crowd_stats : [],
+        axess_revenue: finData?.axess_revenue ?? null,
+      })
+      setVendors(Array.isArray(vendData?.vendors) ? vendData.vendors : [])
     })
   }, [id, businessId, authHeaders])
 
@@ -316,6 +362,7 @@ export default function EventDetailPage() {
           { id: 'overview', label: 'סקירה' },
           { id: 'audience', label: 'קהל' },
           { id: 'finance', label: 'כספים' },
+          { id: 'financials', label: 'כספים מלא' },
           { id: 'campaigns', label: 'קמפיינים' },
           { id: 'channels', label: 'ערוצי מכירה' },
           { id: 'webview', label: 'Webview' },
@@ -657,6 +704,452 @@ export default function EventDetailPage() {
             </button>
           </div>
         )}
+
+        {activeTab === 'financials' && (() => {
+          const totalManualRevenue = financials.revenues.reduce((s, r) => s + parseFloat(r.amount || 0), 0)
+          const axessRevenueFull = parseFloat(financials.axess_revenue?.total_digital || 0)
+          const totalRevenueFull = totalManualRevenue + axessRevenueFull
+          const vatAmountFull = totalRevenueFull / 1.18 * 0.18
+          const revenueNetVatFull = totalRevenueFull - vatAmountFull
+          const totalExpensesFull = financials.expenses.reduce((s, e) => s + parseFloat(e.amount || 0) * parseInt(e.quantity || 1, 10), 0)
+          const netProfitFull = revenueNetVatFull - totalExpensesFull
+          const ordersNonCancelled = orders.filter((o) => o.status !== 'cancelled')
+          const avgTicketPriceFull = ordersNonCancelled.length > 0 ? axessRevenueFull / ordersNonCancelled.length : 0
+          const breakEvenFull = avgTicketPriceFull > 0 ? Math.ceil(totalExpensesFull / avgTicketPriceFull) : 0
+          const peakCrowd = financials.crowd_stats.reduce((max, s) => Math.max(max, s.simultaneous || 0), 0)
+          return (
+            <div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12, marginBottom: 24 }}>
+                {[
+                  { label: 'סה"כ מחזור', value: `₪${totalRevenueFull.toLocaleString()}`, color: '#00C37A', sub: `נטו מע"מ: ₪${Math.round(revenueNetVatFull).toLocaleString()}` },
+                  { label: 'סה"כ הוצאות', value: `₪${Math.round(totalExpensesFull).toLocaleString()}`, color: '#EF4444', sub: `${financials.expenses.length} פריטים` },
+                  { label: 'רווח נקי', value: `₪${Math.round(netProfitFull).toLocaleString()}`, color: netProfitFull >= 0 ? '#00C37A' : '#EF4444', sub: netProfitFull >= 0 ? '✅ רווחי' : '❌ הפסד' },
+                  { label: 'Break Even', value: `${breakEvenFull} כרטיסים`, color: '#8B5CF6', sub: `נמכרו ${ordersNonCancelled.length}` },
+                ].map((kpi) => (
+                  <div key={kpi.label} style={{ background: 'var(--card)', borderRadius: 12, padding: 16, border: '1px solid var(--glass-border)' }}>
+                    <div style={{ fontSize: 20, fontWeight: 800, color: kpi.color }}>{kpi.value}</div>
+                    <div style={{ fontSize: 12, color: 'var(--v2-gray-400)', margin: '4px 0 2px' }}>{kpi.label}</div>
+                    <div style={{ fontSize: 11, color: 'var(--v2-gray-400)' }}>{kpi.sub}</div>
+                  </div>
+                ))}
+              </div>
+
+              <div style={{ background: 'var(--card)', borderRadius: 12, padding: 16, border: '1px solid var(--glass-border)', marginBottom: 16 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                  <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700 }}>הכנסות</h3>
+                  <button
+                    type="button"
+                    onClick={() => setShowAddRevenue(true)}
+                    style={{
+                      padding: '6px 12px', borderRadius: 8, border: 'none',
+                      background: '#00C37A', color: '#000', fontSize: 13, fontWeight: 600, cursor: 'pointer',
+                    }}
+                  >
+                    + הוסף הכנסה
+                  </button>
+                </div>
+
+                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid var(--glass-border)' }}>
+                  <span style={{ fontSize: 14, display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span style={{ color: '#00C37A', fontSize: 10, background: 'rgba(0,195,122,0.1)', padding: '2px 6px', borderRadius: 8 }}>אוטומטי</span>
+                    AXESS — מכירות דיגיטל
+                  </span>
+                  <span style={{ fontWeight: 700 }}>
+                    ₪
+                    {axessRevenueFull.toLocaleString()}
+                  </span>
+                </div>
+
+                {financials.revenues.map((rev) => (
+                  <div key={rev.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid var(--glass-border)' }}>
+                    <span style={{ fontSize: 14 }}>{rev.label}</span>
+                    <span style={{ fontWeight: 700 }}>
+                      ₪
+                      {parseFloat(rev.amount).toLocaleString()}
+                    </span>
+                  </div>
+                ))}
+
+                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0 0', fontWeight: 800, fontSize: 15 }}>
+                  <span>סה"כ מחזור</span>
+                  <span style={{ color: '#00C37A' }}>
+                    ₪
+                    {totalRevenueFull.toLocaleString()}
+                  </span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: 'var(--v2-gray-400)' }}>
+                  <span>מע"מ (18%)</span>
+                  <span>
+                    ₪
+                    {Math.round(vatAmountFull).toLocaleString()}
+                  </span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, fontWeight: 700, color: '#3B82F6' }}>
+                  <span>נטו לאחר מע"מ</span>
+                  <span>
+                    ₪
+                    {Math.round(revenueNetVatFull).toLocaleString()}
+                  </span>
+                </div>
+              </div>
+
+              <div style={{ background: 'var(--card)', borderRadius: 12, padding: 16, border: '1px solid var(--glass-border)', marginBottom: 16 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                  <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700 }}>הוצאות</h3>
+                  <button
+                    type="button"
+                    onClick={() => setShowAddExpense(true)}
+                    style={{
+                      padding: '6px 12px', borderRadius: 8,
+                      background: 'var(--glass)', border: '1px solid var(--glass-border)',
+                      color: 'var(--text)', fontSize: 13, cursor: 'pointer',
+                    }}
+                  >
+                    + הוסף הוצאה
+                  </button>
+                </div>
+
+                {EXPENSE_CATEGORIES.map((cat) => {
+                  const catExpenses = financials.expenses.filter((e) => e.category === cat.value)
+                  if (catExpenses.length === 0) return null
+                  const catTotal = catExpenses.reduce((s, e) => s + parseFloat(e.amount || 0) * parseInt(e.quantity || 1, 10), 0)
+                  return (
+                    <div key={cat.value} style={{ marginBottom: 12 }}>
+                      <div style={{
+                        display: 'flex', justifyContent: 'space-between', fontSize: 12, color: 'var(--v2-gray-400)', fontWeight: 700, marginBottom: 6, paddingBottom: 4, borderBottom: '1px solid var(--glass-border)',
+                      }}
+                      >
+                        <span>{cat.label}</span>
+                        <span>
+                          ₪
+                          {catTotal.toLocaleString()}
+                        </span>
+                      </div>
+                      {catExpenses.map((exp) => (
+                        <div key={exp.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 0' }}>
+                          <span style={{ flex: 1, fontSize: 13 }}>
+                            {exp.vendor_name || exp.item_name}
+                            {exp.quantity > 1 && (
+                              <span style={{ color: 'var(--v2-gray-400)', fontSize: 11 }}>
+                                {' '}
+                                ×
+                                {exp.quantity}
+                              </span>
+                            )}
+                          </span>
+                          <span style={{ fontSize: 13, fontWeight: 600 }}>
+                            ₪
+                            {(parseFloat(exp.amount || 0) * parseInt(exp.quantity || 1, 10)).toLocaleString()}
+                          </span>
+                          <span
+                            role="button"
+                            tabIndex={0}
+                            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') e.currentTarget.click() }}
+                            style={{
+                              padding: '2px 8px', borderRadius: 8, fontSize: 11, fontWeight: 600,
+                              background: `${PAYMENT_STATUS[exp.payment_status]?.color || '#999'}22`,
+                              color: PAYMENT_STATUS[exp.payment_status]?.color,
+                              cursor: 'pointer',
+                            }}
+                            onClick={async () => {
+                              const next = exp.payment_status === 'pending' ? 'paid' : 'pending'
+                              const r = await fetch(`${API_BASE}/api/admin/events/${id}/expenses/${exp.id}`, {
+                                method: 'PATCH', headers: authHeaders(),
+                                body: JSON.stringify({ payment_status: next }),
+                              })
+                              if (!r.ok) toast.error('עדכון נכשל')
+                              else await loadData()
+                            }}
+                          >
+                            {PAYMENT_STATUS[exp.payment_status]?.label}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )
+                })}
+
+                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0 0', fontWeight: 800, fontSize: 15, borderTop: '1px solid var(--glass-border)' }}>
+                  <span>סה"כ הוצאות</span>
+                  <span style={{ color: '#EF4444' }}>
+                    ₪
+                    {Math.round(totalExpensesFull).toLocaleString()}
+                  </span>
+                </div>
+              </div>
+
+              <div style={{ background: 'var(--card)', borderRadius: 12, padding: 16, border: '1px solid var(--glass-border)', marginBottom: 16 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                  <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700 }}>תנועת קהל</h3>
+                  <button
+                    type="button"
+                    onClick={() => setShowAddCrowd(true)}
+                    style={{
+                      padding: '6px 12px', borderRadius: 8, border: '1px solid var(--glass-border)',
+                      background: 'var(--glass)', color: 'var(--text)', fontSize: 13, cursor: 'pointer',
+                    }}
+                  >
+                    + עדכן נתונים
+                  </button>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 12 }}>
+                  {[
+                    { label: 'כניסות', value: financials.crowd_stats.reduce((s, c) => Math.max(s, c.entries || 0), 0) },
+                    { label: 'יציאות', value: financials.crowd_stats.reduce((s, c) => Math.max(s, c.exits || 0), 0) },
+                    { label: 'שיא בו-זמניות', value: peakCrowd },
+                  ].map((stat) => (
+                    <div key={stat.label} style={{ textAlign: 'center', padding: 12, background: 'var(--glass)', borderRadius: 8 }}>
+                      <div style={{ fontSize: 20, fontWeight: 800 }}>{stat.value}</div>
+                      <div style={{ fontSize: 12, color: 'var(--v2-gray-400)' }}>{stat.label}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {showAddExpense && (
+                <div style={{
+                  position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16,
+                }}
+                >
+                  <div style={{
+                    background: 'var(--card, #1a1d2e)', borderRadius: 12, padding: 24, maxWidth: 440, width: '100%', position: 'relative', border: '1px solid var(--glass-border)',
+                  }}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => setShowAddExpense(false)}
+                      style={{ position: 'absolute', top: 12, left: 12, background: 'none', border: 'none', cursor: 'pointer', color: 'var(--v2-gray-400)' }}
+                    >
+                      <X size={20} />
+                    </button>
+                    <h3 style={{ margin: '0 0 20px', fontSize: 16, fontWeight: 700 }}>הוסף הוצאה</h3>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                      <CustomSelect
+                        value={expenseForm.category}
+                        onChange={(v) => setExpenseForm((f) => ({ ...f, category: v }))}
+                        options={EXPENSE_CATEGORIES}
+                      />
+                      <CustomSelect
+                        value={expenseForm.vendor_id || ''}
+                        onChange={(v) => {
+                          const vendor = vendors.find((vd) => String(vd.id) === String(v))
+                          setExpenseForm((f) => ({
+                            ...f,
+                            vendor_id: v,
+                            item_name: vendor?.name || f.item_name,
+                            amount: vendor?.default_price != null ? String(vendor.default_price) : f.amount,
+                          }))
+                        }}
+                        placeholder="בחר ספק קיים (אופציונלי)"
+                        options={[
+                          { value: '', label: '— ספק חדש —' },
+                          ...vendors.map((v) => ({ value: String(v.id), label: `${v.name} (₪${v.default_price})` })),
+                        ]}
+                      />
+                      <input
+                        value={expenseForm.item_name}
+                        onChange={(e) => setExpenseForm((f) => ({ ...f, item_name: e.target.value }))}
+                        placeholder="שם הפריט / ספק"
+                        style={{ height: 40, borderRadius: 8, border: '1px solid var(--glass-border)', background: 'var(--glass)', color: 'var(--text)', padding: '0 12px', fontSize: 14 }}
+                      />
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        <input
+                          value={expenseForm.amount}
+                          onChange={(e) => setExpenseForm((f) => ({ ...f, amount: e.target.value }))}
+                          placeholder="סכום ₪"
+                          type="number"
+                          style={{ flex: 2, height: 40, borderRadius: 8, border: '1px solid var(--glass-border)', background: 'var(--glass)', color: 'var(--text)', padding: '0 12px', fontSize: 14 }}
+                        />
+                        <input
+                          value={expenseForm.quantity}
+                          onChange={(e) => setExpenseForm((f) => ({ ...f, quantity: e.target.value }))}
+                          placeholder="כמות"
+                          type="number"
+                          min="1"
+                          style={{ flex: 1, height: 40, borderRadius: 8, border: '1px solid var(--glass-border)', background: 'var(--glass)', color: 'var(--text)', padding: '0 12px', fontSize: 14 }}
+                        />
+                      </div>
+                      <CustomSelect
+                        value={expenseForm.payment_status}
+                        onChange={(v) => setExpenseForm((f) => ({ ...f, payment_status: v }))}
+                        options={Object.entries(PAYMENT_STATUS).map(([val, { label }]) => ({ value: val, label }))}
+                      />
+                      <input
+                        value={expenseForm.invoice_number || ''}
+                        onChange={(e) => setExpenseForm((f) => ({ ...f, invoice_number: e.target.value }))}
+                        placeholder="מספר חשבונית (אופציונלי)"
+                        style={{ height: 40, borderRadius: 8, border: '1px solid var(--glass-border)', background: 'var(--glass)', color: 'var(--text)', padding: '0 12px', fontSize: 14 }}
+                      />
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          const r = await fetch(`${API_BASE}/api/admin/events/${id}/expenses`, {
+                            method: 'POST', headers: authHeaders(),
+                            body: JSON.stringify({
+                              category: expenseForm.category,
+                              item_name: expenseForm.item_name,
+                              amount: parseFloat(expenseForm.amount) || 0,
+                              quantity: parseInt(expenseForm.quantity, 10) || 1,
+                              vendor_id: expenseForm.vendor_id || null,
+                              payment_status: expenseForm.payment_status,
+                              invoice_number: expenseForm.invoice_number || null,
+                            }),
+                          })
+                          if (!r.ok) {
+                            toast.error('שמירה נכשלה')
+                            return
+                          }
+                          setShowAddExpense(false)
+                          setExpenseForm({ category: 'staff', item_name: '', amount: '', quantity: 1, payment_status: 'pending', vendor_id: '', invoice_number: '' })
+                          await loadData()
+                          toast.success('הוצאה נוספה!')
+                        }}
+                        style={{ height: 44, borderRadius: 8, border: 'none', background: '#00C37A', color: '#000', fontWeight: 700, fontSize: 15, cursor: 'pointer' }}
+                      >
+                        שמור הוצאה
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {showAddRevenue && (
+                <div style={{
+                  position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16,
+                }}
+                >
+                  <div style={{
+                    background: 'var(--card, #1a1d2e)', borderRadius: 12, padding: 24, maxWidth: 400, width: '100%', position: 'relative', border: '1px solid var(--glass-border)',
+                  }}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => setShowAddRevenue(false)}
+                      style={{ position: 'absolute', top: 12, left: 12, background: 'none', border: 'none', cursor: 'pointer', color: 'var(--v2-gray-400)' }}
+                    >
+                      <X size={20} />
+                    </button>
+                    <h3 style={{ margin: '0 0 20px', fontSize: 16, fontWeight: 700 }}>הוסף הכנסה</h3>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                      <CustomSelect
+                        value={revenueForm.source}
+                        onChange={(v) => setRevenueForm((f) => ({
+                          ...f, source: v, label: REVENUE_SOURCES.find((r) => r.value === v)?.label || v,
+                        }))}
+                        options={REVENUE_SOURCES}
+                      />
+                      <input
+                        value={revenueForm.label}
+                        onChange={(e) => setRevenueForm((f) => ({ ...f, label: e.target.value }))}
+                        placeholder="תיאור (אופציונלי)"
+                        style={{ height: 40, borderRadius: 8, border: '1px solid var(--glass-border)', background: 'var(--glass)', color: 'var(--text)', padding: '0 12px', fontSize: 14 }}
+                      />
+                      <input
+                        value={revenueForm.amount}
+                        onChange={(e) => setRevenueForm((f) => ({ ...f, amount: e.target.value }))}
+                        placeholder="סכום ₪"
+                        type="number"
+                        style={{ height: 40, borderRadius: 8, border: '1px solid var(--glass-border)', background: 'var(--glass)', color: 'var(--text)', padding: '0 12px', fontSize: 14 }}
+                      />
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          const r = await fetch(`${API_BASE}/api/admin/events/${id}/revenues`, {
+                            method: 'POST', headers: authHeaders(),
+                            body: JSON.stringify({
+                              source: revenueForm.source,
+                              label: revenueForm.label,
+                              amount: parseFloat(revenueForm.amount) || 0,
+                            }),
+                          })
+                          if (!r.ok) {
+                            toast.error('שמירה נכשלה')
+                            return
+                          }
+                          setShowAddRevenue(false)
+                          setRevenueForm({ source: 'cash_entry', label: '', amount: '' })
+                          await loadData()
+                          toast.success('הכנסה נוספה!')
+                        }}
+                        style={{ height: 44, borderRadius: 8, border: 'none', background: '#00C37A', color: '#000', fontWeight: 700, fontSize: 15, cursor: 'pointer' }}
+                      >
+                        שמור הכנסה
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {showAddCrowd && (
+                <div style={{
+                  position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16,
+                }}
+                >
+                  <div style={{
+                    background: 'var(--card, #1a1d2e)', borderRadius: 12, padding: 24, maxWidth: 400, width: '100%', position: 'relative', border: '1px solid var(--glass-border)',
+                  }}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => setShowAddCrowd(false)}
+                      style={{ position: 'absolute', top: 12, left: 12, background: 'none', border: 'none', cursor: 'pointer', color: 'var(--v2-gray-400)' }}
+                    >
+                      <X size={20} />
+                    </button>
+                    <h3 style={{ margin: '0 0 20px', fontSize: 16, fontWeight: 700 }}>עדכן תנועת קהל</h3>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                      {[
+                        { field: 'entries', label: 'כניסות מצטברות' },
+                        { field: 'exits', label: 'יציאות מצטברות' },
+                        { field: 'simultaneous', label: 'בו-זמניות כרגע' },
+                      ].map((f) => (
+                        <div key={f.field}>
+                          <label style={{ fontSize: 12, color: 'var(--v2-gray-400)', display: 'block', marginBottom: 4 }}>{f.label}</label>
+                          <input
+                            value={crowdForm[f.field]}
+                            onChange={(e) => setCrowdForm((cf) => ({ ...cf, [f.field]: e.target.value }))}
+                            type="number"
+                            placeholder="0"
+                            style={{ width: '100%', height: 40, borderRadius: 8, border: '1px solid var(--glass-border)', background: 'var(--glass)', color: 'var(--text)', padding: '0 12px', fontSize: 14, boxSizing: 'border-box' }}
+                          />
+                        </div>
+                      ))}
+                      <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, cursor: 'pointer' }}>
+                        <input type="checkbox" checked={crowdForm.is_peak} onChange={(e) => setCrowdForm((cf) => ({ ...cf, is_peak: e.target.checked }))} />
+                        סמן כשיא הערב
+                      </label>
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          const r = await fetch(`${API_BASE}/api/admin/events/${id}/crowd`, {
+                            method: 'POST', headers: authHeaders(),
+                            body: JSON.stringify({
+                              entries: parseInt(crowdForm.entries, 10) || 0,
+                              exits: parseInt(crowdForm.exits, 10) || 0,
+                              simultaneous: parseInt(crowdForm.simultaneous, 10) || 0,
+                              is_peak: crowdForm.is_peak,
+                            }),
+                          })
+                          if (!r.ok) {
+                            toast.error('שמירה נכשלה')
+                            return
+                          }
+                          setShowAddCrowd(false)
+                          setCrowdForm({ entries: '', exits: '', simultaneous: '', is_peak: false })
+                          await loadData()
+                          toast.success('נתוני קהל עודכנו!')
+                        }}
+                        style={{ height: 44, borderRadius: 8, border: 'none', background: '#00C37A', color: '#000', fontWeight: 700, fontSize: 15, cursor: 'pointer' }}
+                      >
+                        שמור
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )
+        })()}
 
         {activeTab === 'campaigns' && (
           <p style={{ color: 'var(--v2-gray-400)', fontSize: 14 }}>ניהול קמפיינים — בקרוב.</p>
