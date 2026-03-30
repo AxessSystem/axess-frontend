@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useRequirePermission } from '@/hooks/useRequirePermission'
 import { useAuth } from '@/contexts/AuthContext'
 import {
@@ -807,6 +807,7 @@ const FONT_STYLES = [
 ]
 
 export default function Events() {
+  const navigate = useNavigate()
   const eventsAllowed = useRequirePermission('can_view_events')
   const [events, setEvents] = useState([])
   const [loading, setLoading] = useState(true)
@@ -1298,17 +1299,13 @@ export default function Events() {
           {filteredEvents.map(ev => {
             const uiStatus = eventCardUiStatus(ev)
             const dateRaw = ev.doors_open || ev.date || ev.event_end
-            const loc = ev.venue_address || ev.venue_name || ev.location || '—'
-            const ticketsSold = ev.tickets_sold ?? ev.total_sold ?? 0
-            const cap = eventCapacityApprox(ev)
-            const revenue = ev.revenue ?? ev.total_revenue ?? 0
             return (
               <div
                 key={ev.id}
                 role="button"
                 tabIndex={0}
-                onClick={() => { setDetailEvent(ev); setDetailEventTab('overview') }}
-                onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setDetailEvent(ev); setDetailEventTab('overview') } }}
+                onClick={() => navigate(`/dashboard/events/${ev.id}`)}
+                onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate(`/dashboard/events/${ev.id}`) } }}
                 style={{
                   background: 'var(--card)',
                   borderRadius: 16,
@@ -1370,47 +1367,35 @@ export default function Events() {
                 <div style={{ padding: '16px' }}>
                   <h3 style={{ margin: '0 0 8px', fontSize: 17, fontWeight: 800 }}>{ev.title}</h3>
 
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 14 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--v2-gray-400)' }}>
-                      <Calendar size={14} color="#00C37A" />
-                      <span>{formatEventDate(dateRaw)}</span>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--v2-gray-400)' }}>
-                      <MapPin size={14} color="#00C37A" />
-                      <span>{loc}</span>
-                    </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: 'var(--v2-gray-400)', marginBottom: 8 }}>
+                    <Calendar size={14} color="#00C37A" />
+                    <span>{formatEventDate(ev.date || dateRaw)}</span>
                   </div>
 
                   <div style={{
-                    display: 'flex',
-                    gap: 12,
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(4,1fr)',
+                    gap: 8,
                     padding: '10px 0',
                     borderTop: '1px solid var(--glass-border)',
                     borderBottom: '1px solid var(--glass-border)',
-                    marginBottom: 14,
+                    margin: '10px 0 14px',
                   }}
                   >
-                    <div style={{ flex: 1, textAlign: 'center' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
-                        <Ticket size={14} color="#00C37A" />
-                        <span style={{ fontWeight: 700, fontSize: 15 }}>{ticketsSold}</span>
+                    {[
+                      { icon: <CheckCircle size={13} color="#00C37A" />, value: ev.approved_count ?? 0, label: 'מאושרים' },
+                      { icon: <Clock size={13} color="#F59E0B" />, value: ev.pending_count ?? 0, label: 'ממתינים' },
+                      { icon: <Eye size={13} color="#3B82F6" />, value: ev.views_count ?? 0, label: 'צפיות' },
+                      { icon: <DollarSign size={13} color="#00C37A" />, value: `₪${Number(ev.revenue ?? 0).toLocaleString()}`, label: 'הכנסה' },
+                    ].map(kpi => (
+                      <div key={kpi.label} style={{ textAlign: 'center' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 3, marginBottom: 2 }}>
+                          {kpi.icon}
+                          <span style={{ fontWeight: 700, fontSize: 14 }}>{kpi.value}</span>
+                        </div>
+                        <p style={{ margin: 0, fontSize: 10, color: 'var(--v2-gray-400)' }}>{kpi.label}</p>
                       </div>
-                      <p style={{ margin: 0, fontSize: 11, color: 'var(--v2-gray-400)' }}>נמכרו</p>
-                    </div>
-                    <div style={{ flex: 1, textAlign: 'center' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
-                        <Users size={14} color="#00C37A" />
-                        <span style={{ fontWeight: 700, fontSize: 15 }}>{cap}</span>
-                      </div>
-                      <p style={{ margin: 0, fontSize: 11, color: 'var(--v2-gray-400)' }}>כמות</p>
-                    </div>
-                    <div style={{ flex: 1, textAlign: 'center' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
-                        <DollarSign size={14} color="#00C37A" />
-                        <span style={{ fontWeight: 700, fontSize: 15 }}>₪{revenue}</span>
-                      </div>
-                      <p style={{ margin: 0, fontSize: 11, color: 'var(--v2-gray-400)' }}>הכנסה</p>
-                    </div>
+                    ))}
                   </div>
 
                   <a
