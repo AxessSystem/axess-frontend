@@ -1,9 +1,9 @@
-import { useState, useEffect, useCallback, useMemo, Fragment } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import {
   Calendar, MapPin, ChevronLeft, ExternalLink, Download, Edit,
   CheckCircle, Clock, XCircle, DollarSign, Users, QrCode, Eye, Ticket,
-  Upload, Plus, X, Settings, Share2, Copy, Trash2,
+  Upload, Plus, X, Settings, Share2, Copy, Trash2, RotateCcw,
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useAuth } from '@/contexts/AuthContext'
@@ -30,12 +30,25 @@ const REVENUE_SOURCES = [
   { value: 'other', label: 'אחר' },
 ]
 
+const INVOICE_TYPES = [
+  { value: 'authorized', label: 'מורשה' },
+  { value: 'ltd', label: 'בע"מ' },
+  { value: 'exempt', label: 'פטור' },
+  { value: 'none', label: 'ללא' },
+]
+
 const PAYMENT_STATUS = {
-  paid: { label: 'שולם', color: '#00C37A' },
-  pending: { label: 'לא שולם', color: '#F59E0B' },
-  partial: { label: 'חלקי', color: '#3B82F6' },
-  dispute: { label: 'מחלוקת', color: '#EF4444' },
+  paid: { label: 'שולם ✅', color: '#00C37A' },
+  pending: { label: 'לא שולם ⏳', color: '#F59E0B' },
+  reviewing: { label: 'בבדיקה 🔍', color: '#3B82F6' },
+  dispute: { label: 'מחלוקת ⚠️', color: '#EF4444' },
 }
+
+const VAT_MODES = [
+  { value: 'included', label: 'כולל מע"מ' },
+  { value: 'excluded', label: 'לא כולל מע"מ' },
+  { value: 'exempt', label: 'פטור' },
+]
 
 function formatDate(dateVal) {
   if (!dateVal) return '—'
@@ -100,6 +113,219 @@ function downloadChannelReport(ordersData, channelName) {
   URL.revokeObjectURL(url)
 }
 
+function EditableExpenseRow({ exp, onUpdate, onDelete, onAddBelow }) {
+  const [editing, setEditing] = useState(null)
+  const [tempVal, setTempVal] = useState('')
+
+  const startEdit = (field, val) => {
+    setEditing(field)
+    setTempVal(val == null ? '' : String(val))
+  }
+  const saveEdit = (field) => {
+    onUpdate(field, tempVal)
+    setEditing(null)
+  }
+
+  if (exp.isTemplate) {
+    return (
+      <tr
+        style={{ borderTop: '1px solid var(--glass-border)', opacity: 0.85 }}
+        onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.02)' }}
+        onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent' }}
+      >
+        <td style={{ padding: '6px 10px', fontSize: 12, color: 'var(--v2-gray-400)', whiteSpace: 'nowrap' }}>—</td>
+        <td style={{ padding: '6px 10px', fontSize: 12 }}>
+          {EXPENSE_CATEGORIES.find((c) => c.value === exp.category)?.label || exp.category}
+        </td>
+        <td style={{ padding: '6px 10px', fontSize: 12, color: 'var(--v2-gray-400)' }}>—</td>
+        <td style={{ padding: '6px 10px', textAlign: 'center', color: 'var(--v2-gray-400)' }}>—</td>
+        <td style={{ padding: '6px 10px', color: 'var(--v2-gray-400)' }}>—</td>
+        <td style={{ padding: '6px 10px', color: 'var(--v2-gray-400)' }}>—</td>
+        <td style={{ padding: '6px 10px', color: 'var(--v2-gray-400)' }}>—</td>
+        <td style={{ padding: '6px 10px', color: 'var(--v2-gray-400)' }}>—</td>
+        <td style={{ padding: '6px 10px', color: 'var(--v2-gray-400)' }}>—</td>
+        <td style={{ padding: '6px 10px', color: 'var(--v2-gray-400)' }}>—</td>
+        <td style={{ padding: '6px 10px' }}>
+          <button
+            type="button"
+            onClick={onAddBelow}
+            title="הוסף שורה"
+            style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#00C37A', padding: 3 }}
+          >
+            <Plus size={13} />
+          </button>
+        </td>
+      </tr>
+    )
+  }
+
+  return (
+    <tr
+      style={{ borderTop: '1px solid var(--glass-border)' }}
+      onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.02)' }}
+      onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent' }}
+    >
+      <td style={{ padding: '6px 10px', fontSize: 12, color: 'var(--v2-gray-400)', whiteSpace: 'nowrap' }}>
+        {exp.created_at ? new Date(exp.created_at).toLocaleDateString('he-IL') : '—'}
+      </td>
+      <td style={{ padding: '6px 10px', fontSize: 12 }}>
+        {EXPENSE_CATEGORIES.find((c) => c.value === exp.category)?.label || exp.category}
+      </td>
+      <td
+        style={{ padding: '6px 10px' }}
+        onDoubleClick={() => startEdit('item_name', exp.vendor_name || exp.item_name)}
+      >
+        {editing === 'item_name' ? (
+          <input
+            value={tempVal}
+            onChange={(e) => setTempVal(e.target.value)}
+            onBlur={() => saveEdit('item_name')}
+            onKeyDown={(e) => e.key === 'Enter' && saveEdit('item_name')}
+            autoFocus
+            style={{
+              width: '100%', background: 'var(--glass)', border: '1px solid #00C37A', borderRadius: 4,
+              padding: '2px 6px', color: 'var(--text)', fontSize: 13,
+            }}
+          />
+        ) : (
+          <span style={{ fontSize: 13, cursor: 'text' }}>{exp.vendor_name || exp.item_name || '—'}</span>
+        )}
+      </td>
+      <td
+        style={{ padding: '6px 10px', textAlign: 'center' }}
+        onDoubleClick={() => startEdit('quantity', exp.quantity || 1)}
+      >
+        {editing === 'quantity' ? (
+          <input
+            value={tempVal}
+            onChange={(e) => setTempVal(e.target.value)}
+            type="number"
+            min="1"
+            onBlur={() => saveEdit('quantity')}
+            autoFocus
+            style={{
+              width: 50, background: 'var(--glass)', border: '1px solid #00C37A', borderRadius: 4,
+              padding: '2px 4px', color: 'var(--text)', textAlign: 'center',
+            }}
+          />
+        ) : (
+          <span style={{ cursor: 'text' }}>{exp.quantity || 1}</span>
+        )}
+      </td>
+      <td style={{ padding: '6px 10px' }} onDoubleClick={() => startEdit('amount', exp.amount || 0)}>
+        {editing === 'amount' ? (
+          <input
+            value={tempVal}
+            onChange={(e) => setTempVal(e.target.value)}
+            type="number"
+            onBlur={() => saveEdit('amount')}
+            autoFocus
+            style={{
+              width: 80, background: 'var(--glass)', border: '1px solid #00C37A', borderRadius: 4,
+              padding: '2px 6px', color: 'var(--text)',
+            }}
+          />
+        ) : (
+          <span style={{ cursor: 'text' }}>
+            ₪
+            {parseFloat(exp.amount || 0).toLocaleString()}
+          </span>
+        )}
+      </td>
+      <td style={{ padding: '6px 10px' }}>
+        <select
+          value={exp.vat_mode || 'included'}
+          onChange={(e) => onUpdate('vat_mode', e.target.value)}
+          style={{
+            background: 'var(--card)', border: '1px solid var(--glass-border)', borderRadius: 6,
+            padding: '2px 6px', color: 'var(--text)', fontSize: 11, cursor: 'pointer',
+          }}
+        >
+          {VAT_MODES.map((v) => (
+            <option key={v.value} value={v.value}>{v.label}</option>
+          ))}
+        </select>
+      </td>
+      <td style={{ padding: '6px 10px', fontWeight: 600, fontSize: 13 }}>
+        ₪
+        {(parseFloat(exp.amount || 0) * parseInt(exp.quantity || 1, 10)).toLocaleString()}
+      </td>
+      <td style={{ padding: '6px 10px' }}>
+        <select
+          value={exp.invoice_type || 'none'}
+          onChange={(e) => onUpdate('invoice_type', e.target.value)}
+          style={{
+            background: 'var(--card)', border: '1px solid var(--glass-border)', borderRadius: 6,
+            padding: '2px 6px', color: 'var(--text)', fontSize: 11, cursor: 'pointer',
+          }}
+        >
+          {INVOICE_TYPES.map((t) => (
+            <option key={t.value} value={t.value}>{t.label}</option>
+          ))}
+        </select>
+      </td>
+      <td style={{ padding: '6px 10px' }} onDoubleClick={() => startEdit('invoice_number', exp.invoice_number || '')}>
+        {editing === 'invoice_number' ? (
+          <input
+            value={tempVal}
+            onChange={(e) => setTempVal(e.target.value)}
+            onBlur={() => saveEdit('invoice_number')}
+            autoFocus
+            style={{
+              width: 80, background: 'var(--glass)', border: '1px solid #00C37A', borderRadius: 4,
+              padding: '2px 6px', color: 'var(--text)', fontSize: 12,
+            }}
+          />
+        ) : (
+          <span style={{ fontSize: 12, color: 'var(--v2-gray-400)', cursor: 'text' }}>
+            {exp.invoice_number || '—'}
+          </span>
+        )}
+      </td>
+      <td style={{ padding: '6px 10px' }}>
+        <select
+          value={exp.payment_status || 'pending'}
+          onChange={(e) => onUpdate('payment_status', e.target.value)}
+          style={{
+            background: `${(PAYMENT_STATUS[exp.payment_status]?.color || '#6B7280')}22`,
+            border: `1px solid ${PAYMENT_STATUS[exp.payment_status]?.color || '#6B7280'}`,
+            borderRadius: 6,
+            padding: '2px 6px',
+            color: PAYMENT_STATUS[exp.payment_status]?.color || '#6B7280',
+            fontSize: 11,
+            cursor: 'pointer',
+            fontWeight: 600,
+          }}
+        >
+          {Object.entries(PAYMENT_STATUS).map(([v, { label }]) => (
+            <option key={v} value={v}>{label}</option>
+          ))}
+        </select>
+      </td>
+      <td style={{ padding: '6px 10px' }}>
+        <div style={{ display: 'flex', gap: 4 }}>
+          <button
+            type="button"
+            onClick={onAddBelow}
+            title="הוסף שורה"
+            style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#00C37A', padding: 3 }}
+          >
+            <Plus size={13} />
+          </button>
+          <button
+            type="button"
+            onClick={onDelete}
+            title="מחק"
+            style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#EF4444', padding: 3 }}
+          >
+            <Trash2 size={13} />
+          </button>
+        </div>
+      </td>
+    </tr>
+  )
+}
+
 export default function EventDetailPage() {
   const { id } = useParams()
   const { session, businessId } = useAuth()
@@ -127,6 +353,12 @@ export default function EventDetailPage() {
   const [financials, setFinancials] = useState({ expenses: [], revenues: [], crowd_stats: [], axess_revenue: null })
   const [vendors, setVendors] = useState([])
   const [showAddExpense, setShowAddExpense] = useState(false)
+  const [expensesHistory, setExpensesHistory] = useState([])
+  const [expenseFilter, setExpenseFilter] = useState({ category: 'all', status: 'all' })
+  const [showAddVendor, setShowAddVendor] = useState(false)
+  const [vendorForm, setVendorForm] = useState({
+    name: '', category: 'staff', contact_name: '', contact_phone: '', default_price: '', notes: '',
+  })
   const [showAddRevenue, setShowAddRevenue] = useState(false)
   const [showAddCrowd, setShowAddCrowd] = useState(false)
   const [expenseForm, setExpenseForm] = useState({
@@ -152,6 +384,17 @@ export default function EventDetailPage() {
     'Authorization': `Bearer ${session?.access_token}`,
     'X-Business-Id': businessId,
   }), [session, businessId])
+
+  const saveToHistory = () => {
+    setExpensesHistory((h) => [...h.slice(-4), [...financials.expenses]])
+  }
+
+  const undoExpense = () => {
+    if (expensesHistory.length === 0) return
+    const prev = expensesHistory[expensesHistory.length - 1]
+    setFinancials((f) => ({ ...f, expenses: prev }))
+    setExpensesHistory((h) => h.slice(0, -1))
+  }
 
   const loadData = useCallback(() => {
     if (!id || !businessId) return Promise.resolve()
@@ -739,6 +982,17 @@ export default function EventDetailPage() {
           const avgTicketPriceFull = ordersNonCancelled.length > 0 ? axessRevenueFull / ordersNonCancelled.length : 0
           const breakEvenFull = avgTicketPriceFull > 0 ? Math.ceil(totalExpensesWithFoodCost / avgTicketPriceFull) : 0
           const peakCrowd = financials.crowd_stats.reduce((max, s) => Math.max(max, s.simultaneous || 0), 0)
+          const defaultTemplate = EXPENSE_CATEGORIES.map((cat) => ({
+            id: `template_${cat.value}`,
+            category: cat.value,
+            item_name: '',
+            amount: 0,
+            quantity: 1,
+            payment_status: 'pending',
+            invoice_type: 'none',
+            vat_mode: 'included',
+            isTemplate: true,
+          }))
           return (
             <div>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, marginBottom: 20 }}>
@@ -853,11 +1107,29 @@ export default function EventDetailPage() {
               <div style={{ background: 'var(--card)', borderRadius: 12, padding: 16, border: '1px solid var(--glass-border)', marginBottom: 16 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
                   <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700 }}>ספקים</h3>
-                  <span style={{ fontSize: 12, color: 'var(--v2-gray-400)' }}>
-                    {vendors.length}
-                    {' '}
-                    ספקים שמורים
-                  </span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <span style={{ fontSize: 12, color: 'var(--v2-gray-400)' }}>
+                      {vendors.length}
+                      {' '}
+                      ספקים שמורים
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setShowAddVendor(true)}
+                      style={{
+                        padding: '6px 12px',
+                        borderRadius: 8,
+                        border: 'none',
+                        background: '#00C37A',
+                        color: '#000',
+                        fontSize: 13,
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      + הוסף ספק
+                    </button>
+                  </div>
                 </div>
                 {vendors.length === 0 ? (
                   <p style={{ color: 'var(--v2-gray-400)', fontSize: 13, margin: 0 }}>
@@ -899,113 +1171,110 @@ export default function EventDetailPage() {
                   </button>
                 </div>
 
-                <div style={{ border: '1px solid var(--glass-border)', borderRadius: 10, overflow: 'hidden', marginBottom: 12 }}>
-                  <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <div style={{ display: 'flex', gap: 8, marginBottom: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+                  <CustomSelect
+                    value={expenseFilter.category}
+                    onChange={(v) => setExpenseFilter((f) => ({ ...f, category: v }))}
+                    options={[{ value: 'all', label: 'כל הקטגוריות' }, ...EXPENSE_CATEGORIES]}
+                    style={{ width: 160 }}
+                  />
+                  <CustomSelect
+                    value={expenseFilter.status}
+                    onChange={(v) => setExpenseFilter((f) => ({ ...f, status: v }))}
+                    options={[
+                      { value: 'all', label: 'כל הסטטוסים' },
+                      ...Object.entries(PAYMENT_STATUS).map(([v, { label }]) => ({ value: v, label })),
+                    ]}
+                    style={{ width: 140 }}
+                  />
+                  {expensesHistory.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={undoExpense}
+                      style={{
+                        padding: '6px 12px',
+                        borderRadius: 8,
+                        border: '1px solid var(--glass-border)',
+                        background: 'var(--glass)',
+                        color: '#F59E0B',
+                        cursor: 'pointer',
+                        fontSize: 13,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 4,
+                      }}
+                    >
+                      <RotateCcw size={14} />
+                      ביטול (
+                      {expensesHistory.length}
+                      )
+                    </button>
+                  )}
+                </div>
+
+                <div style={{ border: '1px solid var(--glass-border)', borderRadius: 10, overflow: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 900 }}>
                     <thead>
                       <tr style={{ background: 'var(--glass)', fontSize: 12, color: 'var(--v2-gray-400)' }}>
-                        {['קטגוריה / פריט', 'כמות', 'מחיר', 'סה"כ', 'חשבונית', 'סטטוס'].map((h) => (
-                          <th key={h} style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 600 }}>{h}</th>
+                        {['תאריך', 'קטגוריה', 'פריט / ספק', 'כמות', 'מחיר', 'מע"מ', 'סה"כ', 'חשבונית', 'מ׳ חשבונית', 'סטטוס', 'פעולות'].map((h) => (
+                          <th key={h} style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 600, whiteSpace: 'nowrap' }}>{h}</th>
                         ))}
                       </tr>
                     </thead>
                     <tbody>
-                      {EXPENSE_CATEGORIES.map((cat) => {
-                        const catExpenses = financials.expenses.filter((e) => e.category === cat.value)
-                        if (catExpenses.length === 0) return null
-                        const catTotal = catExpenses.reduce((s, e) => s + parseFloat(e.amount || 0) * parseInt(e.quantity || 1, 10), 0)
-                        return (
-                          <Fragment key={cat.value}>
-                            <tr style={{ background: 'rgba(0,195,122,0.06)' }}>
-                              <td colSpan={4} style={{ padding: '6px 12px', fontSize: 12, fontWeight: 700, color: '#00C37A' }}>
-                                {cat.label}
-                              </td>
-                              <td colSpan={2} style={{ padding: '6px 12px', fontSize: 12, fontWeight: 700, color: '#00C37A', textAlign: 'left' }}>
-                                ₪
-                                {catTotal.toLocaleString()}
-                              </td>
-                            </tr>
-                            {catExpenses.map((exp) => (
-                              <tr key={exp.id} style={{ borderTop: '1px solid var(--glass-border)' }}>
-                                <td style={{ padding: '8px 12px', fontSize: 13, paddingRight: 24 }}>{exp.vendor_name || exp.item_name}</td>
-                                <td style={{ padding: '8px 12px', fontSize: 13, textAlign: 'center' }}>{exp.quantity || 1}</td>
-                                <td style={{ padding: '8px 12px', fontSize: 13 }}>
-                                  ₪
-                                  {parseFloat(exp.amount || 0).toLocaleString()}
-                                </td>
-                                <td style={{ padding: '8px 12px', fontSize: 13, fontWeight: 600 }}>
-                                  ₪
-                                  {(parseFloat(exp.amount || 0) * parseInt(exp.quantity || 1, 10)).toLocaleString()}
-                                </td>
-                                <td style={{ padding: '8px 12px', fontSize: 12, color: 'var(--v2-gray-400)' }}>{exp.invoice_number || '—'}</td>
-                                <td style={{ padding: '8px 12px' }}>
-                                  <span
-                                    role="button"
-                                    tabIndex={0}
-                                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') e.currentTarget.click() }}
-                                    onClick={async () => {
-                                      const statuses = ['pending', 'paid', 'partial', 'dispute']
-                                      const next = statuses[(statuses.indexOf(exp.payment_status) + 1) % statuses.length]
-                                      await fetch(`${API_BASE}/api/admin/events/${id}/expenses/${exp.id}`, {
-                                        method: 'PATCH', headers: authHeaders(),
-                                        body: JSON.stringify({ payment_status: next }),
-                                      })
-                                      loadData()
-                                    }}
-                                    style={{
-                                      padding: '2px 8px', borderRadius: 8, fontSize: 11, fontWeight: 600,
-                                      cursor: 'pointer',
-                                      background: `${(PAYMENT_STATUS[exp.payment_status]?.color || '#6B7280')}22`,
-                                      color: PAYMENT_STATUS[exp.payment_status]?.color || '#6B7280',
-                                    }}
-                                  >
-                                    {PAYMENT_STATUS[exp.payment_status]?.label || 'לא ידוע'}
-                                  </span>
-                                </td>
-                              </tr>
-                            ))}
-                          </Fragment>
-                        )
-                      })}
+                      {(financials.expenses.length > 0 ? financials.expenses : defaultTemplate)
+                        .filter((e) => expenseFilter.category === 'all' || e.category === expenseFilter.category)
+                        .filter((e) => expenseFilter.status === 'all' || e.payment_status === expenseFilter.status)
+                        .map((exp) => (
+                          <EditableExpenseRow
+                            key={exp.id}
+                            exp={exp}
+                            onUpdate={async (field, value) => {
+                              if (exp.isTemplate) return
+                              let payloadVal = value
+                              if (field === 'quantity') payloadVal = parseInt(value, 10) || 1
+                              if (field === 'amount') payloadVal = parseFloat(value) || 0
+                              saveToHistory()
+                              await fetch(`${API_BASE}/api/admin/events/${id}/expenses/${exp.id}`, {
+                                method: 'PATCH',
+                                headers: authHeaders(),
+                                body: JSON.stringify({ [field]: payloadVal }),
+                              })
+                              loadData()
+                            }}
+                            onDelete={async () => {
+                              if (exp.isTemplate) return
+                              saveToHistory()
+                              await fetch(`${API_BASE}/api/admin/events/${id}/expenses/${exp.id}`, {
+                                method: 'DELETE',
+                                headers: authHeaders(),
+                              })
+                              loadData()
+                            }}
+                            onAddBelow={() => setShowAddExpense(true)}
+                          />
+                        ))}
                       {foodCostAmount > 0 && (
-                        <Fragment>
-                          <tr style={{ background: 'rgba(245,158,11,0.06)' }}>
-                            <td colSpan={4} style={{ padding: '6px 12px', fontSize: 12, fontWeight: 700, color: '#F59E0B' }}>
-                              פוד קוסט (
-                              {reportSettings.food_cost_pct}
-                              %)
-                            </td>
-                            <td colSpan={2} style={{ padding: '6px 12px', fontSize: 12, fontWeight: 700, color: '#F59E0B', textAlign: 'left' }}>
-                              ₪
-                              {Math.round(foodCostAmount).toLocaleString()}
-                            </td>
-                          </tr>
-                          <tr style={{ borderTop: '1px solid var(--glass-border)' }}>
-                            <td style={{ padding: '8px 12px', fontSize: 12, color: 'var(--v2-gray-400)', paddingRight: 24 }}>
-                              {reportSettings.food_cost_pct}
-                              % מבר + שולחנות
-                            </td>
-                            <td colSpan={2} style={{ padding: '8px 12px', fontSize: 12, color: 'var(--v2-gray-400)' }}>
-                              ₪
-                              {parseFloat(barRevenue).toLocaleString()}
-                              {' '}
-                              + ₪
-                              {parseFloat(tablesRevenue).toLocaleString()}
-                            </td>
-                            <td style={{ padding: '8px 12px', fontWeight: 600 }}>
-                              ₪
-                              {Math.round(foodCostAmount).toLocaleString()}
-                            </td>
-                            <td colSpan={2} />
-                          </tr>
-                        </Fragment>
+                        <tr style={{ background: 'rgba(245,158,11,0.06)', borderTop: '1px solid var(--glass-border)' }}>
+                          <td colSpan={6} style={{ padding: '8px 10px', fontSize: 13, color: '#F59E0B', fontWeight: 600 }}>
+                            פוד קוסט (
+                            {reportSettings.food_cost_pct}
+                            %)
+                          </td>
+                          <td style={{ padding: '8px 10px', fontSize: 13, fontWeight: 600, color: '#F59E0B' }}>
+                            ₪
+                            {Math.round(foodCostAmount).toLocaleString()}
+                          </td>
+                          <td colSpan={4} />
+                        </tr>
                       )}
                       <tr style={{ borderTop: '2px solid var(--glass-border)', background: 'var(--glass)' }}>
-                        <td colSpan={3} style={{ padding: '10px 12px', fontWeight: 800, fontSize: 14 }}>סה"כ הוצאות</td>
-                        <td style={{ padding: '10px 12px', fontWeight: 800, fontSize: 14, color: '#EF4444' }}>
+                        <td colSpan={6} style={{ padding: '10px', fontWeight: 800, fontSize: 14 }}>סה"כ הוצאות</td>
+                        <td style={{ padding: '10px', fontWeight: 800, fontSize: 14, color: '#EF4444' }}>
                           ₪
                           {Math.round(totalExpensesWithFoodCost || totalExpensesFull).toLocaleString()}
                         </td>
-                        <td colSpan={2} />
+                        <td colSpan={4} />
                       </tr>
                     </tbody>
                   </table>
@@ -1369,6 +1638,93 @@ export default function EventDetailPage() {
                         style={{ height: 44, borderRadius: 8, border: 'none', background: '#00C37A', color: '#000', fontWeight: 700, fontSize: 15, cursor: 'pointer' }}
                       >
                         שמור הוצאה
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {showAddVendor && (
+                <div style={{
+                  position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16,
+                }}
+                >
+                  <div style={{
+                    background: 'var(--card, #1a1d2e)', borderRadius: 12, padding: 24, maxWidth: 440, width: '100%', position: 'relative', border: '1px solid var(--glass-border)',
+                  }}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => setShowAddVendor(false)}
+                      style={{ position: 'absolute', top: 12, left: 12, background: 'none', border: 'none', cursor: 'pointer', color: 'var(--v2-gray-400)' }}
+                    >
+                      <X size={20} />
+                    </button>
+                    <h3 style={{ margin: '0 0 20px', fontSize: 16, fontWeight: 700 }}>הוסף ספק</h3>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                      <input
+                        value={vendorForm.name}
+                        onChange={(e) => setVendorForm((f) => ({ ...f, name: e.target.value }))}
+                        placeholder="שם ספק *"
+                        style={{ height: 40, borderRadius: 8, border: '1px solid var(--glass-border)', background: 'var(--glass)', color: 'var(--text)', padding: '0 12px', fontSize: 14 }}
+                      />
+                      <CustomSelect
+                        value={vendorForm.category}
+                        onChange={(v) => setVendorForm((f) => ({ ...f, category: v }))}
+                        options={EXPENSE_CATEGORIES}
+                      />
+                      <input
+                        value={vendorForm.contact_name}
+                        onChange={(e) => setVendorForm((f) => ({ ...f, contact_name: e.target.value }))}
+                        placeholder="איש קשר (אופציונלי)"
+                        style={{ height: 40, borderRadius: 8, border: '1px solid var(--glass-border)', background: 'var(--glass)', color: 'var(--text)', padding: '0 12px', fontSize: 14 }}
+                      />
+                      <input
+                        value={vendorForm.contact_phone}
+                        onChange={(e) => setVendorForm((f) => ({ ...f, contact_phone: e.target.value }))}
+                        placeholder="טלפון (אופציונלי)"
+                        style={{ height: 40, borderRadius: 8, border: '1px solid var(--glass-border)', background: 'var(--glass)', color: 'var(--text)', padding: '0 12px', fontSize: 14 }}
+                      />
+                      <input
+                        value={vendorForm.default_price}
+                        onChange={(e) => setVendorForm((f) => ({ ...f, default_price: e.target.value }))}
+                        placeholder="מחיר ברירת מחדל ₪"
+                        type="number"
+                        style={{ height: 40, borderRadius: 8, border: '1px solid var(--glass-border)', background: 'var(--glass)', color: 'var(--text)', padding: '0 12px', fontSize: 14 }}
+                      />
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          if (!vendorForm.name?.trim()) {
+                            toast.error('יש למלא שם ספק')
+                            return
+                          }
+                          const r = await fetch(`${API_BASE}/api/admin/vendors`, {
+                            method: 'POST',
+                            headers: authHeaders(),
+                            body: JSON.stringify({
+                              name: vendorForm.name.trim(),
+                              category: vendorForm.category,
+                              contact_name: vendorForm.contact_name || null,
+                              contact_phone: vendorForm.contact_phone || null,
+                              default_price: parseFloat(vendorForm.default_price) || 0,
+                              notes: vendorForm.notes || null,
+                            }),
+                          })
+                          if (!r.ok) {
+                            toast.error('שמירת ספק נכשלה')
+                            return
+                          }
+                          setShowAddVendor(false)
+                          setVendorForm({
+                            name: '', category: 'staff', contact_name: '', contact_phone: '', default_price: '', notes: '',
+                          })
+                          await loadData()
+                          toast.success('ספק נוסף')
+                        }}
+                        style={{ height: 44, borderRadius: 8, border: 'none', background: '#00C37A', color: '#000', fontWeight: 700, fontSize: 15, cursor: 'pointer' }}
+                      >
+                        שמור ספק
                       </button>
                     </div>
                   </div>
