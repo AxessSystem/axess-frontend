@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import {
   Calendar, MapPin, ChevronLeft, ExternalLink, Download, Edit,
   CheckCircle, Clock, XCircle, DollarSign, Users, QrCode, Eye, Ticket,
-  Upload, Plus, X, Settings, Share2, Copy, Trash2, RotateCcw, Pencil,
+  Upload, Plus, X, Settings, Share2, Copy, Trash2, RotateCcw, Pencil, Calculator,
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useAuth } from '@/contexts/AuthContext'
@@ -201,7 +201,22 @@ function FoodCostRow({ barRevenue, tablesRevenue, foodCostPct, foodCostBase, onU
           : `בר ₪${barRevenue.toLocaleString()} + שולחנות ₪${tablesRevenue.toLocaleString()}`}
       </td>
       <td style={{ padding: '8px 10px' }}>
-        <span style={{ fontSize: 11, color: 'var(--v2-gray-400)' }}>לחץ פעמיים לעריכה</span>
+        <div style={{ display: 'flex', gap: 4 }}>
+          <button
+            onClick={() => { setEditPct(true); setTempPct(foodCostPct) }}
+            title="ערוך אחוז"
+            style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#F59E0B', padding: 3 }}
+          >
+            <Pencil size={13} />
+          </button>
+          <button
+            onClick={() => { setEditBase(true); setTempBase(String(base)) }}
+            title="ערוך בסיס"
+            style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#3B82F6', padding: 3 }}
+          >
+            <Calculator size={13} />
+          </button>
+        </div>
       </td>
     </tr>
   )
@@ -393,7 +408,6 @@ function EditableExpenseRow({ exp, onUpdate, onDelete, onAddBelow, onDuplicate }
       <td style={{ padding: '6px 10px' }}>
         <div style={{ display: 'flex', gap: 4 }}>
           <button
-            type="button"
             onClick={onAddBelow}
             title="הוסף שורה"
             style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#00C37A', padding: 3 }}
@@ -401,7 +415,6 @@ function EditableExpenseRow({ exp, onUpdate, onDelete, onAddBelow, onDuplicate }
             <Plus size={13} />
           </button>
           <button
-            type="button"
             onClick={() => startEdit('item_name', exp.vendor_name || exp.item_name)}
             title="ערוך"
             style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#3B82F6', padding: 3 }}
@@ -409,7 +422,6 @@ function EditableExpenseRow({ exp, onUpdate, onDelete, onAddBelow, onDuplicate }
             <Pencil size={13} />
           </button>
           <button
-            type="button"
             onClick={onDuplicate}
             title="שכפל"
             style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#8B5CF6', padding: 3 }}
@@ -417,7 +429,6 @@ function EditableExpenseRow({ exp, onUpdate, onDelete, onAddBelow, onDuplicate }
             <Copy size={13} />
           </button>
           <button
-            type="button"
             onClick={onDelete}
             title="מחק"
             style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#EF4444', padding: 3 }}
