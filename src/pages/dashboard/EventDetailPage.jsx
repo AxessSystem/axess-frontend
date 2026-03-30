@@ -3,9 +3,11 @@ import { useParams, useNavigate } from 'react-router-dom'
 import {
   Calendar, MapPin, ChevronLeft, ExternalLink, Download, Edit,
   CheckCircle, Clock, XCircle, DollarSign, Users, QrCode, Eye, Ticket,
+  Upload, Plus, X,
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useAuth } from '@/contexts/AuthContext'
+import CustomSelect from '@/components/ui/CustomSelect'
 
 const API_BASE = import.meta.env.VITE_API_URL || 'https://api.axess.pro'
 const PUBLIC_WEBVIEW_ORIGIN = 'https://axess.pro'
@@ -65,6 +67,16 @@ export default function EventDetailPage() {
   const [interests, setInterests] = useState([])
   const [webviewAnalyticsRows, setWebviewAnalyticsRows] = useState([])
   const [webviewBusinessSlug, setWebviewBusinessSlug] = useState('')
+  const [channels, setChannels] = useState([])
+  const [showImportChannel, setShowImportChannel] = useState(false)
+  const [showAddChannel, setShowAddChannel] = useState(false)
+  const [importChannelLabel, setImportChannelLabel] = useState('')
+  const [importHeaders, setImportHeaders] = useState([])
+  const [importRows, setImportRows] = useState([])
+  const [columnMap, setColumnMap] = useState({})
+  const [manualChannelLabel, setManualChannelLabel] = useState('')
+  const [manualChannelSold, setManualChannelSold] = useState('')
+  const [manualChannelRevenue, setManualChannelRevenue] = useState('')
 
   const authHeaders = useCallback(() => ({
     'Content-Type': 'application/json',
@@ -81,12 +93,14 @@ export default function EventDetailPage() {
       fetch(`${API_BASE}/api/w/analytics-by-business`, { headers: hdrs }).then((r) => (r.ok ? r.json() : { stats: [] })),
       fetch(`${API_BASE}/api/webview/settings`, { headers: hdrs }).then((r) => (r.ok ? r.json() : {})),
       fetch(`${API_BASE}/api/admin/events/${id}/interests`, { headers: hdrs }).then((r) => (r.ok ? r.json() : { interests: [] })),
-    ]).then(([ev, ord, waData, webSettings, intData]) => {
+      fetch(`${API_BASE}/api/admin/events/${id}/channels`, { headers: hdrs }).then((r) => (r.ok ? r.json() : { channels: [] })),
+    ]).then(([ev, ord, waData, webSettings, intData, chData]) => {
       setEvent(ev && !ev.error ? ev : null)
       setOrders(Array.isArray(ord) ? ord : ord.orders || [])
       setWebviewAnalyticsRows(waData?.stats || [])
       setWebviewBusinessSlug(webSettings?.business?.slug || '')
       setInterests(intData?.interests || [])
+      setChannels(Array.isArray(chData?.channels) ? chData.channels : [])
     })
   }, [id, businessId, authHeaders])
 
@@ -274,6 +288,7 @@ export default function EventDetailPage() {
           { id: 'audience', label: 'קהל' },
           { id: 'finance', label: 'כספים' },
           { id: 'campaigns', label: 'קמפיינים' },
+          { id: 'channels', label: 'ערוצי מכירה' },
           { id: 'webview', label: 'Webview' },
           { id: 'checkin', label: 'צ\'ק אין' },
         ].map((tab) => (
@@ -617,6 +632,350 @@ export default function EventDetailPage() {
         {activeTab === 'campaigns' && (
           <p style={{ color: 'var(--v2-gray-400)', fontSize: 14 }}>ניהול קמפיינים — בקרוב.</p>
         )}
+
+        {activeTab === 'channels' && (() => {
+          const totalSoldAll = channels.reduce((s, c) => s + (Number(c.total_sold) || 0), 0)
+          const totalRevAll = channels.reduce((s, c) => s + (Number(c.total_revenue) || 0), 0)
+          return (
+            <div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 12, marginBottom: 20 }}>
+                <div style={{ background: 'var(--card)', borderRadius: 12, padding: 16, border: '1px solid var(--glass-border)', textAlign: 'center' }}>
+                  <div style={{ fontSize: 22, fontWeight: 800, color: '#00C37A' }}>{totalSoldAll}</div>
+                  <div style={{ fontSize: 12, color: 'var(--v2-gray-400)' }}>סה"כ נמכרו</div>
+                </div>
+                <div style={{ background: 'var(--card)', borderRadius: 12, padding: 16, border: '1px solid var(--glass-border)', textAlign: 'center' }}>
+                  <div style={{ fontSize: 22, fontWeight: 800, color: '#3B82F6' }}>
+                    ₪
+                    {totalRevAll.toLocaleString()}
+                  </div>
+                  <div style={{ fontSize: 12, color: 'var(--v2-gray-400)' }}>סה"כ הכנסה</div>
+                </div>
+                <div style={{ background: 'var(--card)', borderRadius: 12, padding: 16, border: '1px solid var(--glass-border)', textAlign: 'center' }}>
+                  <div style={{ fontSize: 22, fontWeight: 800, color: '#8B5CF6' }}>{channels.length}</div>
+                  <div style={{ fontSize: 12, color: 'var(--v2-gray-400)' }}>ערוצים פעילים</div>
+                </div>
+              </div>
+
+              <div style={{ border: '1px solid var(--glass-border)', borderRadius: 10, overflow: 'hidden', marginBottom: 16 }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                  <thead>
+                    <tr style={{ background: 'var(--glass)', fontSize: 12, color: 'var(--v2-gray-400)' }}>
+                      {['ערוץ', 'נמכרו', 'הכנסה', '% מהסה"כ', 'עדכון אחרון'].map((h) => (
+                        <th key={h} style={{ padding: '10px 12px', textAlign: 'right', fontWeight: 600 }}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {channels.map((ch) => {
+                      const pct = totalSoldAll > 0 ? Math.round(((Number(ch.total_sold) || 0) / totalSoldAll) * 100) : 0
+                      return (
+                        <tr key={String(ch.id)} style={{ borderTop: '1px solid var(--glass-border)' }}>
+                          <td style={{ padding: '12px', fontSize: 14, fontWeight: 600 }}>
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                              {ch.channel_name === 'axess' ? '🟢' : '🔵'}
+                              {' '}
+                              {ch.channel_label}
+                              {ch.is_native && (
+                                <span style={{
+                                  fontSize: 10, color: '#00C37A', background: 'rgba(0,195,122,0.1)',
+                                  padding: '2px 6px', borderRadius: 8,
+                                }}
+                                >
+                                  ישיר
+                                </span>
+                              )}
+                            </span>
+                          </td>
+                          <td style={{ padding: '12px', fontSize: 14 }}>{ch.total_sold || 0}</td>
+                          <td style={{ padding: '12px', fontSize: 14 }}>
+                            ₪
+                            {(Number(ch.total_revenue) || 0).toLocaleString()}
+                          </td>
+                          <td style={{ padding: '12px', fontSize: 14 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                              <div style={{ flex: 1, height: 6, borderRadius: 3, background: 'var(--glass)' }}>
+                                <div style={{
+                                  height: '100%', borderRadius: 3, background: '#00C37A', width: `${pct}%`,
+                                }}
+                                />
+                              </div>
+                              <span>{pct}</span>
+                              %
+                            </div>
+                          </td>
+                          <td style={{ padding: '12px', fontSize: 12, color: 'var(--v2-gray-400)' }}>
+                            {ch.last_sync_at ? new Date(ch.last_sync_at).toLocaleDateString('he-IL') : 'עכשיו'}
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setImportChannelLabel('')
+                    setImportHeaders([])
+                    setImportRows([])
+                    setColumnMap({})
+                    setShowImportChannel(true)
+                  }}
+                  style={{
+                    padding: '10px 16px', borderRadius: 8, border: 'none',
+                    background: '#00C37A', color: '#000', fontWeight: 700,
+                    cursor: 'pointer', fontSize: 14, display: 'flex', alignItems: 'center', gap: 6,
+                  }}
+                >
+                  <Upload size={16} />
+                  ייבוא מפלטפורמה חיצונית
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setManualChannelLabel('')
+                    setManualChannelSold('')
+                    setManualChannelRevenue('')
+                    setShowAddChannel(true)
+                  }}
+                  style={{
+                    padding: '10px 16px', borderRadius: 8, border: '1px solid var(--glass-border)',
+                    background: 'var(--glass)', color: 'var(--text)',
+                    cursor: 'pointer', fontSize: 14, display: 'flex', alignItems: 'center', gap: 6,
+                  }}
+                >
+                  <Plus size={16} />
+                  הוסף ערוץ ידני
+                </button>
+              </div>
+
+              {showImportChannel && (
+                <div style={{
+                  position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1000,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16,
+                }}
+                >
+                  <div style={{
+                    background: 'var(--card, #1a1d2e)', borderRadius: 12, padding: 24, maxWidth: 500, width: '100%',
+                    position: 'relative', border: '1px solid var(--glass-border)',
+                  }}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => setShowImportChannel(false)}
+                      style={{
+                        position: 'absolute', top: 12, left: 12, background: 'none', border: 'none',
+                        cursor: 'pointer', color: 'var(--v2-gray-400)',
+                      }}
+                    >
+                      <X size={20} />
+                    </button>
+                    <h3 style={{ margin: '0 0 20px', fontSize: 16, fontWeight: 700 }}>ייבוא מפלטפורמה חיצונית</h3>
+
+                    <input
+                      value={importChannelLabel}
+                      onChange={(e) => setImportChannelLabel(e.target.value)}
+                      placeholder="שם הפלטפורמה (למשל: Eventbrite)"
+                      style={{
+                        width: '100%', height: 40, borderRadius: 8, border: '1px solid var(--glass-border)',
+                        background: 'var(--glass)', color: 'var(--text)', padding: '0 12px', fontSize: 14,
+                        marginBottom: 12, boxSizing: 'border-box',
+                      }}
+                    />
+
+                    <div
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={(e) => { if (e.key === 'Enter') document.getElementById('channel-import-file')?.click() }}
+                      onClick={() => document.getElementById('channel-import-file')?.click()}
+                      style={{
+                        border: '2px dashed var(--glass-border)', borderRadius: 8, padding: 20, textAlign: 'center',
+                        cursor: 'pointer', marginBottom: 12,
+                      }}
+                    >
+                      <input
+                        id="channel-import-file"
+                        type="file"
+                        accept=".csv,.xlsx,.xls"
+                        hidden
+                        onChange={async (e) => {
+                          const file = e.target.files?.[0]
+                          if (!file) return
+                          const text = await file.text()
+                          const lines = text.split('\n').filter((l) => l.trim())
+                          const headers = lines[0].split(',').map((h) => h.trim().replace(/"/g, ''))
+                          const rows = lines.slice(1).map((l) => {
+                            const vals = l.split(',').map((v) => v.trim().replace(/"/g, ''))
+                            return headers.reduce((obj, h, i) => ({ ...obj, [h]: vals[i] || '' }), {})
+                          })
+                          setImportHeaders(headers)
+                          setImportRows(rows)
+                        }}
+                      />
+                      <Upload size={20} style={{ color: 'var(--v2-gray-400)', marginBottom: 8 }} />
+                      <p style={{ margin: 0, fontSize: 13, color: 'var(--v2-gray-400)' }}>
+                        {importRows.length > 0 ? `${importRows.length} שורות נטענו` : 'גרור CSV/Excel או לחץ לבחירה'}
+                      </p>
+                    </div>
+
+                    {importHeaders.length > 0 && (
+                      <div style={{ marginBottom: 16 }}>
+                        <p style={{ fontSize: 13, fontWeight: 600, margin: '0 0 8px' }}>מפה עמודות:</p>
+                        {[
+                          { field: 'phone', label: 'טלפון *' },
+                          { field: 'first_name', label: 'שם פרטי' },
+                          { field: 'last_name', label: 'שם משפחה' },
+                          { field: 'price', label: 'מחיר' },
+                          { field: 'ticket_type', label: 'סוג כרטיס' },
+                          { field: 'external_order_id', label: 'מזהה הזמנה חיצוני' },
+                        ].map((f) => (
+                          <div key={f.field} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                            <span style={{ width: 140, fontSize: 13, flexShrink: 0 }}>{f.label}</span>
+                            <CustomSelect
+                              value={columnMap[f.field] || ''}
+                              onChange={(val) => setColumnMap((prev) => ({ ...prev, [f.field]: val }))}
+                              placeholder="בחר עמודה"
+                              options={[
+                                { value: '', label: '— לא ממופה —' },
+                                ...importHeaders.map((h) => ({ value: h, label: h })),
+                              ]}
+                              style={{ flex: 1, minWidth: 0 }}
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    <button
+                      type="button"
+                      disabled={!importChannelLabel || importRows.length === 0 || !columnMap.phone}
+                      onClick={async () => {
+                        const res = await fetch(`${API_BASE}/api/admin/events/${id}/channels/import`, {
+                          method: 'POST',
+                          headers: authHeaders(),
+                          body: JSON.stringify({
+                            channel_label: importChannelLabel,
+                            channel_name: 'import',
+                            orders: importRows,
+                            column_map: columnMap,
+                          }),
+                        })
+                        const data = await res.json().catch(() => ({}))
+                        if (!res.ok) {
+                          toast.error(data.error || 'ייבוא נכשל')
+                          return
+                        }
+                        toast.success(`יובאו ${data.imported} רשומות!`)
+                        setShowImportChannel(false)
+                        setImportChannelLabel('')
+                        setImportHeaders([])
+                        setImportRows([])
+                        setColumnMap({})
+                        await loadData()
+                      }}
+                      style={{
+                        width: '100%', height: 44, borderRadius: 8, border: 'none',
+                        background: '#00C37A', color: '#000', fontWeight: 700,
+                        fontSize: 15, cursor: 'pointer',
+                      }}
+                    >
+                      ייבא רשומות
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {showAddChannel && (
+                <div style={{
+                  position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1000,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16,
+                }}
+                >
+                  <div style={{
+                    background: 'var(--card)', borderRadius: 12, padding: 24, maxWidth: 400, width: '100%',
+                    border: '1px solid var(--glass-border)', position: 'relative',
+                  }}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => setShowAddChannel(false)}
+                      style={{
+                        position: 'absolute', top: 12, left: 12, background: 'none', border: 'none',
+                        cursor: 'pointer', color: 'var(--v2-gray-400)',
+                      }}
+                    >
+                      <X size={20} />
+                    </button>
+                    <h3 style={{ margin: '0 0 16px', fontSize: 16, fontWeight: 700 }}>הוסף ערוץ ידני</h3>
+                    <input
+                      value={manualChannelLabel}
+                      onChange={(e) => setManualChannelLabel(e.target.value)}
+                      placeholder="שם הערוץ"
+                      style={{
+                        width: '100%', padding: 10, marginBottom: 10, borderRadius: 8,
+                        border: '1px solid var(--glass-border)', background: 'var(--glass)', color: 'var(--text)',
+                        boxSizing: 'border-box',
+                      }}
+                    />
+                    <input
+                      type="number"
+                      value={manualChannelSold}
+                      onChange={(e) => setManualChannelSold(e.target.value)}
+                      placeholder="נמכרו (מספר)"
+                      style={{
+                        width: '100%', padding: 10, marginBottom: 10, borderRadius: 8,
+                        border: '1px solid var(--glass-border)', background: 'var(--glass)', color: 'var(--text)',
+                        boxSizing: 'border-box',
+                      }}
+                    />
+                    <input
+                      type="number"
+                      value={manualChannelRevenue}
+                      onChange={(e) => setManualChannelRevenue(e.target.value)}
+                      placeholder="הכנסה (₪)"
+                      style={{
+                        width: '100%', padding: 10, marginBottom: 16, borderRadius: 8,
+                        border: '1px solid var(--glass-border)', background: 'var(--glass)', color: 'var(--text)',
+                        boxSizing: 'border-box',
+                      }}
+                    />
+                    <button
+                      type="button"
+                      disabled={!manualChannelLabel.trim()}
+                      onClick={async () => {
+                        const res = await fetch(`${API_BASE}/api/admin/events/${id}/channels`, {
+                          method: 'POST',
+                          headers: authHeaders(),
+                          body: JSON.stringify({
+                            channel_label: manualChannelLabel.trim(),
+                            channel_name: 'custom',
+                            total_sold: parseInt(manualChannelSold, 10) || 0,
+                            total_revenue: parseFloat(manualChannelRevenue) || 0,
+                          }),
+                        })
+                        if (!res.ok) {
+                          toast.error('שגיאה בשמירה')
+                          return
+                        }
+                        toast.success('נשמר')
+                        setShowAddChannel(false)
+                        await loadData()
+                      }}
+                      style={{
+                          width: '100%', padding: 12, borderRadius: 8, border: 'none',
+                          background: '#00C37A', color: '#000', fontWeight: 700, cursor: 'pointer',
+                      }}
+                    >
+                      שמור
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )
+        })()}
 
         {activeTab === 'webview' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
