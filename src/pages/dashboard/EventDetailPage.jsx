@@ -113,7 +113,101 @@ function downloadChannelReport(ordersData, channelName) {
   URL.revokeObjectURL(url)
 }
 
-function EditableExpenseRow({ exp, onUpdate, onDelete, onAddBelow }) {
+function FoodCostRow({ barRevenue, tablesRevenue, foodCostPct, foodCostBase, onUpdate }) {
+  const [editPct, setEditPct] = useState(false)
+  const [editBase, setEditBase] = useState(false)
+  const [tempPct, setTempPct] = useState(foodCostPct)
+  const autoBase = (barRevenue || 0) + (tablesRevenue || 0)
+  const [tempBase, setTempBase] = useState('')
+
+  const pct = foodCostPct || 20
+  const base = foodCostBase != null ? Number(foodCostBase) : autoBase
+  const amount = Math.round(base * (pct / 100))
+
+  return (
+    <tr style={{ background: 'rgba(245,158,11,0.06)', borderTop: '2px dashed rgba(245,158,11,0.3)' }}>
+      <td style={{ padding: '8px 10px', fontSize: 11, color: '#F59E0B' }}>אוטו׳</td>
+      <td style={{ padding: '8px 10px', fontSize: 12, color: '#F59E0B', fontWeight: 700 }}>פוד קוסט</td>
+      <td style={{ padding: '8px 10px' }} onDoubleClick={() => { setEditBase(true); setTempBase(String(base)) }}>
+        {editBase ? (
+          <input
+            value={tempBase}
+            onChange={(e) => setTempBase(e.target.value)}
+            type="number"
+            onBlur={() => {
+              const v = parseFloat(tempBase)
+              onUpdate(foodCostPct, Number.isFinite(v) ? v : 0)
+              setEditBase(false)
+            }}
+            autoFocus
+            style={{
+              width: 80, background: 'var(--glass)', border: '1px solid #F59E0B', borderRadius: 4,
+              padding: '2px 6px', color: 'var(--text)', fontSize: 12,
+            }}
+          />
+        ) : (
+          <span style={{ fontSize: 12, color: foodCostBase != null ? '#F59E0B' : 'var(--v2-gray-400)', cursor: 'text' }}>
+            {foodCostBase != null ? '✏️ ' : '🔄 '}
+            ₪
+            {base.toLocaleString()}
+            {foodCostBase != null && (
+              <button
+                type="button"
+                onClick={() => { onUpdate(foodCostPct, null) }}
+                style={{
+                  background: 'none', border: 'none', cursor: 'pointer', color: '#00C37A', fontSize: 10, marginRight: 4,
+                }}
+              >
+                איפוס
+              </button>
+            )}
+          </span>
+        )}
+      </td>
+      <td style={{ padding: '8px 10px', textAlign: 'center' }} onDoubleClick={() => { setEditPct(true); setTempPct(foodCostPct) }}>
+        {editPct ? (
+          <input
+            value={tempPct}
+            onChange={(e) => setTempPct(e.target.value)}
+            type="number"
+            min="0"
+            max="100"
+            onBlur={() => {
+              onUpdate(parseFloat(tempPct) || 20, foodCostBase)
+              setEditPct(false)
+            }}
+            autoFocus
+            style={{
+              width: 50, background: 'var(--glass)', border: '1px solid #F59E0B', borderRadius: 4,
+              padding: '2px 4px', color: 'var(--text)', textAlign: 'center',
+            }}
+          />
+        ) : (
+          <span style={{ cursor: 'text', color: '#F59E0B', fontWeight: 700 }}>
+            {pct}
+            %
+          </span>
+        )}
+      </td>
+      <td style={{ padding: '8px 10px' }} />
+      <td style={{ padding: '8px 10px' }} />
+      <td style={{ padding: '8px 10px', fontWeight: 700, color: '#F59E0B' }}>
+        ₪
+        {amount.toLocaleString()}
+      </td>
+      <td colSpan={4} style={{ padding: '8px 10px', fontSize: 11, color: 'var(--v2-gray-400)' }}>
+        {foodCostBase != null
+          ? 'בסיס ידני'
+          : `בר ₪${barRevenue.toLocaleString()} + שולחנות ₪${tablesRevenue.toLocaleString()}`}
+      </td>
+      <td style={{ padding: '8px 10px' }}>
+        <span style={{ fontSize: 11, color: 'var(--v2-gray-400)' }}>לחץ פעמיים לעריכה</span>
+      </td>
+    </tr>
+  )
+}
+
+function EditableExpenseRow({ exp, onUpdate, onDelete, onAddBelow, onDuplicate }) {
   const [editing, setEditing] = useState(null)
   const [tempVal, setTempVal] = useState('')
 
@@ -234,36 +328,24 @@ function EditableExpenseRow({ exp, onUpdate, onDelete, onAddBelow }) {
         )}
       </td>
       <td style={{ padding: '6px 10px' }}>
-        <select
+        <CustomSelect
           value={exp.vat_mode || 'included'}
-          onChange={(e) => onUpdate('vat_mode', e.target.value)}
-          style={{
-            background: 'var(--card)', border: '1px solid var(--glass-border)', borderRadius: 6,
-            padding: '2px 6px', color: 'var(--text)', fontSize: 11, cursor: 'pointer',
-          }}
-        >
-          {VAT_MODES.map((v) => (
-            <option key={v.value} value={v.value}>{v.label}</option>
-          ))}
-        </select>
+          onChange={(v) => onUpdate('vat_mode', v)}
+          options={VAT_MODES}
+          style={{ minWidth: 120 }}
+        />
       </td>
       <td style={{ padding: '6px 10px', fontWeight: 600, fontSize: 13 }}>
         ₪
         {(parseFloat(exp.amount || 0) * parseInt(exp.quantity || 1, 10)).toLocaleString()}
       </td>
       <td style={{ padding: '6px 10px' }}>
-        <select
+        <CustomSelect
           value={exp.invoice_type || 'none'}
-          onChange={(e) => onUpdate('invoice_type', e.target.value)}
-          style={{
-            background: 'var(--card)', border: '1px solid var(--glass-border)', borderRadius: 6,
-            padding: '2px 6px', color: 'var(--text)', fontSize: 11, cursor: 'pointer',
-          }}
-        >
-          {INVOICE_TYPES.map((t) => (
-            <option key={t.value} value={t.value}>{t.label}</option>
-          ))}
-        </select>
+          onChange={(v) => onUpdate('invoice_type', v)}
+          options={INVOICE_TYPES}
+          style={{ minWidth: 100 }}
+        />
       </td>
       <td style={{ padding: '6px 10px' }} onDoubleClick={() => startEdit('invoice_number', exp.invoice_number || '')}>
         {editing === 'invoice_number' ? (
@@ -284,24 +366,12 @@ function EditableExpenseRow({ exp, onUpdate, onDelete, onAddBelow }) {
         )}
       </td>
       <td style={{ padding: '6px 10px' }}>
-        <select
+        <CustomSelect
           value={exp.payment_status || 'pending'}
-          onChange={(e) => onUpdate('payment_status', e.target.value)}
-          style={{
-            background: `${(PAYMENT_STATUS[exp.payment_status]?.color || '#6B7280')}22`,
-            border: `1px solid ${PAYMENT_STATUS[exp.payment_status]?.color || '#6B7280'}`,
-            borderRadius: 6,
-            padding: '2px 6px',
-            color: PAYMENT_STATUS[exp.payment_status]?.color || '#6B7280',
-            fontSize: 11,
-            cursor: 'pointer',
-            fontWeight: 600,
-          }}
-        >
-          {Object.entries(PAYMENT_STATUS).map(([v, { label }]) => (
-            <option key={v} value={v}>{label}</option>
-          ))}
-        </select>
+          onChange={(v) => onUpdate('payment_status', v)}
+          options={Object.entries(PAYMENT_STATUS).map(([v, { label }]) => ({ value: v, label }))}
+          style={{ minWidth: 120 }}
+        />
       </td>
       <td style={{ padding: '6px 10px' }} onDoubleClick={() => startEdit('notes', exp.notes || '')}>
         {editing === 'notes' ? (
@@ -337,6 +407,14 @@ function EditableExpenseRow({ exp, onUpdate, onDelete, onAddBelow }) {
             style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#3B82F6', padding: 3 }}
           >
             <Pencil size={13} />
+          </button>
+          <button
+            type="button"
+            onClick={onDuplicate}
+            title="שכפל"
+            style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#8B5CF6', padding: 3 }}
+          >
+            <Copy size={13} />
           </button>
           <button
             type="button"
@@ -404,6 +482,7 @@ export default function EventDetailPage() {
   const [crowdForm, setCrowdForm] = useState({ entries: '', exits: '', simultaneous: '', is_peak: false })
   const [reportSettings, setReportSettings] = useState({
     food_cost_pct: 30,
+    food_cost_base: null,
     vat_mode: 'included',
   })
   const [showReportSettings, setShowReportSettings] = useState(false)
@@ -1011,7 +1090,10 @@ export default function EventDetailPage() {
           const totalExpensesFull = financials.expenses.reduce((s, e) => s + parseFloat(e.amount || 0) * parseInt(e.quantity || 1, 10), 0)
           const barRevenue = financials.revenues.find((r) => r.source === 'bar')?.amount || 0
           const tablesRevenue = financials.revenues.find((r) => r.source === 'tables')?.amount || 0
-          const foodCostAmount = (parseFloat(barRevenue) + parseFloat(tablesRevenue)) * (reportSettings.food_cost_pct / 100)
+          const foodCostAmount = Math.round(
+            (reportSettings.food_cost_base ?? (parseFloat(barRevenue) + parseFloat(tablesRevenue)))
+            * ((reportSettings.food_cost_pct || 20) / 100),
+          )
           const totalExpensesWithFoodCost = totalExpensesFull + foodCostAmount
           const netProfitFull = revenueNetVatFull - totalExpensesWithFoodCost
           const ordersNonCancelled = orders.filter((o) => o.status !== 'cancelled')
@@ -1223,29 +1305,27 @@ export default function EventDetailPage() {
                     ]}
                     style={{ width: 140 }}
                   />
-                  {expensesHistory.length > 0 && (
-                    <button
-                      type="button"
-                      onClick={undoExpense}
-                      style={{
-                        padding: '6px 12px',
-                        borderRadius: 8,
-                        border: '1px solid var(--glass-border)',
-                        background: 'var(--glass)',
-                        color: '#F59E0B',
-                        cursor: 'pointer',
-                        fontSize: 13,
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 4,
-                      }}
-                    >
-                      <RotateCcw size={14} />
-                      ביטול (
-                      {expensesHistory.length}
-                      )
-                    </button>
-                  )}
+                  <button
+                    type="button"
+                    onClick={undoExpense}
+                    disabled={expensesHistory.length === 0}
+                    style={{
+                      padding: '6px 12px',
+                      borderRadius: 8,
+                      border: '1px solid var(--glass-border)',
+                      background: 'var(--glass)',
+                      color: expensesHistory.length > 0 ? '#F59E0B' : 'var(--v2-gray-400)',
+                      cursor: expensesHistory.length > 0 ? 'pointer' : 'not-allowed',
+                      fontSize: 13,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 4,
+                    }}
+                  >
+                    <RotateCcw size={14} />
+                    ביטול
+                    {expensesHistory.length > 0 ? ` (${expensesHistory.length})` : ''}
+                  </button>
                 </div>
 
                 <div style={{ border: '1px solid var(--glass-border)', borderRadius: 10, overflow: 'auto' }}>
@@ -1288,22 +1368,33 @@ export default function EventDetailPage() {
                               loadData()
                             }}
                             onAddBelow={() => setShowAddExpense(true)}
+                            onDuplicate={async () => {
+                              if (exp.isTemplate) return
+                              saveToHistory()
+                              await fetch(`${API_BASE}/api/admin/events/${id}/expenses`, {
+                                method: 'POST',
+                                headers: authHeaders(),
+                                body: JSON.stringify({
+                                  category: exp.category,
+                                  item_name: exp.item_name,
+                                  amount: exp.amount,
+                                  quantity: exp.quantity,
+                                  payment_status: 'pending',
+                                  invoice_type: exp.invoice_type,
+                                  vat_mode: exp.vat_mode,
+                                }),
+                              })
+                              loadData()
+                            }}
                           />
                         ))}
-                      {foodCostAmount > 0 && (
-                        <tr style={{ background: 'rgba(245,158,11,0.06)', borderTop: '1px solid var(--glass-border)' }}>
-                          <td colSpan={6} style={{ padding: '8px 10px', fontSize: 13, color: '#F59E0B', fontWeight: 600 }}>
-                            פוד קוסט (
-                            {reportSettings.food_cost_pct}
-                            %)
-                          </td>
-                          <td style={{ padding: '8px 10px', fontSize: 13, fontWeight: 600, color: '#F59E0B' }}>
-                            ₪
-                            {Math.round(foodCostAmount).toLocaleString()}
-                          </td>
-                          <td colSpan={5} />
-                        </tr>
-                      )}
+                      <FoodCostRow
+                        barRevenue={parseFloat(barRevenue) || 0}
+                        tablesRevenue={parseFloat(tablesRevenue) || 0}
+                        foodCostPct={reportSettings.food_cost_pct || 20}
+                        foodCostBase={reportSettings.food_cost_base}
+                        onUpdate={(pct, base) => setReportSettings((s) => ({ ...s, food_cost_pct: pct, food_cost_base: base }))}
+                      />
                       <tr style={{ borderTop: '2px solid var(--glass-border)', background: 'var(--glass)' }}>
                         <td colSpan={6} style={{ padding: '10px', fontWeight: 800, fontSize: 14 }}>סה"כ הוצאות</td>
                         <td style={{ padding: '10px', fontWeight: 800, fontSize: 14, color: '#EF4444' }}>
