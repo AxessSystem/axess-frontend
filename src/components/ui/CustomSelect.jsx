@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useLayoutEffect } from 'react';
 import { ChevronDown } from 'lucide-react';
 
 const CustomSelect = ({ 
@@ -15,18 +15,28 @@ const CustomSelect = ({
 }) => {
   const ariaLabel = rest['aria-label'];
   const [open, setOpen] = useState(false);
-  const ref = useRef(null);
+  const [menuPos, setMenuPos] = useState({ top: 0, left: 0, width: 0 });
+  const wrapRef = useRef(null);
+  const triggerRef = useRef(null);
 
   // סגור בלחיצה מחוץ
   useEffect(() => {
     const handleClick = (e) => {
-      if (ref.current && !ref.current.contains(e.target)) {
+      if (wrapRef.current && !wrapRef.current.contains(e.target)) {
         setOpen(false);
       }
     };
     document.addEventListener('mousedown', handleClick);
     return () => document.removeEventListener('mousedown', handleClick);
   }, []);
+
+  useLayoutEffect(() => {
+    if (!open) return;
+    const el = triggerRef.current;
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    setMenuPos({ top: r.bottom + 4, left: r.left, width: r.width });
+  }, [open]);
 
   const selected = options.find(o => String(o.value) === String(value));
   const panelBg = light ? '#fff' : '#1e2130';
@@ -56,9 +66,10 @@ const CustomSelect = ({
   };
 
   return (
-    <div ref={ref} id={id} className={className} aria-label={ariaLabel} style={{ position: 'relative', width: wrapWidth }}>
+    <div ref={wrapRef} id={id} className={className} aria-label={ariaLabel} style={{ position: 'relative', width: wrapWidth }}>
       {/* כפתור */}
       <div
+        ref={triggerRef}
         onClick={() => !disabled && setOpen(!open)}
         style={triggerStyle}
       >
@@ -77,15 +88,15 @@ const CustomSelect = ({
       {/* רשימה נפתחת */}
       {open && (
         <div style={{
-          position: 'absolute',
-          top: 'calc(100% + 4px)',
-          right: 0,
-          left: 0,
-          background: panelBg,
+          position: 'fixed',
+          top: menuPos.top,
+          left: menuPos.left,
+          width: menuPos.width,
+          zIndex: 9999,
+          background: light ? '#fff' : 'var(--card, #1e2130)',
           color: textColor,
           border: borderCss,
           borderRadius: 8,
-          zIndex: 999,
           maxHeight: 220,
           overflowY: 'auto',
           boxShadow: '0 4px 20px rgba(0,0,0,0.4)'

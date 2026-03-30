@@ -222,9 +222,10 @@ function FoodCostRow({ barRevenue, tablesRevenue, foodCostPct, foodCostBase, onU
   )
 }
 
-function EditableExpenseRow({ exp, onUpdate, onDelete, onAddBelow, onDuplicate }) {
+function EditableExpenseRow({ exp, onUpdate, onDelete, onAddBelow, onDuplicate, onApplyDateToAll }) {
   const [editing, setEditing] = useState(null)
   const [tempVal, setTempVal] = useState('')
+  const today = new Date().toISOString().split('T')[0]
 
   const startEdit = (field, val) => {
     setEditing(field)
@@ -286,9 +287,44 @@ function EditableExpenseRow({ exp, onUpdate, onDelete, onAddBelow, onDuplicate }
       }}
     >
 
-      <td style={{ padding: '6px 10px', fontSize: 12, color: 'var(--v2-gray-400)', whiteSpace: 'nowrap' }}>
-        {exp.expense_date ? new Date(exp.expense_date).toLocaleDateString('he-IL')
-          : exp.created_at ? new Date(exp.created_at).toLocaleDateString('he-IL') : '—'}
+      <td
+        style={{ padding: '6px 10px', fontSize: 12, color: 'var(--v2-gray-400)', whiteSpace: 'nowrap' }}
+        onClick={() => {
+          if (editing !== 'expense_date') startEdit('expense_date', exp.expense_date || today)
+        }}
+      >
+        {editing === 'expense_date' ? (
+          <div style={{ position: 'relative' }}>
+            <input
+              value={tempVal || today}
+              onChange={(e) => setTempVal(e.target.value)}
+              onBlur={() => saveEdit('expense_date')}
+              type="date"
+              autoFocus
+              style={{
+                background: 'var(--glass)', border: '1px solid #00C37A', borderRadius: 4,
+                padding: '2px 6px', color: 'var(--text)', fontSize: 12,
+              }}
+            />
+            <button
+              type="button"
+              onMouseDown={(e) => { e.preventDefault(); onApplyDateToAll(tempVal || today); setEditing(null) }}
+              style={{
+                display: 'block', marginTop: 4, fontSize: 11, background: 'rgba(0,195,122,0.15)',
+                border: '1px solid #00C37A', borderRadius: 4, color: '#00C37A', cursor: 'pointer',
+                padding: '2px 8px', whiteSpace: 'nowrap',
+              }}
+            >
+              החל על כל השורות
+            </button>
+          </div>
+        ) : (
+          <span style={{ cursor: 'text' }}>
+            {exp.expense_date ? new Date(exp.expense_date).toLocaleDateString('he-IL')
+              : exp.created_at ? new Date(exp.created_at).toLocaleDateString('he-IL')
+                : new Date().toLocaleDateString('he-IL')}
+          </span>
+        )}
       </td>
 
       <td style={{ padding: '4px 6px', minWidth: 130 }}>
@@ -296,7 +332,7 @@ function EditableExpenseRow({ exp, onUpdate, onDelete, onAddBelow, onDuplicate }
           value={exp.category || ''}
           onChange={(v) => onUpdate('category', v)}
           options={EXPENSE_CATEGORIES}
-          style={{ fontSize: 12 }}
+          style={{ fontSize: 12, position: 'relative', zIndex: 999 }}
         />
       </td>
 
@@ -330,7 +366,7 @@ function EditableExpenseRow({ exp, onUpdate, onDelete, onAddBelow, onDuplicate }
           value={exp.vat_mode || 'included'}
           onChange={(v) => onUpdate('vat_mode', v)}
           options={VAT_MODES}
-          style={{ fontSize: 12 }}
+          style={{ fontSize: 12, position: 'relative', zIndex: 999 }}
         />
       </td>
 
@@ -343,7 +379,7 @@ function EditableExpenseRow({ exp, onUpdate, onDelete, onAddBelow, onDuplicate }
           value={exp.invoice_type || 'none'}
           onChange={(v) => onUpdate('invoice_type', v)}
           options={INVOICE_TYPES}
-          style={{ fontSize: 12 }}
+          style={{ fontSize: 12, position: 'relative', zIndex: 999 }}
         />
       </td>
 
@@ -354,7 +390,7 @@ function EditableExpenseRow({ exp, onUpdate, onDelete, onAddBelow, onDuplicate }
           value={exp.payment_status || 'pending'}
           onChange={(v) => onUpdate('payment_status', v)}
           options={Object.entries(PAYMENT_STATUS).map(([v, { label }]) => ({ value: v, label }))}
-          style={{ fontSize: 12 }}
+          style={{ fontSize: 12, position: 'relative', zIndex: 999 }}
         />
       </td>
 
@@ -1390,6 +1426,18 @@ export default function EventDetailPage() {
                                 }),
                               })
                               loadData()
+                            }}
+                            onApplyDateToAll={async (date) => {
+                              saveToHistory()
+                              for (const expense of financials.expenses) {
+                                await fetch(`${API_BASE}/api/admin/events/${id}/expenses/${expense.id}`, {
+                                  method: 'PATCH',
+                                  headers: authHeaders(),
+                                  body: JSON.stringify({ expense_date: date }),
+                                })
+                              }
+                              loadData()
+                              toast.success('תאריך הוחל על כל השורות!')
                             }}
                           />
                         ))}
