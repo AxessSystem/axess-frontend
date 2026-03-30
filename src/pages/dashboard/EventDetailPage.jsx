@@ -740,6 +740,12 @@ export default function EventDetailPage() {
     permission: 'view',
     expires_days: 7,
   })
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768)
+  useEffect(() => {
+    const handler = () => setIsMobile(window.innerWidth < 768)
+    window.addEventListener('resize', handler)
+    return () => window.removeEventListener('resize', handler)
+  }, [])
 
   const authHeaders = useCallback(() => ({
     'Content-Type': 'application/json',
@@ -870,9 +876,11 @@ export default function EventDetailPage() {
     <div style={{ padding: '0 0 40px' }}>
       <div style={{
         display: 'flex',
-        alignItems: 'flex-start',
+        flexDirection: isMobile ? 'column' : 'row',
+        alignItems: isMobile ? 'flex-start' : 'center',
         justifyContent: 'space-between',
-        padding: '20px 24px',
+        gap: isMobile ? 12 : 0,
+        padding: isMobile ? '20px 16px' : '20px 24px',
         borderBottom: '1px solid var(--glass-border)',
         marginBottom: 20,
       }}
@@ -903,7 +911,12 @@ export default function EventDetailPage() {
           </div>
         </div>
 
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        <div style={{
+          display: 'flex', gap: 8,
+          width: isMobile ? '100%' : 'auto',
+          flexWrap: 'wrap',
+        }}
+        >
           <a
             href={`https://axess.pro/e/${event.slug}`}
             target="_blank"
@@ -944,7 +957,14 @@ export default function EventDetailPage() {
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12, padding: '0 24px', marginBottom: 24 }}>
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: isMobile ? 'repeat(2,1fr)' : 'repeat(4,1fr)',
+        gap: 12,
+        padding: isMobile ? '0 16px' : '0 24px',
+        marginBottom: 24,
+      }}
+      >
         {[
           { icon: <CheckCircle size={20} />, value: approved.length, label: 'מאושרים', color: '#00C37A', onNav: () => { setActiveTab('audience'); setOrdersTab('approved') } },
           { icon: <Clock size={20} />, value: pending.length, label: 'ממתינים', color: '#F59E0B', onNav: () => { setActiveTab('audience'); setOrdersTab('pending') } },
@@ -974,7 +994,17 @@ export default function EventDetailPage() {
         ))}
       </div>
 
-      <div style={{ display: 'flex', gap: 8, padding: '0 24px', marginBottom: 20, flexWrap: 'wrap' }}>
+      <div style={{
+        display: 'flex',
+        gap: 8,
+        padding: isMobile ? '0 16px' : '0 24px',
+        marginBottom: 20,
+        overflowX: 'auto',
+        WebkitOverflowScrolling: 'touch',
+        scrollbarWidth: 'none',
+        flexWrap: 'nowrap',
+      }}
+      >
         {[
           { id: 'overview', label: 'סקירה' },
           { id: 'audience', label: 'קהל' },
@@ -995,6 +1025,8 @@ export default function EventDetailPage() {
               color: activeTab === tab.id ? '#00C37A' : 'var(--text)',
               fontWeight: activeTab === tab.id ? 700 : 400,
               cursor: 'pointer', fontSize: 14,
+              whiteSpace: 'nowrap',
+              flexShrink: 0,
             }}
           >
             {tab.label}
@@ -1002,7 +1034,7 @@ export default function EventDetailPage() {
         ))}
       </div>
 
-      <div style={{ padding: '0 24px' }}>
+      <div style={{ padding: isMobile ? '0 16px' : '0 24px' }}>
 
         {activeTab === 'overview' && (
           <div>
@@ -1095,8 +1127,8 @@ export default function EventDetailPage() {
                 { id: 'approved', label: `מאושרים (${approved.length})` },
                 { id: 'pending', label: `ממתינים (${pending.length})` },
                 { id: 'cancelled', label: `מבוטלים (${cancelled.length})` },
-                { id: 'interested', label: `מתעניינים (${interests.length})` },
                 { id: 'checkin', label: `נסרקו (${checkedIn.length})` },
+                { id: 'interested', label: `מתעניינים (${interests.length})` },
                 { id: 'all', label: `כולם (${orders.length})` },
               ].map((t) => (
                 <button
@@ -1105,10 +1137,12 @@ export default function EventDetailPage() {
                   onClick={() => setOrdersTab(t.id)}
                   style={{
                     padding: '6px 14px', borderRadius: 8,
+                    background: ordersTab === t.id ? 'rgba(0,195,122,0.12)' : 'transparent',
+                    color: ordersTab === t.id ? '#00C37A' : 'var(--text)',
+                    fontWeight: ordersTab === t.id ? 700 : 400,
                     border: ordersTab === t.id ? 'none' : '1px solid var(--glass-border)',
-                    background: ordersTab === t.id ? 'var(--primary)' : 'transparent',
-                    color: ordersTab === t.id ? '#fff' : 'var(--text)',
-                    cursor: 'pointer', fontSize: 13, fontWeight: ordersTab === t.id ? 700 : 400,
+                    cursor: 'pointer', fontSize: 13,
+                    whiteSpace: 'nowrap',
                   }}
                 >
                   {t.label}
@@ -1185,12 +1219,19 @@ export default function EventDetailPage() {
             )}
 
             {ordersTab !== 'interested' && (
+            <div style={{
+              overflowX: 'auto',
+              WebkitOverflowScrolling: 'touch',
+              marginLeft: isMobile ? -16 : 0,
+              marginRight: isMobile ? -16 : 0,
+            }}
+            >
             <div style={{ border: '1px solid var(--glass-border)', borderRadius: 10, overflow: 'hidden' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 900 }}>
                 <thead>
                   <tr style={{ background: 'var(--glass)', fontSize: 12, color: 'var(--v2-gray-400)' }}>
                     {['שם', 'טלפון', 'סוג כרטיס', 'סכום', 'יחצ"ן', 'סטטוס', 'פעולות'].map((h) => (
-                      <th key={h} style={{ padding: '10px 12px', textAlign: 'right', fontWeight: 600 }}>{h}</th>
+                      <th key={h} style={{ padding: '10px 12px', textAlign: 'right', fontWeight: 600, whiteSpace: 'nowrap' }}>{h}</th>
                     ))}
                   </tr>
                 </thead>
@@ -1280,6 +1321,7 @@ export default function EventDetailPage() {
                   )}
                 </tbody>
               </table>
+            </div>
             </div>
             )}
           </div>
@@ -1519,12 +1561,21 @@ export default function EventDetailPage() {
                   </button>
                 </div>
 
-                <div style={{ border: '1px solid var(--glass-border)', borderRadius: 10, overflow: 'hidden', marginBottom: 12 }}>
-                  <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <div style={{
+                  overflowX: 'auto',
+                  WebkitOverflowScrolling: 'touch',
+                  marginLeft: isMobile ? -16 : 0,
+                  marginRight: isMobile ? -16 : 0,
+                  paddingLeft: isMobile ? 16 : 0,
+                  paddingRight: isMobile ? 16 : 0,
+                }}
+                >
+                <div style={{ border: '1px solid var(--glass-border)', borderRadius: 10, overflow: 'auto', marginBottom: 12 }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 750 }}>
                     <thead>
                       <tr style={{ background: 'var(--glass)', fontSize: 12, color: 'var(--v2-gray-400)' }}>
                         {['תאריך', 'מקור', 'תיאור', 'סכום', 'מע"מ', 'נטו', 'ערוץ', 'הערות', 'פעולות'].map((h) => (
-                          <th key={h} style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 600 }}>{h}</th>
+                          <th key={h} style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 600, whiteSpace: 'nowrap' }}>{h}</th>
                         ))}
                       </tr>
                     </thead>
@@ -1627,6 +1678,7 @@ export default function EventDetailPage() {
                     </tbody>
                   </table>
                 </div>
+                </div>
               </div>
 
               <div style={{ background: 'var(--card)', borderRadius: 12, padding: 16, border: '1px solid var(--glass-border)', marginBottom: 16 }}>
@@ -1692,6 +1744,15 @@ export default function EventDetailPage() {
                   </button>
                 </div>
 
+                <div style={{
+                  overflowX: 'auto',
+                  WebkitOverflowScrolling: 'touch',
+                  marginLeft: isMobile ? -16 : 0,
+                  marginRight: isMobile ? -16 : 0,
+                  paddingLeft: isMobile ? 16 : 0,
+                  paddingRight: isMobile ? 16 : 0,
+                }}
+                >
                 <div style={{ border: '1px solid var(--glass-border)', borderRadius: 10, overflow: 'auto' }}>
                   <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 1020 }}>
                     <thead>
@@ -1852,6 +1913,7 @@ export default function EventDetailPage() {
                       </tr>
                     </tbody>
                   </table>
+                </div>
                 </div>
               </div>
 
@@ -2650,12 +2712,22 @@ export default function EventDetailPage() {
                 </div>
               </div>
 
-              <div style={{ border: '1px solid var(--glass-border)', borderRadius: 10, overflow: 'hidden', marginBottom: 16 }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <div style={{
+                overflowX: 'auto',
+                WebkitOverflowScrolling: 'touch',
+                marginLeft: isMobile ? -16 : 0,
+                marginRight: isMobile ? -16 : 0,
+                paddingLeft: isMobile ? 16 : 0,
+                paddingRight: isMobile ? 16 : 0,
+                marginBottom: 16,
+              }}
+              >
+              <div style={{ border: '1px solid var(--glass-border)', borderRadius: 10, overflow: 'hidden' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 700 }}>
                   <thead>
                     <tr style={{ background: 'var(--glass)', fontSize: 12, color: 'var(--v2-gray-400)' }}>
                       {['ערוץ', 'נמכרו', 'הכנסה', '% מהסה"כ', 'עדכון אחרון'].map((h) => (
-                        <th key={h} style={{ padding: '10px 12px', textAlign: 'right', fontWeight: 600 }}>{h}</th>
+                        <th key={h} style={{ padding: '10px 12px', textAlign: 'right', fontWeight: 600, whiteSpace: 'nowrap' }}>{h}</th>
                       ))}
                     </tr>
                   </thead>
@@ -2707,6 +2779,7 @@ export default function EventDetailPage() {
                     })}
                   </tbody>
                 </table>
+              </div>
               </div>
 
               <div style={{ display: 'flex', gap: 8, marginTop: 20, marginBottom: 12, flexWrap: 'wrap' }}>
@@ -2760,6 +2833,15 @@ export default function EventDetailPage() {
                 </button>
               </div>
 
+              <div style={{
+                overflowX: 'auto',
+                WebkitOverflowScrolling: 'touch',
+                marginLeft: isMobile ? -16 : 0,
+                marginRight: isMobile ? -16 : 0,
+                paddingLeft: isMobile ? 16 : 0,
+                paddingRight: isMobile ? 16 : 0,
+              }}
+              >
               <div style={{ border: '1px solid var(--glass-border)', borderRadius: 10, overflow: 'auto' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 900 }}>
                   <thead>
@@ -2832,6 +2914,7 @@ export default function EventDetailPage() {
                     )}
                   </tbody>
                 </table>
+              </div>
               </div>
 
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 16 }}>
