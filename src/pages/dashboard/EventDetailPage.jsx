@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import {
   Calendar, MapPin, ChevronLeft, ExternalLink, Download, Edit,
@@ -8,6 +8,14 @@ import toast from 'react-hot-toast'
 import { useAuth } from '@/contexts/AuthContext'
 
 const API_BASE = import.meta.env.VITE_API_URL || 'https://api.axess.pro'
+const PUBLIC_WEBVIEW_ORIGIN = 'https://axess.pro'
+
+function normalizeInboxPhone(raw) {
+  if (!raw) return ''
+  const d = String(raw).replace(/\D/g, '')
+  if (d.startsWith('972')) return `0${d.slice(3)}`
+  return d
+}
 
 function formatDate(dateVal) {
   if (!dateVal) return '—'
@@ -61,6 +69,9 @@ export default function EventDetailPage() {
   const [orders, setOrders] = useState([])
   const [ordersTab, setOrdersTab] = useState('approved')
   const [loading, setLoading] = useState(true)
+  const [inboxConversations, setInboxConversations] = useState([])
+  const [webviewAnalyticsRows, setWebviewAnalyticsRows] = useState([])
+  const [webviewBusinessSlug, setWebviewBusinessSlug] = useState('')
 
   const authHeaders = useCallback(() => ({
     'Content-Type': 'application/json',
@@ -70,14 +81,64 @@ export default function EventDetailPage() {
 
   const loadData = useCallback(() => {
     if (!id || !businessId) return Promise.resolve()
+    const hdrs = authHeaders()
     return Promise.all([
-      fetch(`${API_BASE}/api/admin/events/${id}`, { headers: authHeaders() }).then((r) => (r.ok ? r.json() : null)),
-      fetch(`${API_BASE}/api/admin/events/${id}/orders`, { headers: authHeaders() }).then((r) => (r.ok ? r.json() : [])),
-    ]).then(([ev, ord]) => {
+      fetch(`${API_BASE}/api/admin/events/${id}`, { headers: hdrs }).then((r) => (r.ok ? r.json() : null)),
+      fetch(`${API_BASE}/api/admin/events/${id}/orders`, { headers: hdrs }).then((r) => (r.ok ? r.json() : [])),
+      fetch(`${API_BASE}/api/inbox/conversations`, { headers: hdrs }).then((r) => (r.ok ? r.json() : { conversations: [] })),
+      fetch(`${API_BASE}/api/w/analytics-by-business`, { headers: hdrs }).then((r) => (r.ok ? r.json() : { stats: [] })),
+      fetch(`${API_BASE}/api/webview/settings`, { headers: hdrs }).then((r) => (r.ok ? r.json() : {})),
+    ]).then(([ev, ord, inboxData, waData, webSettings]) => {
       setEvent(ev && !ev.error ? ev : null)
       setOrders(Array.isArray(ord) ? ord : ord.orders || [])
+      setInboxConversations(inboxData?.conversations || [])
+      setWebviewAnalyticsRows(waData?.stats || [])
+      setWebviewBusinessSlug(webSettings?.business?.slug || '')
     })
   }, [id, businessId, authHeaders])
+
+  const registeredPhones = useMemo(() => new Set(orders.map((o) => normalizeInboxPhone(o.phone))), [orders])
+
+  const interestedConversations = useMemo(() => {
+    if (!event || !inboxConversations.length) return []
+    const slug = (event.slug || '').toLowerCase()
+    const titleFrag = (event.title || '').trim().slice(0, 24).toLowerCase()
+    return inboxConversations.filter((c) => {
+      if (registeredPhones.has(normalizeInboxPhone(c.customer_phone))) return false
+      const msg = (c.last_message || '').toLowerCase()
+      if (slug && msg.includes(slug)) return true
+      if (titleFrag.length >= 3 && msg.includes(titleFrag)) return true
+      return false
+    })
+  }, [event, inboxConversations, registeredPhones])
+
+  const interestedRows = useMemo(() => interestedConversations.map((c) => ({
+    id: c.id,
+    first_name: '—',
+    last_name: '',
+    phone: c.customer_phone,
+    ticket_type: c.channel === 'whatsapp' ? 'WhatsApp' : 'SMS',
+    total_price: 0,
+    amount: 0,
+    promoter_name: '—',
+    status: 'interested',
+    checked_in: false,
+    created_at: c.last_message_at || c.created_at,
+  })), [interestedConversations])
+
+  const eventWebStats = useMemo(() => {
+    const slug = (event?.slug || '').toLowerCase()
+    if (!slug || !webviewAnalyticsRows.length) return { sessions: 0, conversions: 0 }
+    const rows = webviewAnalyticsRows.filter((r) => {
+      const camp = (r.utm_campaign || '').toLowerCase()
+      const src = (r.utm_source || '').toLowerCase()
+      return camp.includes(slug) || src.includes(slug)
+    })
+    return {
+      sessions: rows.reduce((s, r) => s + (Number(r.sessions) || 0), 0),
+      conversions: rows.reduce((s, r) => s + (Number(r.conversions) || 0), 0),
+    }
+  }, [event?.slug, webviewAnalyticsRows])
 
   useEffect(() => {
     if (!id || !businessId) return
@@ -128,10 +189,11 @@ export default function EventDetailPage() {
   const cancelled = orders.filter((o) => o.status === 'cancelled')
   const checkedIn = orders.filter((o) => o.checked_in)
 
-  const filteredOrders = ordersTab === 'approved' ? approved
-    : ordersTab === 'pending' ? pending
-      : ordersTab === 'cancelled' ? cancelled
-        : ordersTab === 'checkin' ? checkedIn : orders
+  const filteredOrders = ordersTab === 'interested' ? interestedRows
+    : ordersTab === 'approved' ? approved
+      : ordersTab === 'pending' ? pending
+        : ordersTab === 'cancelled' ? cancelled
+          : ordersTab === 'checkin' ? checkedIn : orders
 
   const totalRevenue = approved.reduce((sum, o) => sum + (o.total_price || o.amount || 0), 0)
 
@@ -215,20 +277,25 @@ export default function EventDetailPage() {
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12, padding: '0 24px', marginBottom: 24 }}>
         {[
-          { icon: <CheckCircle size={20} />, value: approved.length, label: 'מאושרים', color: '#00C37A' },
-          { icon: <Clock size={20} />, value: pending.length, label: 'ממתינים', color: '#F59E0B' },
-          { icon: <XCircle size={20} />, value: cancelled.length, label: 'מבוטלים', color: '#EF4444' },
-          { icon: <DollarSign size={20} />, value: `₪${totalRevenue.toLocaleString()}`, label: 'הכנסה', color: '#3B82F6' },
-          { icon: <Users size={20} />, value: orders.length, label: 'סה"כ רשומים', color: '#8B5CF6' },
-          { icon: <QrCode size={20} />, value: checkedIn.length, label: 'צ\'ק אין', color: '#00C37A' },
+          { icon: <CheckCircle size={20} />, value: approved.length, label: 'מאושרים', color: '#00C37A', onNav: () => { setActiveTab('audience'); setOrdersTab('approved') } },
+          { icon: <Clock size={20} />, value: pending.length, label: 'ממתינים', color: '#F59E0B', onNav: () => { setActiveTab('audience'); setOrdersTab('pending') } },
+          { icon: <XCircle size={20} />, value: cancelled.length, label: 'מבוטלים', color: '#EF4444', onNav: () => { setActiveTab('audience'); setOrdersTab('cancelled') } },
+          { icon: <DollarSign size={20} />, value: `₪${totalRevenue.toLocaleString()}`, label: 'הכנסה', color: '#3B82F6', onNav: () => { setActiveTab('finance') } },
+          { icon: <Users size={20} />, value: orders.length, label: 'סה"כ רשומים', color: '#8B5CF6', onNav: () => { setActiveTab('audience'); setOrdersTab('all') } },
+          { icon: <QrCode size={20} />, value: checkedIn.length, label: 'צ\'ק אין', color: '#00C37A', onNav: () => { setActiveTab('audience'); setOrdersTab('checkin') } },
           { icon: <Eye size={20} />, value: event.views_count || 0, label: 'צפיות', color: '#06B6D4' },
           { icon: <Ticket size={20} />, value: event.max_capacity || 0, label: 'קיבולת', color: '#F97316' },
         ].map((kpi) => (
           <div
             key={kpi.label}
+            role={kpi.onNav ? 'button' : undefined}
+            tabIndex={kpi.onNav ? 0 : undefined}
+            onClick={kpi.onNav}
+            onKeyDown={kpi.onNav ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); kpi.onNav() } } : undefined}
             style={{
               background: 'var(--card)', borderRadius: 12, padding: '16px',
               border: '1px solid var(--glass-border)', textAlign: 'center',
+              cursor: kpi.onNav ? 'pointer' : 'default',
             }}
           >
             <div style={{ color: kpi.color, marginBottom: 6 }}>{kpi.icon}</div>
@@ -244,6 +311,7 @@ export default function EventDetailPage() {
           { id: 'audience', label: 'קהל' },
           { id: 'finance', label: 'כספים' },
           { id: 'campaigns', label: 'קמפיינים' },
+          { id: 'webview', label: 'Webview' },
           { id: 'checkin', label: 'צ\'ק אין' },
         ].map((tab) => (
           <button
@@ -268,10 +336,7 @@ export default function EventDetailPage() {
 
         {activeTab === 'overview' && (
           <div>
-            <p style={{ color: 'var(--v2-gray-400)', fontSize: 14 }}>
-              {event.description}
-            </p>
-            <div style={{ background: 'var(--card)', borderRadius: 12, padding: 20, border: '1px solid var(--glass-border)', marginTop: 16 }}>
+            <div style={{ background: 'var(--card)', borderRadius: 12, padding: 20, border: '1px solid var(--glass-border)' }}>
               <h3 style={{ margin: '0 0 16px', fontSize: 15, fontWeight: 700 }}>פילוח רשומים</h3>
               {[
                 { label: 'מאושרים', count: approved.length, color: '#00C37A' },
@@ -295,6 +360,61 @@ export default function EventDetailPage() {
                 </div>
               ))}
             </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginTop: 20 }}>
+              <div style={{ background: 'var(--card)', borderRadius: 12, padding: 16, border: '1px solid var(--glass-border)' }}>
+                <h4 style={{ margin: '0 0 12px', fontSize: 14, fontWeight: 700 }}>פילוח מגדר</h4>
+                {['זכר', 'נקבה', 'לא ידוע'].map((gender) => {
+                  const count = orders.filter((o) => o.gender === gender || (!o.gender && gender === 'לא ידוע')).length
+                  return (
+                    <div key={gender} style={{ marginBottom: 8 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 3 }}>
+                        <span>{gender}</span>
+                        <span style={{ fontWeight: 700 }}>{count}</span>
+                      </div>
+                      <div style={{ height: 6, borderRadius: 3, background: 'var(--glass)' }}>
+                        <div style={{
+                          height: '100%', borderRadius: 3, background: '#00C37A',
+                          width: orders.length > 0 ? `${(count / orders.length) * 100}%` : '0%',
+                        }}
+                        />
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+
+              <div style={{ background: 'var(--card)', borderRadius: 12, padding: 16, border: '1px solid var(--glass-border)' }}>
+                <h4 style={{ margin: '0 0 12px', fontSize: 14, fontWeight: 700 }}>פילוח גיל</h4>
+                {[
+                  { label: '18-24', min: 18, max: 24 },
+                  { label: '25-34', min: 25, max: 34 },
+                  { label: '35-44', min: 35, max: 44 },
+                  { label: '45+', min: 45, max: 120 },
+                ].map((group) => {
+                  const count = orders.filter((o) => {
+                    if (!o.birth_date) return false
+                    const age = new Date().getFullYear() - new Date(o.birth_date).getFullYear()
+                    return age >= group.min && age <= group.max
+                  }).length
+                  return (
+                    <div key={group.label} style={{ marginBottom: 8 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 3 }}>
+                        <span>{group.label}</span>
+                        <span style={{ fontWeight: 700 }}>{count}</span>
+                      </div>
+                      <div style={{ height: 6, borderRadius: 3, background: 'var(--glass)' }}>
+                        <div style={{
+                          height: '100%', borderRadius: 3, background: '#3B82F6',
+                          width: orders.length > 0 ? `${(count / orders.length) * 100}%` : '0%',
+                        }}
+                        />
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
           </div>
         )}
 
@@ -305,6 +425,7 @@ export default function EventDetailPage() {
                 { id: 'approved', label: `מאושרים (${approved.length})` },
                 { id: 'pending', label: `ממתינים (${pending.length})` },
                 { id: 'cancelled', label: `מבוטלים (${cancelled.length})` },
+                { id: 'interested', label: 'מתעניינים' },
                 { id: 'checkin', label: `נסרקו (${checkedIn.length})` },
                 { id: 'all', label: `כולם (${orders.length})` },
               ].map((t) => (
@@ -377,14 +498,17 @@ export default function EventDetailPage() {
                       <td style={{ padding: '10px 12px' }}>
                         <span style={{
                           padding: '3px 10px', borderRadius: 12, fontSize: 11, fontWeight: 600,
-                          background: order.status === 'approved' || order.status === 'confirmed' ? 'rgba(0,195,122,0.15)'
-                            : order.status === 'pending' ? 'rgba(245,158,11,0.15)' : 'rgba(239,68,68,0.15)',
-                          color: order.status === 'approved' || order.status === 'confirmed' ? '#00C37A'
-                            : order.status === 'pending' ? '#F59E0B' : '#EF4444',
+                          background: order.status === 'interested' ? 'rgba(6,182,212,0.15)'
+                            : order.status === 'approved' || order.status === 'confirmed' ? 'rgba(0,195,122,0.15)'
+                              : order.status === 'pending' ? 'rgba(245,158,11,0.15)' : 'rgba(239,68,68,0.15)',
+                          color: order.status === 'interested' ? '#06B6D4'
+                            : order.status === 'approved' || order.status === 'confirmed' ? '#00C37A'
+                              : order.status === 'pending' ? '#F59E0B' : '#EF4444',
                         }}
                         >
-                          {order.status === 'approved' || order.status === 'confirmed' ? 'מאושר'
-                            : order.status === 'pending' ? 'ממתין' : 'בוטל'}
+                          {order.status === 'interested' ? 'מתעניין'
+                            : order.status === 'approved' || order.status === 'confirmed' ? 'מאושר'
+                              : order.status === 'pending' ? 'ממתין' : 'בוטל'}
                         </span>
                       </td>
                       <td style={{ padding: '10px 12px' }}>
@@ -403,7 +527,7 @@ export default function EventDetailPage() {
                               אשר
                             </button>
                           )}
-                          {order.status !== 'cancelled' && (
+                          {order.status !== 'cancelled' && order.status !== 'interested' && (
                             <button
                               type="button"
                               onClick={() => cancelOrder(order.id)}
@@ -472,6 +596,60 @@ export default function EventDetailPage() {
 
         {activeTab === 'campaigns' && (
           <p style={{ color: 'var(--v2-gray-400)', fontSize: 14 }}>ניהול קמפיינים — בקרוב.</p>
+        )}
+
+        {activeTab === 'webview' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <p style={{ margin: 0, fontSize: 14, color: 'var(--v2-gray-400)' }}>
+              Webview של העסק — מדידה לפי שורות אנליטיקה שבהן
+              {' '}
+              <strong>utm_campaign</strong>
+              {' '}
+              או
+              {' '}
+              <strong>utm_source</strong>
+              {' '}
+              מכילים את slug האירוע (
+              <code style={{ fontSize: 13 }}>{event.slug}</code>
+              ).
+            </p>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12 }}>
+              <div style={{ background: 'var(--card)', borderRadius: 12, padding: 16, border: '1px solid var(--glass-border)' }}>
+                <div style={{ fontSize: 13, color: 'var(--v2-gray-400)', marginBottom: 6 }}>צפיות</div>
+                <div style={{ fontSize: 22, fontWeight: 800, color: '#06B6D4' }}>{eventWebStats.sessions}</div>
+              </div>
+              <div style={{ background: 'var(--card)', borderRadius: 12, padding: 16, border: '1px solid var(--glass-border)' }}>
+                <div style={{ fontSize: 13, color: 'var(--v2-gray-400)', marginBottom: 6 }}>הזמנות דרך Webview</div>
+                <div style={{ fontSize: 22, fontWeight: 800, color: '#00C37A' }}>{eventWebStats.conversions}</div>
+              </div>
+            </div>
+            {webviewBusinessSlug ? (
+              <a
+                href={`${PUBLIC_WEBVIEW_ORIGIN}/w/${encodeURIComponent(webviewBusinessSlug)}?utm_campaign=${encodeURIComponent(event.slug || '')}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  fontSize: 14, color: '#00C37A', textDecoration: 'underline', width: 'fit-content',
+                }}
+              >
+                פתח Webview עם UTM לאירוע
+              </a>
+            ) : (
+              <p style={{ margin: 0, fontSize: 13, color: 'var(--v2-gray-400)' }}>
+                לא מוגדר slug ל-Webview בעסק — הגדר בהגדרות Webview.
+              </p>
+            )}
+            <button
+              type="button"
+              onClick={() => navigate('/dashboard/webview')}
+              style={{
+                padding: '10px 20px', borderRadius: 8, border: 'none', width: 'fit-content',
+                background: '#00C37A', color: '#000', fontWeight: 700, cursor: 'pointer', fontSize: 14,
+              }}
+            >
+              קשר Webview
+            </button>
+          </div>
         )}
 
         {activeTab === 'checkin' && (

@@ -1372,6 +1372,11 @@ export default function Events() {
                     <span>{formatEventDate(ev.date || dateRaw)}</span>
                   </div>
 
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: 'var(--v2-gray-400)', marginBottom: 8 }}>
+                    <MapPin size={14} color="#00C37A" />
+                    <span>{ev.location || ev.venue_name}</span>
+                  </div>
+
                   <div style={{
                     display: 'grid',
                     gridTemplateColumns: 'repeat(4,1fr)',
