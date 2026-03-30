@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo, Fragment } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import {
   Calendar, MapPin, ChevronLeft, ExternalLink, Download, Edit,
@@ -849,6 +849,40 @@ export default function EventDetailPage() {
                 </div>
               </div>
 
+              {/* ספקים */}
+              <div style={{ background: 'var(--card)', borderRadius: 12, padding: 16, border: '1px solid var(--glass-border)', marginBottom: 16 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                  <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700 }}>ספקים</h3>
+                  <span style={{ fontSize: 12, color: 'var(--v2-gray-400)' }}>
+                    {vendors.length}
+                    {' '}
+                    ספקים שמורים
+                  </span>
+                </div>
+                {vendors.length === 0 ? (
+                  <p style={{ color: 'var(--v2-gray-400)', fontSize: 13, margin: 0 }}>
+                    אין ספקים שמורים עדיין
+                  </p>
+                ) : (
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                    {vendors.map((v) => (
+                      <span
+                        key={v.id}
+                        style={{
+                          padding: '4px 12px', borderRadius: 20, fontSize: 12,
+                          background: 'var(--glass)', border: '1px solid var(--glass-border)',
+                        }}
+                      >
+                        {v.name}
+                        {' '}
+                        · ₪
+                        {(v.default_price || 0).toLocaleString()}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+
               <div style={{ background: 'var(--card)', borderRadius: 12, padding: 16, border: '1px solid var(--glass-border)', marginBottom: 16 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
                   <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700 }}>הוצאות</h3>
@@ -865,86 +899,116 @@ export default function EventDetailPage() {
                   </button>
                 </div>
 
-                {EXPENSE_CATEGORIES.map((cat) => {
-                  const catExpenses = financials.expenses.filter((e) => e.category === cat.value)
-                  if (catExpenses.length === 0) return null
-                  const catTotal = catExpenses.reduce((s, e) => s + parseFloat(e.amount || 0) * parseInt(e.quantity || 1, 10), 0)
-                  return (
-                    <div key={cat.value} style={{ marginBottom: 12 }}>
-                      <div style={{
-                        display: 'flex', justifyContent: 'space-between', fontSize: 12, color: 'var(--v2-gray-400)', fontWeight: 700, marginBottom: 6, paddingBottom: 4, borderBottom: '1px solid var(--glass-border)',
-                      }}
-                      >
-                        <span>{cat.label}</span>
-                        <span>
+                <div style={{ border: '1px solid var(--glass-border)', borderRadius: 10, overflow: 'hidden', marginBottom: 12 }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                    <thead>
+                      <tr style={{ background: 'var(--glass)', fontSize: 12, color: 'var(--v2-gray-400)' }}>
+                        {['קטגוריה / פריט', 'כמות', 'מחיר', 'סה"כ', 'חשבונית', 'סטטוס'].map((h) => (
+                          <th key={h} style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 600 }}>{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {EXPENSE_CATEGORIES.map((cat) => {
+                        const catExpenses = financials.expenses.filter((e) => e.category === cat.value)
+                        if (catExpenses.length === 0) return null
+                        const catTotal = catExpenses.reduce((s, e) => s + parseFloat(e.amount || 0) * parseInt(e.quantity || 1, 10), 0)
+                        return (
+                          <Fragment key={cat.value}>
+                            <tr style={{ background: 'rgba(0,195,122,0.06)' }}>
+                              <td colSpan={4} style={{ padding: '6px 12px', fontSize: 12, fontWeight: 700, color: '#00C37A' }}>
+                                {cat.label}
+                              </td>
+                              <td colSpan={2} style={{ padding: '6px 12px', fontSize: 12, fontWeight: 700, color: '#00C37A', textAlign: 'left' }}>
+                                ₪
+                                {catTotal.toLocaleString()}
+                              </td>
+                            </tr>
+                            {catExpenses.map((exp) => (
+                              <tr key={exp.id} style={{ borderTop: '1px solid var(--glass-border)' }}>
+                                <td style={{ padding: '8px 12px', fontSize: 13, paddingRight: 24 }}>{exp.vendor_name || exp.item_name}</td>
+                                <td style={{ padding: '8px 12px', fontSize: 13, textAlign: 'center' }}>{exp.quantity || 1}</td>
+                                <td style={{ padding: '8px 12px', fontSize: 13 }}>
+                                  ₪
+                                  {parseFloat(exp.amount || 0).toLocaleString()}
+                                </td>
+                                <td style={{ padding: '8px 12px', fontSize: 13, fontWeight: 600 }}>
+                                  ₪
+                                  {(parseFloat(exp.amount || 0) * parseInt(exp.quantity || 1, 10)).toLocaleString()}
+                                </td>
+                                <td style={{ padding: '8px 12px', fontSize: 12, color: 'var(--v2-gray-400)' }}>{exp.invoice_number || '—'}</td>
+                                <td style={{ padding: '8px 12px' }}>
+                                  <span
+                                    role="button"
+                                    tabIndex={0}
+                                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') e.currentTarget.click() }}
+                                    onClick={async () => {
+                                      const statuses = ['pending', 'paid', 'partial', 'dispute']
+                                      const next = statuses[(statuses.indexOf(exp.payment_status) + 1) % statuses.length]
+                                      await fetch(`${API_BASE}/api/admin/events/${id}/expenses/${exp.id}`, {
+                                        method: 'PATCH', headers: authHeaders(),
+                                        body: JSON.stringify({ payment_status: next }),
+                                      })
+                                      loadData()
+                                    }}
+                                    style={{
+                                      padding: '2px 8px', borderRadius: 8, fontSize: 11, fontWeight: 600,
+                                      cursor: 'pointer',
+                                      background: `${(PAYMENT_STATUS[exp.payment_status]?.color || '#6B7280')}22`,
+                                      color: PAYMENT_STATUS[exp.payment_status]?.color || '#6B7280',
+                                    }}
+                                  >
+                                    {PAYMENT_STATUS[exp.payment_status]?.label || 'לא ידוע'}
+                                  </span>
+                                </td>
+                              </tr>
+                            ))}
+                          </Fragment>
+                        )
+                      })}
+                      {foodCostAmount > 0 && (
+                        <Fragment>
+                          <tr style={{ background: 'rgba(245,158,11,0.06)' }}>
+                            <td colSpan={4} style={{ padding: '6px 12px', fontSize: 12, fontWeight: 700, color: '#F59E0B' }}>
+                              פוד קוסט (
+                              {reportSettings.food_cost_pct}
+                              %)
+                            </td>
+                            <td colSpan={2} style={{ padding: '6px 12px', fontSize: 12, fontWeight: 700, color: '#F59E0B', textAlign: 'left' }}>
+                              ₪
+                              {Math.round(foodCostAmount).toLocaleString()}
+                            </td>
+                          </tr>
+                          <tr style={{ borderTop: '1px solid var(--glass-border)' }}>
+                            <td style={{ padding: '8px 12px', fontSize: 12, color: 'var(--v2-gray-400)', paddingRight: 24 }}>
+                              {reportSettings.food_cost_pct}
+                              % מבר + שולחנות
+                            </td>
+                            <td colSpan={2} style={{ padding: '8px 12px', fontSize: 12, color: 'var(--v2-gray-400)' }}>
+                              ₪
+                              {parseFloat(barRevenue).toLocaleString()}
+                              {' '}
+                              + ₪
+                              {parseFloat(tablesRevenue).toLocaleString()}
+                            </td>
+                            <td style={{ padding: '8px 12px', fontWeight: 600 }}>
+                              ₪
+                              {Math.round(foodCostAmount).toLocaleString()}
+                            </td>
+                            <td colSpan={2} />
+                          </tr>
+                        </Fragment>
+                      )}
+                      <tr style={{ borderTop: '2px solid var(--glass-border)', background: 'var(--glass)' }}>
+                        <td colSpan={3} style={{ padding: '10px 12px', fontWeight: 800, fontSize: 14 }}>סה"כ הוצאות</td>
+                        <td style={{ padding: '10px 12px', fontWeight: 800, fontSize: 14, color: '#EF4444' }}>
                           ₪
-                          {catTotal.toLocaleString()}
-                        </span>
-                      </div>
-                      {catExpenses.map((exp) => (
-                        <div key={exp.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 0' }}>
-                          <span style={{ flex: 1, fontSize: 13 }}>
-                            {exp.vendor_name || exp.item_name}
-                            {exp.quantity > 1 && (
-                              <span style={{ color: 'var(--v2-gray-400)', fontSize: 11 }}>
-                                {' '}
-                                ×
-                                {exp.quantity}
-                              </span>
-                            )}
-                          </span>
-                          <span style={{ fontSize: 13, fontWeight: 600 }}>
-                            ₪
-                            {(parseFloat(exp.amount || 0) * parseInt(exp.quantity || 1, 10)).toLocaleString()}
-                          </span>
-                          <span
-                            role="button"
-                            tabIndex={0}
-                            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') e.currentTarget.click() }}
-                            style={{
-                              padding: '2px 8px', borderRadius: 8, fontSize: 11, fontWeight: 600,
-                              background: `${PAYMENT_STATUS[exp.payment_status]?.color || '#999'}22`,
-                              color: PAYMENT_STATUS[exp.payment_status]?.color,
-                              cursor: 'pointer',
-                            }}
-                            onClick={async () => {
-                              const next = exp.payment_status === 'pending' ? 'paid' : 'pending'
-                              const r = await fetch(`${API_BASE}/api/admin/events/${id}/expenses/${exp.id}`, {
-                                method: 'PATCH', headers: authHeaders(),
-                                body: JSON.stringify({ payment_status: next }),
-                              })
-                              if (!r.ok) toast.error('עדכון נכשל')
-                              else await loadData()
-                            }}
-                          >
-                            {PAYMENT_STATUS[exp.payment_status]?.label}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  )
-                })}
-
-                {foodCostAmount > 0 && (
-                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid var(--glass-border)' }}>
-                    <span style={{ fontSize: 13, color: 'var(--v2-gray-400)' }}>
-                      פוד קוסט (
-                      {reportSettings.food_cost_pct}
-                      % מבר+שולחנות)
-                    </span>
-                    <span style={{ fontSize: 13 }}>
-                      ₪
-                      {Math.round(foodCostAmount).toLocaleString()}
-                    </span>
-                  </div>
-                )}
-
-                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0 0', fontWeight: 800, fontSize: 15, borderTop: '1px solid var(--glass-border)' }}>
-                  <span>סה"כ הוצאות</span>
-                  <span style={{ color: '#EF4444' }}>
-                    ₪
-                    {Math.round(totalExpensesWithFoodCost).toLocaleString()}
-                  </span>
+                          {Math.round(totalExpensesWithFoodCost || totalExpensesFull).toLocaleString()}
+                        </td>
+                        <td colSpan={2} />
+                      </tr>
+                    </tbody>
+                  </table>
                 </div>
               </div>
 
