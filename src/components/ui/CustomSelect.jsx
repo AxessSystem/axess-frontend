@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useLayoutEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { ChevronDown } from 'lucide-react';
 
 const CustomSelect = ({ 
@@ -18,17 +19,21 @@ const CustomSelect = ({
   const [dropdownPos, setDropdownPos] = useState({ top: 0, left: 0, width: 0 });
   const wrapRef = useRef(null);
   const triggerRef = useRef(null);
+  const panelRef = useRef(null);
 
-  // סגור בלחיצה מחוץ
   useEffect(() => {
+    if (!open) return;
     const handleClick = (e) => {
-      if (wrapRef.current && !wrapRef.current.contains(e.target)) {
+      if (
+        wrapRef.current && !wrapRef.current.contains(e.target)
+        && panelRef.current && !panelRef.current.contains(e.target)
+      ) {
         setOpen(false);
       }
     };
     document.addEventListener('mousedown', handleClick);
     return () => document.removeEventListener('mousedown', handleClick);
-  }, []);
+  }, [open]);
 
   useLayoutEffect(() => {
     if (!open || !triggerRef.current) return;
@@ -100,56 +105,46 @@ const CustomSelect = ({
         />
       </div>
 
-      {/* רשימה נפתחת */}
-      {open && (
-        <div style={{
-          position: 'fixed',
-          top: dropdownPos.top - window.scrollY,
-          left: dropdownPos.left - window.scrollX,
-          width: Math.max(dropdownPos.width, 160),
-          zIndex: 9999,
-          background: '#1e2130',
-          color: textColor,
-          border: '1px solid rgba(255,255,255,0.1)',
-          borderRadius: 8,
-          maxHeight: 220,
-          overflowY: 'auto',
-          boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
-        }}>
-          {options.length === 0 && (
-            <div style={{ padding: '10px 12px', color: mutedColor, fontSize: 13 }}>
-              אין אפשרויות
-            </div>
-          )}
+      {open && createPortal(
+        <div
+          ref={panelRef}
+          style={{
+            position: 'fixed',
+            top: dropdownPos.top - window.scrollY,
+            left: dropdownPos.left - window.scrollX,
+            width: Math.max(dropdownPos.width, 160),
+            zIndex: 9999,
+            background: '#1e2130',
+            border: '1px solid rgba(255,255,255,0.1)',
+            borderRadius: 8,
+            boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
+            maxHeight: 220,
+            overflowY: 'auto',
+          }}
+          onMouseDown={(e) => e.stopPropagation()}
+        >
           {options.map(opt => (
             <div
               key={opt.value}
-              onClick={() => { onChange(opt.value); setOpen(false); }}
+              onMouseDown={() => { onChange(opt.value); setOpen(false); }}
               style={{
-                padding: '9px 12px',
+                padding: '8px 12px',
                 cursor: 'pointer',
-                fontSize: 14,
-                background: String(opt.value) === String(value) ? 'var(--primary)' : 'transparent',
-                color: String(opt.value) === String(value) ? '#fff' : textColor,
-                transition: 'background 0.1s'
+                fontSize: 13,
+                color: opt.value === value ? '#00C37A' : 'var(--text, #fff)',
+                background: opt.value === value ? 'rgba(0,195,122,0.1)' : 'transparent',
+                borderBottom: '1px solid rgba(255,255,255,0.05)',
               }}
-              onMouseEnter={e => {
-                if (String(opt.value) !== String(value)) {
-                  e.currentTarget.style.background = 'rgba(0,195,122,0.15)';
-                  e.currentTarget.style.color = '#00C37A';
-                }
-              }}
-              onMouseLeave={e => {
-                if (String(opt.value) !== String(value)) {
-                  e.currentTarget.style.background = 'transparent';
-                  e.currentTarget.style.color = textColor;
-                }
+              onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.05)' }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = opt.value === value ? 'rgba(0,195,122,0.1)' : 'transparent'
               }}
             >
               {opt.label}
             </div>
           ))}
-        </div>
+        </div>,
+        document.body,
       )}
     </div>
   );
