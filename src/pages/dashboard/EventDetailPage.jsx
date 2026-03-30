@@ -699,8 +699,10 @@ export default function EventDetailPage() {
                                 }}
                                 />
                               </div>
-                              <span>{pct}</span>
-                              %
+                              <span>
+                                {pct}
+                                %
+                              </span>
                             </div>
                           </td>
                           <td style={{ padding: '12px', fontSize: 12, color: 'var(--v2-gray-400)' }}>
