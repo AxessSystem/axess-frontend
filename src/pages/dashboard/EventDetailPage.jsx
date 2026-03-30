@@ -476,6 +476,205 @@ function EditableExpenseRow({ exp, onUpdate, onDelete, onAddBelow, onDuplicate, 
   )
 }
 
+function EditableRevenueRow({
+  rev, onUpdate, onDelete, onDuplicate, onAddBelow, revenueSourceOptions, calcVat,
+}) {
+  const [editing, setEditing] = useState(null)
+  const [tempVal, setTempVal] = useState('')
+
+  const startEdit = (field, val) => {
+    setEditing(field)
+    setTempVal(String(val || ''))
+  }
+  const saveEdit = (field) => {
+    if (tempVal !== String(rev[field] || '')) onUpdate(field, tempVal)
+    setEditing(null)
+  }
+
+  const today = new Date().toISOString().split('T')[0]
+
+  return (
+    <tr
+      style={{ borderTop: '1px solid var(--glass-border)' }}
+      onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(0,195,122,0.03)' }}
+      onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent' }}
+    >
+
+      <td
+        style={{ padding: '6px 10px', fontSize: 12, color: 'var(--v2-gray-400)', whiteSpace: 'nowrap' }}
+        onClick={() => {
+          if (editing !== 'revenue_date') startEdit('revenue_date', rev.revenue_date || today)
+        }}
+      >
+        {editing === 'revenue_date' ? (
+          <input
+            value={tempVal || today}
+            onChange={(e) => setTempVal(e.target.value)}
+            onBlur={() => saveEdit('revenue_date')}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') saveEdit('revenue_date')
+              if (e.key === 'Escape') setEditing(null)
+            }}
+            type="date"
+            autoFocus
+            style={{
+              background: 'var(--glass)', border: '1px solid #00C37A', borderRadius: 4,
+              padding: '2px 6px', color: 'var(--text)', fontSize: 12,
+            }}
+          />
+        ) : (
+          <span style={{ cursor: 'text' }}>
+            {rev.revenue_date ? new Date(rev.revenue_date).toLocaleDateString('he-IL')
+              : rev.created_at ? new Date(rev.created_at).toLocaleDateString('he-IL')
+                : new Date().toLocaleDateString('he-IL')}
+          </span>
+        )}
+      </td>
+
+      <td style={{ padding: '4px 6px', minWidth: 140 }}>
+        <CustomSelect
+          value={rev.source || ''}
+          onChange={(v) => onUpdate('source', v)}
+          options={revenueSourceOptions}
+          style={{ fontSize: 12, position: 'relative', zIndex: 999 }}
+        />
+      </td>
+
+      <td style={{ padding: '6px 10px' }} onClick={() => startEdit('label', rev.label || '')}>
+        {editing === 'label' ? (
+          <input
+            value={tempVal}
+            onChange={(e) => setTempVal(e.target.value)}
+            onBlur={() => saveEdit('label')}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') saveEdit('label')
+              if (e.key === 'Escape') setEditing(null)
+            }}
+            autoFocus
+            style={{
+              width: '100%', background: 'var(--glass)', border: '1px solid #00C37A', borderRadius: 4,
+              padding: '2px 6px', color: 'var(--text)', fontSize: 13,
+            }}
+          />
+        ) : (
+          <span style={{
+            fontSize: 13, cursor: 'text', display: 'block', minHeight: 20,
+            color: rev.label ? 'var(--text)' : 'var(--v2-gray-400)',
+          }}
+          >
+            {rev.label || '—'}
+          </span>
+        )}
+      </td>
+
+      <td style={{ padding: '6px 10px' }} onClick={() => startEdit('amount', rev.amount || 0)}>
+        {editing === 'amount' ? (
+          <input
+            value={tempVal}
+            onChange={(e) => setTempVal(e.target.value)}
+            onBlur={() => saveEdit('amount')}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') saveEdit('amount')
+              if (e.key === 'Escape') setEditing(null)
+            }}
+            type="number"
+            autoFocus
+            style={{
+              width: 90, background: 'var(--glass)', border: '1px solid #00C37A', borderRadius: 4,
+              padding: '2px 6px', color: 'var(--text)',
+            }}
+          />
+        ) : (
+          <span style={{ fontSize: 13, cursor: 'text', fontWeight: 600 }}>
+            {rev.amount ? `₪${parseFloat(rev.amount).toLocaleString()}` : '—'}
+          </span>
+        )}
+      </td>
+
+      <td style={{ padding: '6px 10px', fontSize: 12, color: 'var(--v2-gray-400)' }}>
+        ₪
+        {rev.amount ? Math.round(calcVat(parseFloat(rev.amount))).toLocaleString() : '—'}
+      </td>
+
+      <td style={{ padding: '6px 10px', fontSize: 13, fontWeight: 600, color: '#00C37A' }}>
+        {rev.amount
+          ? `₪${Math.round(parseFloat(rev.amount) - calcVat(parseFloat(rev.amount))).toLocaleString()}`
+          : '—'}
+      </td>
+
+      <td style={{ padding: '6px 10px' }}>
+        <span style={{
+          padding: '2px 8px', borderRadius: 8, fontSize: 11,
+          background: rev.is_axess ? 'rgba(0,195,122,0.15)' : 'rgba(59,130,246,0.15)',
+          color: rev.is_axess ? '#00C37A' : '#3B82F6',
+        }}
+        >
+          {rev.is_axess ? 'אוטומטי' : 'ידני'}
+        </span>
+      </td>
+
+      <td style={{ padding: '6px 10px' }} onClick={() => startEdit('notes', rev.notes || '')}>
+        {editing === 'notes' ? (
+          <input
+            value={tempVal}
+            onChange={(e) => setTempVal(e.target.value)}
+            onBlur={() => saveEdit('notes')}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') saveEdit('notes')
+              if (e.key === 'Escape') setEditing(null)
+            }}
+            autoFocus
+            style={{
+              width: '100%', background: 'var(--glass)', border: '1px solid #00C37A', borderRadius: 4,
+              padding: '2px 6px', color: 'var(--text)', fontSize: 12,
+            }}
+          />
+        ) : (
+          <span style={{ fontSize: 12, cursor: 'text', color: 'var(--v2-gray-400)' }}>{rev.notes || '—'}</span>
+        )}
+      </td>
+
+      <td style={{ padding: '6px 8px', minWidth: 90 }}>
+        <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+          <button
+            type="button"
+            onClick={() => onAddBelow(rev.source)}
+            title="הוסף שורה"
+            style={{
+              background: 'rgba(0,195,122,0.1)', border: '1px solid rgba(0,195,122,0.3)', borderRadius: 6,
+              cursor: 'pointer', color: '#00C37A', padding: '4px 6px', display: 'flex',
+            }}
+          >
+            <Plus size={13} />
+          </button>
+          <button
+            type="button"
+            onClick={onDuplicate}
+            title="שכפל"
+            style={{
+              background: 'rgba(139,92,246,0.1)', border: '1px solid rgba(139,92,246,0.3)', borderRadius: 6,
+              cursor: 'pointer', color: '#8B5CF6', padding: '4px 6px', display: 'flex',
+            }}
+          >
+            <Copy size={13} />
+          </button>
+          <button
+            type="button"
+            onClick={onDelete}
+            title="מחק"
+            style={{
+              background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 6,
+              cursor: 'pointer', color: '#EF4444', padding: '4px 6px', display: 'flex',
+            }}
+          >
+            <Trash2 size={13} />
+          </button>
+        </div>
+      </td>
+    </tr>
+  )
+}
+
 export default function EventDetailPage() {
   const { id } = useParams()
   const { session, businessId } = useAuth()
@@ -521,6 +720,7 @@ export default function EventDetailPage() {
   })
   const [newVendorItem, setNewVendorItem] = useState({ name: '', price: '' })
   const [showAddRevenue, setShowAddRevenue] = useState(false)
+  const [customRevenueSources, setCustomRevenueSources] = useState([])
   const [showAddCrowd, setShowAddCrowd] = useState(false)
   const [expenseForm, setExpenseForm] = useState({
     category: 'staff', item_name: '', amount: '', quantity: 1, payment_status: 'pending', vendor_id: '', invoice_number: '',
@@ -1123,6 +1323,11 @@ export default function EventDetailPage() {
           const avgTicketPriceFull = ordersNonCancelled.length > 0 ? axessRevenueFull / ordersNonCancelled.length : 0
           const breakEvenFull = avgTicketPriceFull > 0 ? Math.ceil(totalExpensesWithVat / avgTicketPriceFull) : 0
           const peakCrowd = financials.crowd_stats.reduce((max, s) => Math.max(max, s.simultaneous || 0), 0)
+          const revenueSourceOptions = [
+            ...REVENUE_SOURCES,
+            ...customRevenueSources.filter((s) => !REVENUE_SOURCES.find((r) => r.value === s.value)),
+            { value: '__custom__', label: '+ הוסף מקור חדש' },
+          ]
           const dbExpenses = financials.expenses
           const templateRows = EXPENSE_CATEGORIES
             .filter((cat) => !dbExpenses.some((e) => e.category === cat.value))
@@ -1318,13 +1523,16 @@ export default function EventDetailPage() {
                   <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                     <thead>
                       <tr style={{ background: 'var(--glass)', fontSize: 12, color: 'var(--v2-gray-400)' }}>
-                        {['מקור', 'תיאור', 'סכום', 'מע"מ', 'סה"כ נטו', 'ערוץ', 'הערות'].map((h) => (
+                        {['תאריך', 'מקור', 'תיאור', 'סכום', 'מע"מ', 'נטו', 'ערוץ', 'הערות', 'פעולות'].map((h) => (
                           <th key={h} style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 600 }}>{h}</th>
                         ))}
                       </tr>
                     </thead>
                     <tbody>
                       <tr style={{ borderTop: '1px solid var(--glass-border)', background: 'rgba(0,195,122,0.04)' }}>
+                        <td style={{ padding: '8px 12px', fontSize: 12, color: 'var(--v2-gray-400)' }}>
+                          {event?.date ? new Date(event.date).toLocaleDateString('he-IL') : '—'}
+                        </td>
                         <td style={{ padding: '8px 12px', fontSize: 13, fontWeight: 600, color: '#00C37A' }}>
                           AXESS
                         </td>
@@ -1346,58 +1554,62 @@ export default function EventDetailPage() {
                           </span>
                         </td>
                         <td style={{ padding: '8px 12px', fontSize: 12, color: 'var(--v2-gray-400)' }}>—</td>
+                        <td style={{ padding: '8px 12px' }} />
                       </tr>
 
-                      {financials.revenues.map((rev) => {
-                        const amount = parseFloat(rev.amount || 0)
-                        const vat = Math.round(calcVat(amount))
-                        const net = Math.round(amount - calcVat(amount))
-                        return (
-                          <tr key={rev.id} style={{ borderTop: '1px solid var(--glass-border)' }}>
-                            <td style={{ padding: '8px 12px', fontSize: 13 }}>
-                              {REVENUE_SOURCES.find((s) => s.value === rev.source)?.label || rev.source}
-                            </td>
-                            <td style={{ padding: '8px 12px', fontSize: 13, color: 'var(--v2-gray-400)' }}>
-                              {rev.label || '—'}
-                            </td>
-                            <td style={{ padding: '8px 12px', fontSize: 13 }}>
-                              ₪
-                              {amount.toLocaleString()}
-                            </td>
-                            <td style={{ padding: '8px 12px', fontSize: 12, color: 'var(--v2-gray-400)' }}>
-                              ₪
-                              {vat.toLocaleString()}
-                            </td>
-                            <td style={{ padding: '8px 12px', fontSize: 13, fontWeight: 600 }}>
-                              ₪
-                              {net.toLocaleString()}
-                            </td>
-                            <td style={{ padding: '8px 12px' }}>
-                              <span style={{ padding: '2px 8px', borderRadius: 8, fontSize: 11, background: 'rgba(59,130,246,0.15)', color: '#3B82F6' }}>
-                                ידני
-                              </span>
-                            </td>
-                            <td style={{ padding: '8px 12px' }}>
-                              <button
-                                type="button"
-                                onClick={async () => {
-                                  await fetch(`${API_BASE}/api/admin/events/${id}/revenues/${rev.id}`, {
-                                    method: 'DELETE',
-                                    headers: authHeaders(),
-                                  })
-                                  loadData()
-                                }}
-                                style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#EF4444' }}
-                              >
-                                <Trash2 size={13} />
-                              </button>
-                            </td>
-                          </tr>
-                        )
-                      })}
+                      {financials.revenues.map((rev) => (
+                        <EditableRevenueRow
+                          key={rev.id}
+                          rev={rev}
+                          revenueSourceOptions={revenueSourceOptions}
+                          calcVat={calcVat}
+                          onUpdate={async (field, value) => {
+                            let v = value
+                            if (field === 'source' && v === '__custom__') {
+                              const name = prompt('שם המקור החדש:')
+                              if (!name) return
+                              const newSource = { value: name.toLowerCase().replace(/\s+/g, '_'), label: name }
+                              setCustomRevenueSources((prev) => [...prev, newSource])
+                              v = newSource.value
+                            }
+                            let payloadVal = v
+                            if (field === 'amount') payloadVal = parseFloat(v) || 0
+                            await fetch(`${API_BASE}/api/admin/events/${id}/revenues/${rev.id}`, {
+                              method: 'PATCH',
+                              headers: authHeaders(),
+                              body: JSON.stringify({ [field]: payloadVal }),
+                            })
+                            loadData()
+                          }}
+                          onDelete={async () => {
+                            await fetch(`${API_BASE}/api/admin/events/${id}/revenues/${rev.id}`, {
+                              method: 'DELETE',
+                              headers: authHeaders(),
+                            })
+                            loadData()
+                          }}
+                          onDuplicate={async () => {
+                            await fetch(`${API_BASE}/api/admin/events/${id}/revenues`, {
+                              method: 'POST',
+                              headers: authHeaders(),
+                              body: JSON.stringify({
+                                source: rev.source,
+                                label: rev.label,
+                                amount: rev.amount,
+                                notes: rev.notes,
+                              }),
+                            })
+                            loadData()
+                          }}
+                          onAddBelow={(source) => {
+                            setRevenueForm((f) => ({ ...f, source: source || f.source }))
+                            setShowAddRevenue(true)
+                          }}
+                        />
+                      ))}
 
                       <tr style={{ borderTop: '2px solid var(--glass-border)', background: 'var(--glass)' }}>
-                        <td colSpan={2} style={{ padding: '10px 12px', fontWeight: 800, fontSize: 14 }}>סה"כ הכנסות</td>
+                        <td colSpan={3} style={{ padding: '10px 12px', fontWeight: 800, fontSize: 14 }}>סה"כ הכנסות</td>
                         <td style={{ padding: '10px 12px', fontWeight: 800, fontSize: 14, color: '#00C37A' }}>
                           ₪
                           {totalRevenueFull.toLocaleString()}
@@ -1410,7 +1622,7 @@ export default function EventDetailPage() {
                           ₪
                           {Math.round(totalRevenueFull - calcVat(totalRevenueFull)).toLocaleString()}
                         </td>
-                        <td colSpan={2} />
+                        <td colSpan={3} />
                       </tr>
                     </tbody>
                   </table>
