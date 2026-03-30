@@ -10,13 +10,6 @@ import { useAuth } from '@/contexts/AuthContext'
 const API_BASE = import.meta.env.VITE_API_URL || 'https://api.axess.pro'
 const PUBLIC_WEBVIEW_ORIGIN = 'https://axess.pro'
 
-function normalizeInboxPhone(raw) {
-  if (!raw) return ''
-  const d = String(raw).replace(/\D/g, '')
-  if (d.startsWith('972')) return `0${d.slice(3)}`
-  return d
-}
-
 function formatDate(dateVal) {
   if (!dateVal) return '—'
   try {
@@ -69,7 +62,7 @@ export default function EventDetailPage() {
   const [orders, setOrders] = useState([])
   const [ordersTab, setOrdersTab] = useState('approved')
   const [loading, setLoading] = useState(true)
-  const [inboxConversations, setInboxConversations] = useState([])
+  const [interests, setInterests] = useState([])
   const [webviewAnalyticsRows, setWebviewAnalyticsRows] = useState([])
   const [webviewBusinessSlug, setWebviewBusinessSlug] = useState('')
 
@@ -85,46 +78,17 @@ export default function EventDetailPage() {
     return Promise.all([
       fetch(`${API_BASE}/api/admin/events/${id}`, { headers: hdrs }).then((r) => (r.ok ? r.json() : null)),
       fetch(`${API_BASE}/api/admin/events/${id}/orders`, { headers: hdrs }).then((r) => (r.ok ? r.json() : [])),
-      fetch(`${API_BASE}/api/inbox/conversations`, { headers: hdrs }).then((r) => (r.ok ? r.json() : { conversations: [] })),
       fetch(`${API_BASE}/api/w/analytics-by-business`, { headers: hdrs }).then((r) => (r.ok ? r.json() : { stats: [] })),
       fetch(`${API_BASE}/api/webview/settings`, { headers: hdrs }).then((r) => (r.ok ? r.json() : {})),
-    ]).then(([ev, ord, inboxData, waData, webSettings]) => {
+      fetch(`${API_BASE}/api/admin/events/${id}/interests`, { headers: hdrs }).then((r) => (r.ok ? r.json() : { interests: [] })),
+    ]).then(([ev, ord, waData, webSettings, intData]) => {
       setEvent(ev && !ev.error ? ev : null)
       setOrders(Array.isArray(ord) ? ord : ord.orders || [])
-      setInboxConversations(inboxData?.conversations || [])
       setWebviewAnalyticsRows(waData?.stats || [])
       setWebviewBusinessSlug(webSettings?.business?.slug || '')
+      setInterests(intData?.interests || [])
     })
   }, [id, businessId, authHeaders])
-
-  const registeredPhones = useMemo(() => new Set(orders.map((o) => normalizeInboxPhone(o.phone))), [orders])
-
-  const interestedConversations = useMemo(() => {
-    if (!event || !inboxConversations.length) return []
-    const slug = (event.slug || '').toLowerCase()
-    const titleFrag = (event.title || '').trim().slice(0, 24).toLowerCase()
-    return inboxConversations.filter((c) => {
-      if (registeredPhones.has(normalizeInboxPhone(c.customer_phone))) return false
-      const msg = (c.last_message || '').toLowerCase()
-      if (slug && msg.includes(slug)) return true
-      if (titleFrag.length >= 3 && msg.includes(titleFrag)) return true
-      return false
-    })
-  }, [event, inboxConversations, registeredPhones])
-
-  const interestedRows = useMemo(() => interestedConversations.map((c) => ({
-    id: c.id,
-    first_name: '—',
-    last_name: '',
-    phone: c.customer_phone,
-    ticket_type: c.channel === 'whatsapp' ? 'WhatsApp' : 'SMS',
-    total_price: 0,
-    amount: 0,
-    promoter_name: '—',
-    status: 'interested',
-    checked_in: false,
-    created_at: c.last_message_at || c.created_at,
-  })), [interestedConversations])
 
   const eventWebStats = useMemo(() => {
     const slug = (event?.slug || '').toLowerCase()
@@ -189,11 +153,10 @@ export default function EventDetailPage() {
   const cancelled = orders.filter((o) => o.status === 'cancelled')
   const checkedIn = orders.filter((o) => o.checked_in)
 
-  const filteredOrders = ordersTab === 'interested' ? interestedRows
-    : ordersTab === 'approved' ? approved
-      : ordersTab === 'pending' ? pending
-        : ordersTab === 'cancelled' ? cancelled
-          : ordersTab === 'checkin' ? checkedIn : orders
+  const filteredOrders = ordersTab === 'approved' ? approved
+    : ordersTab === 'pending' ? pending
+      : ordersTab === 'cancelled' ? cancelled
+        : ordersTab === 'checkin' ? checkedIn : orders
 
   const totalRevenue = approved.reduce((sum, o) => sum + (o.total_price || o.amount || 0), 0)
 
@@ -425,7 +388,7 @@ export default function EventDetailPage() {
                 { id: 'approved', label: `מאושרים (${approved.length})` },
                 { id: 'pending', label: `ממתינים (${pending.length})` },
                 { id: 'cancelled', label: `מבוטלים (${cancelled.length})` },
-                { id: 'interested', label: 'מתעניינים' },
+                { id: 'interested', label: `מתעניינים (${interests.length})` },
                 { id: 'checkin', label: `נסרקו (${checkedIn.length})` },
                 { id: 'all', label: `כולם (${orders.length})` },
               ].map((t) => (
@@ -444,21 +407,77 @@ export default function EventDetailPage() {
                   {t.label}
                 </button>
               ))}
-              <button
-                type="button"
-                onClick={() => downloadReport(filteredOrders, event)}
-                style={{
-                  marginRight: 'auto', padding: '6px 14px', borderRadius: 8,
-                  border: '1px solid var(--glass-border)', background: 'var(--glass)',
-                  color: '#00C37A', cursor: 'pointer', fontSize: 13,
-                  display: 'flex', alignItems: 'center', gap: 6,
-                }}
-              >
-                <Download size={13} />
-                Excel
-              </button>
+              {ordersTab !== 'interested' && (
+                <button
+                  type="button"
+                  onClick={() => downloadReport(filteredOrders, event)}
+                  style={{
+                    marginRight: 'auto', padding: '6px 14px', borderRadius: 8,
+                    border: '1px solid var(--glass-border)', background: 'var(--glass)',
+                    color: '#00C37A', cursor: 'pointer', fontSize: 13,
+                    display: 'flex', alignItems: 'center', gap: 6,
+                  }}
+                >
+                  <Download size={13} />
+                  Excel
+                </button>
+              )}
             </div>
 
+            {ordersTab === 'interested' && (
+              <div style={{ border: '1px solid var(--glass-border)', borderRadius: 10, overflow: 'hidden' }}>
+                {interests.map((interest) => (
+                  <div
+                    key={interest.id}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 12,
+                      padding: '10px 12px',
+                      borderBottom: '1px solid var(--glass-border)',
+                      flexWrap: 'wrap',
+                    }}
+                  >
+                    <div style={{ flex: 1, minWidth: 140 }}>
+                      <p style={{ margin: 0, fontWeight: 600, fontSize: 14 }}>
+                        {interest.first_name
+                          ? `${interest.first_name} ${interest.last_name || ''}`.trim()
+                          : interest.phone}
+                      </p>
+                      <p style={{ margin: 0, fontSize: 12, color: 'var(--v2-gray-400)' }}>{interest.phone}</p>
+                    </div>
+                    <span style={{
+                      padding: '3px 10px', borderRadius: 12, fontSize: 11,
+                      background: 'rgba(59,130,246,0.15)', color: '#3B82F6', fontWeight: 600,
+                    }}
+                    >
+                      {interest.source === 'pixel' ? 'ביקר בדף'
+                        : interest.source === 'whatsapp' ? 'WA'
+                          : interest.source === 'sms' ? 'SMS' : 'מתעניין'}
+                    </span>
+                    <span style={{ fontSize: 12, color: 'var(--v2-gray-400)' }}>
+                      {interest.created_at ? new Date(interest.created_at).toLocaleDateString('he-IL') : ''}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => window.open(`${window.location.origin}/dashboard/audiences?search=${encodeURIComponent(interest.phone || '')}`, '_blank')}
+                      style={{
+                        background: 'none', border: 'none', cursor: 'pointer', color: '#00C37A', fontSize: 12,
+                      }}
+                    >
+                      צפה בפרופיל →
+                    </button>
+                  </div>
+                ))}
+                {interests.length === 0 && (
+                  <p style={{ textAlign: 'center', color: 'var(--v2-gray-400)', padding: 24, margin: 0 }}>
+                    אין מתעניינים עדיין
+                  </p>
+                )}
+              </div>
+            )}
+
+            {ordersTab !== 'interested' && (
             <div style={{ border: '1px solid var(--glass-border)', borderRadius: 10, overflow: 'hidden' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead>
@@ -555,6 +574,7 @@ export default function EventDetailPage() {
                 </tbody>
               </table>
             </div>
+            )}
           </div>
         )}
 
