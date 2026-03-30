@@ -228,107 +228,90 @@ function EditableExpenseRow({ exp, onUpdate, onDelete, onAddBelow, onDuplicate }
 
   const startEdit = (field, val) => {
     setEditing(field)
-    setTempVal(val == null ? '' : String(val))
+    setTempVal(String(val || ''))
   }
   const saveEdit = (field) => {
-    onUpdate(field, tempVal)
+    if (tempVal !== String(exp[field] || '')) {
+      onUpdate(field, tempVal)
+    }
     setEditing(null)
   }
 
-  if (exp.isTemplate) {
-    return (
-      <tr
-        style={{ borderTop: '1px solid var(--glass-border)', opacity: 0.85 }}
-        onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.02)' }}
-        onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent' }}
-      >
-        <td style={{ padding: '6px 10px', fontSize: 12, color: 'var(--v2-gray-400)', whiteSpace: 'nowrap' }}>—</td>
-        <td style={{ padding: '6px 10px', fontSize: 12 }}>
-          {EXPENSE_CATEGORIES.find((c) => c.value === exp.category)?.label || exp.category}
-        </td>
-        <td style={{ padding: '6px 10px', fontSize: 12, color: 'var(--v2-gray-400)' }}>—</td>
-        <td style={{ padding: '6px 10px', textAlign: 'center', color: 'var(--v2-gray-400)' }}>—</td>
-        <td style={{ padding: '6px 10px', color: 'var(--v2-gray-400)' }}>—</td>
-        <td style={{ padding: '6px 10px', color: 'var(--v2-gray-400)' }}>—</td>
-        <td style={{ padding: '6px 10px', color: 'var(--v2-gray-400)' }}>—</td>
-        <td style={{ padding: '6px 10px', color: 'var(--v2-gray-400)' }}>—</td>
-        <td style={{ padding: '6px 10px', color: 'var(--v2-gray-400)' }}>—</td>
-        <td style={{ padding: '6px 10px', color: 'var(--v2-gray-400)' }}>—</td>
-        <td style={{ padding: '6px 10px', color: 'var(--v2-gray-400)' }}>—</td>
-        <td style={{ padding: '6px 10px' }}>
-          <button
-            type="button"
-            onClick={onAddBelow}
-            title="הוסף שורה"
-            style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#00C37A', padding: 3 }}
-          >
-            <Plus size={13} />
-          </button>
-        </td>
-      </tr>
-    )
-  }
+  const EditCell = ({ field, value, type = 'text', style = {} }) => (
+    <td
+      style={{ padding: '6px 10px', ...style }}
+      onClick={() => startEdit(field, value)}
+    >
+      {editing === field ? (
+        <input
+          value={tempVal}
+          onChange={(e) => setTempVal(e.target.value)}
+          onBlur={() => saveEdit(field)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') saveEdit(field)
+            if (e.key === 'Escape') setEditing(null)
+          }}
+          type={type}
+          autoFocus
+          style={{
+            width: '100%', background: 'var(--glass)',
+            border: '1px solid #00C37A', borderRadius: 4,
+            padding: '2px 6px', color: 'var(--text)', fontSize: 13,
+            outline: 'none',
+          }}
+        />
+      ) : (
+        <span style={{
+          fontSize: 13, cursor: 'text', display: 'block',
+          minHeight: 20,
+          color: value ? 'var(--text)' : 'var(--v2-gray-400)',
+        }}
+        >
+          {value || '—'}
+        </span>
+      )}
+    </td>
+  )
 
   return (
     <tr
-      style={{ borderTop: '1px solid var(--glass-border)' }}
-      onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.02)' }}
-      onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent' }}
+      style={{
+        borderTop: '1px solid var(--glass-border)',
+        opacity: exp.isTemplate ? 0.65 : 1,
+        background: exp.isTemplate ? 'rgba(255,255,255,0.01)' : 'transparent',
+      }}
+      onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(0,195,122,0.03)' }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.background = exp.isTemplate ? 'rgba(255,255,255,0.01)' : 'transparent'
+      }}
     >
+
       <td style={{ padding: '6px 10px', fontSize: 12, color: 'var(--v2-gray-400)', whiteSpace: 'nowrap' }}>
-        {exp.created_at ? new Date(exp.created_at).toLocaleDateString('he-IL') : '—'}
+        {exp.expense_date ? new Date(exp.expense_date).toLocaleDateString('he-IL')
+          : exp.created_at ? new Date(exp.created_at).toLocaleDateString('he-IL') : '—'}
       </td>
-      <td style={{ padding: '6px 10px', fontSize: 12 }}>
-        {EXPENSE_CATEGORIES.find((c) => c.value === exp.category)?.label || exp.category}
+
+      <td style={{ padding: '4px 6px', minWidth: 130 }}>
+        <CustomSelect
+          value={exp.category || ''}
+          onChange={(v) => onUpdate('category', v)}
+          options={EXPENSE_CATEGORIES}
+          style={{ fontSize: 12 }}
+        />
       </td>
-      <td
-        style={{ padding: '6px 10px' }}
-        onDoubleClick={() => startEdit('item_name', exp.vendor_name || exp.item_name)}
-      >
-        {editing === 'item_name' ? (
-          <input
-            value={tempVal}
-            onChange={(e) => setTempVal(e.target.value)}
-            onBlur={() => saveEdit('item_name')}
-            onKeyDown={(e) => e.key === 'Enter' && saveEdit('item_name')}
-            autoFocus
-            style={{
-              width: '100%', background: 'var(--glass)', border: '1px solid #00C37A', borderRadius: 4,
-              padding: '2px 6px', color: 'var(--text)', fontSize: 13,
-            }}
-          />
-        ) : (
-          <span style={{ fontSize: 13, cursor: 'text' }}>{exp.vendor_name || exp.item_name || '—'}</span>
-        )}
-      </td>
-      <td
-        style={{ padding: '6px 10px', textAlign: 'center' }}
-        onDoubleClick={() => startEdit('quantity', exp.quantity || 1)}
-      >
-        {editing === 'quantity' ? (
-          <input
-            value={tempVal}
-            onChange={(e) => setTempVal(e.target.value)}
-            type="number"
-            min="1"
-            onBlur={() => saveEdit('quantity')}
-            autoFocus
-            style={{
-              width: 50, background: 'var(--glass)', border: '1px solid #00C37A', borderRadius: 4,
-              padding: '2px 4px', color: 'var(--text)', textAlign: 'center',
-            }}
-          />
-        ) : (
-          <span style={{ cursor: 'text' }}>{exp.quantity || 1}</span>
-        )}
-      </td>
-      <td style={{ padding: '6px 10px' }} onDoubleClick={() => startEdit('amount', exp.amount || 0)}>
+
+      <EditCell field="item_name" value={exp.vendor_name || exp.item_name} />
+
+      <EditCell field="quantity" value={exp.quantity || 1} type="number" style={{ textAlign: 'center', maxWidth: 60 }} />
+
+      <td style={{ padding: '6px 10px' }} onClick={() => startEdit('amount', exp.amount || 0)}>
         {editing === 'amount' ? (
           <input
             value={tempVal}
             onChange={(e) => setTempVal(e.target.value)}
-            type="number"
             onBlur={() => saveEdit('amount')}
+            onKeyDown={(e) => { if (e.key === 'Enter') saveEdit('amount') }}
+            type="number"
             autoFocus
             style={{
               width: 80, background: 'var(--glass)', border: '1px solid #00C37A', borderRadius: 4,
@@ -336,102 +319,76 @@ function EditableExpenseRow({ exp, onUpdate, onDelete, onAddBelow, onDuplicate }
             }}
           />
         ) : (
-          <span style={{ cursor: 'text' }}>
-            ₪
-            {parseFloat(exp.amount || 0).toLocaleString()}
+          <span style={{ fontSize: 13, cursor: 'text' }}>
+            {exp.amount ? `₪${parseFloat(exp.amount).toLocaleString()}` : '—'}
           </span>
         )}
       </td>
-      <td style={{ padding: '6px 10px' }}>
+
+      <td style={{ padding: '4px 6px', minWidth: 120 }}>
         <CustomSelect
           value={exp.vat_mode || 'included'}
           onChange={(v) => onUpdate('vat_mode', v)}
           options={VAT_MODES}
-          style={{ minWidth: 120 }}
+          style={{ fontSize: 12 }}
         />
       </td>
-      <td style={{ padding: '6px 10px', fontWeight: 600, fontSize: 13 }}>
-        ₪
-        {(parseFloat(exp.amount || 0) * parseInt(exp.quantity || 1, 10)).toLocaleString()}
+
+      <td style={{ padding: '6px 10px', fontWeight: 600, fontSize: 13, whiteSpace: 'nowrap' }}>
+        {exp.amount ? `₪${(parseFloat(exp.amount || 0) * parseInt(exp.quantity || 1, 10)).toLocaleString()}` : '—'}
       </td>
-      <td style={{ padding: '6px 10px' }}>
+
+      <td style={{ padding: '4px 6px', minWidth: 100 }}>
         <CustomSelect
           value={exp.invoice_type || 'none'}
           onChange={(v) => onUpdate('invoice_type', v)}
           options={INVOICE_TYPES}
-          style={{ minWidth: 100 }}
+          style={{ fontSize: 12 }}
         />
       </td>
-      <td style={{ padding: '6px 10px' }} onDoubleClick={() => startEdit('invoice_number', exp.invoice_number || '')}>
-        {editing === 'invoice_number' ? (
-          <input
-            value={tempVal}
-            onChange={(e) => setTempVal(e.target.value)}
-            onBlur={() => saveEdit('invoice_number')}
-            autoFocus
-            style={{
-              width: 80, background: 'var(--glass)', border: '1px solid #00C37A', borderRadius: 4,
-              padding: '2px 6px', color: 'var(--text)', fontSize: 12,
-            }}
-          />
-        ) : (
-          <span style={{ fontSize: 12, color: 'var(--v2-gray-400)', cursor: 'text' }}>
-            {exp.invoice_number || '—'}
-          </span>
-        )}
-      </td>
-      <td style={{ padding: '6px 10px' }}>
+
+      <EditCell field="invoice_number" value={exp.invoice_number} style={{ maxWidth: 90 }} />
+
+      <td style={{ padding: '4px 6px', minWidth: 120 }}>
         <CustomSelect
           value={exp.payment_status || 'pending'}
           onChange={(v) => onUpdate('payment_status', v)}
           options={Object.entries(PAYMENT_STATUS).map(([v, { label }]) => ({ value: v, label }))}
-          style={{ minWidth: 120 }}
+          style={{ fontSize: 12 }}
         />
       </td>
-      <td style={{ padding: '6px 10px' }} onDoubleClick={() => startEdit('notes', exp.notes || '')}>
-        {editing === 'notes' ? (
-          <input
-            value={tempVal}
-            onChange={(e) => setTempVal(e.target.value)}
-            onBlur={() => saveEdit('notes')}
-            onKeyDown={(e) => e.key === 'Enter' && saveEdit('notes')}
-            autoFocus
-            style={{
-              width: 100, background: 'var(--glass)', border: '1px solid #00C37A', borderRadius: 4,
-              padding: '2px 6px', color: 'var(--text)', fontSize: 12,
-            }}
-          />
-        ) : (
-          <span style={{ fontSize: 12, color: 'var(--v2-gray-400)', cursor: 'text' }}>{exp.notes || '—'}</span>
-        )}
-      </td>
-      <td style={{ padding: '6px 10px' }}>
-        <div style={{ display: 'flex', gap: 4 }}>
+
+      <EditCell field="notes" value={exp.notes} />
+
+      <td style={{ padding: '6px 8px', minWidth: 110 }}>
+        <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
           <button
-            onClick={onAddBelow}
-            title="הוסף שורה"
-            style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#00C37A', padding: 3 }}
+            onClick={() => onAddBelow(exp.category)}
+            title="הוסף שורה מתחת"
+            style={{
+              background: 'rgba(0,195,122,0.1)', border: '1px solid rgba(0,195,122,0.3)', borderRadius: 6,
+              cursor: 'pointer', color: '#00C37A', padding: '4px 6px', display: 'flex', alignItems: 'center',
+            }}
           >
             <Plus size={13} />
           </button>
           <button
-            onClick={() => startEdit('item_name', exp.vendor_name || exp.item_name)}
-            title="ערוך"
-            style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#3B82F6', padding: 3 }}
-          >
-            <Pencil size={13} />
-          </button>
-          <button
             onClick={onDuplicate}
             title="שכפל"
-            style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#8B5CF6', padding: 3 }}
+            style={{
+              background: 'rgba(139,92,246,0.1)', border: '1px solid rgba(139,92,246,0.3)', borderRadius: 6,
+              cursor: 'pointer', color: '#8B5CF6', padding: '4px 6px', display: 'flex', alignItems: 'center',
+            }}
           >
             <Copy size={13} />
           </button>
           <button
             onClick={onDelete}
             title="מחק"
-            style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#EF4444', padding: 3 }}
+            style={{
+              background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 6,
+              cursor: 'pointer', color: '#EF4444', padding: '4px 6px', display: 'flex', alignItems: 'center',
+            }}
           >
             <Trash2 size={13} />
           </button>
@@ -468,6 +425,7 @@ export default function EventDetailPage() {
   const [financials, setFinancials] = useState({ expenses: [], revenues: [], crowd_stats: [], axess_revenue: null })
   const [vendors, setVendors] = useState([])
   const [showAddExpense, setShowAddExpense] = useState(false)
+  const [localTemplate, setLocalTemplate] = useState(null)
   const [expensesHistory, setExpensesHistory] = useState([])
   const [expenseFilter, setExpenseFilter] = useState({ category: 'all', status: 'all' })
   const [showAddVendor, setShowAddVendor] = useState(false)
@@ -1111,7 +1069,7 @@ export default function EventDetailPage() {
           const avgTicketPriceFull = ordersNonCancelled.length > 0 ? axessRevenueFull / ordersNonCancelled.length : 0
           const breakEvenFull = avgTicketPriceFull > 0 ? Math.ceil(totalExpensesWithFoodCost / avgTicketPriceFull) : 0
           const peakCrowd = financials.crowd_stats.reduce((max, s) => Math.max(max, s.simultaneous || 0), 0)
-          const defaultTemplate = EXPENSE_CATEGORIES.map((cat) => ({
+          const templateToShow = localTemplate !== null ? localTemplate : EXPENSE_CATEGORIES.map((cat) => ({
             id: `template_${cat.value}`,
             category: cat.value,
             item_name: '',
@@ -1122,6 +1080,7 @@ export default function EventDetailPage() {
             vat_mode: 'included',
             isTemplate: true,
           }))
+          const rowsToShow = financials.expenses.length > 0 ? financials.expenses : templateToShow
           return (
             <div>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, marginBottom: 20 }}>
@@ -1349,7 +1308,7 @@ export default function EventDetailPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {(financials.expenses.length > 0 ? financials.expenses : defaultTemplate)
+                      {rowsToShow
                         .filter((e) => expenseFilter.category === 'all' || e.category === expenseFilter.category)
                         .filter((e) => expenseFilter.status === 'all' || e.payment_status === expenseFilter.status)
                         .map((exp) => (
@@ -1357,20 +1316,53 @@ export default function EventDetailPage() {
                             key={exp.id}
                             exp={exp}
                             onUpdate={async (field, value) => {
-                              if (exp.isTemplate) return
+                              saveToHistory()
                               let payloadVal = value
                               if (field === 'quantity') payloadVal = parseInt(value, 10) || 1
                               if (field === 'amount') payloadVal = parseFloat(value) || 0
-                              saveToHistory()
-                              await fetch(`${API_BASE}/api/admin/events/${id}/expenses/${exp.id}`, {
-                                method: 'PATCH',
-                                headers: authHeaders(),
-                                body: JSON.stringify({ [field]: payloadVal }),
-                              })
+                              if (exp.isTemplate) {
+                                const body = {
+                                  category: exp.category,
+                                  item_name: exp.item_name || '',
+                                  amount: 0,
+                                  quantity: 1,
+                                  payment_status: 'pending',
+                                  vat_mode: 'included',
+                                  invoice_type: 'none',
+                                  [field]: payloadVal,
+                                }
+                                await fetch(`${API_BASE}/api/admin/events/${id}/expenses`, {
+                                  method: 'POST',
+                                  headers: authHeaders(),
+                                  body: JSON.stringify(body),
+                                })
+                              } else {
+                                await fetch(`${API_BASE}/api/admin/events/${id}/expenses/${exp.id}`, {
+                                  method: 'PATCH',
+                                  headers: authHeaders(),
+                                  body: JSON.stringify({ [field]: payloadVal }),
+                                })
+                              }
                               loadData()
                             }}
                             onDelete={async () => {
-                              if (exp.isTemplate) return
+                              if (exp.isTemplate) {
+                                setLocalTemplate((prev) => {
+                                  const base = prev ?? EXPENSE_CATEGORIES.map((cat) => ({
+                                    id: `template_${cat.value}`,
+                                    category: cat.value,
+                                    item_name: '',
+                                    amount: 0,
+                                    quantity: 1,
+                                    payment_status: 'pending',
+                                    invoice_type: 'none',
+                                    vat_mode: 'included',
+                                    isTemplate: true,
+                                  }))
+                                  return base.filter((t) => t.category !== exp.category)
+                                })
+                                return
+                              }
                               saveToHistory()
                               await fetch(`${API_BASE}/api/admin/events/${id}/expenses/${exp.id}`, {
                                 method: 'DELETE',
@@ -1378,21 +1370,23 @@ export default function EventDetailPage() {
                               })
                               loadData()
                             }}
-                            onAddBelow={() => setShowAddExpense(true)}
+                            onAddBelow={(category) => {
+                              setExpenseForm((f) => ({ ...f, category: category || f.category }))
+                              setShowAddExpense(true)
+                            }}
                             onDuplicate={async () => {
-                              if (exp.isTemplate) return
                               saveToHistory()
                               await fetch(`${API_BASE}/api/admin/events/${id}/expenses`, {
                                 method: 'POST',
                                 headers: authHeaders(),
                                 body: JSON.stringify({
                                   category: exp.category,
-                                  item_name: exp.item_name,
-                                  amount: exp.amount,
-                                  quantity: exp.quantity,
+                                  item_name: exp.item_name || '',
+                                  amount: exp.amount || 0,
+                                  quantity: exp.quantity || 1,
                                   payment_status: 'pending',
-                                  invoice_type: exp.invoice_type,
-                                  vat_mode: exp.vat_mode,
+                                  vat_mode: exp.vat_mode || 'included',
+                                  invoice_type: exp.invoice_type || 'none',
                                 }),
                               })
                               loadData()
