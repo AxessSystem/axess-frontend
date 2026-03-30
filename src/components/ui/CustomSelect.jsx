@@ -15,7 +15,7 @@ const CustomSelect = ({
 }) => {
   const ariaLabel = rest['aria-label'];
   const [open, setOpen] = useState(false);
-  const [menuPos, setMenuPos] = useState({ top: 0, left: 0, width: 0 });
+  const [dropdownPos, setDropdownPos] = useState({ top: 0, left: 0, width: 0 });
   const wrapRef = useRef(null);
   const triggerRef = useRef(null);
 
@@ -31,15 +31,30 @@ const CustomSelect = ({
   }, []);
 
   useLayoutEffect(() => {
-    if (!open) return;
-    const el = triggerRef.current;
-    if (!el) return;
-    const r = el.getBoundingClientRect();
-    setMenuPos({ top: r.bottom + 4, left: r.left, width: r.width });
+    if (!open || !triggerRef.current) return;
+
+    const updatePosition = () => {
+      const rect = triggerRef.current?.getBoundingClientRect();
+      if (!rect) return;
+      setDropdownPos({
+        top: rect.bottom + window.scrollY,
+        left: rect.left + window.scrollX,
+        width: rect.width,
+      });
+    };
+
+    updatePosition();
+
+    window.addEventListener('scroll', updatePosition, true);
+    window.addEventListener('resize', updatePosition);
+
+    return () => {
+      window.removeEventListener('scroll', updatePosition, true);
+      window.removeEventListener('resize', updatePosition);
+    };
   }, [open]);
 
   const selected = options.find(o => String(o.value) === String(value));
-  const panelBg = light ? '#fff' : '#1e2130';
   const textColor = light ? '#0a1628' : 'var(--text)';
   const borderCss = `1px solid ${light ? '#e5e7eb' : 'var(--glass-border)'}`;
   const mutedColor = light ? '#64748b' : 'var(--v2-gray-400)';
@@ -89,17 +104,17 @@ const CustomSelect = ({
       {open && (
         <div style={{
           position: 'fixed',
-          top: menuPos.top,
-          left: menuPos.left,
-          width: menuPos.width,
+          top: dropdownPos.top - window.scrollY,
+          left: dropdownPos.left - window.scrollX,
+          width: Math.max(dropdownPos.width, 160),
           zIndex: 9999,
-          background: light ? '#fff' : 'var(--card, #1e2130)',
+          background: '#1e2130',
           color: textColor,
-          border: borderCss,
+          border: '1px solid rgba(255,255,255,0.1)',
           borderRadius: 8,
           maxHeight: 220,
           overflowY: 'auto',
-          boxShadow: '0 4px 20px rgba(0,0,0,0.4)'
+          boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
         }}>
           {options.length === 0 && (
             <div style={{ padding: '10px 12px', color: mutedColor, fontSize: 13 }}>
