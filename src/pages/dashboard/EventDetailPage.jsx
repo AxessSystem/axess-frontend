@@ -113,6 +113,48 @@ function downloadChannelReport(ordersData, channelName) {
   URL.revokeObjectURL(url)
 }
 
+function calcExpenseVat(exp) {
+  const total = parseFloat(exp.amount || 0) * parseInt(exp.quantity || 1, 10)
+  if (exp.vat_mode === 'included') {
+    const vat = Math.round((total / 1.18) * 0.18)
+    return { total, vat, beforeVat: total - vat }
+  }
+  if (exp.vat_mode === 'excluded') {
+    const vat = Math.round(total * 0.18)
+    return { total: total + vat, vat, beforeVat: total }
+  }
+  return { total, vat: 0, beforeVat: total }
+}
+
+function exportExpensesToExcel(expenses, event) {
+  const headers = ['תאריך', 'קטגוריה', 'פריט/ספק', 'כמות', 'מחיר', 'מע"מ', 'סה"כ', 'סוג חשבונית', 'מ\' חשבונית', 'סטטוס', 'הערות']
+  const rows = expenses.map((exp) => {
+    const { total, vat } = calcExpenseVat(exp)
+    return [
+      exp.expense_date ? new Date(exp.expense_date).toLocaleDateString('he-IL') : '',
+      EXPENSE_CATEGORIES.find((c) => c.value === exp.category)?.label || exp.category,
+      exp.vendor_name || exp.item_name || '',
+      exp.quantity || 1,
+      parseFloat(exp.amount || 0),
+      vat,
+      total,
+      INVOICE_TYPES.find((t) => t.value === exp.invoice_type)?.label || '',
+      exp.invoice_number || '',
+      PAYMENT_STATUS[exp.payment_status]?.label || '',
+      exp.notes || '',
+    ]
+  })
+
+  const csv = [headers, ...rows].map((r) => r.join(',')).join('\n')
+  const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `הוצאות-${event?.title || 'אירוע'}-${event?.date ? new Date(event.date).toLocaleDateString('he-IL') : new Date().toLocaleDateString('he-IL')}.csv`
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
 function FoodCostRow({ barRevenue, tablesRevenue, foodCostPct, foodCostBase, onUpdate }) {
   const [editPct, setEditPct] = useState(false)
   const [editBase, setEditBase] = useState(false)
@@ -1062,19 +1104,6 @@ export default function EventDetailPage() {
             * ((reportSettings.food_cost_pct || 20) / 100),
           )
 
-          const calcExpenseVat = (exp) => {
-            const total = parseFloat(exp.amount || 0) * parseInt(exp.quantity || 1, 10)
-            if (exp.vat_mode === 'included') {
-              const vat = Math.round((total / 1.18) * 0.18)
-              return { total, vat, beforeVat: total - vat }
-            }
-            if (exp.vat_mode === 'excluded') {
-              const vat = Math.round(total * 0.18)
-              return { total: total + vat, vat, beforeVat: total }
-            }
-            return { total, vat: 0, beforeVat: total }
-          }
-
           const expenseSummary = financials.expenses.reduce((acc, exp) => {
             const { total, vat, beforeVat } = calcExpenseVat(exp)
             return {
@@ -1276,7 +1305,15 @@ export default function EventDetailPage() {
 
               <div style={{ background: 'var(--card)', borderRadius: 12, padding: 16, border: '1px solid var(--glass-border)', marginBottom: 16 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                  <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700 }}>הוצאות</h3>
+                  <div>
+                    <h3 style={{ margin: '0 0 2px', fontSize: 15, fontWeight: 700 }}>הוצאות</h3>
+                    <p style={{ margin: 0, fontSize: 12, color: 'var(--v2-gray-400)' }}>
+                      {event?.title}
+                      {' '}
+                      ·
+                      {event?.date ? new Date(event.date).toLocaleDateString('he-IL') : ''}
+                    </p>
+                  </div>
                   <button
                     type="button"
                     onClick={() => setShowAddExpense(true)}
@@ -1444,16 +1481,48 @@ export default function EventDetailPage() {
                         onUpdate={(pct, base) => setReportSettings((s) => ({ ...s, food_cost_pct: pct, food_cost_base: base }))}
                       />
                       <tr style={{ borderTop: '2px solid var(--glass-border)', background: 'var(--glass)' }}>
-                        <td colSpan={6} style={{ padding: '10px 12px', fontWeight: 800, fontSize: 14 }}>
-                          סה"כ הוצאות
+                        <td colSpan={4} style={{ padding: '10px 12px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 20, flexWrap: 'wrap' }}>
+
+                            <div>
+                              <span style={{ fontSize: 11, color: 'var(--v2-gray-400)', display: 'block' }}>לפני מע"מ</span>
+                              <span style={{ fontSize: 15, fontWeight: 800, color: '#EF4444' }}>
+                                ₪{totalExpensesBeforeVat.toLocaleString()}
+                              </span>
+                            </div>
+
+                            <div>
+                              <span style={{ fontSize: 11, color: 'var(--v2-gray-400)', display: 'block' }}>סה"כ כולל מע"מ</span>
+                              <span style={{ fontSize: 15, fontWeight: 800, color: '#fff' }}>
+                                ₪{totalExpensesWithVat.toLocaleString()}
+                              </span>
+                            </div>
+
+                            <div>
+                              <span style={{ fontSize: 11, color: 'var(--v2-gray-400)', display: 'block' }}>מע"מ</span>
+                              <span style={{ fontSize: 14, fontWeight: 600, color: '#fff' }}>
+                                ₪{totalExpensesVat.toLocaleString()}
+                              </span>
+                            </div>
+
+                          </div>
                         </td>
-                        <td style={{ padding: '10px 12px', fontWeight: 800, fontSize: 14, color: '#EF4444' }}>
-                          ₪{totalExpensesWithVat.toLocaleString()}
-                          <span style={{ fontSize: 11, color: 'var(--v2-gray-400)', fontWeight: 400, display: 'block' }}>
-                            מע"מ: ₪{totalExpensesVat.toLocaleString()}
-                          </span>
+
+                        <td colSpan={8} style={{ padding: '10px 12px', textAlign: 'left' }}>
+                          <button
+                            type="button"
+                            onClick={() => exportExpensesToExcel(financials.expenses, event)}
+                            style={{
+                              padding: '6px 14px', borderRadius: 8, border: 'none',
+                              background: '#00C37A', color: '#000',
+                              fontWeight: 700, fontSize: 13, cursor: 'pointer',
+                              display: 'flex', alignItems: 'center', gap: 6,
+                            }}
+                          >
+                            <Download size={14} />
+                            ייצוא Excel
+                          </button>
                         </td>
-                        <td colSpan={5} />
                       </tr>
                     </tbody>
                   </table>
