@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import {
   Calendar, MapPin, ChevronLeft, ExternalLink, Download, Edit,
   CheckCircle, Clock, XCircle, DollarSign, Users, QrCode, Eye, Ticket,
-  Upload, Plus, X,
+  Upload, Plus, X, Settings, Share2, Copy, Trash2,
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useAuth } from '@/contexts/AuthContext'
@@ -134,6 +134,18 @@ export default function EventDetailPage() {
   })
   const [revenueForm, setRevenueForm] = useState({ source: 'cash_entry', label: '', amount: '' })
   const [crowdForm, setCrowdForm] = useState({ entries: '', exits: '', simultaneous: '', is_peak: false })
+  const [reportSettings, setReportSettings] = useState({
+    food_cost_pct: 30,
+    vat_mode: 'included',
+  })
+  const [showReportSettings, setShowReportSettings] = useState(false)
+  const [showShareReport, setShowShareReport] = useState(false)
+  const [shareLinks, setShareLinks] = useState([])
+  const [newShareForm, setNewShareForm] = useState({
+    name: '',
+    permission: 'view',
+    expires_days: 7,
+  })
 
   const authHeaders = useCallback(() => ({
     'Content-Type': 'application/json',
@@ -706,23 +718,67 @@ export default function EventDetailPage() {
         )}
 
         {activeTab === 'financials' && (() => {
+          const calcVat = (amount) => {
+            if (reportSettings.vat_mode === 'exempt') return 0
+            if (reportSettings.vat_mode === 'included') return amount / 1.18 * 0.18
+            if (reportSettings.vat_mode === 'excluded') return amount * 0.18
+            return 0
+          }
           const totalManualRevenue = financials.revenues.reduce((s, r) => s + parseFloat(r.amount || 0), 0)
           const axessRevenueFull = parseFloat(financials.axess_revenue?.total_digital || 0)
           const totalRevenueFull = totalManualRevenue + axessRevenueFull
-          const vatAmountFull = totalRevenueFull / 1.18 * 0.18
+          const vatAmountFull = calcVat(totalRevenueFull)
           const revenueNetVatFull = totalRevenueFull - vatAmountFull
           const totalExpensesFull = financials.expenses.reduce((s, e) => s + parseFloat(e.amount || 0) * parseInt(e.quantity || 1, 10), 0)
-          const netProfitFull = revenueNetVatFull - totalExpensesFull
+          const barRevenue = financials.revenues.find((r) => r.source === 'bar')?.amount || 0
+          const tablesRevenue = financials.revenues.find((r) => r.source === 'tables')?.amount || 0
+          const foodCostAmount = (parseFloat(barRevenue) + parseFloat(tablesRevenue)) * (reportSettings.food_cost_pct / 100)
+          const totalExpensesWithFoodCost = totalExpensesFull + foodCostAmount
+          const netProfitFull = revenueNetVatFull - totalExpensesWithFoodCost
           const ordersNonCancelled = orders.filter((o) => o.status !== 'cancelled')
           const avgTicketPriceFull = ordersNonCancelled.length > 0 ? axessRevenueFull / ordersNonCancelled.length : 0
-          const breakEvenFull = avgTicketPriceFull > 0 ? Math.ceil(totalExpensesFull / avgTicketPriceFull) : 0
+          const breakEvenFull = avgTicketPriceFull > 0 ? Math.ceil(totalExpensesWithFoodCost / avgTicketPriceFull) : 0
           const peakCrowd = financials.crowd_stats.reduce((max, s) => Math.max(max, s.simultaneous || 0), 0)
           return (
             <div>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, marginBottom: 20 }}>
+                <h2 style={{ margin: 0, fontSize: 18, fontWeight: 800 }}>דוח כספי</h2>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  <button
+                    type="button"
+                    onClick={() => setShowReportSettings(true)}
+                    style={{
+                      padding: '6px 12px', borderRadius: 8,
+                      border: '1px solid var(--glass-border)',
+                      background: 'var(--glass)', color: 'var(--text)',
+                      fontSize: 13, cursor: 'pointer',
+                      display: 'flex', alignItems: 'center', gap: 6,
+                    }}
+                  >
+                    <Settings size={14} color="#00C37A" />
+                    הגדרות דוח
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowShareReport(true)}
+                    style={{
+                      padding: '6px 12px', borderRadius: 8,
+                      border: '1px solid var(--glass-border)',
+                      background: 'var(--glass)', color: 'var(--text)',
+                      fontSize: 13, cursor: 'pointer',
+                      display: 'flex', alignItems: 'center', gap: 6,
+                    }}
+                  >
+                    <Share2 size={14} color="#00C37A" />
+                    שתף דוח
+                  </button>
+                </div>
+              </div>
+
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12, marginBottom: 24 }}>
                 {[
                   { label: 'סה"כ מחזור', value: `₪${totalRevenueFull.toLocaleString()}`, color: '#00C37A', sub: `נטו מע"מ: ₪${Math.round(revenueNetVatFull).toLocaleString()}` },
-                  { label: 'סה"כ הוצאות', value: `₪${Math.round(totalExpensesFull).toLocaleString()}`, color: '#EF4444', sub: `${financials.expenses.length} פריטים` },
+                  { label: 'סה"כ הוצאות', value: `₪${Math.round(totalExpensesWithFoodCost).toLocaleString()}`, color: '#EF4444', sub: `${financials.expenses.length} פריטים` },
                   { label: 'רווח נקי', value: `₪${Math.round(netProfitFull).toLocaleString()}`, color: netProfitFull >= 0 ? '#00C37A' : '#EF4444', sub: netProfitFull >= 0 ? '✅ רווחי' : '❌ הפסד' },
                   { label: 'Break Even', value: `${breakEvenFull} כרטיסים`, color: '#8B5CF6', sub: `נמכרו ${ordersNonCancelled.length}` },
                 ].map((kpi) => (
@@ -869,14 +925,256 @@ export default function EventDetailPage() {
                   )
                 })}
 
+                {foodCostAmount > 0 && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid var(--glass-border)' }}>
+                    <span style={{ fontSize: 13, color: 'var(--v2-gray-400)' }}>
+                      פוד קוסט (
+                      {reportSettings.food_cost_pct}
+                      % מבר+שולחנות)
+                    </span>
+                    <span style={{ fontSize: 13 }}>
+                      ₪
+                      {Math.round(foodCostAmount).toLocaleString()}
+                    </span>
+                  </div>
+                )}
+
                 <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0 0', fontWeight: 800, fontSize: 15, borderTop: '1px solid var(--glass-border)' }}>
                   <span>סה"כ הוצאות</span>
                   <span style={{ color: '#EF4444' }}>
                     ₪
-                    {Math.round(totalExpensesFull).toLocaleString()}
+                    {Math.round(totalExpensesWithFoodCost).toLocaleString()}
                   </span>
                 </div>
               </div>
+
+              {showReportSettings && (
+                <div style={{
+                  position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16,
+                }}
+                >
+                  <div style={{ background: 'var(--card, #1a1d2e)', borderRadius: 12, padding: 24, maxWidth: 380, width: '100%', position: 'relative', border: '1px solid var(--glass-border)' }}>
+                    <button
+                      type="button"
+                      onClick={() => setShowReportSettings(false)}
+                      style={{ position: 'absolute', top: 12, left: 12, background: 'none', border: 'none', cursor: 'pointer', color: 'var(--v2-gray-400)' }}
+                    >
+                      <X size={20} />
+                    </button>
+                    <h3 style={{ margin: '0 0 20px', fontSize: 16, fontWeight: 700 }}>הגדרות דוח</h3>
+
+                    <div style={{ marginBottom: 16 }}>
+                      <label style={{ fontSize: 13, fontWeight: 600, marginBottom: 6, display: 'block' }}>
+                        פוד קוסט — % מעלות סחורה (בר + שולחנות)
+                      </label>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <input
+                          type="number"
+                          min="0"
+                          max="100"
+                          value={reportSettings.food_cost_pct}
+                          onChange={(e) => setReportSettings((s) => ({ ...s, food_cost_pct: parseFloat(e.target.value) || 0 }))}
+                          style={{ width: 80, height: 40, borderRadius: 8, border: '1px solid var(--glass-border)', background: 'var(--glass)', color: 'var(--text)', padding: '0 12px', fontSize: 16, textAlign: 'center' }}
+                        />
+                        <span style={{ fontSize: 14, color: 'var(--v2-gray-400)' }}>%</span>
+                        <span style={{ fontSize: 13, color: '#00C37A' }}>
+                          = ₪
+                          {Math.round(foodCostAmount).toLocaleString()}
+                        </span>
+                      </div>
+                      <p style={{ fontSize: 11, color: 'var(--v2-gray-400)', margin: '4px 0 0' }}>
+                        מחושב על בר (₪
+                        {parseFloat(barRevenue).toLocaleString()}
+                        ) + שולחנות (₪
+                        {parseFloat(tablesRevenue).toLocaleString()}
+                        )
+                      </p>
+                    </div>
+
+                    <div style={{ marginBottom: 20 }}>
+                      <label style={{ fontSize: 13, fontWeight: 600, marginBottom: 8, display: 'block' }}>
+                        סוג עוסק / מע&quot;מ
+                      </label>
+                      {[
+                        { value: 'included', label: 'מחיר כולל מע"מ', sub: 'מחיר הכרטיס כולל מע"מ (÷1.18)' },
+                        { value: 'excluded', label: 'מחיר + מע"מ', sub: 'מחיר הכרטיס לפני מע"מ (×1.18)' },
+                        { value: 'exempt', label: 'עוסק פטור', sub: 'ללא מע"מ' },
+                      ].map((opt) => (
+                        <label
+                          key={opt.value}
+                          style={{
+                            display: 'flex', alignItems: 'flex-start', gap: 10,
+                            padding: '10px 12px', borderRadius: 8, cursor: 'pointer', marginBottom: 6,
+                            border: `1px solid ${reportSettings.vat_mode === opt.value ? '#00C37A' : 'var(--glass-border)'}`,
+                            background: reportSettings.vat_mode === opt.value ? 'rgba(0,195,122,0.08)' : 'transparent',
+                          }}
+                        >
+                          <input
+                            type="radio"
+                            value={opt.value}
+                            checked={reportSettings.vat_mode === opt.value}
+                            onChange={() => setReportSettings((s) => ({ ...s, vat_mode: opt.value }))}
+                          />
+                          <div>
+                            <p style={{ margin: 0, fontSize: 13, fontWeight: 600 }}>{opt.label}</p>
+                            <p style={{ margin: 0, fontSize: 11, color: 'var(--v2-gray-400)' }}>{opt.sub}</p>
+                          </div>
+                        </label>
+                      ))}
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowReportSettings(false)
+                        toast.success('הגדרות נשמרו!')
+                      }}
+                      style={{
+                        width: '100%', height: 44, borderRadius: 8, border: 'none',
+                        background: '#00C37A', color: '#000', fontWeight: 700, fontSize: 15, cursor: 'pointer',
+                      }}
+                    >
+                      שמור הגדרות
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {showShareReport && (
+                <div style={{
+                  position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16,
+                }}
+                >
+                  <div style={{ background: 'var(--card, #1a1d2e)', borderRadius: 12, padding: 24, maxWidth: 440, width: '100%', position: 'relative', border: '1px solid var(--glass-border)' }}>
+                    <button
+                      type="button"
+                      onClick={() => setShowShareReport(false)}
+                      style={{ position: 'absolute', top: 12, left: 12, background: 'none', border: 'none', cursor: 'pointer', color: 'var(--v2-gray-400)' }}
+                    >
+                      <X size={20} />
+                    </button>
+                    <h3 style={{ margin: '0 0 20px', fontSize: 16, fontWeight: 700 }}>שיתוף דוח</h3>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 20 }}>
+                      <input
+                        value={newShareForm.name}
+                        onChange={(e) => setNewShareForm((f) => ({ ...f, name: e.target.value }))}
+                        placeholder="שם הנמען (למשל: שותף, רואה חשבון)"
+                        style={{ height: 40, borderRadius: 8, border: '1px solid var(--glass-border)', background: 'var(--glass)', color: 'var(--text)', padding: '0 12px', fontSize: 14, boxSizing: 'border-box', width: '100%' }}
+                      />
+
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        {[
+                          { value: 'view', label: '👁 צפייה בלבד', sub: 'רואה נתונים, לא יכול לערוך' },
+                          { value: 'edit', label: '✏️ עריכה', sub: 'יכול להוסיף הוצאות והכנסות' },
+                        ].map((opt) => (
+                          <label
+                            key={opt.value}
+                            style={{
+                              flex: 1, padding: '10px 12px', borderRadius: 8, cursor: 'pointer',
+                              border: `1px solid ${newShareForm.permission === opt.value ? '#00C37A' : 'var(--glass-border)'}`,
+                              background: newShareForm.permission === opt.value ? 'rgba(0,195,122,0.08)' : 'transparent',
+                              display: 'flex', alignItems: 'flex-start', gap: 8,
+                            }}
+                          >
+                            <input
+                              type="radio"
+                              checked={newShareForm.permission === opt.value}
+                              onChange={() => setNewShareForm((f) => ({ ...f, permission: opt.value }))}
+                            />
+                            <div>
+                              <p style={{ margin: 0, fontSize: 13, fontWeight: 600 }}>{opt.label}</p>
+                              <p style={{ margin: 0, fontSize: 11, color: 'var(--v2-gray-400)' }}>{opt.sub}</p>
+                            </div>
+                          </label>
+                        ))}
+                      </div>
+
+                      <CustomSelect
+                        value={String(newShareForm.expires_days)}
+                        onChange={(v) => setNewShareForm((f) => ({ ...f, expires_days: parseInt(v, 10) }))}
+                        options={[
+                          { value: '1', label: 'יום אחד' },
+                          { value: '7', label: 'שבוע' },
+                          { value: '30', label: 'חודש' },
+                          { value: '365', label: 'שנה' },
+                          { value: '0', label: 'ללא תפוגה' },
+                        ]}
+                      />
+
+                      <button
+                        type="button"
+                        disabled={!newShareForm.name}
+                        onClick={() => {
+                          const token = Math.random().toString(36).slice(2, 18)
+                          const link = {
+                            id: token,
+                            name: newShareForm.name,
+                            permission: newShareForm.permission,
+                            url: `${window.location.origin}/shared/event/${id}/${token}`,
+                            expires_days: newShareForm.expires_days,
+                            created_at: new Date().toISOString(),
+                          }
+                          setShareLinks((prev) => [...prev, link])
+                          navigator.clipboard.writeText(link.url)
+                          toast.success('לינק נוצר והועתק!')
+                          setNewShareForm({ name: '', permission: 'view', expires_days: 7 })
+                        }}
+                        style={{
+                          height: 44, borderRadius: 8, border: 'none',
+                          background: newShareForm.name ? '#00C37A' : 'var(--glass)',
+                          color: newShareForm.name ? '#000' : 'var(--v2-gray-400)',
+                          fontWeight: 700, fontSize: 15, cursor: newShareForm.name ? 'pointer' : 'not-allowed',
+                        }}
+                      >
+                        צור לינק שיתוף
+                      </button>
+                    </div>
+
+                    {shareLinks.length > 0 && (
+                      <div>
+                        <p style={{ fontSize: 13, fontWeight: 600, margin: '0 0 8px' }}>לינקים פעילים:</p>
+                        {shareLinks.map((link) => (
+                          <div
+                            key={link.id}
+                            style={{
+                              display: 'flex', alignItems: 'center', gap: 8,
+                              padding: '8px 10px', borderRadius: 8,
+                              background: 'var(--glass)', marginBottom: 6,
+                            }}
+                          >
+                            <div style={{ flex: 1 }}>
+                              <p style={{ margin: 0, fontSize: 13, fontWeight: 600 }}>{link.name}</p>
+                              <p style={{ margin: 0, fontSize: 11, color: 'var(--v2-gray-400)' }}>
+                                {link.permission === 'view' ? '👁 צפייה' : '✏️ עריכה'}
+                                {' · '}
+                                {link.expires_days > 0 ? `${link.expires_days} ימים` : 'ללא תפוגה'}
+                              </p>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                navigator.clipboard.writeText(link.url)
+                                toast.success('הועתק!')
+                              }}
+                              style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#00C37A' }}
+                            >
+                              <Copy size={14} />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setShareLinks((prev) => prev.filter((l) => l.id !== link.id))}
+                              style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#EF4444' }}
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
 
               <div style={{ background: 'var(--card)', borderRadius: 12, padding: 16, border: '1px solid var(--glass-border)', marginBottom: 16 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
