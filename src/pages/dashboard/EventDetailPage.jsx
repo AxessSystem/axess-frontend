@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import {
   Calendar, MapPin, ChevronLeft, ExternalLink, Download, Edit,
   CheckCircle, Clock, XCircle, DollarSign, Users, QrCode, Eye, Ticket,
-  Upload, Plus, X, Settings, Share2, Copy, Trash2, RotateCcw,
+  Upload, Plus, X, Settings, Share2, Copy, Trash2, RotateCcw, Pencil,
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useAuth } from '@/contexts/AuthContext'
@@ -139,6 +139,7 @@ function EditableExpenseRow({ exp, onUpdate, onDelete, onAddBelow }) {
         </td>
         <td style={{ padding: '6px 10px', fontSize: 12, color: 'var(--v2-gray-400)' }}>—</td>
         <td style={{ padding: '6px 10px', textAlign: 'center', color: 'var(--v2-gray-400)' }}>—</td>
+        <td style={{ padding: '6px 10px', color: 'var(--v2-gray-400)' }}>—</td>
         <td style={{ padding: '6px 10px', color: 'var(--v2-gray-400)' }}>—</td>
         <td style={{ padding: '6px 10px', color: 'var(--v2-gray-400)' }}>—</td>
         <td style={{ padding: '6px 10px', color: 'var(--v2-gray-400)' }}>—</td>
@@ -302,6 +303,23 @@ function EditableExpenseRow({ exp, onUpdate, onDelete, onAddBelow }) {
           ))}
         </select>
       </td>
+      <td style={{ padding: '6px 10px' }} onDoubleClick={() => startEdit('notes', exp.notes || '')}>
+        {editing === 'notes' ? (
+          <input
+            value={tempVal}
+            onChange={(e) => setTempVal(e.target.value)}
+            onBlur={() => saveEdit('notes')}
+            onKeyDown={(e) => e.key === 'Enter' && saveEdit('notes')}
+            autoFocus
+            style={{
+              width: 100, background: 'var(--glass)', border: '1px solid #00C37A', borderRadius: 4,
+              padding: '2px 6px', color: 'var(--text)', fontSize: 12,
+            }}
+          />
+        ) : (
+          <span style={{ fontSize: 12, color: 'var(--v2-gray-400)', cursor: 'text' }}>{exp.notes || '—'}</span>
+        )}
+      </td>
       <td style={{ padding: '6px 10px' }}>
         <div style={{ display: 'flex', gap: 4 }}>
           <button
@@ -311,6 +329,14 @@ function EditableExpenseRow({ exp, onUpdate, onDelete, onAddBelow }) {
             style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#00C37A', padding: 3 }}
           >
             <Plus size={13} />
+          </button>
+          <button
+            type="button"
+            onClick={() => startEdit('item_name', exp.vendor_name || exp.item_name)}
+            title="ערוך"
+            style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#3B82F6', padding: 3 }}
+          >
+            <Pencil size={13} />
           </button>
           <button
             type="button"
@@ -357,8 +383,18 @@ export default function EventDetailPage() {
   const [expenseFilter, setExpenseFilter] = useState({ category: 'all', status: 'all' })
   const [showAddVendor, setShowAddVendor] = useState(false)
   const [vendorForm, setVendorForm] = useState({
-    name: '', category: 'staff', contact_name: '', contact_phone: '', default_price: '', notes: '',
+    name: '',
+    category: '',
+    custom_category: '',
+    vendor_type: 'none',
+    contact_name: '',
+    contact_phone: '',
+    contact_email: '',
+    address: '',
+    default_price: '',
+    items: [],
   })
+  const [newVendorItem, setNewVendorItem] = useState({ name: '', price: '' })
   const [showAddRevenue, setShowAddRevenue] = useState(false)
   const [showAddCrowd, setShowAddCrowd] = useState(false)
   const [expenseForm, setExpenseForm] = useState({
@@ -1213,10 +1249,10 @@ export default function EventDetailPage() {
                 </div>
 
                 <div style={{ border: '1px solid var(--glass-border)', borderRadius: 10, overflow: 'auto' }}>
-                  <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 900 }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 1020 }}>
                     <thead>
                       <tr style={{ background: 'var(--glass)', fontSize: 12, color: 'var(--v2-gray-400)' }}>
-                        {['תאריך', 'קטגוריה', 'פריט / ספק', 'כמות', 'מחיר', 'מע"מ', 'סה"כ', 'חשבונית', 'מ׳ חשבונית', 'סטטוס', 'פעולות'].map((h) => (
+                        {['תאריך', 'קטגוריה', 'פריט / ספק', 'כמות', 'מחיר', 'מע"מ', 'סה"כ', 'חשבונית', 'מ׳ חשבונית', 'סטטוס', 'הערות', 'פעולות'].map((h) => (
                           <th key={h} style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 600, whiteSpace: 'nowrap' }}>{h}</th>
                         ))}
                       </tr>
@@ -1265,7 +1301,7 @@ export default function EventDetailPage() {
                             ₪
                             {Math.round(foodCostAmount).toLocaleString()}
                           </td>
-                          <td colSpan={4} />
+                          <td colSpan={5} />
                         </tr>
                       )}
                       <tr style={{ borderTop: '2px solid var(--glass-border)', background: 'var(--glass)' }}>
@@ -1274,7 +1310,7 @@ export default function EventDetailPage() {
                           ₪
                           {Math.round(totalExpensesWithFoodCost || totalExpensesFull).toLocaleString()}
                         </td>
-                        <td colSpan={4} />
+                        <td colSpan={5} />
                       </tr>
                     </tbody>
                   </table>
@@ -1665,33 +1701,127 @@ export default function EventDetailPage() {
                       <input
                         value={vendorForm.name}
                         onChange={(e) => setVendorForm((f) => ({ ...f, name: e.target.value }))}
-                        placeholder="שם ספק *"
+                        placeholder="שם הספק"
                         style={{ height: 40, borderRadius: 8, border: '1px solid var(--glass-border)', background: 'var(--glass)', color: 'var(--text)', padding: '0 12px', fontSize: 14 }}
                       />
                       <CustomSelect
-                        value={vendorForm.category}
-                        onChange={(v) => setVendorForm((f) => ({ ...f, category: v }))}
-                        options={EXPENSE_CATEGORIES}
+                        value={vendorForm.vendor_type}
+                        onChange={(v) => setVendorForm((f) => ({ ...f, vendor_type: v }))}
+                        options={INVOICE_TYPES}
                       />
+                      <CustomSelect
+                        value={vendorForm.category}
+                        onChange={(v) => setVendorForm((f) => ({
+                          ...f,
+                          category: v,
+                          custom_category: v === 'custom' ? f.custom_category : '',
+                        }))}
+                        options={[
+                          ...EXPENSE_CATEGORIES,
+                          { value: 'custom', label: '+ הוסף קטגוריה חדשה' },
+                        ]}
+                      />
+                      {vendorForm.category === 'custom' && (
+                        <input
+                          value={vendorForm.custom_category}
+                          onChange={(e) => setVendorForm((f) => ({ ...f, custom_category: e.target.value }))}
+                          placeholder="שם הקטגוריה החדשה (למשל: בוקינג אמנים)"
+                          style={{ height: 40, borderRadius: 8, border: '1px solid #00C37A', background: 'var(--glass)', color: 'var(--text)', padding: '0 12px', fontSize: 14 }}
+                        />
+                      )}
                       <input
                         value={vendorForm.contact_name}
                         onChange={(e) => setVendorForm((f) => ({ ...f, contact_name: e.target.value }))}
-                        placeholder="איש קשר (אופציונלי)"
+                        placeholder="איש קשר"
                         style={{ height: 40, borderRadius: 8, border: '1px solid var(--glass-border)', background: 'var(--glass)', color: 'var(--text)', padding: '0 12px', fontSize: 14 }}
                       />
                       <input
                         value={vendorForm.contact_phone}
                         onChange={(e) => setVendorForm((f) => ({ ...f, contact_phone: e.target.value }))}
-                        placeholder="טלפון (אופציונלי)"
+                        placeholder="טלפון"
+                        style={{ height: 40, borderRadius: 8, border: '1px solid var(--glass-border)', background: 'var(--glass)', color: 'var(--text)', padding: '0 12px', fontSize: 14 }}
+                      />
+                      <input
+                        value={vendorForm.contact_email}
+                        onChange={(e) => setVendorForm((f) => ({ ...f, contact_email: e.target.value }))}
+                        placeholder="מייל"
+                        style={{ height: 40, borderRadius: 8, border: '1px solid var(--glass-border)', background: 'var(--glass)', color: 'var(--text)', padding: '0 12px', fontSize: 14 }}
+                      />
+                      <input
+                        value={vendorForm.address}
+                        onChange={(e) => setVendorForm((f) => ({ ...f, address: e.target.value }))}
+                        placeholder="כתובת (אופציונלי)"
                         style={{ height: 40, borderRadius: 8, border: '1px solid var(--glass-border)', background: 'var(--glass)', color: 'var(--text)', padding: '0 12px', fontSize: 14 }}
                       />
                       <input
                         value={vendorForm.default_price}
                         onChange={(e) => setVendorForm((f) => ({ ...f, default_price: e.target.value }))}
-                        placeholder="מחיר ברירת מחדל ₪"
+                        placeholder="מחיר ברירת מחדל / משוער ₪"
                         type="number"
                         style={{ height: 40, borderRadius: 8, border: '1px solid var(--glass-border)', background: 'var(--glass)', color: 'var(--text)', padding: '0 12px', fontSize: 14 }}
                       />
+                      <div style={{ border: '1px solid var(--glass-border)', borderRadius: 8, padding: 12 }}>
+                        <p style={{ margin: '0 0 8px', fontSize: 13, fontWeight: 600 }}>
+                          פריטים משוייכים לספק
+                        </p>
+                        <p style={{ margin: '0 0 8px', fontSize: 11, color: 'var(--v2-gray-400)' }}>
+                          למשל: שם אמן, שם תפקיד, שם שירות ספציפי
+                        </p>
+                        {vendorForm.items.map((item, idx) => (
+                          <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                            <span style={{ flex: 1, fontSize: 13 }}>{item.name}</span>
+                            <span style={{ fontSize: 13, color: '#00C37A' }}>
+                              ₪
+                              {item.price || 0}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => setVendorForm((f) => ({ ...f, items: f.items.filter((_, i) => i !== idx) }))}
+                              style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#EF4444' }}
+                            >
+                              <Trash2 size={13} />
+                            </button>
+                          </div>
+                        ))}
+                        <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
+                          <input
+                            value={newVendorItem.name}
+                            onChange={(e) => setNewVendorItem((i) => ({ ...i, name: e.target.value }))}
+                            placeholder="שם פריט (למשל: DJ Avicii)"
+                            style={{ flex: 2, height: 34, borderRadius: 6, border: '1px solid var(--glass-border)', background: 'var(--glass)', color: 'var(--text)', padding: '0 8px', fontSize: 13 }}
+                          />
+                          <input
+                            value={newVendorItem.price}
+                            onChange={(e) => setNewVendorItem((i) => ({ ...i, price: e.target.value }))}
+                            placeholder="₪ מחיר"
+                            type="number"
+                            style={{ flex: 1, height: 34, borderRadius: 6, border: '1px solid var(--glass-border)', background: 'var(--glass)', color: 'var(--text)', padding: '0 8px', fontSize: 13 }}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (!newVendorItem.name) return
+                              setVendorForm((f) => ({
+                                ...f,
+                                items: [...f.items, { name: newVendorItem.name, price: newVendorItem.price || 0 }],
+                              }))
+                              setNewVendorItem({ name: '', price: '' })
+                            }}
+                            style={{
+                              height: 34,
+                              padding: '0 10px',
+                              borderRadius: 6,
+                              border: 'none',
+                              background: '#00C37A',
+                              color: '#000',
+                              fontWeight: 700,
+                              cursor: 'pointer',
+                            }}
+                          >
+                            +
+                          </button>
+                        </div>
+                      </div>
                       <button
                         type="button"
                         onClick={async () => {
@@ -1699,16 +1829,29 @@ export default function EventDetailPage() {
                             toast.error('יש למלא שם ספק')
                             return
                           }
+                          const category = vendorForm.category === 'custom'
+                            ? vendorForm.custom_category.trim()
+                            : vendorForm.category
+                          if (!category) {
+                            toast.error('בחר או הזן קטגוריה')
+                            return
+                          }
                           const r = await fetch(`${API_BASE}/api/admin/vendors`, {
                             method: 'POST',
                             headers: authHeaders(),
                             body: JSON.stringify({
                               name: vendorForm.name.trim(),
-                              category: vendorForm.category,
+                              category,
+                              vendor_type: vendorForm.vendor_type,
                               contact_name: vendorForm.contact_name || null,
                               contact_phone: vendorForm.contact_phone || null,
+                              contact_email: vendorForm.contact_email || null,
+                              address: vendorForm.address || null,
                               default_price: parseFloat(vendorForm.default_price) || 0,
-                              notes: vendorForm.notes || null,
+                              items: vendorForm.items.map((it) => ({
+                                name: it.name,
+                                price: parseFloat(it.price) || 0,
+                              })),
                             }),
                           })
                           if (!r.ok) {
@@ -1717,10 +1860,20 @@ export default function EventDetailPage() {
                           }
                           setShowAddVendor(false)
                           setVendorForm({
-                            name: '', category: 'staff', contact_name: '', contact_phone: '', default_price: '', notes: '',
+                            name: '',
+                            category: '',
+                            custom_category: '',
+                            vendor_type: 'none',
+                            contact_name: '',
+                            contact_phone: '',
+                            contact_email: '',
+                            address: '',
+                            default_price: '',
+                            items: [],
                           })
+                          setNewVendorItem({ name: '', price: '' })
                           await loadData()
-                          toast.success('ספק נוסף')
+                          toast.success('ספק נוסף!')
                         }}
                         style={{ height: 44, borderRadius: 8, border: 'none', background: '#00C37A', color: '#000', fontWeight: 700, fontSize: 15, cursor: 'pointer' }}
                       >
