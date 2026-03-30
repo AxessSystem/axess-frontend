@@ -55,6 +55,26 @@ function downloadReport(orders, event) {
   URL.revokeObjectURL(url)
 }
 
+function downloadChannelReport(ordersData, channelName) {
+  const headers = ['שם', 'שם משפחה', 'נייד', 'מייל', 'סוג כרטיס', 'סכום',
+    'מזהה עסקה', 'ת"ז', 'יחצ"ן', 'אינסטגרם', 'ערוץ', 'תאריך']
+  const rows = ordersData.map((o) => [
+    o.first_name, o.last_name, o.phone, o.email || '',
+    o.ticket_type || 'רגיל', o.total_price || 0,
+    o.id?.slice(0, 8), o.id_number || '', o.promoter_name || '',
+    o.instagram || '', o.sales_channel || 'axess',
+    new Date(o.created_at).toLocaleDateString('he-IL'),
+  ])
+  const csv = [headers, ...rows].map((r) => r.join(',')).join('\n')
+  const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `${channelName}-orders.csv`
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
 export default function EventDetailPage() {
   const { id } = useParams()
   const { session, businessId } = useAuth()
@@ -77,6 +97,8 @@ export default function EventDetailPage() {
   const [manualChannelLabel, setManualChannelLabel] = useState('')
   const [manualChannelSold, setManualChannelSold] = useState('')
   const [manualChannelRevenue, setManualChannelRevenue] = useState('')
+  const [selectedChannel, setSelectedChannel] = useState('all')
+  const [channelOrders, setChannelOrders] = useState([])
 
   const authHeaders = useCallback(() => ({
     'Content-Type': 'application/json',
@@ -129,6 +151,13 @@ export default function EventDetailPage() {
       })
     return () => { cancelled = true }
   }, [id, businessId, loadData])
+
+  useEffect(() => {
+    const list = selectedChannel === 'all'
+      ? orders
+      : orders.filter((o) => (o.sales_channel || 'axess') === selectedChannel)
+    setChannelOrders(list)
+  }, [selectedChannel, orders])
 
   const approveOrder = async (orderId) => {
     try {
@@ -715,7 +744,132 @@ export default function EventDetailPage() {
                 </table>
               </div>
 
-              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', gap: 8, marginTop: 20, marginBottom: 12, flexWrap: 'wrap' }}>
+                <button
+                  type="button"
+                  onClick={() => setSelectedChannel('all')}
+                  style={{
+                    padding: '6px 14px', borderRadius: 8,
+                    border: selectedChannel === 'all' ? 'none' : '1px solid var(--glass-border)',
+                    background: selectedChannel === 'all' ? 'var(--primary)' : 'transparent',
+                    color: selectedChannel === 'all' ? '#fff' : 'var(--text)',
+                    cursor: 'pointer', fontSize: 13, fontWeight: selectedChannel === 'all' ? 700 : 400,
+                  }}
+                >
+                  כולם (
+                  {orders.length}
+                  )
+                </button>
+                {channels.map((ch) => (
+                  <button
+                    key={String(ch.id)}
+                    type="button"
+                    onClick={() => setSelectedChannel(ch.channel_name)}
+                    style={{
+                      padding: '6px 14px', borderRadius: 8,
+                      border: selectedChannel === ch.channel_name ? 'none' : '1px solid var(--glass-border)',
+                      background: selectedChannel === ch.channel_name ? 'var(--primary)' : 'transparent',
+                      color: selectedChannel === ch.channel_name ? '#fff' : 'var(--text)',
+                      cursor: 'pointer', fontSize: 13,
+                    }}
+                  >
+                    {ch.channel_label}
+                    {' '}
+                    (
+                    {ch.total_sold || 0}
+                    )
+                  </button>
+                ))}
+                <button
+                  type="button"
+                  onClick={() => downloadChannelReport(channelOrders, selectedChannel)}
+                  style={{
+                    marginRight: 'auto', padding: '6px 14px', borderRadius: 8,
+                    border: '1px solid var(--glass-border)', background: 'var(--glass)',
+                    color: '#00C37A', cursor: 'pointer', fontSize: 13,
+                    display: 'flex', alignItems: 'center', gap: 6,
+                  }}
+                >
+                  <Download size={13} />
+                  Excel
+                </button>
+              </div>
+
+              <div style={{ border: '1px solid var(--glass-border)', borderRadius: 10, overflow: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 900 }}>
+                  <thead>
+                    <tr style={{ background: 'var(--glass)', fontSize: 12, color: 'var(--v2-gray-400)' }}>
+                      {['שם', 'שם משפחה', 'נייד', 'מייל', 'סוג כרטיס', 'סכום',
+                        'מ׳ עסקה', 'ת״ז', 'יחצ״ן', 'אינסטגרם', 'ערוץ', 'תאריך'].map((h) => (
+                          <th key={h} style={{ padding: '10px 12px', textAlign: 'right', fontWeight: 600, whiteSpace: 'nowrap' }}>{h}</th>
+                        ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(selectedChannel === 'all'
+                      ? orders
+                      : orders.filter((o) => (o.sales_channel || 'axess') === selectedChannel)).map((order, idx) => (
+                      <tr
+                        key={order.id}
+                        style={{
+                          borderTop: '1px solid var(--glass-border)',
+                          background: idx % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.01)',
+                        }}
+                      >
+                        <td style={{ padding: '10px 12px', fontSize: 13 }}>{order.first_name}</td>
+                        <td style={{ padding: '10px 12px', fontSize: 13 }}>{order.last_name}</td>
+                        <td style={{ padding: '10px 12px', fontSize: 13, direction: 'ltr' }}>{order.phone}</td>
+                        <td style={{ padding: '10px 12px', fontSize: 13 }}>{order.email || '—'}</td>
+                        <td style={{ padding: '10px 12px', fontSize: 13 }}>{order.ticket_type || 'רגיל'}</td>
+                        <td style={{ padding: '10px 12px', fontSize: 13 }}>
+                          ₪
+                          {order.total_price || 0}
+                        </td>
+                        <td style={{ padding: '10px 12px', fontSize: 12, color: 'var(--v2-gray-400)' }}>
+                          {order.id?.slice(0, 8)}
+                        </td>
+                        <td style={{ padding: '10px 12px', fontSize: 13 }}>{order.id_number || '—'}</td>
+                        <td style={{ padding: '10px 12px', fontSize: 13 }}>{order.promoter_name || '—'}</td>
+                        <td style={{ padding: '10px 12px', fontSize: 13 }}>
+                          {order.instagram ? (
+                            <a
+                              href={`https://instagram.com/${order.instagram}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              style={{ color: '#00C37A', textDecoration: 'none' }}
+                            >
+                              @
+                              {order.instagram}
+                            </a>
+                          ) : '—'}
+                        </td>
+                        <td style={{ padding: '10px 12px', fontSize: 12 }}>
+                          <span style={{
+                            padding: '2px 8px', borderRadius: 10, fontSize: 11,
+                            background: (order.sales_channel || 'axess') === 'axess' ? 'rgba(0,195,122,0.15)' : 'rgba(59,130,246,0.15)',
+                            color: (order.sales_channel || 'axess') === 'axess' ? '#00C37A' : '#3B82F6',
+                          }}
+                          >
+                            {order.sales_channel || 'axess'}
+                          </span>
+                        </td>
+                        <td style={{ padding: '10px 12px', fontSize: 12, color: 'var(--v2-gray-400)' }}>
+                          {new Date(order.created_at).toLocaleDateString('he-IL')}
+                        </td>
+                      </tr>
+                    ))}
+                    {orders.length === 0 && (
+                      <tr>
+                        <td colSpan={12} style={{ padding: 24, textAlign: 'center', color: 'var(--v2-gray-400)' }}>
+                          אין רשומים עדיין
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 16 }}>
                 <button
                   type="button"
                   onClick={() => {
