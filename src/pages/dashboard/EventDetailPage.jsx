@@ -1877,7 +1877,7 @@ export default function EventDetailPage() {
                 </div>
 
                 {[
-                  { label: 'סה"כ הכנסות', value: totalRevenueFull, color: '#00C37A', bold: false },
+                  { label: 'סה"כ הכנסות', value: Math.round(totalRevenueFull - calcVat(totalRevenueFull)), color: '#00C37A', bold: false },
                   { label: 'פחות: סה"כ הוצאות', value: -totalExpensesBeforeVat, color: '#EF4444', bold: false },
                   { label: netProfit >= 0 ? '= רווח' : '= הפסד', value: netProfit, color: netProfit >= 0 ? '#00C37A' : '#EF4444', bold: true, border: true },
                 ].map((row) => (
