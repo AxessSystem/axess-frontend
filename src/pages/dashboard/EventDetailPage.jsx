@@ -1094,6 +1094,7 @@ export default function EventDetailPage() {
           }
           const totalManualRevenue = financials.revenues.reduce((s, r) => s + parseFloat(r.amount || 0), 0)
           const axessRevenueFull = parseFloat(financials.axess_revenue?.total_digital || 0)
+          const axessRevenue = axessRevenueFull
           const totalRevenueFull = totalManualRevenue + axessRevenueFull
           const vatAmountFull = calcVat(totalRevenueFull)
           const revenueNetVatFull = totalRevenueFull - vatAmountFull
@@ -1141,6 +1142,51 @@ export default function EventDetailPage() {
             ...dbExpenses,
             ...(localTemplate !== null ? localTemplate.filter((t) => !dbExpenses.some((e) => e.category === t.category)) : templateRows),
           ]
+
+          const exportPnLReport = () => {
+            const lines = [
+              [`דוח רווח והפסד — ${event?.title}`],
+              [`תאריך: ${event?.date ? new Date(event.date).toLocaleDateString('he-IL') : ''}`],
+              [],
+              ['הכנסות', '', ''],
+              ['מקור', 'סכום', 'נטו'],
+              ['AXESS — מכירות דיגיטל', axessRevenue, Math.round(axessRevenue - calcVat(axessRevenue))],
+              ...financials.revenues.map((r) => [
+                REVENUE_SOURCES.find((s) => s.value === r.source)?.label || r.source,
+                parseFloat(r.amount || 0),
+                Math.round(parseFloat(r.amount || 0) - calcVat(parseFloat(r.amount || 0))),
+              ]),
+              ['סה"כ הכנסות', totalRevenueFull, Math.round(totalRevenueFull - calcVat(totalRevenueFull))],
+              [],
+              ['הוצאות', '', ''],
+              ['קטגוריה', 'פריט', 'סכום', 'מע"מ', 'סה"כ', 'סטטוס'],
+              ...financials.expenses.map((exp) => {
+                const { total, vat } = calcExpenseVat(exp)
+                return [
+                  EXPENSE_CATEGORIES.find((c) => c.value === exp.category)?.label || exp.category,
+                  exp.vendor_name || exp.item_name || '',
+                  parseFloat(exp.amount || 0),
+                  vat,
+                  total,
+                  PAYMENT_STATUS[exp.payment_status]?.label || '',
+                ]
+              }),
+              [`פוד קוסט (${reportSettings.food_cost_pct}%)`, '', foodCostAmount],
+              ['סה"כ הוצאות', '', totalExpensesWithVat],
+              [],
+              [netProfit >= 0 ? 'רווח נקי' : 'הפסד', '', Math.abs(netProfit)],
+            ]
+
+            const csv = lines.map((r) => r.join(',')).join('\n')
+            const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' })
+            const url = URL.createObjectURL(blob)
+            const a = document.createElement('a')
+            a.href = url
+            a.download = `דוח-רווח-הפסד-${event?.title || 'אירוע'}-${new Date().toLocaleDateString('he-IL')}.csv`
+            a.click()
+            URL.revokeObjectURL(url)
+          }
+
           return (
             <div>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, marginBottom: 20 }}>
@@ -1190,65 +1236,6 @@ export default function EventDetailPage() {
                     <div style={{ fontSize: 11, color: 'var(--v2-gray-400)' }}>{kpi.sub}</div>
                   </div>
                 ))}
-              </div>
-
-              <div style={{ background: 'var(--card)', borderRadius: 12, padding: 16, border: '1px solid var(--glass-border)', marginBottom: 16 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                  <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700 }}>הכנסות</h3>
-                  <button
-                    type="button"
-                    onClick={() => setShowAddRevenue(true)}
-                    style={{
-                      padding: '6px 12px', borderRadius: 8, border: 'none',
-                      background: '#00C37A', color: '#000', fontSize: 13, fontWeight: 600, cursor: 'pointer',
-                    }}
-                  >
-                    + הוסף הכנסה
-                  </button>
-                </div>
-
-                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid var(--glass-border)' }}>
-                  <span style={{ fontSize: 14, display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <span style={{ color: '#00C37A', fontSize: 10, background: 'rgba(0,195,122,0.1)', padding: '2px 6px', borderRadius: 8 }}>אוטומטי</span>
-                    AXESS — מכירות דיגיטל
-                  </span>
-                  <span style={{ fontWeight: 700 }}>
-                    ₪
-                    {axessRevenueFull.toLocaleString()}
-                  </span>
-                </div>
-
-                {financials.revenues.map((rev) => (
-                  <div key={rev.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid var(--glass-border)' }}>
-                    <span style={{ fontSize: 14 }}>{rev.label}</span>
-                    <span style={{ fontWeight: 700 }}>
-                      ₪
-                      {parseFloat(rev.amount).toLocaleString()}
-                    </span>
-                  </div>
-                ))}
-
-                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0 0', fontWeight: 800, fontSize: 15 }}>
-                  <span>סה"כ מחזור</span>
-                  <span style={{ color: '#00C37A' }}>
-                    ₪
-                    {totalRevenueFull.toLocaleString()}
-                  </span>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: 'var(--v2-gray-400)' }}>
-                  <span>מע"מ (18%)</span>
-                  <span>
-                    ₪
-                    {Math.round(vatAmountFull).toLocaleString()}
-                  </span>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, fontWeight: 700, color: '#3B82F6' }}>
-                  <span>נטו לאחר מע"מ</span>
-                  <span>
-                    ₪
-                    {Math.round(revenueNetVatFull).toLocaleString()}
-                  </span>
-                </div>
               </div>
 
               {/* ספקים */}
@@ -1301,6 +1288,133 @@ export default function EventDetailPage() {
                     ))}
                   </div>
                 )}
+              </div>
+
+              {/* בלוק הכנסות */}
+              <div style={{ background: 'var(--card)', borderRadius: 12, padding: 16, border: '1px solid var(--glass-border)', marginBottom: 16 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                  <div>
+                    <h3 style={{ margin: '0 0 2px', fontSize: 15, fontWeight: 700 }}>הכנסות</h3>
+                    <p style={{ margin: 0, fontSize: 12, color: 'var(--v2-gray-400)' }}>
+                      {event?.title}
+                      {' '}
+                      ·
+                      {event?.date ? new Date(event.date).toLocaleDateString('he-IL') : ''}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowAddRevenue(true)}
+                    style={{
+                      padding: '6px 12px', borderRadius: 8, border: 'none',
+                      background: '#00C37A', color: '#000', fontSize: 13, fontWeight: 600, cursor: 'pointer',
+                    }}
+                  >
+                    + הוסף הכנסה
+                  </button>
+                </div>
+
+                <div style={{ border: '1px solid var(--glass-border)', borderRadius: 10, overflow: 'hidden', marginBottom: 12 }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                    <thead>
+                      <tr style={{ background: 'var(--glass)', fontSize: 12, color: 'var(--v2-gray-400)' }}>
+                        {['מקור', 'תיאור', 'סכום', 'מע"מ', 'סה"כ נטו', 'ערוץ', 'הערות'].map((h) => (
+                          <th key={h} style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 600 }}>{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr style={{ borderTop: '1px solid var(--glass-border)', background: 'rgba(0,195,122,0.04)' }}>
+                        <td style={{ padding: '8px 12px', fontSize: 13, fontWeight: 600, color: '#00C37A' }}>
+                          AXESS
+                        </td>
+                        <td style={{ padding: '8px 12px', fontSize: 13 }}>מכירות דיגיטל</td>
+                        <td style={{ padding: '8px 12px', fontSize: 13 }}>
+                          ₪
+                          {axessRevenue.toLocaleString()}
+                        </td>
+                        <td style={{ padding: '8px 12px', fontSize: 12, color: 'var(--v2-gray-400)' }}>
+                          {reportSettings.vat_mode === 'exempt' ? 'פטור' : `₪${Math.round(calcVat(axessRevenue)).toLocaleString()}`}
+                        </td>
+                        <td style={{ padding: '8px 12px', fontSize: 13, fontWeight: 600 }}>
+                          ₪
+                          {Math.round(axessRevenue - calcVat(axessRevenue)).toLocaleString()}
+                        </td>
+                        <td style={{ padding: '8px 12px' }}>
+                          <span style={{ padding: '2px 8px', borderRadius: 8, fontSize: 11, background: 'rgba(0,195,122,0.15)', color: '#00C37A' }}>
+                            אוטומטי
+                          </span>
+                        </td>
+                        <td style={{ padding: '8px 12px', fontSize: 12, color: 'var(--v2-gray-400)' }}>—</td>
+                      </tr>
+
+                      {financials.revenues.map((rev) => {
+                        const amount = parseFloat(rev.amount || 0)
+                        const vat = Math.round(calcVat(amount))
+                        const net = Math.round(amount - calcVat(amount))
+                        return (
+                          <tr key={rev.id} style={{ borderTop: '1px solid var(--glass-border)' }}>
+                            <td style={{ padding: '8px 12px', fontSize: 13 }}>
+                              {REVENUE_SOURCES.find((s) => s.value === rev.source)?.label || rev.source}
+                            </td>
+                            <td style={{ padding: '8px 12px', fontSize: 13, color: 'var(--v2-gray-400)' }}>
+                              {rev.label || '—'}
+                            </td>
+                            <td style={{ padding: '8px 12px', fontSize: 13 }}>
+                              ₪
+                              {amount.toLocaleString()}
+                            </td>
+                            <td style={{ padding: '8px 12px', fontSize: 12, color: 'var(--v2-gray-400)' }}>
+                              ₪
+                              {vat.toLocaleString()}
+                            </td>
+                            <td style={{ padding: '8px 12px', fontSize: 13, fontWeight: 600 }}>
+                              ₪
+                              {net.toLocaleString()}
+                            </td>
+                            <td style={{ padding: '8px 12px' }}>
+                              <span style={{ padding: '2px 8px', borderRadius: 8, fontSize: 11, background: 'rgba(59,130,246,0.15)', color: '#3B82F6' }}>
+                                ידני
+                              </span>
+                            </td>
+                            <td style={{ padding: '8px 12px' }}>
+                              <button
+                                type="button"
+                                onClick={async () => {
+                                  await fetch(`${API_BASE}/api/admin/events/${id}/revenues/${rev.id}`, {
+                                    method: 'DELETE',
+                                    headers: authHeaders(),
+                                  })
+                                  loadData()
+                                }}
+                                style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#EF4444' }}
+                              >
+                                <Trash2 size={13} />
+                              </button>
+                            </td>
+                          </tr>
+                        )
+                      })}
+
+                      <tr style={{ borderTop: '2px solid var(--glass-border)', background: 'var(--glass)' }}>
+                        <td colSpan={2} style={{ padding: '10px 12px', fontWeight: 800, fontSize: 14 }}>סה"כ הכנסות</td>
+                        <td style={{ padding: '10px 12px', fontWeight: 800, fontSize: 14, color: '#00C37A' }}>
+                          ₪
+                          {totalRevenueFull.toLocaleString()}
+                        </td>
+                        <td style={{ padding: '10px 12px', fontSize: 12, color: 'var(--v2-gray-400)' }}>
+                          מע"מ: ₪
+                          {Math.round(calcVat(totalRevenueFull)).toLocaleString()}
+                        </td>
+                        <td style={{ padding: '10px 12px', fontWeight: 700, color: '#00C37A' }}>
+                          ₪
+                          {Math.round(totalRevenueFull - calcVat(totalRevenueFull)).toLocaleString()}
+                        </td>
+                        <td colSpan={2} />
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
               </div>
 
               <div style={{ background: 'var(--card)', borderRadius: 12, padding: 16, border: '1px solid var(--glass-border)', marginBottom: 16 }}>
@@ -1526,6 +1640,69 @@ export default function EventDetailPage() {
                       </tr>
                     </tbody>
                   </table>
+                </div>
+              </div>
+
+              {/* דוח רווח והפסד */}
+              <div style={{ background: 'var(--card)', borderRadius: 12, padding: 20, border: '1px solid var(--glass-border)', marginTop: 16 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                  <h3 style={{ margin: 0, fontSize: 16, fontWeight: 800 }}>
+                    דוח רווח והפסד —
+                    {event?.title}
+                  </h3>
+                  <button
+                    type="button"
+                    onClick={() => exportPnLReport()}
+                    style={{
+                      padding: '8px 16px', borderRadius: 8, border: 'none',
+                      background: '#00C37A', color: '#000', fontWeight: 700,
+                      fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6,
+                    }}
+                  >
+                    <Download size={14} />
+                    ייצוא דוח מלא
+                  </button>
+                </div>
+
+                {[
+                  { label: 'סה"כ הכנסות', value: totalRevenueFull, color: '#00C37A', bold: false },
+                  { label: 'פחות: סה"כ הוצאות', value: -totalExpensesBeforeVat, color: '#EF4444', bold: false },
+                  { label: netProfit >= 0 ? '= רווח' : '= הפסד', value: netProfit, color: netProfit >= 0 ? '#00C37A' : '#EF4444', bold: true, border: true },
+                ].map((row) => (
+                  <div
+                    key={row.label}
+                    style={{
+                      display: 'flex', justifyContent: 'space-between',
+                      padding: '10px 0',
+                      borderTop: row.border ? '2px solid var(--glass-border)' : '1px solid var(--glass-border)',
+                      marginTop: row.border ? 4 : 0,
+                    }}
+                  >
+                    <span style={{ fontSize: row.bold ? 16 : 14, fontWeight: row.bold ? 800 : 400 }}>{row.label}</span>
+                    <span style={{ fontSize: row.bold ? 18 : 14, fontWeight: 800, color: row.color }}>
+                      ₪
+                      {Math.abs(row.value).toLocaleString()}
+                    </span>
+                  </div>
+                ))}
+
+                <div style={{ marginTop: 16, padding: 12, background: 'var(--glass)', borderRadius: 8 }}>
+                  <p style={{ margin: '0 0 8px', fontSize: 13, fontWeight: 700, color: 'var(--v2-gray-400)' }}>פירוט מע"מ</p>
+                  <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap' }}>
+                    {[
+                      { label: 'רווח לפני מע"מ', value: totalExpensesBeforeVat > 0 ? Math.round(totalRevenueFull - totalExpensesBeforeVat) : netProfit },
+                      { label: 'מע"מ הוצאות', value: totalExpensesVat },
+                      { label: 'מע"מ הכנסות', value: Math.round(calcVat(totalRevenueFull)) },
+                    ].map((item) => (
+                      <div key={item.label}>
+                        <p style={{ margin: '0 0 2px', fontSize: 11, color: 'var(--v2-gray-400)' }}>{item.label}</p>
+                        <p style={{ margin: 0, fontSize: 15, fontWeight: 700 }}>
+                          ₪
+                          {item.value.toLocaleString()}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
 
