@@ -1068,18 +1068,25 @@ export default function EventDetailPage() {
           const avgTicketPriceFull = ordersNonCancelled.length > 0 ? axessRevenueFull / ordersNonCancelled.length : 0
           const breakEvenFull = avgTicketPriceFull > 0 ? Math.ceil(totalExpensesWithFoodCost / avgTicketPriceFull) : 0
           const peakCrowd = financials.crowd_stats.reduce((max, s) => Math.max(max, s.simultaneous || 0), 0)
-          const templateToShow = localTemplate !== null ? localTemplate : EXPENSE_CATEGORIES.map((cat) => ({
-            id: `template_${cat.value}`,
-            category: cat.value,
-            item_name: '',
-            amount: 0,
-            quantity: 1,
-            payment_status: 'pending',
-            invoice_type: 'none',
-            vat_mode: 'included',
-            isTemplate: true,
-          }))
-          const rowsToShow = financials.expenses.length > 0 ? financials.expenses : templateToShow
+          const dbExpenses = financials.expenses
+          const templateRows = EXPENSE_CATEGORIES
+            .filter((cat) => !dbExpenses.some((e) => e.category === cat.value))
+            .map((cat) => ({
+              id: `template_${cat.value}`,
+              category: cat.value,
+              item_name: '',
+              amount: 0,
+              quantity: 1,
+              payment_status: 'pending',
+              invoice_type: 'none',
+              vat_mode: 'included',
+              isTemplate: true,
+            }))
+
+          const rowsToShow = [
+            ...dbExpenses,
+            ...(localTemplate !== null ? localTemplate.filter((t) => !dbExpenses.some((e) => e.category === t.category)) : templateRows),
+          ]
           return (
             <div>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, marginBottom: 20 }}>
