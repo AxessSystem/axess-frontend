@@ -766,6 +766,17 @@ export default function EventDetailPage() {
     setChannelOrders(list)
   }, [selectedChannel, orders])
 
+  useEffect(() => {
+    if (!showShareReport || !id) return
+    fetch(`${API_BASE}/api/admin/events/${id}/shares`, { headers: authHeaders() })
+      .then((r) => r.json())
+      .then((d) => setShareLinks(d.shares?.map((s) => ({
+        ...s,
+        url: `${window.location.origin}/shared/event/${id}/${s.token}`,
+      })) || []))
+      .catch(() => {})
+  }, [showShareReport, id])
+
   const approveOrder = async (orderId) => {
     try {
       const r = await fetch(`${API_BASE}/api/admin/orders/${orderId}/approve`, {
@@ -2081,18 +2092,23 @@ export default function EventDetailPage() {
                       <button
                         type="button"
                         disabled={!newShareForm.name}
-                        onClick={() => {
-                          const token = Math.random().toString(36).slice(2, 18)
-                          const link = {
-                            id: token,
-                            name: newShareForm.name,
-                            permission: newShareForm.permission,
-                            url: `${window.location.origin}/shared/event/${id}/${token}`,
-                            expires_days: newShareForm.expires_days,
-                            created_at: new Date().toISOString(),
+                        onClick={async () => {
+                          const res = await fetch(`${API_BASE}/api/admin/events/${id}/shares`, {
+                            method: 'POST',
+                            headers: authHeaders(),
+                            body: JSON.stringify({
+                              name: newShareForm.name,
+                              permission: newShareForm.permission,
+                              expires_days: newShareForm.expires_days,
+                            }),
+                          })
+                          if (!res.ok) {
+                            toast.error('יצירת הלינק נכשלה')
+                            return
                           }
-                          setShareLinks((prev) => [...prev, link])
-                          navigator.clipboard.writeText(link.url)
+                          const data = await res.json()
+                          setShareLinks((prev) => [...prev, { ...data.share, url: data.url }])
+                          navigator.clipboard.writeText(data.url)
                           toast.success('לינק נוצר והועתק!')
                           setNewShareForm({ name: '', permission: 'view', expires_days: 7 })
                         }}
@@ -2124,7 +2140,9 @@ export default function EventDetailPage() {
                               <p style={{ margin: 0, fontSize: 11, color: 'var(--v2-gray-400)' }}>
                                 {link.permission === 'view' ? '👁 צפייה' : '✏️ עריכה'}
                                 {' · '}
-                                {link.expires_days > 0 ? `${link.expires_days} ימים` : 'ללא תפוגה'}
+                                {link.expires_at
+                                  ? `תוקף: ${new Date(link.expires_at).toLocaleDateString('he-IL')}`
+                                  : 'ללא תפוגה'}
                               </p>
                             </div>
                             <button
@@ -2139,7 +2157,13 @@ export default function EventDetailPage() {
                             </button>
                             <button
                               type="button"
-                              onClick={() => setShareLinks((prev) => prev.filter((l) => l.id !== link.id))}
+                              onClick={async () => {
+                                await fetch(`${API_BASE}/api/admin/events/${id}/shares/${link.id}`, {
+                                  method: 'DELETE',
+                                  headers: authHeaders(),
+                                })
+                                setShareLinks((prev) => prev.filter((l) => l.id !== link.id))
+                              }}
                               style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#EF4444' }}
                             >
                               <Trash2 size={14} />

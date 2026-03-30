@@ -39,6 +39,7 @@ const GroupManagementPage = lazy(() => import('@/pages/GroupManagementPage'))
 const TableBookingPage = lazy(() => import('@/pages/TableBookingPage'))
 const BookingManagementPage = lazy(() => import('@/pages/BookingManagementPage'))
 const GuestPaymentPage = lazy(() => import('@/pages/GuestPaymentPage'))
+const SharedEventReport = lazy(() => import('@/pages/SharedEventReport'))
 
 /* ── Client Dashboard (lazy bundle) ── */
 const ClientLayout   = lazy(() => import('@/pages/dashboard/Layout'))
@@ -192,6 +193,7 @@ export default function App() {
             <Route path="/t/slug/:slug" element={<TableBookingPage />} />
             <Route path="/booking/:id" element={<BookingManagementPage />} />
             <Route path="/g/token/:token" element={<GuestPaymentPage />} />
+            <Route path="/shared/event/:id/:token" element={<SharedEventReport />} />
             <Route path="/scan/:eventSlug" element={<ScanStation />} />
             <Route path="/scan-station" element={<Navigate to="/dashboard/scan-management" replace />} />
 
