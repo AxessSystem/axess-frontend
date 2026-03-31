@@ -2050,15 +2050,17 @@ export default function EventDetailPage() {
                         style={{ height: 40, borderRadius: 8, border: '1px solid var(--glass-border)', background: 'var(--glass)', color: 'var(--text)', padding: '0 12px', fontSize: 14, boxSizing: 'border-box', width: '100%' }}
                       />
 
-                      <div style={{ display: 'flex', gap: 8 }}>
+                      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                         {[
-                          { value: 'view', label: '👁 צפייה בלבד', sub: 'רואה נתונים, לא יכול לערוך' },
-                          { value: 'edit', label: '✏️ עריכה', sub: 'יכול להוסיף הוצאות והכנסות' },
+                          { value: 'view', label: '👁 צפייה בלבד', sub: 'רואה נתונים בלבד' },
+                          { value: 'edit_all', label: '✏️ עריכה מלאה', sub: 'הכנסות + הוצאות' },
+                          { value: 'edit_revenues', label: '💰 עריכת הכנסות', sub: 'רק הכנסות' },
+                          { value: 'edit_expenses', label: '📋 עריכת הוצאות', sub: 'רק הוצאות' },
                         ].map((opt) => (
                           <label
                             key={opt.value}
                             style={{
-                              flex: 1, padding: '10px 12px', borderRadius: 8, cursor: 'pointer',
+                              flex: '1 1 42%', padding: '10px 12px', borderRadius: 8, cursor: 'pointer',
                               border: `1px solid ${newShareForm.permission === opt.value ? '#00C37A' : 'var(--glass-border)'}`,
                               background: newShareForm.permission === opt.value ? 'rgba(0,195,122,0.08)' : 'transparent',
                               display: 'flex', alignItems: 'flex-start', gap: 8,
@@ -2138,7 +2140,17 @@ export default function EventDetailPage() {
                             <div style={{ flex: 1 }}>
                               <p style={{ margin: 0, fontSize: 13, fontWeight: 600 }}>{link.name}</p>
                               <p style={{ margin: 0, fontSize: 11, color: 'var(--v2-gray-400)' }}>
-                                {link.permission === 'view' ? '👁 צפייה' : '✏️ עריכה'}
+                                {(
+                                  {
+                                    view: '👁 צפייה בלבד',
+                                    edit_all: '✏️ עריכה מלאה',
+                                    edit_revenues: '💰 עריכת הכנסות',
+                                    edit_expenses: '📋 עריכת הוצאות',
+                                    edit_tables: '📋 שולחנות',
+                                    edit_checkin: '✅ צ\'ק אין',
+                                    edit: '✏️ עריכה',
+                                  }[link.permission] || link.permission
+                                )}
                                 {' · '}
                                 {link.expires_at
                                   ? `תוקף: ${new Date(link.expires_at).toLocaleDateString('he-IL')}`
