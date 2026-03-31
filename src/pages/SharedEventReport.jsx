@@ -30,7 +30,7 @@ export default function SharedEventReport() {
   const [error, setError] = useState(null)
 
   useEffect(() => {
-    fetch(`${API_BASE}/api/shared/event/${token}`)
+    fetch(`${API_BASE}/shared/event/${token}`)
       .then((r) => r.json())
       .then((d) => {
         if (d.error) setError(d.error)
