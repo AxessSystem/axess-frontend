@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'axess-v2';
+const CACHE_VERSION = 'axess-v3'; // ← שנה מ-v2 ל-v3
 
 self.addEventListener('install', () => {
   self.skipWaiting();
