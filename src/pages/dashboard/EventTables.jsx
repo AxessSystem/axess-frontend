@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect, useMemo } from 'react'
 import {
   Plus, Trash2, QrCode, MessageCircle, RotateCcw, Grid, Table as TableIcon, X,
-  UtensilsCrossed,
+  UtensilsCrossed, Share2,
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import CustomSelect from '@/components/ui/CustomSelect'
@@ -75,6 +75,8 @@ export default function EventTables({
     free_entries: 3,
     free_extras: 5,
   })
+  const [editMenuItemId, setEditMenuItemId] = useState(null)
+  const [editMenuPrice, setEditMenuPrice] = useState('')
 
   const drinkSelectOptions = useMemo(() => {
     const grouped = menuItems
@@ -1025,7 +1027,33 @@ export default function EventTables({
             >
               <X size={20} />
             </button>
-            <h3 style={{ margin: '0 0 16px', fontSize: 16, fontWeight: 700 }}>ניהול תפריט</h3>
+            <h3 style={{ margin: '0 0 12px', fontSize: 16, fontWeight: 700 }}>ניהול תפריט</h3>
+
+            <button
+              type="button"
+              onClick={() => {
+                const menuUrl = `https://axess.pro/menu/${eventId}`
+                navigator.clipboard.writeText(menuUrl)
+                toast.success('לינק תפריט הועתק!')
+              }}
+              style={{
+                padding: '8px 14px',
+                borderRadius: 8,
+                border: 'none',
+                background: 'rgba(0,195,122,0.15)',
+                color: '#00C37A',
+                fontSize: 13,
+                fontWeight: 600,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+                marginBottom: 16,
+              }}
+            >
+              <Share2 size={14} />
+              שלח תפריט ללקוח
+            </button>
 
             <div
               style={{
@@ -1058,52 +1086,121 @@ export default function EventTables({
             </div>
 
             <div style={{ marginBottom: 16 }}>
-              {menuItems
-                .filter((m) => menuFilter === 'all' || m.category === menuFilter)
-                .map((item) => (
-                  <div
-                    key={item.id}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 8,
-                      padding: '8px 0',
-                      borderBottom: '1px solid var(--glass-border)',
-                    }}
-                  >
-                    <div style={{ flex: 1 }}>
-                      <p style={{ margin: 0, fontSize: 13, fontWeight: 600 }}>{item.name}</p>
-                      <p style={{ margin: 0, fontSize: 11, color: 'var(--v2-gray-400)' }}>
-                        {item.category}
-                        {' '}
-                        · ₪
-                        {item.price}
-                        {' '}
-                        ·
-                        {item.free_entries}
-                        {' '}
-                        כניסות חינם
-                      </p>
-                    </div>
-                    <span style={{ fontSize: 13, fontWeight: 700, color: '#00C37A' }}>
-                      ₪
-                      {item.price}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={async () => {
-                        await fetch(`${API_BASE}/api/admin/events/${eventId}/table-menu/${item.id}`, {
-                          method: 'DELETE',
-                          headers: authHeaders(),
-                        })
-                        loadData()
+              {(() => {
+                const filtered = menuItems.filter(
+                  (m) => menuFilter === 'all' || m.category === menuFilter,
+                )
+                const byCat = {}
+                for (const m of filtered) {
+                  const c = m.category || 'אחר'
+                  if (!byCat[c]) byCat[c] = []
+                  byCat[c].push(m)
+                }
+                const cats = Object.keys(byCat).sort((a, b) => a.localeCompare(b, 'he'))
+                return cats.map((cat) => (
+                  <div key={cat} style={{ marginBottom: 16 }}>
+                    <p
+                      style={{
+                        margin: '0 0 8px',
+                        fontSize: 12,
+                        fontWeight: 700,
+                        color: 'var(--v2-gray-400)',
                       }}
-                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#EF4444' }}
                     >
-                      <Trash2 size={14} />
-                    </button>
+                      {cat}
+                    </p>
+                    {byCat[cat]
+                      .slice()
+                      .sort((a, b) => (a.name || '').localeCompare(b.name || '', 'he'))
+                      .map((item) => (
+                        <div
+                          key={item.id}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 8,
+                            padding: '8px 0',
+                            borderBottom: '1px solid var(--glass-border)',
+                          }}
+                        >
+                          <div style={{ flex: 1 }}>
+                            <p style={{ margin: 0, fontSize: 13, fontWeight: 600 }}>{item.name}</p>
+                            <p style={{ margin: 0, fontSize: 11, color: 'var(--v2-gray-400)' }}>
+                              {item.free_entries != null ? `${item.free_entries} כניסות חינם` : ''}
+                            </p>
+                          </div>
+                          {item.id === editMenuItemId ? (
+                            <input
+                              value={editMenuPrice}
+                              onChange={(e) => setEditMenuPrice(e.target.value)}
+                              onBlur={async () => {
+                                await fetch(
+                                  `${API_BASE}/api/admin/events/${eventId}/table-menu/${item.id}`,
+                                  {
+                                    method: 'PATCH',
+                                    headers: authHeaders(),
+                                    body: JSON.stringify({ price: parseFloat(editMenuPrice) }),
+                                  },
+                                )
+                                setEditMenuItemId(null)
+                                loadData()
+                              }}
+                              type="number"
+                              autoFocus
+                              style={{
+                                width: 70,
+                                background: 'var(--glass)',
+                                border: '1px solid #00C37A',
+                                borderRadius: 4,
+                                padding: '2px 6px',
+                                color: 'var(--text)',
+                                fontSize: 13,
+                              }}
+                            />
+                          ) : (
+                            <span
+                              role="button"
+                              tabIndex={0}
+                              onClick={() => {
+                                setEditMenuItemId(item.id)
+                                setEditMenuPrice(String(item.price))
+                              }}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter' || e.key === ' ') {
+                                  e.preventDefault()
+                                  setEditMenuItemId(item.id)
+                                  setEditMenuPrice(String(item.price))
+                                }
+                              }}
+                              style={{ cursor: 'text', fontWeight: 700, color: '#00C37A' }}
+                            >
+                              ₪
+                              {item.price}
+                            </span>
+                          )}
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              await fetch(`${API_BASE}/api/admin/events/${eventId}/table-menu/${item.id}`, {
+                                method: 'DELETE',
+                                headers: authHeaders(),
+                              })
+                              loadData()
+                            }}
+                            style={{
+                              background: 'none',
+                              border: 'none',
+                              cursor: 'pointer',
+                              color: '#EF4444',
+                            }}
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      ))}
                   </div>
-                ))}
+                ))
+              })()}
             </div>
 
             <div style={{ borderTop: '1px solid var(--glass-border)', paddingTop: 16 }}>
