@@ -34,22 +34,6 @@ const queryClient = new QueryClient({
   },
 })
 
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js')
-      .then(reg => {
-        reg.addEventListener('updatefound', () => {
-          const newWorker = reg.installing
-          newWorker.addEventListener('statechange', () => {
-            if (newWorker.state === 'activated') {
-              window.location.reload()
-            }
-          })
-        })
-      })
-  })
-}
-
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <QueryClientProvider client={queryClient}>
