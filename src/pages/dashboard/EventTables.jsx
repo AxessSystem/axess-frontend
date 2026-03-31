@@ -93,6 +93,20 @@ export default function EventTables({
     ])
   }, [menuItems])
 
+  const uniqueMenuItems = useMemo(
+    () =>
+      menuItems.reduce((acc, item) => {
+        const existing = acc.find((i) => i.name === item.name && i.category === item.category)
+        if (!existing) acc.push(item)
+        else if (!item.is_template) {
+          const idx = acc.indexOf(existing)
+          acc[idx] = item
+        }
+        return acc
+      }, []),
+    [menuItems],
+  )
+
   const TABLE_CATEGORIES = useMemo(
     () => [
       { value: 'regular', label: 'שולחן רגיל' },
@@ -1029,6 +1043,150 @@ export default function EventTables({
             </button>
             <h3 style={{ margin: '0 0 12px', fontSize: 16, fontWeight: 700 }}>ניהול תפריט</h3>
 
+            <div style={{ marginBottom: 20 }}>
+              <p style={{ margin: '0 0 10px', fontSize: 13, fontWeight: 700 }}>+ הוסף מוצר לתפריט</p>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                <input
+                  value={newMenuItem.name}
+                  onChange={(e) => setNewMenuItem((f) => ({ ...f, name: e.target.value }))}
+                  placeholder="שם המוצר"
+                  style={{
+                    height: 36,
+                    borderRadius: 6,
+                    border: '1px solid var(--glass-border)',
+                    background: 'var(--glass)',
+                    color: 'var(--text)',
+                    padding: '0 10px',
+                    fontSize: 13,
+                  }}
+                />
+                <input
+                  value={newMenuItem.category}
+                  onChange={(e) => setNewMenuItem((f) => ({ ...f, category: e.target.value }))}
+                  placeholder="קטגוריה"
+                  style={{
+                    height: 36,
+                    borderRadius: 6,
+                    border: '1px solid var(--glass-border)',
+                    background: 'var(--glass)',
+                    color: 'var(--text)',
+                    padding: '0 10px',
+                    fontSize: 13,
+                  }}
+                />
+                <input
+                  value={newMenuItem.price}
+                  onChange={(e) => setNewMenuItem((f) => ({ ...f, price: e.target.value }))}
+                  placeholder="מחיר ₪"
+                  type="number"
+                  style={{
+                    height: 36,
+                    borderRadius: 6,
+                    border: '1px solid var(--glass-border)',
+                    background: 'var(--glass)',
+                    color: 'var(--text)',
+                    padding: '0 10px',
+                    fontSize: 13,
+                  }}
+                />
+                <div />
+                <div style={{ display: 'flex', gap: 6, gridColumn: '1 / -1' }}>
+                  <div style={{ flex: 1 }}>
+                    <label
+                      style={{
+                        fontSize: 11,
+                        color: 'var(--v2-gray-400)',
+                        display: 'block',
+                        marginBottom: 2,
+                      }}
+                    >
+                      כניסות חינם לליטר
+                    </label>
+                    <input
+                      value={newMenuItem.free_entries}
+                      onChange={(e) => setNewMenuItem((f) => ({ ...f, free_entries: e.target.value }))}
+                      placeholder="כניסות חינם לליטר"
+                      type="number"
+                      style={{
+                        width: '100%',
+                        height: 36,
+                        borderRadius: 6,
+                        border: '1px solid var(--glass-border)',
+                        background: 'var(--glass)',
+                        color: 'var(--text)',
+                        padding: '0 10px',
+                        fontSize: 13,
+                        boxSizing: 'border-box',
+                      }}
+                    />
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <label
+                      style={{
+                        fontSize: 11,
+                        color: 'var(--v2-gray-400)',
+                        display: 'block',
+                        marginBottom: 2,
+                      }}
+                    >
+                      תוספות חינם (אנרגי/מיצים)
+                    </label>
+                    <input
+                      value={newMenuItem.free_extras}
+                      onChange={(e) => setNewMenuItem((f) => ({ ...f, free_extras: e.target.value }))}
+                      placeholder="תוספות (אנרגי/מיצים)"
+                      type="number"
+                      style={{
+                        width: '100%',
+                        height: 36,
+                        borderRadius: 6,
+                        border: '1px solid var(--glass-border)',
+                        background: 'var(--glass)',
+                        color: 'var(--text)',
+                        padding: '0 10px',
+                        fontSize: 13,
+                        boxSizing: 'border-box',
+                      }}
+                    />
+                  </div>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={async () => {
+                  if (!newMenuItem.name || !newMenuItem.price) return
+                  await fetch(`${API_BASE}/api/admin/events/${eventId}/table-menu`, {
+                    method: 'POST',
+                    headers: authHeaders(),
+                    body: JSON.stringify(newMenuItem),
+                  })
+                  setNewMenuItem({
+                    name: '',
+                    category: '',
+                    price: '',
+                    unit: 'bottle',
+                    free_entries: 3,
+                    free_extras: 5,
+                  })
+                  loadData()
+                }}
+                style={{
+                  marginTop: 10,
+                  width: '100%',
+                  height: 40,
+                  borderRadius: 8,
+                  border: 'none',
+                  background: '#00C37A',
+                  color: '#000',
+                  fontWeight: 700,
+                  fontSize: 14,
+                  cursor: 'pointer',
+                }}
+              >
+                הוסף לתפריט
+              </button>
+            </div>
+
             <button
               type="button"
               onClick={() => {
@@ -1064,7 +1222,7 @@ export default function EventTables({
                 flexWrap: 'nowrap',
               }}
             >
-              {['all', ...new Set(menuItems.map((m) => m.category).filter(Boolean))].map((cat) => (
+              {['all', ...new Set(uniqueMenuItems.map((m) => m.category).filter(Boolean))].map((cat) => (
                 <button
                   key={cat}
                   type="button"
@@ -1087,7 +1245,7 @@ export default function EventTables({
 
             <div style={{ marginBottom: 16 }}>
               {(() => {
-                const filtered = menuItems.filter(
+                const filtered = uniqueMenuItems.filter(
                   (m) => menuFilter === 'all' || m.category === menuFilter,
                 )
                 const byCat = {}
@@ -1126,7 +1284,13 @@ export default function EventTables({
                           <div style={{ flex: 1 }}>
                             <p style={{ margin: 0, fontSize: 13, fontWeight: 600 }}>{item.name}</p>
                             <p style={{ margin: 0, fontSize: 11, color: 'var(--v2-gray-400)' }}>
-                              {item.free_entries != null ? `${item.free_entries} כניסות חינם` : ''}
+                              {item.category}
+                              {' '}
+                              · ₪
+                              {item.price}
+                              {item.free_entries > 0 && ` · ${item.free_entries} כניסות חינם`}
+                              {item.free_extras > 0
+                                && ` · ${item.free_extras} ${item.free_extras_type === 'energy' ? 'אנרגי' : 'תוספות'}`}
                             </p>
                           </div>
                           {item.id === editMenuItemId ? (
@@ -1201,123 +1365,6 @@ export default function EventTables({
                   </div>
                 ))
               })()}
-            </div>
-
-            <div style={{ borderTop: '1px solid var(--glass-border)', paddingTop: 16 }}>
-              <p style={{ margin: '0 0 10px', fontSize: 13, fontWeight: 700 }}>+ הוסף מוצר</p>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                <input
-                  value={newMenuItem.name}
-                  onChange={(e) => setNewMenuItem((f) => ({ ...f, name: e.target.value }))}
-                  placeholder="שם המוצר"
-                  style={{
-                    height: 36,
-                    borderRadius: 6,
-                    border: '1px solid var(--glass-border)',
-                    background: 'var(--glass)',
-                    color: 'var(--text)',
-                    padding: '0 10px',
-                    fontSize: 13,
-                  }}
-                />
-                <input
-                  value={newMenuItem.category}
-                  onChange={(e) => setNewMenuItem((f) => ({ ...f, category: e.target.value }))}
-                  placeholder="קטגוריה"
-                  style={{
-                    height: 36,
-                    borderRadius: 6,
-                    border: '1px solid var(--glass-border)',
-                    background: 'var(--glass)',
-                    color: 'var(--text)',
-                    padding: '0 10px',
-                    fontSize: 13,
-                  }}
-                />
-                <input
-                  value={newMenuItem.price}
-                  onChange={(e) => setNewMenuItem((f) => ({ ...f, price: e.target.value }))}
-                  placeholder="מחיר ₪"
-                  type="number"
-                  style={{
-                    height: 36,
-                    borderRadius: 6,
-                    border: '1px solid var(--glass-border)',
-                    background: 'var(--glass)',
-                    color: 'var(--text)',
-                    padding: '0 10px',
-                    fontSize: 13,
-                  }}
-                />
-                <div style={{ display: 'flex', gap: 6 }}>
-                  <input
-                    value={newMenuItem.free_entries}
-                    onChange={(e) => setNewMenuItem((f) => ({ ...f, free_entries: e.target.value }))}
-                    placeholder="כניסות חינם"
-                    type="number"
-                    style={{
-                      flex: 1,
-                      height: 36,
-                      borderRadius: 6,
-                      border: '1px solid var(--glass-border)',
-                      background: 'var(--glass)',
-                      color: 'var(--text)',
-                      padding: '0 10px',
-                      fontSize: 13,
-                    }}
-                  />
-                  <input
-                    value={newMenuItem.free_extras}
-                    onChange={(e) => setNewMenuItem((f) => ({ ...f, free_extras: e.target.value }))}
-                    placeholder="אנרגי"
-                    type="number"
-                    style={{
-                      flex: 1,
-                      height: 36,
-                      borderRadius: 6,
-                      border: '1px solid var(--glass-border)',
-                      background: 'var(--glass)',
-                      color: 'var(--text)',
-                      padding: '0 10px',
-                      fontSize: 13,
-                    }}
-                  />
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={async () => {
-                  if (!newMenuItem.name || !newMenuItem.price) return
-                  await fetch(`${API_BASE}/api/admin/events/${eventId}/table-menu`, {
-                    method: 'POST',
-                    headers: authHeaders(),
-                    body: JSON.stringify(newMenuItem),
-                  })
-                  setNewMenuItem({
-                    name: '',
-                    category: '',
-                    price: '',
-                    unit: 'bottle',
-                    free_entries: 3,
-                    free_extras: 5,
-                  })
-                  loadData()
-                }}
-                style={{
-                  marginTop: 10,
-                  width: '100%',
-                  height: 40,
-                  borderRadius: 8,
-                  border: 'none',
-                  background: '#00C37A',
-                  color: '#000',
-                  fontWeight: 700,
-                  fontSize: 14,
-                  cursor: 'pointer',
-                }}
-              >
-                הוסף לתפריט
-              </button>
             </div>
           </div>
         </div>
