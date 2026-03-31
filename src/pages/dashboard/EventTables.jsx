@@ -79,6 +79,57 @@ function normalizePayments(order) {
   return p
 }
 
+const EDIT_FIELD_SEQUENCE = [
+  'order_date',
+  'table_number_display',
+  'guest_count',
+  'customer_name',
+  'customer_last_name',
+  'customer_phone',
+  'customer_email',
+  'drink_quantity',
+  'base_price',
+  'discount',
+  'tip_amount',
+  'promoter_name',
+  'promoter_commission_pct',
+]
+
+function getEditFieldValue(order, table, field) {
+  if (field === 'table_number_display') {
+    return table?.table_number != null ? String(table.table_number) : ''
+  }
+  if (field === 'order_date') {
+    return order.order_date || new Date().toISOString().split('T')[0]
+  }
+  if (field === 'guest_count') {
+    return String(
+      order.guest_count ?? (Array.isArray(order.guests) ? order.guests.length + 1 : 1),
+    )
+  }
+  if (field === 'promoter_commission_pct') {
+    return String(order.promoter_commission_pct ?? 10)
+  }
+  const v = order[field]
+  return v != null && v !== '' ? String(v) : ''
+}
+
+function coerceOptimisticLocal(field, rawVal) {
+  if (field === 'guest_count' || field === 'drink_quantity') {
+    const n = parseInt(String(rawVal), 10)
+    return Number.isFinite(n) ? n : 1
+  }
+  if (field === 'promoter_commission_pct') {
+    const n = parseFloat(String(rawVal))
+    return Number.isFinite(n) ? n : 10
+  }
+  if (field === 'base_price' || field === 'discount' || field === 'tip_amount') {
+    const n = parseFloat(String(rawVal).replace(/[₪%\s,]/g, ''))
+    return Number.isFinite(n) ? n : rawVal
+  }
+  return rawVal
+}
+
 export default function EventTables({
   eventId,
   businessId,
@@ -123,6 +174,8 @@ export default function EventTables({
   const [showTemplateStaff, setShowTemplateStaff] = useState(false)
   const [templateStaffData, setTemplateStaffData] = useState({})
   const extrasMenuWrapRef = useRef(null)
+  const suppressCellBlurSave = useRef(false)
+  const [extrasDropdownDir, setExtrasDropdownDir] = useState('down')
 
   useEffect(() => {
     if (openExtrasOrder == null) return
@@ -250,19 +303,65 @@ export default function EventTables({
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank', 'noopener,noreferrer')
   }
 
-  const commitCellPatch = async (order, field, rawVal) => {
-    let payload = { [field]: rawVal }
-    if (field === 'base_price' || field === 'discount' || field === 'tip_amount') {
-      payload = { [field]: String(rawVal).replace(/[₪%\s,]/g, '') }
-    }
-    await fetch(`${API_BASE}/api/admin/events/${eventId}/table-orders/${order.id}`, {
-      method: 'PATCH',
-      headers: authHeaders(),
-      body: JSON.stringify(payload),
-    })
-    setEditingCell(null)
-    loadData()
-  }
+  const updateOrder = useCallback(
+    async (orderId, field, value) => {
+      const payload = { [field]: value }
+      if (field === 'base_price' || field === 'discount' || field === 'tip_amount') {
+        payload[field] = String(value).replace(/[₪%\s,]/g, '')
+      }
+      if (field === 'promoter_commission_pct') {
+        payload[field] = parseFloat(value) || 10
+      }
+
+      if (field === 'table_number_display') {
+        setTableOrders((prev) => {
+          const ord = prev.find((o) => o.id === orderId)
+          if (ord?.event_table_id) {
+            setTables((tprev) =>
+              tprev.map((t) =>
+                t.id === ord.event_table_id ? { ...t, table_number: String(value ?? '') } : t,
+              ),
+            )
+          }
+          return prev
+        })
+      } else {
+        const merge = { [field]: coerceOptimisticLocal(field, payload[field]) }
+        setTableOrders((prev) => prev.map((o) => (o.id === orderId ? { ...o, ...merge } : o)))
+      }
+
+      try {
+        const res = await fetch(`${API_BASE}/api/admin/events/${eventId}/table-orders/${orderId}`, {
+          method: 'PATCH',
+          headers: authHeaders(),
+          body: JSON.stringify(payload),
+        })
+        if (!res.ok) throw new Error('fail')
+      } catch (e) {
+        loadData()
+        toast.error('שגיאה בשמירה')
+      }
+    },
+    [eventId, authHeaders, loadData],
+  )
+
+  const patchOrder = useCallback(
+    async (orderId, patch) => {
+      setTableOrders((prev) => prev.map((o) => (o.id === orderId ? { ...o, ...patch } : o)))
+      try {
+        const res = await fetch(`${API_BASE}/api/admin/events/${eventId}/table-orders/${orderId}`, {
+          method: 'PATCH',
+          headers: authHeaders(),
+          body: JSON.stringify(patch),
+        })
+        if (!res.ok) throw new Error('fail')
+      } catch (e) {
+        loadData()
+        toast.error('שגיאה בשמירה')
+      }
+    },
+    [eventId, authHeaders, loadData],
+  )
 
   if (loading) {
     return (
@@ -496,7 +595,7 @@ export default function EventTables({
                   <th
                     key={h}
                     style={{
-                      padding: '8px 8px',
+                      padding: '8px 10px',
                       textAlign: 'right',
                       fontWeight: 600,
                       whiteSpace: 'nowrap',
@@ -517,22 +616,61 @@ export default function EventTables({
 
                   const Cell = ({ field, value, type = 'text', width, wrapTd = true }) => {
                     const tdStyle = {
-                      padding: '4px 6px',
+                      padding: '8px 10px',
                       borderLeft: '1px solid var(--glass-border)',
                       minWidth: width || 80,
+                      minHeight: 40,
+                      cursor: 'text',
                     }
                     const editing =
                       editingCell?.orderId === order.id && editingCell?.field === field
+                    const runSave = () => {
+                      pushHistory()
+                      updateOrder(order.id, field, tempCellVal)
+                    }
                     const inner = editing ? (
                       <input
                         value={tempCellVal}
                         onChange={(e) => setTempCellVal(e.target.value)}
-                        onBlur={async () => {
-                          pushHistory()
-                          await commitCellPatch(order, field, tempCellVal)
+                        onBlur={() => {
+                          if (suppressCellBlurSave.current) {
+                            suppressCellBlurSave.current = false
+                            return
+                          }
+                          runSave()
+                          setEditingCell(null)
                         }}
                         onKeyDown={(e) => {
-                          if (e.key === 'Escape') setEditingCell(null)
+                          if (e.key === 'Enter') {
+                            e.preventDefault()
+                            suppressCellBlurSave.current = true
+                            runSave()
+                            setEditingCell(null)
+                          }
+                          if (e.key === 'Escape') {
+                            suppressCellBlurSave.current = true
+                            setEditingCell(null)
+                          }
+                          if (e.key === 'Tab') {
+                            e.preventDefault()
+                            suppressCellBlurSave.current = true
+                            runSave()
+                            const i = EDIT_FIELD_SEQUENCE.indexOf(field)
+                            const next = e.shiftKey
+                              ? EDIT_FIELD_SEQUENCE[i - 1]
+                              : EDIT_FIELD_SEQUENCE[i + 1]
+                            if (next) {
+                              const merged = { ...order, [field]: coerceOptimisticLocal(field, tempCellVal) }
+                              let tbl = table
+                              if (field === 'table_number_display' && table) {
+                                tbl = { ...table, table_number: tempCellVal }
+                              }
+                              setEditingCell({ orderId: order.id, field: next })
+                              setTempCellVal(getEditFieldValue(merged, tbl, next))
+                            } else {
+                              setEditingCell(null)
+                            }
+                          }
                         }}
                         type={type}
                         autoFocus
@@ -589,6 +727,7 @@ export default function EventTables({
                       style={{
                         borderTop: '1px solid var(--glass-border)',
                         background: idx % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.01)',
+                        transition: 'background 0.1s ease',
                       }}
                       onMouseEnter={(e) => {
                         e.currentTarget.style.background = 'rgba(0,195,122,0.02)'
@@ -600,9 +739,11 @@ export default function EventTables({
                     >
                       <td
                         style={{
-                          padding: '4px 6px',
+                          padding: '8px 10px',
                           borderLeft: '1px solid var(--glass-border)',
                           minWidth: 100,
+                          minHeight: 40,
+                          cursor: 'text',
                         }}
                         role="presentation"
                       >
@@ -630,17 +771,41 @@ export default function EventTables({
                             <input
                               value={tempCellVal}
                               onChange={(e) => setTempCellVal(e.target.value)}
-                              onBlur={async () => {
-                                await fetch(
-                                  `${API_BASE}/api/admin/events/${eventId}/table-orders/${order.id}`,
-                                  {
-                                    method: 'PATCH',
-                                    headers: authHeaders(),
-                                    body: JSON.stringify({ order_date: tempCellVal }),
-                                  },
-                                )
+                              onBlur={() => {
+                                if (suppressCellBlurSave.current) {
+                                  suppressCellBlurSave.current = false
+                                  return
+                                }
+                                updateOrder(order.id, 'order_date', tempCellVal)
                                 setEditingCell(null)
-                                loadData()
+                              }}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                  e.preventDefault()
+                                  suppressCellBlurSave.current = true
+                                  updateOrder(order.id, 'order_date', tempCellVal)
+                                  setEditingCell(null)
+                                }
+                                if (e.key === 'Escape') {
+                                  suppressCellBlurSave.current = true
+                                  setEditingCell(null)
+                                }
+                                if (e.key === 'Tab') {
+                                  e.preventDefault()
+                                  suppressCellBlurSave.current = true
+                                  updateOrder(order.id, 'order_date', tempCellVal)
+                                  const i = EDIT_FIELD_SEQUENCE.indexOf('order_date')
+                                  const next = e.shiftKey
+                                    ? EDIT_FIELD_SEQUENCE[i - 1]
+                                    : EDIT_FIELD_SEQUENCE[i + 1]
+                                  if (next) {
+                                    const merged = { ...order, order_date: tempCellVal }
+                                    setEditingCell({ orderId: order.id, field: next })
+                                    setTempCellVal(getEditFieldValue(merged, table, next))
+                                  } else {
+                                    setEditingCell(null)
+                                  }
+                                }
                               }}
                               type="date"
                               autoFocus
@@ -665,7 +830,7 @@ export default function EventTables({
 
                       <Cell field="table_number_display" value={table?.table_number} width={70} />
 
-                      <td style={{ padding: '4px 6px', borderLeft: '1px solid var(--glass-border)', minWidth: 120 }}>
+                      <td style={{ padding: '8px 10px', borderLeft: '1px solid var(--glass-border)', minWidth: 120 }}>
                         <CustomSelect
                           value={order.category || 'regular'}
                           onChange={async (v) => {
@@ -679,12 +844,7 @@ export default function EventTables({
                               }
                               return
                             }
-                            await fetch(`${API_BASE}/api/admin/events/${eventId}/table-orders/${order.id}`, {
-                              method: 'PATCH',
-                              headers: authHeaders(),
-                              body: JSON.stringify({ category: v }),
-                            })
-                            loadData()
+                            patchOrder(order.id, { category: v })
                           }}
                           options={TABLE_CATEGORIES}
                           style={{ fontSize: 11 }}
@@ -693,7 +853,7 @@ export default function EventTables({
 
                       <td
                         style={{
-                          padding: '4px 6px',
+                          padding: '8px 10px',
                           borderLeft: '1px solid var(--glass-border)',
                           minWidth: 80,
                           textAlign: 'center',
@@ -730,7 +890,7 @@ export default function EventTables({
                       <Cell field="customer_phone" value={order.customer_phone} width={100} />
                       <Cell field="customer_email" value={order.customer_email} width={120} />
 
-                      <td style={{ padding: '4px 6px', borderLeft: '1px solid var(--glass-border)', minWidth: 110 }}>
+                      <td style={{ padding: '8px 10px', borderLeft: '1px solid var(--glass-border)', minWidth: 110 }}>
                         <CustomSelect
                           value={order.waitress_name || ''}
                           onChange={async (v) => {
@@ -740,12 +900,7 @@ export default function EventTables({
                               if (!name) return
                               val = name
                             }
-                            await fetch(`${API_BASE}/api/admin/events/${eventId}/table-orders/${order.id}`, {
-                              method: 'PATCH',
-                              headers: authHeaders(),
-                              body: JSON.stringify({ waitress_name: val }),
-                            })
-                            loadData()
+                            patchOrder(order.id, { waitress_name: val })
                           }}
                           placeholder="בחר מלצרית..."
                           options={[
@@ -758,23 +913,18 @@ export default function EventTables({
                         />
                       </td>
 
-                      <td style={{ padding: '4px 6px', borderLeft: '1px solid var(--glass-border)', minWidth: 130 }}>
+                      <td style={{ padding: '8px 10px', borderLeft: '1px solid var(--glass-border)', minWidth: 130 }}>
                         <CustomSelect
                           searchable
                           value={order.drink_item_id || ''}
                           onChange={async (v) => {
                             const item = menuItems.find((m) => m.id === v)
-                            await fetch(`${API_BASE}/api/admin/events/${eventId}/table-orders/${order.id}`, {
-                              method: 'PATCH',
-                              headers: authHeaders(),
-                              body: JSON.stringify({
-                                drink_item_id: v,
-                                drink_name: item?.name,
-                                base_price: item?.price,
-                                total_amount: item?.price || 0,
-                              }),
+                            patchOrder(order.id, {
+                              drink_item_id: v,
+                              drink_name: item?.name,
+                              base_price: item?.price,
+                              total_amount: item?.price || 0,
                             })
-                            loadData()
                           }}
                           placeholder="בחר שתייה..."
                           options={drinkSelectOptions}
@@ -784,7 +934,7 @@ export default function EventTables({
 
                       <Cell field="drink_quantity" value={order.drink_quantity || 1} type="number" width={60} />
 
-                      <td style={{ padding: '4px 6px', borderLeft: '1px solid var(--glass-border)', minWidth: 160 }}>
+                      <td style={{ padding: '8px 10px', borderLeft: '1px solid var(--glass-border)', minWidth: 160 }}>
                         {(() => {
                           const selectedExtras = order.extras_list || []
                           const maxExtras = parseInt(String(order.drink_quantity || 1), 10) || 1
@@ -798,8 +948,19 @@ export default function EventTables({
                               <div
                                 role="button"
                                 tabIndex={0}
-                                onClick={() =>
-                                  setOpenExtrasOrder(openExtrasOrder === order.id ? null : order.id)}
+                                onClick={(ev) => {
+                                  if (openExtrasOrder === order.id) {
+                                    setOpenExtrasOrder(null)
+                                    return
+                                  }
+                                  const rect = ev.currentTarget.getBoundingClientRect()
+                                  const spaceBelow = window.innerHeight - rect.bottom - 80
+                                  const spaceAbove = rect.top
+                                  setExtrasDropdownDir(
+                                    spaceBelow < 200 && spaceAbove > 200 ? 'up' : 'down',
+                                  )
+                                  setOpenExtrasOrder(order.id)
+                                }}
                                 onKeyDown={(e) => {
                                   if (e.key === 'Enter' || e.key === ' ') {
                                     e.preventDefault()
@@ -807,7 +968,7 @@ export default function EventTables({
                                   }
                                 }}
                                 style={{
-                                  padding: '4px 8px',
+                                  padding: '8px 10px',
                                   borderRadius: 6,
                                   cursor: 'pointer',
                                   fontSize: 11,
@@ -848,9 +1009,13 @@ export default function EventTables({
                                 <div
                                   style={{
                                     position: 'absolute',
-                                    top: '100%',
+                                    ...(extrasDropdownDir === 'up'
+                                      ? { bottom: '100%', marginBottom: 4 }
+                                      : { top: '100%', marginTop: 4 }),
                                     right: 0,
-                                    zIndex: 100,
+                                    zIndex: 50,
+                                    maxHeight: 220,
+                                    overflowY: 'auto',
                                     background: '#1e2130',
                                     border: '1px solid rgba(255,255,255,0.1)',
                                     borderRadius: 8,
@@ -880,20 +1045,12 @@ export default function EventTables({
                                         key={item.id}
                                         role="button"
                                         tabIndex={0}
-                                        onClick={async () => {
+                                        onClick={() => {
                                           if (!isSelected && !canAdd) return
                                           const newExtras = isSelected
                                             ? selectedExtras.filter((x) => x !== item.name)
                                             : [...selectedExtras, item.name]
-                                          await fetch(
-                                            `${API_BASE}/api/admin/events/${eventId}/table-orders/${order.id}`,
-                                            {
-                                              method: 'PATCH',
-                                              headers: authHeaders(),
-                                              body: JSON.stringify({ extras_list: newExtras }),
-                                            },
-                                          )
-                                          loadData()
+                                          patchOrder(order.id, { extras_list: newExtras })
                                         }}
                                         onKeyDown={(e) => {
                                           if (e.key === 'Enter' || e.key === ' ') {
@@ -902,14 +1059,7 @@ export default function EventTables({
                                             const newExtras = isSelected
                                               ? selectedExtras.filter((x) => x !== item.name)
                                               : [...selectedExtras, item.name]
-                                            fetch(
-                                              `${API_BASE}/api/admin/events/${eventId}/table-orders/${order.id}`,
-                                              {
-                                                method: 'PATCH',
-                                                headers: authHeaders(),
-                                                body: JSON.stringify({ extras_list: newExtras }),
-                                              },
-                                            ).then(() => loadData())
+                                            patchOrder(order.id, { extras_list: newExtras })
                                           }
                                         }}
                                         style={{
@@ -982,7 +1132,7 @@ export default function EventTables({
 
                       <td
                         style={{
-                          padding: '4px 8px',
+                          padding: '8px 10px',
                           borderLeft: '1px solid var(--glass-border)',
                           minWidth: 80,
                           fontWeight: 700,
@@ -993,7 +1143,7 @@ export default function EventTables({
                         {parseFloat(order.total_amount || 0).toLocaleString()}
                       </td>
 
-                      <td style={{ padding: '4px 6px', borderLeft: '1px solid var(--glass-border)', minWidth: 130 }}>
+                      <td style={{ padding: '8px 10px', borderLeft: '1px solid var(--glass-border)', minWidth: 130 }}>
                         {pay[0] && (
                           <span style={{ fontSize: 11 }}>
                             {pay[0].type === 'credit'
@@ -1011,7 +1161,7 @@ export default function EventTables({
                         )}
                       </td>
 
-                      <td style={{ padding: '4px 6px', borderLeft: '1px solid var(--glass-border)', minWidth: 130 }}>
+                      <td style={{ padding: '8px 10px', borderLeft: '1px solid var(--glass-border)', minWidth: 130 }}>
                         {pay[1] && (
                           <span style={{ fontSize: 11 }}>
                             {pay[1].type === 'credit'
@@ -1032,9 +1182,11 @@ export default function EventTables({
 
                       <td
                         style={{
-                          padding: '4px 6px',
+                          padding: '8px 10px',
                           borderLeft: '1px solid var(--glass-border)',
                           minWidth: 80,
+                          minHeight: 40,
+                          cursor: 'text',
                         }}
                         role="presentation"
                       >
@@ -1059,19 +1211,49 @@ export default function EventTables({
                             <input
                               value={tempCellVal}
                               onChange={(e) => setTempCellVal(e.target.value)}
-                              onBlur={async () => {
-                                await fetch(
-                                  `${API_BASE}/api/admin/events/${eventId}/table-orders/${order.id}`,
-                                  {
-                                    method: 'PATCH',
-                                    headers: authHeaders(),
-                                    body: JSON.stringify({
-                                      promoter_commission_pct: parseFloat(tempCellVal) || 10,
-                                    }),
-                                  },
+                              onBlur={() => {
+                                if (suppressCellBlurSave.current) {
+                                  suppressCellBlurSave.current = false
+                                  return
+                                }
+                                updateOrder(
+                                  order.id,
+                                  'promoter_commission_pct',
+                                  parseFloat(tempCellVal) || 10,
                                 )
                                 setEditingCell(null)
-                                loadData()
+                              }}
+                              onKeyDown={(e) => {
+                                const v = parseFloat(tempCellVal) || 10
+                                if (e.key === 'Enter') {
+                                  e.preventDefault()
+                                  suppressCellBlurSave.current = true
+                                  updateOrder(order.id, 'promoter_commission_pct', v)
+                                  setEditingCell(null)
+                                }
+                                if (e.key === 'Escape') {
+                                  suppressCellBlurSave.current = true
+                                  setEditingCell(null)
+                                }
+                                if (e.key === 'Tab') {
+                                  e.preventDefault()
+                                  suppressCellBlurSave.current = true
+                                  updateOrder(order.id, 'promoter_commission_pct', v)
+                                  const i = EDIT_FIELD_SEQUENCE.indexOf('promoter_commission_pct')
+                                  const next = e.shiftKey
+                                    ? EDIT_FIELD_SEQUENCE[i - 1]
+                                    : EDIT_FIELD_SEQUENCE[i + 1]
+                                  if (next) {
+                                    const merged = {
+                                      ...order,
+                                      promoter_commission_pct: v,
+                                    }
+                                    setEditingCell({ orderId: order.id, field: next })
+                                    setTempCellVal(getEditFieldValue(merged, table, next))
+                                  } else {
+                                    setEditingCell(null)
+                                  }
+                                }
                               }}
                               type="number"
                               min={0}
@@ -1112,23 +1294,18 @@ export default function EventTables({
                         </span>
                       </td>
 
-                      <td style={{ padding: '4px 6px', borderLeft: '1px solid var(--glass-border)', minWidth: 130 }}>
+                      <td style={{ padding: '8px 10px', borderLeft: '1px solid var(--glass-border)', minWidth: 130 }}>
                         <CustomSelect
                           value={order.status || 'reserved'}
-                          onChange={async (v) => {
-                            await fetch(`${API_BASE}/api/admin/events/${eventId}/table-orders/${order.id}`, {
-                              method: 'PATCH',
-                              headers: authHeaders(),
-                              body: JSON.stringify({ status: v }),
-                            })
-                            loadData()
+                          onChange={(v) => {
+                            patchOrder(order.id, { status: v })
                           }}
                           options={Object.entries(STATUS_CONFIG).map(([v, { label }]) => ({ value: v, label }))}
                           style={{ fontSize: 11 }}
                         />
                       </td>
 
-                      <td style={{ padding: '4px 8px', borderLeft: '1px solid var(--glass-border)', minWidth: 120 }}>
+                      <td style={{ padding: '8px 10px', borderLeft: '1px solid var(--glass-border)', minWidth: 120 }}>
                         <div style={{ display: 'flex', gap: 4 }}>
                           <button
                             type="button"
@@ -1140,8 +1317,12 @@ export default function EventTables({
                               borderRadius: 6,
                               cursor: 'pointer',
                               color: '#00C37A',
-                              padding: '4px 6px',
+                              padding: '8px 10px',
+                              minWidth: 36,
+                              minHeight: 36,
                               display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
                             }}
                           >
                             <QrCode size={13} />
@@ -1156,8 +1337,12 @@ export default function EventTables({
                               borderRadius: 6,
                               cursor: 'pointer',
                               color: '#22C55E',
-                              padding: '4px 6px',
+                              padding: '8px 10px',
+                              minWidth: 36,
+                              minHeight: 36,
                               display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
                             }}
                           >
                             <MessageCircle size={13} />
@@ -1180,8 +1365,12 @@ export default function EventTables({
                               borderRadius: 6,
                               cursor: 'pointer',
                               color: '#EF4444',
-                              padding: '4px 6px',
+                              padding: '8px 10px',
+                              minWidth: 36,
+                              minHeight: 36,
                               display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
                             }}
                           >
                             <Trash2 size={13} />
@@ -1243,13 +1432,13 @@ export default function EventTables({
                   cursor: 'pointer',
                   position: 'relative',
                   textAlign: 'center',
-                  transition: 'transform 0.15s',
+                  transition: 'background 0.1s ease',
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.transform = 'scale(1.03)'
+                  e.currentTarget.style.filter = 'brightness(1.06)'
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.transform = 'scale(1)'
+                  e.currentTarget.style.filter = 'none'
                 }}
               >
                 {hasPendingUpsell && (
