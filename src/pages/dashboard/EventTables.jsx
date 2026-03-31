@@ -1,13 +1,23 @@
-import { useState, useCallback, useEffect, useMemo } from 'react'
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react'
 import {
   Plus, Trash2, QrCode, MessageCircle, RotateCcw, Grid, Table as TableIcon, X,
-  UtensilsCrossed, Share2,
+  UtensilsCrossed, Share2, Link, Users,
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import CustomSelect from '@/components/ui/CustomSelect'
 
 const API_BASE = import.meta.env.VITE_API_URL || 'https://api.axess.pro'
 const PUBLIC_TABLE_ORIGIN = 'https://axess.pro'
+
+const STAFF_TEMPLATE = [
+  { role: 'manager', label: 'מנהל ערב' },
+  { role: 'table_manager', label: 'מנהל שולחנות' },
+  { role: 'bar_manager', label: 'מנהלת בר' },
+  { role: 'waitress', label: 'מלצרית' },
+  { role: 'selector', label: 'סלקטורית' },
+  { role: 'cashier', label: 'קופאית' },
+  { role: 'owner', label: 'בעלים' },
+]
 
 const STATUS_CONFIG = {
   reserved: { label: 'שמור', color: '#F59E0B', bg: 'rgba(245,158,11,0.15)' },
@@ -28,7 +38,31 @@ function normalizeOrderItems(order) {
     }
   }
   if (!Array.isArray(items)) items = []
-  return { ...order, items }
+  let extras_list = order.extras_list
+  if (extras_list == null) extras_list = []
+  else if (typeof extras_list === 'string') {
+    try {
+      extras_list = JSON.parse(extras_list)
+    } catch {
+      extras_list = []
+    }
+  }
+  if (!Array.isArray(extras_list)) extras_list = []
+  return { ...order, items, extras_list }
+}
+
+function tablesAssignedList(ta) {
+  if (ta == null) return []
+  if (Array.isArray(ta)) return ta
+  if (typeof ta === 'string') {
+    try {
+      const p = JSON.parse(ta)
+      return Array.isArray(p) ? p : []
+    } catch {
+      return []
+    }
+  }
+  return []
 }
 
 function normalizePayments(order) {
@@ -77,6 +111,29 @@ export default function EventTables({
   })
   const [editMenuItemId, setEditMenuItemId] = useState(null)
   const [editMenuPrice, setEditMenuPrice] = useState('')
+  const [openExtrasOrder, setOpenExtrasOrder] = useState(null)
+  const [showStaffPanel, setShowStaffPanel] = useState(false)
+  const [newStaff, setNewStaff] = useState({
+    name: '',
+    phone: '',
+    role: 'waitress',
+    tables_assigned: '',
+    wa_notifications: true,
+  })
+  const [showTemplateStaff, setShowTemplateStaff] = useState(false)
+  const [templateStaffData, setTemplateStaffData] = useState({})
+  const extrasMenuWrapRef = useRef(null)
+
+  useEffect(() => {
+    if (openExtrasOrder == null) return
+    const onDown = (e) => {
+      if (extrasMenuWrapRef.current && !extrasMenuWrapRef.current.contains(e.target)) {
+        setOpenExtrasOrder(null)
+      }
+    }
+    document.addEventListener('mousedown', onDown)
+    return () => document.removeEventListener('mousedown', onDown)
+  }, [openExtrasOrder])
 
   const drinkSelectOptions = useMemo(() => {
     const grouped = menuItems
@@ -383,6 +440,28 @@ export default function EventTables({
             )
           </button>
         )}
+        <button
+          type="button"
+          onClick={() => setShowStaffPanel(true)}
+          style={{
+            padding: '6px 12px',
+            borderRadius: 8,
+            border: '1px solid var(--glass-border)',
+            background: 'var(--glass)',
+            color: 'var(--text)',
+            fontSize: 13,
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 6,
+            marginRight: 'auto',
+          }}
+        >
+          <Users size={14} color="#00C37A" />
+          צוות (
+          {staffList.length}
+          )
+        </button>
       </div>
 
       {view === 'table' && (
@@ -410,6 +489,7 @@ export default function EventTables({
                   'תשלום 2',
                   'טיפ',
                   'יחצ"ן',
+                  'עמלה %',
                   'סטטוס',
                   'פעולות',
                 ].map((h) => (
@@ -704,27 +784,186 @@ export default function EventTables({
 
                       <Cell field="drink_quantity" value={order.drink_quantity || 1} type="number" width={60} />
 
-                      <td style={{ padding: '4px 6px', borderLeft: '1px solid var(--glass-border)', minWidth: 120 }}>
-                        <CustomSelect
-                          searchable
-                          value={order.extras || ''}
-                          onChange={async (v) => {
-                            await fetch(`${API_BASE}/api/admin/events/${eventId}/table-orders/${order.id}`, {
-                              method: 'PATCH',
-                              headers: authHeaders(),
-                              body: JSON.stringify({ extras: v }),
-                            })
-                            loadData()
-                          }}
-                          placeholder="תוספות..."
-                          options={menuItems
-                            .filter((m) => m.category === 'extras')
-                            .map((m) => ({
-                              value: m.id,
-                              label: m.name,
-                            }))}
-                          style={{ fontSize: 11, minWidth: 160 }}
-                        />
+                      <td style={{ padding: '4px 6px', borderLeft: '1px solid var(--glass-border)', minWidth: 160 }}>
+                        {(() => {
+                          const selectedExtras = order.extras_list || []
+                          const maxExtras = parseInt(String(order.drink_quantity || 1), 10) || 1
+                          const extrasItems = menuItems.filter((m) => m.category === 'תוספות')
+                          return (
+                            <div
+                              ref={openExtrasOrder === order.id ? extrasMenuWrapRef : undefined}
+                              data-extras-dropdown=""
+                              style={{ position: 'relative' }}
+                            >
+                              <div
+                                role="button"
+                                tabIndex={0}
+                                onClick={() =>
+                                  setOpenExtrasOrder(openExtrasOrder === order.id ? null : order.id)}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter' || e.key === ' ') {
+                                    e.preventDefault()
+                                    setOpenExtrasOrder(openExtrasOrder === order.id ? null : order.id)
+                                  }
+                                }}
+                                style={{
+                                  padding: '4px 8px',
+                                  borderRadius: 6,
+                                  cursor: 'pointer',
+                                  fontSize: 11,
+                                  border: '1px solid var(--glass-border)',
+                                  background: 'var(--card)',
+                                  minHeight: 28,
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  flexWrap: 'wrap',
+                                  gap: 4,
+                                }}
+                              >
+                                {selectedExtras.length > 0 ? (
+                                  selectedExtras.map((e, i) => (
+                                    <span
+                                      key={i}
+                                      style={{
+                                        background: 'rgba(0,195,122,0.15)',
+                                        color: '#00C37A',
+                                        padding: '1px 6px',
+                                        borderRadius: 10,
+                                        fontSize: 10,
+                                      }}
+                                    >
+                                      {e}
+                                    </span>
+                                  ))
+                                ) : (
+                                  <span style={{ color: 'var(--v2-gray-400)' }}>
+                                    בחר תוספות (
+                                    {maxExtras}
+                                    )
+                                  </span>
+                                )}
+                              </div>
+
+                              {openExtrasOrder === order.id && (
+                                <div
+                                  style={{
+                                    position: 'absolute',
+                                    top: '100%',
+                                    right: 0,
+                                    zIndex: 100,
+                                    background: '#1e2130',
+                                    border: '1px solid rgba(255,255,255,0.1)',
+                                    borderRadius: 8,
+                                    padding: 8,
+                                    minWidth: 180,
+                                    boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
+                                  }}
+                                >
+                                  <p
+                                    style={{
+                                      margin: '0 0 6px',
+                                      fontSize: 11,
+                                      color: 'var(--v2-gray-400)',
+                                    }}
+                                  >
+                                    בחר עד
+                                    {' '}
+                                    {maxExtras}
+                                    {' '}
+                                    תוספות
+                                  </p>
+                                  {extrasItems.map((item) => {
+                                    const isSelected = selectedExtras.includes(item.name)
+                                    const canAdd = !isSelected && selectedExtras.length < maxExtras
+                                    return (
+                                      <div
+                                        key={item.id}
+                                        role="button"
+                                        tabIndex={0}
+                                        onClick={async () => {
+                                          if (!isSelected && !canAdd) return
+                                          const newExtras = isSelected
+                                            ? selectedExtras.filter((x) => x !== item.name)
+                                            : [...selectedExtras, item.name]
+                                          await fetch(
+                                            `${API_BASE}/api/admin/events/${eventId}/table-orders/${order.id}`,
+                                            {
+                                              method: 'PATCH',
+                                              headers: authHeaders(),
+                                              body: JSON.stringify({ extras_list: newExtras }),
+                                            },
+                                          )
+                                          loadData()
+                                        }}
+                                        onKeyDown={(e) => {
+                                          if (e.key === 'Enter' || e.key === ' ') {
+                                            e.preventDefault()
+                                            if (!isSelected && !canAdd) return
+                                            const newExtras = isSelected
+                                              ? selectedExtras.filter((x) => x !== item.name)
+                                              : [...selectedExtras, item.name]
+                                            fetch(
+                                              `${API_BASE}/api/admin/events/${eventId}/table-orders/${order.id}`,
+                                              {
+                                                method: 'PATCH',
+                                                headers: authHeaders(),
+                                                body: JSON.stringify({ extras_list: newExtras }),
+                                              },
+                                            ).then(() => loadData())
+                                          }
+                                        }}
+                                        style={{
+                                          padding: '6px 8px',
+                                          borderRadius: 6,
+                                          cursor: canAdd || isSelected ? 'pointer' : 'not-allowed',
+                                          fontSize: 12,
+                                          marginBottom: 2,
+                                          background: isSelected ? 'rgba(0,195,122,0.15)' : 'transparent',
+                                          color: isSelected ? '#00C37A' : canAdd ? '#fff' : 'rgba(255,255,255,0.3)',
+                                          display: 'flex',
+                                          alignItems: 'center',
+                                          gap: 8,
+                                        }}
+                                      >
+                                        <span style={{ fontSize: 10 }}>{isSelected ? '✅' : '⬜'}</span>
+                                        {item.name}
+                                        <span
+                                          style={{
+                                            fontSize: 10,
+                                            color: 'rgba(255,255,255,0.4)',
+                                            marginRight: 'auto',
+                                          }}
+                                        >
+                                          {item.unit === 'pitcher'
+                                            ? 'קנקן'
+                                            : item.unit === 'unit'
+                                              ? 'יח׳'
+                                              : ''}
+                                        </span>
+                                      </div>
+                                    )
+                                  })}
+                                  {selectedExtras.length >= maxExtras && (
+                                    <p
+                                      style={{
+                                        margin: '6px 0 0',
+                                        fontSize: 10,
+                                        color: '#F59E0B',
+                                        textAlign: 'center',
+                                      }}
+                                    >
+                                      הגעת למקסימום —
+                                      {' '}
+                                      {maxExtras}
+                                      {' '}
+                                      תוספות
+                                    </p>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          )
+                        })()}
                       </td>
 
                       <Cell
@@ -790,6 +1029,88 @@ export default function EventTables({
                       <Cell field="tip_amount" value={order.tip_amount != null ? order.tip_amount : ''} type="number" width={70} />
 
                       <Cell field="promoter_name" value={order.promoter_name} width={90} />
+
+                      <td
+                        style={{
+                          padding: '4px 6px',
+                          borderLeft: '1px solid var(--glass-border)',
+                          minWidth: 80,
+                        }}
+                        role="presentation"
+                      >
+                        <span
+                          role="button"
+                          tabIndex={0}
+                          onClick={() => {
+                            setEditingCell({ orderId: order.id, field: 'promoter_commission_pct' })
+                            setTempCellVal(String(order.promoter_commission_pct ?? 10))
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                              e.preventDefault()
+                              setEditingCell({ orderId: order.id, field: 'promoter_commission_pct' })
+                              setTempCellVal(String(order.promoter_commission_pct ?? 10))
+                            }
+                          }}
+                          style={{ display: 'block' }}
+                        >
+                          {editingCell?.orderId === order.id &&
+                          editingCell?.field === 'promoter_commission_pct' ? (
+                            <input
+                              value={tempCellVal}
+                              onChange={(e) => setTempCellVal(e.target.value)}
+                              onBlur={async () => {
+                                await fetch(
+                                  `${API_BASE}/api/admin/events/${eventId}/table-orders/${order.id}`,
+                                  {
+                                    method: 'PATCH',
+                                    headers: authHeaders(),
+                                    body: JSON.stringify({
+                                      promoter_commission_pct: parseFloat(tempCellVal) || 10,
+                                    }),
+                                  },
+                                )
+                                setEditingCell(null)
+                                loadData()
+                              }}
+                              type="number"
+                              min={0}
+                              max={100}
+                              autoFocus
+                              style={{
+                                width: 60,
+                                background: 'var(--glass)',
+                                border: '1px solid #00C37A',
+                                borderRadius: 4,
+                                padding: '2px 6px',
+                                color: 'var(--text)',
+                                fontSize: 12,
+                              }}
+                            />
+                          ) : (
+                            <span
+                              style={{
+                                fontSize: 12,
+                                cursor: 'text',
+                                color: order.promoter_id ? '#F59E0B' : 'var(--v2-gray-400)',
+                              }}
+                            >
+                              {order.promoter_commission_pct ?? 10}
+                              %
+                              {order.promoter_id && (
+                                <span style={{ display: 'block', fontSize: 10, color: '#F59E0B' }}>
+                                  ₪
+                                  {Math.round(
+                                    (parseFloat(order.total_amount) || 0) *
+                                      (parseFloat(order.promoter_commission_pct) || 10) /
+                                      100,
+                                  )}
+                                </span>
+                              )}
+                            </span>
+                          )}
+                        </span>
+                      </td>
 
                       <td style={{ padding: '4px 6px', borderLeft: '1px solid var(--glass-border)', minWidth: 130 }}>
                         <CustomSelect
@@ -883,7 +1204,7 @@ export default function EventTables({
                   ₪
                   {tableOrders.reduce((s, o) => s + parseFloat(o.total_amount || 0), 0).toLocaleString()}
                 </td>
-                <td colSpan={6} />
+                <td colSpan={7} />
               </tr>
             </tbody>
           </table>
@@ -996,6 +1317,382 @@ export default function EventTables({
           >
             <Plus size={20} color="var(--v2-gray-400)" />
             <span style={{ fontSize: 11, color: 'var(--v2-gray-400)', marginTop: 4 }}>הוסף שולחן</span>
+          </div>
+        </div>
+      )}
+
+      {showStaffPanel && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.6)',
+            zIndex: 1000,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 16,
+          }}
+        >
+          <div
+            style={{
+              background: 'var(--card, #1a1d2e)',
+              borderRadius: 16,
+              padding: 24,
+              maxWidth: 560,
+              width: '100%',
+              maxHeight: '85vh',
+              overflowY: 'auto',
+              border: '1px solid var(--glass-border)',
+              position: 'relative',
+            }}
+          >
+            <button
+              type="button"
+              onClick={() => setShowStaffPanel(false)}
+              style={{
+                position: 'absolute',
+                top: 12,
+                left: 12,
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                color: 'var(--v2-gray-400)',
+              }}
+            >
+              <X size={20} />
+            </button>
+            <h3 style={{ margin: '0 0 20px', fontSize: 16, fontWeight: 700 }}>צוות האירוע</h3>
+
+            {staffList.map((member) => {
+              const ta = tablesAssignedList(member.tables_assigned)
+              return (
+                <div
+                  key={member.id}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 10,
+                    padding: '10px 0',
+                    borderBottom: '1px solid var(--glass-border)',
+                  }}
+                >
+                  <div
+                    style={{
+                      width: 36,
+                      height: 36,
+                      borderRadius: '50%',
+                      background: 'rgba(0,195,122,0.15)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: '#00C37A',
+                      fontWeight: 700,
+                      fontSize: 14,
+                    }}
+                  >
+                    {(member.name && member.name[0]) || '?'}
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <p style={{ margin: 0, fontWeight: 600, fontSize: 14 }}>{member.name}</p>
+                    <p style={{ margin: 0, fontSize: 12, color: 'var(--v2-gray-400)' }}>
+                      {member.role === 'manager'
+                        ? 'מנהל ערב'
+                        : member.role === 'waitress'
+                          ? 'מלצרית'
+                          : member.role === 'bar_manager'
+                            ? 'מנהלת בר'
+                            : member.role === 'cashier'
+                              ? 'קופאית'
+                              : member.role === 'selector'
+                                ? 'סלקטורית'
+                                : member.role === 'table_manager'
+                                  ? 'מנהל שולחנות'
+                                  : member.role === 'owner'
+                                    ? 'בעלים'
+                                    : member.role}
+                      {' · '}
+                      {member.phone}
+                    </p>
+                    {ta.length > 0 && (
+                      <p style={{ margin: '2px 0 0', fontSize: 11, color: '#00C37A' }}>
+                        שולחנות:
+                        {' '}
+                        {ta.join(', ')}
+                      </p>
+                    )}
+                  </div>
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        navigator.clipboard.writeText(`https://axess.pro/staff/table/${member.share_token}`)
+                        toast.success('לינק הועתק!')
+                      }}
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#00C37A' }}
+                    >
+                      <Link size={14} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        await fetch(`${API_BASE}/api/admin/events/${eventId}/table-staff/${member.id}`, {
+                          method: 'DELETE',
+                          headers: authHeaders(),
+                        })
+                        loadData()
+                      }}
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#EF4444' }}
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+                </div>
+              )
+            })}
+
+            {staffList.length === 0 && (
+              <div style={{ textAlign: 'center', padding: 20 }}>
+                <p style={{ color: 'var(--v2-gray-400)', fontSize: 13, marginBottom: 12 }}>
+                  אין צוות מוגדר עדיין
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setShowTemplateStaff(true)}
+                  style={{
+                    padding: '8px 16px',
+                    borderRadius: 8,
+                    border: 'none',
+                    background: 'rgba(0,195,122,0.15)',
+                    color: '#00C37A',
+                    fontWeight: 600,
+                    fontSize: 13,
+                    cursor: 'pointer',
+                  }}
+                >
+                  טען תבנית צוות מלאה
+                </button>
+              </div>
+            )}
+
+            {showTemplateStaff && (
+              <div
+                style={{
+                  marginTop: 16,
+                  background: 'var(--glass)',
+                  borderRadius: 10,
+                  padding: 16,
+                }}
+              >
+                <p style={{ margin: '0 0 12px', fontSize: 13, fontWeight: 700 }}>מלא פרטי צוות:</p>
+                {STAFF_TEMPLATE.map((t) => (
+                  <div
+                    key={t.role}
+                    style={{ display: 'flex', gap: 8, marginBottom: 8, alignItems: 'center' }}
+                  >
+                    <span
+                      style={{
+                        width: 110,
+                        fontSize: 12,
+                        color: 'var(--v2-gray-400)',
+                        flexShrink: 0,
+                      }}
+                    >
+                      {t.label}
+                    </span>
+                    <input
+                      value={templateStaffData[t.role]?.name || ''}
+                      onChange={(e) =>
+                        setTemplateStaffData((prev) => ({
+                          ...prev,
+                          [t.role]: { ...prev[t.role], role: t.role, name: e.target.value },
+                        }))}
+                      placeholder="שם מלא"
+                      style={{
+                        flex: 1,
+                        height: 32,
+                        borderRadius: 6,
+                        border: '1px solid var(--glass-border)',
+                        background: 'var(--card)',
+                        color: 'var(--text)',
+                        padding: '0 8px',
+                        fontSize: 12,
+                      }}
+                    />
+                    <input
+                      value={templateStaffData[t.role]?.phone || ''}
+                      onChange={(e) =>
+                        setTemplateStaffData((prev) => ({
+                          ...prev,
+                          [t.role]: { ...prev[t.role], role: t.role, phone: e.target.value },
+                        }))}
+                      placeholder="טלפון WA"
+                      style={{
+                        flex: 1,
+                        height: 32,
+                        borderRadius: 6,
+                        border: '1px solid var(--glass-border)',
+                        background: 'var(--card)',
+                        color: 'var(--text)',
+                        padding: '0 8px',
+                        fontSize: 12,
+                      }}
+                    />
+                  </div>
+                ))}
+                <button
+                  type="button"
+                  onClick={async () => {
+                    const toAdd = Object.values(templateStaffData).filter((s) => s.name && s.phone)
+                    for (const member of toAdd) {
+                      await fetch(`${API_BASE}/api/admin/events/${eventId}/table-staff`, {
+                        method: 'POST',
+                        headers: authHeaders(),
+                        body: JSON.stringify({
+                          ...member,
+                          tables_assigned: [],
+                          wa_notifications: true,
+                        }),
+                      })
+                    }
+                    setTemplateStaffData({})
+                    setShowTemplateStaff(false)
+                    loadData()
+                    toast.success(`${toAdd.length} אנשי צוות נוספו!`)
+                  }}
+                  style={{
+                    width: '100%',
+                    height: 38,
+                    borderRadius: 8,
+                    border: 'none',
+                    background: '#00C37A',
+                    color: '#000',
+                    fontWeight: 700,
+                    fontSize: 13,
+                    cursor: 'pointer',
+                    marginTop: 8,
+                  }}
+                >
+                  שמור צוות
+                </button>
+              </div>
+            )}
+
+            <div style={{ marginTop: 20, paddingTop: 16, borderTop: '1px solid var(--glass-border)' }}>
+              <p style={{ margin: '0 0 12px', fontSize: 14, fontWeight: 700 }}>+ הוסף איש צוות</p>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 8 }}>
+                <input
+                  value={newStaff.name || ''}
+                  onChange={(e) => setNewStaff((f) => ({ ...f, name: e.target.value }))}
+                  placeholder="שם מלא *"
+                  style={{
+                    height: 36,
+                    borderRadius: 6,
+                    border: '1px solid var(--glass-border)',
+                    background: 'var(--glass)',
+                    color: 'var(--text)',
+                    padding: '0 10px',
+                    fontSize: 13,
+                  }}
+                />
+                <input
+                  value={newStaff.phone || ''}
+                  onChange={(e) => setNewStaff((f) => ({ ...f, phone: e.target.value }))}
+                  placeholder="טלפון WA *"
+                  style={{
+                    height: 36,
+                    borderRadius: 6,
+                    border: '1px solid var(--glass-border)',
+                    background: 'var(--glass)',
+                    color: 'var(--text)',
+                    padding: '0 10px',
+                    fontSize: 13,
+                  }}
+                />
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 8 }}>
+                <CustomSelect
+                  value={newStaff.role || 'waitress'}
+                  onChange={(v) => setNewStaff((f) => ({ ...f, role: v }))}
+                  options={[
+                    { value: 'manager', label: 'מנהל ערב' },
+                    { value: 'table_manager', label: 'מנהל שולחנות' },
+                    { value: 'waitress', label: 'מלצרית' },
+                    { value: 'bar_manager', label: 'מנהלת בר' },
+                    { value: 'cashier', label: 'קופאית' },
+                    { value: 'selector', label: 'סלקטורית' },
+                  ]}
+                  style={{ fontSize: 13 }}
+                />
+                <input
+                  value={newStaff.tables_assigned || ''}
+                  onChange={(e) => setNewStaff((f) => ({ ...f, tables_assigned: e.target.value }))}
+                  placeholder="שולחנות (100,101,102)"
+                  style={{
+                    height: 36,
+                    borderRadius: 6,
+                    border: '1px solid var(--glass-border)',
+                    background: 'var(--glass)',
+                    color: 'var(--text)',
+                    padding: '0 10px',
+                    fontSize: 13,
+                  }}
+                />
+              </div>
+              <label
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  fontSize: 13,
+                  marginBottom: 10,
+                  cursor: 'pointer',
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={newStaff.wa_notifications !== false}
+                  onChange={(e) => setNewStaff((f) => ({ ...f, wa_notifications: e.target.checked }))}
+                />
+                קבל התראות WhatsApp
+              </label>
+              <button
+                type="button"
+                onClick={async () => {
+                  if (!newStaff.name || !newStaff.phone) return
+                  const tablesArr = newStaff.tables_assigned
+                    ? newStaff.tables_assigned.split(',').map((t) => t.trim()).filter(Boolean)
+                    : []
+                  await fetch(`${API_BASE}/api/admin/events/${eventId}/table-staff`, {
+                    method: 'POST',
+                    headers: authHeaders(),
+                    body: JSON.stringify({ ...newStaff, tables_assigned: tablesArr }),
+                  })
+                  setNewStaff({
+                    name: '',
+                    phone: '',
+                    role: 'waitress',
+                    tables_assigned: '',
+                    wa_notifications: true,
+                  })
+                  loadData()
+                  toast.success('איש צוות נוסף!')
+                }}
+                style={{
+                  width: '100%',
+                  height: 40,
+                  borderRadius: 8,
+                  border: 'none',
+                  background: '#00C37A',
+                  color: '#000',
+                  fontWeight: 700,
+                  fontSize: 14,
+                  cursor: 'pointer',
+                }}
+              >
+                הוסף לצוות
+              </button>
+            </div>
           </div>
         </div>
       )}
