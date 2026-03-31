@@ -14,6 +14,10 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
+  // אל תיירט בקשות ל-API — תן להן לעבור ישירות:
+  if (event.request.url.includes('api.axess.pro')) {
+    return; // ← לא קורא ל-event.respondWith
+  }
   event.respondWith(fetch(event.request));
 });
 
