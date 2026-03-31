@@ -8,6 +8,7 @@ import {
 import toast from 'react-hot-toast'
 import { useAuth } from '@/contexts/AuthContext'
 import CustomSelect from '@/components/ui/CustomSelect'
+import EventTables from './EventTables'
 import { exportToExcel, exportEventReport, exportAudienceToExcel } from '@/utils/exportExcel'
 
 const API_BASE = import.meta.env.VITE_API_URL || 'https://api.axess.pro'
@@ -1008,6 +1009,7 @@ export default function EventDetailPage() {
           { id: 'overview', label: 'סקירה' },
           { id: 'audience', label: 'קהל' },
           { id: 'financials', label: 'כספים מלא' },
+          { id: 'tables', label: 'שולחנות' },
           { id: 'campaigns', label: 'קמפיינים' },
           { id: 'channels', label: 'ערוצי מכירה' },
           { id: 'webview', label: 'Webview' },
@@ -2664,6 +2666,15 @@ export default function EventDetailPage() {
             </div>
           )
         })()}
+
+        {activeTab === 'tables' && (
+          <EventTables
+            eventId={id}
+            businessId={businessId}
+            authHeaders={authHeaders}
+            session={session}
+          />
+        )}
 
         {activeTab === 'campaigns' && (
           <p style={{ color: 'var(--v2-gray-400)', fontSize: 14 }}>ניהול קמפיינים — בקרוב.</p>
