@@ -15,6 +15,15 @@ if (lastVersion && lastVersion !== BUILD_VERSION) {
   localStorage.setItem('app_version', BUILD_VERSION);
 }
 
+// בטל Service Worker ישן אוטומטית:
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.getRegistrations().then(registrations => {
+    registrations.forEach(registration => {
+      registration.unregister();
+    });
+  });
+}
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
