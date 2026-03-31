@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'axess-v3'; // ← שנה מ-v2 ל-v3
+const CACHE_VERSION = 'axess-v4';
 
 self.addEventListener('install', () => {
   self.skipWaiting();
@@ -13,13 +13,7 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
-self.addEventListener('fetch', (event) => {
-  // אל תיירט בקשות ל-API — תן להן לעבור ישירות:
-  if (event.request.url.includes('api.axess.pro')) {
-    return; // ← לא קורא ל-event.respondWith
-  }
-  event.respondWith(fetch(event.request));
-});
+// הסר את כל ה-fetch handler — לא מיירטים שום בקשה
 
 // Badge התראות:
 self.addEventListener('message', (event) => {
