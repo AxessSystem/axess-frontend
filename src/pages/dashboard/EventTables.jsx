@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect, useMemo } from 'react'
 import {
   Plus, Trash2, QrCode, MessageCircle, RotateCcw, Grid, Table as TableIcon, X,
+  UtensilsCrossed,
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import CustomSelect from '@/components/ui/CustomSelect'
@@ -44,7 +45,13 @@ function normalizePayments(order) {
   return p
 }
 
-export default function EventTables({ eventId, businessId, authHeaders }) {
+export default function EventTables({
+  eventId,
+  businessId,
+  authHeaders,
+  eventTitle,
+  eventDate,
+}) {
   const [tables, setTables] = useState([])
   const [tableOrders, setTableOrders] = useState([])
   const [loading, setLoading] = useState(true)
@@ -58,6 +65,31 @@ export default function EventTables({ eventId, businessId, authHeaders }) {
   const [tempCellVal, setTempCellVal] = useState('')
   const [selectedTable, setSelectedTable] = useState(null)
   const [showQR, setShowQR] = useState(null)
+  const [showMenuManager, setShowMenuManager] = useState(false)
+  const [menuFilter, setMenuFilter] = useState('all')
+  const [newMenuItem, setNewMenuItem] = useState({
+    name: '',
+    category: '',
+    price: '',
+    unit: 'bottle',
+    free_entries: 3,
+    free_extras: 5,
+  })
+
+  const drinkSelectOptions = useMemo(() => {
+    const grouped = menuItems
+      .filter((m) => m.category !== 'נישנושים')
+      .reduce((acc, m) => {
+        const cat = m.category || 'אחר'
+        if (!acc[cat]) acc[cat] = []
+        acc[cat].push({ value: m.id, label: `${m.name} — ₪${m.price}` })
+        return acc
+      }, {})
+    return Object.entries(grouped).flatMap(([cat, items]) => [
+      { value: `__header_${cat}`, label: `── ${cat} ──`, disabled: true },
+      ...items,
+    ])
+  }, [menuItems])
 
   const TABLE_CATEGORIES = useMemo(
     () => [
@@ -169,30 +201,35 @@ export default function EventTables({ eventId, businessId, authHeaders }) {
 
   return (
     <div>
+      <div style={{ marginBottom: 16 }}>
+        <h2 style={{ margin: '0 0 4px', fontSize: 18, fontWeight: 800 }}>
+          ניהול שולחנות — {eventTitle}
+        </h2>
+        <p style={{ margin: 0, fontSize: 13, color: 'var(--v2-gray-400)' }}>
+          {eventDate ? new Date(eventDate).toLocaleDateString('he-IL') : ''}
+        </p>
+        <p style={{ margin: '8px 0 0', fontSize: 13, color: 'var(--v2-gray-400)' }}>
+          {tableOrders.filter((o) => o.status === 'active').length}
+          {' '}
+          פעילים ·
+          {tableOrders.filter((o) => o.status === 'reserved').length}
+          {' '}
+          שמורים · ₪
+          {tableOrders.reduce((s, o) => s + parseFloat(o.total_amount || 0), 0).toLocaleString()}
+          {' '}
+          הכנסות
+        </p>
+      </div>
       <div
         style={{
           display: 'flex',
-          justifyContent: 'space-between',
+          justifyContent: 'flex-end',
           alignItems: 'center',
           marginBottom: 16,
           flexWrap: 'wrap',
           gap: 12,
         }}
       >
-        <div>
-          <h3 style={{ margin: '0 0 4px', fontSize: 16, fontWeight: 700 }}>ניהול שולחנות</h3>
-          <p style={{ margin: 0, fontSize: 13, color: 'var(--v2-gray-400)' }}>
-            {tableOrders.filter((o) => o.status === 'active').length}
-            {' '}
-            פעילים ·
-            {tableOrders.filter((o) => o.status === 'reserved').length}
-            {' '}
-            שמורים · ₪
-            {tableOrders.reduce((s, o) => s + parseFloat(o.total_amount || 0), 0).toLocaleString()}
-            {' '}
-            הכנסות
-          </p>
-        </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
           <div
             style={{
@@ -241,6 +278,25 @@ export default function EventTables({ eventId, businessId, authHeaders }) {
           </div>
           <button
             type="button"
+            onClick={() => setShowMenuManager(true)}
+            style={{
+              padding: '8px 14px',
+              borderRadius: 8,
+              border: '1px solid var(--glass-border)',
+              background: 'var(--glass)',
+              color: 'var(--text)',
+              fontSize: 13,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+            }}
+          >
+            <UtensilsCrossed size={14} color="#00C37A" />
+            ניהול תפריט
+          </button>
+          <button
+            type="button"
             onClick={addNewRow}
             style={{
               padding: '8px 14px',
@@ -267,7 +323,7 @@ export default function EventTables({ eventId, businessId, authHeaders }) {
           value={tableFilter.category}
           onChange={(v) => setTableFilter((f) => ({ ...f, category: v }))}
           options={[
-            { value: 'all', label: 'כל הקטגוריות' },
+            { value: 'all', label: 'שם/סוג שולחן' },
             ...TABLE_CATEGORIES.filter((c) => c.value !== '__new__'),
           ]}
           style={{ width: 150 }}
@@ -319,6 +375,7 @@ export default function EventTables({ eventId, businessId, authHeaders }) {
             <thead>
               <tr style={{ background: 'var(--glass)', fontSize: 11, color: 'var(--v2-gray-400)' }}>
                 {[
+                  'תאריך',
                   'מ\' שולחן',
                   'קטגוריה',
                   'כמות אנשים',
@@ -445,6 +502,71 @@ export default function EventTables({ eventId, businessId, authHeaders }) {
                           idx % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.01)'
                       }}
                     >
+                      <td
+                        style={{
+                          padding: '4px 6px',
+                          borderLeft: '1px solid var(--glass-border)',
+                          minWidth: 100,
+                        }}
+                        role="presentation"
+                      >
+                        <span
+                          role="button"
+                          tabIndex={0}
+                          onClick={() => {
+                            setEditingCell({ orderId: order.id, field: 'order_date' })
+                            setTempCellVal(
+                              order.order_date || new Date().toISOString().split('T')[0],
+                            )
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                              e.preventDefault()
+                              setEditingCell({ orderId: order.id, field: 'order_date' })
+                              setTempCellVal(
+                                order.order_date || new Date().toISOString().split('T')[0],
+                              )
+                            }
+                          }}
+                          style={{ display: 'block' }}
+                        >
+                          {editingCell?.orderId === order.id && editingCell?.field === 'order_date' ? (
+                            <input
+                              value={tempCellVal}
+                              onChange={(e) => setTempCellVal(e.target.value)}
+                              onBlur={async () => {
+                                await fetch(
+                                  `${API_BASE}/api/admin/events/${eventId}/table-orders/${order.id}`,
+                                  {
+                                    method: 'PATCH',
+                                    headers: authHeaders(),
+                                    body: JSON.stringify({ order_date: tempCellVal }),
+                                  },
+                                )
+                                setEditingCell(null)
+                                loadData()
+                              }}
+                              type="date"
+                              autoFocus
+                              style={{
+                                background: 'var(--glass)',
+                                border: '1px solid #00C37A',
+                                borderRadius: 4,
+                                padding: '2px 6px',
+                                color: 'var(--text)',
+                                fontSize: 12,
+                              }}
+                            />
+                          ) : (
+                            <span style={{ fontSize: 12, cursor: 'text' }}>
+                              {order.order_date
+                                ? new Date(order.order_date).toLocaleDateString('he-IL')
+                                : new Date().toLocaleDateString('he-IL')}
+                            </span>
+                          )}
+                        </span>
+                      </td>
+
                       <Cell field="table_number_display" value={table?.table_number} width={70} />
 
                       <td style={{ padding: '4px 6px', borderLeft: '1px solid var(--glass-border)', minWidth: 120 }}>
@@ -542,6 +664,7 @@ export default function EventTables({ eventId, businessId, authHeaders }) {
 
                       <td style={{ padding: '4px 6px', borderLeft: '1px solid var(--glass-border)', minWidth: 130 }}>
                         <CustomSelect
+                          searchable
                           value={order.drink_item_id || ''}
                           onChange={async (v) => {
                             const item = menuItems.find((m) => m.id === v)
@@ -552,18 +675,14 @@ export default function EventTables({ eventId, businessId, authHeaders }) {
                                 drink_item_id: v,
                                 drink_name: item?.name,
                                 base_price: item?.price,
+                                total_amount: item?.price || 0,
                               }),
                             })
                             loadData()
                           }}
                           placeholder="בחר שתייה..."
-                          options={menuItems
-                            .filter((m) => m.category === 'drinks')
-                            .map((m) => ({
-                              value: m.id,
-                              label: `${m.name} — ₪${m.price}`,
-                            }))}
-                          style={{ fontSize: 11 }}
+                          options={drinkSelectOptions}
+                          style={{ fontSize: 11, minWidth: 160 }}
                         />
                       </td>
 
@@ -571,6 +690,7 @@ export default function EventTables({ eventId, businessId, authHeaders }) {
 
                       <td style={{ padding: '4px 6px', borderLeft: '1px solid var(--glass-border)', minWidth: 120 }}>
                         <CustomSelect
+                          searchable
                           value={order.extras || ''}
                           onChange={async (v) => {
                             await fetch(`${API_BASE}/api/admin/events/${eventId}/table-orders/${order.id}`, {
@@ -587,7 +707,7 @@ export default function EventTables({ eventId, businessId, authHeaders }) {
                               value: m.id,
                               label: m.name,
                             }))}
-                          style={{ fontSize: 11 }}
+                          style={{ fontSize: 11, minWidth: 160 }}
                         />
                       </td>
 
@@ -736,7 +856,7 @@ export default function EventTables({ eventId, businessId, authHeaders }) {
                 })}
 
               <tr style={{ borderTop: '2px solid var(--glass-border)', background: 'var(--glass)' }}>
-                <td colSpan={13} style={{ padding: '8px 12px', fontWeight: 800, fontSize: 13 }}>
+                <td colSpan={14} style={{ padding: '8px 12px', fontWeight: 800, fontSize: 13 }}>
                   סה&quot;כ
                   {' '}
                   {tableOrders.length}
@@ -860,6 +980,248 @@ export default function EventTables({ eventId, businessId, authHeaders }) {
           >
             <Plus size={20} color="var(--v2-gray-400)" />
             <span style={{ fontSize: 11, color: 'var(--v2-gray-400)', marginTop: 4 }}>הוסף שולחן</span>
+          </div>
+        </div>
+      )}
+
+      {showMenuManager && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.6)',
+            zIndex: 1000,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 16,
+          }}
+        >
+          <div
+            style={{
+              background: 'var(--card, #1a1d2e)',
+              borderRadius: 16,
+              padding: 24,
+              maxWidth: 600,
+              width: '100%',
+              maxHeight: '85vh',
+              overflowY: 'auto',
+              border: '1px solid var(--glass-border)',
+              position: 'relative',
+            }}
+          >
+            <button
+              type="button"
+              onClick={() => setShowMenuManager(false)}
+              style={{
+                position: 'absolute',
+                top: 12,
+                left: 12,
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                color: 'var(--v2-gray-400)',
+              }}
+            >
+              <X size={20} />
+            </button>
+            <h3 style={{ margin: '0 0 16px', fontSize: 16, fontWeight: 700 }}>ניהול תפריט</h3>
+
+            <div
+              style={{
+                display: 'flex',
+                gap: 6,
+                marginBottom: 16,
+                overflowX: 'auto',
+                flexWrap: 'nowrap',
+              }}
+            >
+              {['all', ...new Set(menuItems.map((m) => m.category).filter(Boolean))].map((cat) => (
+                <button
+                  key={cat}
+                  type="button"
+                  onClick={() => setMenuFilter(cat)}
+                  style={{
+                    padding: '4px 12px',
+                    borderRadius: 20,
+                    border: 'none',
+                    cursor: 'pointer',
+                    whiteSpace: 'nowrap',
+                    fontSize: 12,
+                    background: menuFilter === cat ? 'var(--primary)' : 'var(--glass)',
+                    color: menuFilter === cat ? '#fff' : 'var(--text)',
+                  }}
+                >
+                  {cat === 'all' ? 'הכל' : cat}
+                </button>
+              ))}
+            </div>
+
+            <div style={{ marginBottom: 16 }}>
+              {menuItems
+                .filter((m) => menuFilter === 'all' || m.category === menuFilter)
+                .map((item) => (
+                  <div
+                    key={item.id}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 8,
+                      padding: '8px 0',
+                      borderBottom: '1px solid var(--glass-border)',
+                    }}
+                  >
+                    <div style={{ flex: 1 }}>
+                      <p style={{ margin: 0, fontSize: 13, fontWeight: 600 }}>{item.name}</p>
+                      <p style={{ margin: 0, fontSize: 11, color: 'var(--v2-gray-400)' }}>
+                        {item.category}
+                        {' '}
+                        · ₪
+                        {item.price}
+                        {' '}
+                        ·
+                        {item.free_entries}
+                        {' '}
+                        כניסות חינם
+                      </p>
+                    </div>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: '#00C37A' }}>
+                      ₪
+                      {item.price}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        await fetch(`${API_BASE}/api/admin/events/${eventId}/table-menu/${item.id}`, {
+                          method: 'DELETE',
+                          headers: authHeaders(),
+                        })
+                        loadData()
+                      }}
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#EF4444' }}
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+                ))}
+            </div>
+
+            <div style={{ borderTop: '1px solid var(--glass-border)', paddingTop: 16 }}>
+              <p style={{ margin: '0 0 10px', fontSize: 13, fontWeight: 700 }}>+ הוסף מוצר</p>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                <input
+                  value={newMenuItem.name}
+                  onChange={(e) => setNewMenuItem((f) => ({ ...f, name: e.target.value }))}
+                  placeholder="שם המוצר"
+                  style={{
+                    height: 36,
+                    borderRadius: 6,
+                    border: '1px solid var(--glass-border)',
+                    background: 'var(--glass)',
+                    color: 'var(--text)',
+                    padding: '0 10px',
+                    fontSize: 13,
+                  }}
+                />
+                <input
+                  value={newMenuItem.category}
+                  onChange={(e) => setNewMenuItem((f) => ({ ...f, category: e.target.value }))}
+                  placeholder="קטגוריה"
+                  style={{
+                    height: 36,
+                    borderRadius: 6,
+                    border: '1px solid var(--glass-border)',
+                    background: 'var(--glass)',
+                    color: 'var(--text)',
+                    padding: '0 10px',
+                    fontSize: 13,
+                  }}
+                />
+                <input
+                  value={newMenuItem.price}
+                  onChange={(e) => setNewMenuItem((f) => ({ ...f, price: e.target.value }))}
+                  placeholder="מחיר ₪"
+                  type="number"
+                  style={{
+                    height: 36,
+                    borderRadius: 6,
+                    border: '1px solid var(--glass-border)',
+                    background: 'var(--glass)',
+                    color: 'var(--text)',
+                    padding: '0 10px',
+                    fontSize: 13,
+                  }}
+                />
+                <div style={{ display: 'flex', gap: 6 }}>
+                  <input
+                    value={newMenuItem.free_entries}
+                    onChange={(e) => setNewMenuItem((f) => ({ ...f, free_entries: e.target.value }))}
+                    placeholder="כניסות חינם"
+                    type="number"
+                    style={{
+                      flex: 1,
+                      height: 36,
+                      borderRadius: 6,
+                      border: '1px solid var(--glass-border)',
+                      background: 'var(--glass)',
+                      color: 'var(--text)',
+                      padding: '0 10px',
+                      fontSize: 13,
+                    }}
+                  />
+                  <input
+                    value={newMenuItem.free_extras}
+                    onChange={(e) => setNewMenuItem((f) => ({ ...f, free_extras: e.target.value }))}
+                    placeholder="אנרגי"
+                    type="number"
+                    style={{
+                      flex: 1,
+                      height: 36,
+                      borderRadius: 6,
+                      border: '1px solid var(--glass-border)',
+                      background: 'var(--glass)',
+                      color: 'var(--text)',
+                      padding: '0 10px',
+                      fontSize: 13,
+                    }}
+                  />
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={async () => {
+                  if (!newMenuItem.name || !newMenuItem.price) return
+                  await fetch(`${API_BASE}/api/admin/events/${eventId}/table-menu`, {
+                    method: 'POST',
+                    headers: authHeaders(),
+                    body: JSON.stringify(newMenuItem),
+                  })
+                  setNewMenuItem({
+                    name: '',
+                    category: '',
+                    price: '',
+                    unit: 'bottle',
+                    free_entries: 3,
+                    free_extras: 5,
+                  })
+                  loadData()
+                }}
+                style={{
+                  marginTop: 10,
+                  width: '100%',
+                  height: 40,
+                  borderRadius: 8,
+                  border: 'none',
+                  background: '#00C37A',
+                  color: '#000',
+                  fontWeight: 700,
+                  fontSize: 14,
+                  cursor: 'pointer',
+                }}
+              >
+                הוסף לתפריט
+              </button>
+            </div>
           </div>
         </div>
       )}

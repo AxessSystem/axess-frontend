@@ -10,19 +10,24 @@ const CustomSelect = ({
   style = {},
   disabled = false,
   light = false,
+  searchable = false,
   id,
   className,
   ...rest
 }) => {
   const ariaLabel = rest['aria-label'];
   const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState('');
   const [dropdownPos, setDropdownPos] = useState({ top: 0, left: 0, width: 0 });
   const wrapRef = useRef(null);
   const triggerRef = useRef(null);
   const panelRef = useRef(null);
 
   useEffect(() => {
-    if (!open) return;
+    if (!open) {
+      setSearch('');
+      return;
+    }
     const handleClick = (e) => {
       if (
         wrapRef.current && !wrapRef.current.contains(e.target)
@@ -58,6 +63,13 @@ const CustomSelect = ({
       window.removeEventListener('resize', updatePosition);
     };
   }, [open]);
+
+  const filteredOptions = searchable && search
+    ? options.filter(o =>
+        !o.disabled &&
+        String(o.label || '').toLowerCase().includes(search.toLowerCase()),
+      )
+    : options;
 
   const selected = options.find(o => String(o.value) === String(value));
   const textColor = light ? '#0a1628' : 'var(--text)';
@@ -118,31 +130,65 @@ const CustomSelect = ({
             border: '1px solid rgba(255,255,255,0.1)',
             borderRadius: 8,
             boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
-            maxHeight: 220,
+            maxHeight: searchable ? 280 : 220,
             overflowY: 'auto',
           }}
           onMouseDown={(e) => e.stopPropagation()}
         >
-          {options.map(opt => (
+          {searchable && (
+            <div style={{ padding: '8px 8px 4px', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+              <input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="חפש..."
+                autoFocus
+                onClick={(e) => e.stopPropagation()}
+                style={{
+                  width: '100%',
+                  height: 30,
+                  borderRadius: 6,
+                  border: '1px solid rgba(255,255,255,0.2)',
+                  background: 'rgba(255,255,255,0.1)',
+                  color: '#fff',
+                  padding: '0 8px',
+                  fontSize: 12,
+                  outline: 'none',
+                  boxSizing: 'border-box',
+                }}
+              />
+            </div>
+          )}
+          {filteredOptions.map(opt => (
             <div
-              key={opt.value}
-              onMouseDown={() => { onChange(opt.value); setOpen(false); }}
+              key={String(opt.value)}
+              onMouseDown={() => {
+                if (opt.disabled) return;
+                onChange(opt.value);
+                setOpen(false);
+                setSearch('');
+              }}
               style={{
                 padding: '8px 12px',
-                cursor: 'pointer',
+                cursor: opt.disabled ? 'default' : 'pointer',
                 fontSize: 13,
-                color: opt.value === value ? '#00C37A' : 'var(--text, #fff)',
-                background: opt.value === value ? 'rgba(0,195,122,0.1)' : 'transparent',
+                color: opt.disabled ? 'rgba(255,255,255,0.3)' : String(opt.value) === String(value) ? '#00C37A' : '#fff',
+                background: String(opt.value) === String(value) ? 'rgba(0,195,122,0.1)' : 'transparent',
                 borderBottom: '1px solid rgba(255,255,255,0.05)',
+                fontStyle: opt.disabled ? 'italic' : 'normal',
               }}
-              onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.05)' }}
+              onMouseEnter={(e) => { if (!opt.disabled) e.currentTarget.style.background = 'rgba(255,255,255,0.05)'; }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.background = opt.value === value ? 'rgba(0,195,122,0.1)' : 'transparent'
+                e.currentTarget.style.background = String(opt.value) === String(value) ? 'rgba(0,195,122,0.1)' : 'transparent';
               }}
             >
               {opt.label}
             </div>
           ))}
+          {searchable && search && filteredOptions.filter(o => !o.disabled).length === 0 && (
+            <div style={{ padding: '12px', textAlign: 'center', color: 'rgba(255,255,255,0.4)', fontSize: 12 }}>
+              לא נמצא
+            </div>
+          )}
         </div>,
         document.body,
       )}

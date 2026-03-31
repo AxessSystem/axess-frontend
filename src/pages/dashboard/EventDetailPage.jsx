@@ -2670,6 +2670,8 @@ export default function EventDetailPage() {
         {activeTab === 'tables' && (
           <EventTables
             eventId={id}
+            eventTitle={event?.title}
+            eventDate={event?.date}
             businessId={businessId}
             authHeaders={authHeaders}
             session={session}
