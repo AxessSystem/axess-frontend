@@ -17,6 +17,42 @@ import CustomSelect from '../components/ui/CustomSelect'
 
 const API_BASE = import.meta.env.VITE_API_URL || 'https://api.axess.pro'
 
+const DEFAULT_FAQ = [
+  {
+    question: 'כיצד אקבל את הכרטיס?',
+    answer: 'לאחר הרכישה תקבל/י הודעת WhatsApp עם קוד QR.',
+  },
+  {
+    question: 'האם ניתן לבטל?',
+    answer: 'ביטול אפשרי עד 48 שעות לפני האירוע. צור קשר עם המארגן.',
+  },
+  {
+    question: 'מה מדיניות הכניסה?',
+    answer: 'יש להציג קוד QR בכניסה. הכרטיס אישי ואינו ניתן להעברה.',
+  },
+]
+
+function renderDescription(html) {
+  if (!html) return null
+  const s = typeof html === 'string' ? html : String(html)
+  const youtubeRegex =
+    /(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/g
+  const withEmbed = s.replace(
+    youtubeRegex,
+    (_match, videoId) =>
+      `
+    <div style="position:relative;padding-bottom:56.25%;height:0;margin:16px 0">
+      <iframe 
+        src="https://www.youtube.com/embed/${videoId}" 
+        style="position:absolute;top:0;left:0;width:100%;height:100%;border-radius:8px;border:none"
+        allowfullscreen
+      ></iframe>
+    </div>
+  `,
+  )
+  return <div dangerouslySetInnerHTML={{ __html: withEmbed }} />
+}
+
 function ticketAvailable(tt) {
   if (typeof tt.quantity_available === 'number') return tt.quantity_available
   return Math.max(
@@ -25,7 +61,7 @@ function ticketAvailable(tt) {
   )
 }
 
-function TicketsSection({ tickets, onSelect, event }) {
+function TicketsSection({ tickets, onSelect, event, quantities, setQuantities }) {
   const [isOpen, setIsOpen] = useState(true)
   const primaryBtn = event.display_config?.primary_color || '#00C37A'
 
@@ -70,6 +106,10 @@ function TicketsSection({ tickets, onSelect, event }) {
             const available = ticketAvailable(tt)
             const isSoldOut = available <= 0
             const isTable = tt.ticket_category === 'table'
+            const maxQ = Math.max(
+              1,
+              Math.min(tt.max_per_order || 10, available > 0 ? available : tt.max_per_order || 10),
+            )
 
             return (
               <div
@@ -166,6 +206,69 @@ function TicketsSection({ tickets, onSelect, event }) {
                   </div>
                 </div>
 
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 12,
+                    marginBottom: 8,
+                    marginTop: 8,
+                  }}
+                >
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setQuantities((q) => ({
+                        ...q,
+                        [tt.id]: Math.max(1, (q[tt.id] || 1) - 1),
+                      }))}
+                    style={{
+                      width: 32,
+                      height: 32,
+                      borderRadius: '50%',
+                      border: '1px solid rgba(255,255,255,0.2)',
+                      background: 'none',
+                      color: '#fff',
+                      fontSize: 18,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    −
+                  </button>
+                  <span style={{ fontSize: 16, fontWeight: 700, minWidth: 20, textAlign: 'center' }}>
+                    {quantities[tt.id] || 1}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setQuantities((q) => ({
+                        ...q,
+                        [tt.id]: Math.min(maxQ, (q[tt.id] || 1) + 1),
+                      }))}
+                    style={{
+                      width: 32,
+                      height: 32,
+                      borderRadius: '50%',
+                      border: '1px solid rgba(255,255,255,0.2)',
+                      background: 'none',
+                      color: '#fff',
+                      fontSize: 18,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    +
+                  </button>
+                  <span style={{ fontSize: 13, color: 'rgba(255,255,255,0.5)' }}>
+                    סה&quot;כ: ₪{((quantities[tt.id] || 1) * Number(tt.price || 0)).toFixed(0)}
+                  </span>
+                </div>
+
                 <button
                   type="button"
                   disabled={isSoldOut}
@@ -198,11 +301,30 @@ function TicketsSection({ tickets, onSelect, event }) {
 
 function FAQSection({ faqs }) {
   const [openIdx, setOpenIdx] = useState(null)
+  let rawList = faqs
+  if (typeof rawList === 'string') {
+    try {
+      const p = JSON.parse(rawList)
+      rawList = Array.isArray(p) ? p : []
+    } catch {
+      rawList = []
+    }
+  }
+  if (!Array.isArray(rawList)) rawList = []
+  const normalized = rawList
+    .map((f) => {
+      const question = f?.question ?? f?.q
+      const answer = f?.answer ?? f?.a
+      if (question && answer) return { question, answer }
+      return null
+    })
+    .filter(Boolean)
+  const faqData = normalized.length > 0 ? normalized : DEFAULT_FAQ
 
   return (
     <div style={{ marginTop: 32 }}>
       <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 12 }}>שאלות נפוצות</h2>
-      {faqs.map((faq, i) => (
+      {faqData.map((faq, i) => (
         <div key={i} style={{ borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
           <button
             type="button"
@@ -313,6 +435,8 @@ export default function EventPage() {
   const [paying, setPaying] = useState(false)
   const [success, setSuccess] = useState(false)
   const [pendingApproval, setPendingApproval] = useState(false)
+  const [quantities, setQuantities] = useState({})
+  const [showTicketDrawer, setShowTicketDrawer] = useState(false)
 
   useEffect(() => {
     if (!slug) return
@@ -448,8 +572,14 @@ export default function EventPage() {
   const primaryColor = dc.primary_color || 'var(--v2-primary)'
   const coverSrc = event.cover_image_url || event.image_url
   const selectTicket = (tt) => {
+    const available = ticketAvailable(tt)
+    const maxQ = Math.max(
+      1,
+      Math.min(tt.max_per_order || 10, available > 0 ? available : tt.max_per_order || 10),
+    )
+    const q = Math.min(Math.max(1, quantities[tt.id] || 1), maxQ)
+    setModalQty(q)
     setModalTicket(tt)
-    setModalQty(1)
     setSuccess(false)
     setPendingApproval(false)
     setIdNumber('')
@@ -606,6 +736,8 @@ export default function EventPage() {
           tickets={event.ticket_types || []}
           onSelect={selectTicket}
           event={event}
+          quantities={quantities}
+          setQuantities={setQuantities}
         />
 
         {event?.features?.group_registration && (
@@ -630,19 +762,16 @@ export default function EventPage() {
           </div>
         )}
 
-        {event.description && (
+        {(event.rich_description || event.description) && (
           <div style={{ marginTop: 32 }}>
             <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 12 }}>על האירוע</h2>
-            <div
-              style={{ fontSize: 15, lineHeight: 1.7, color: 'rgba(255,255,255,0.8)' }}
-              dangerouslySetInnerHTML={{
-                __html: event.rich_description || event.description,
-              }}
-            />
+            <div style={{ fontSize: 15, lineHeight: 1.7, color: 'rgba(255,255,255,0.8)' }}>
+              {renderDescription(event.rich_description || event.description)}
+            </div>
           </div>
         )}
 
-        {event.faq && event.faq.length > 0 && <FAQSection faqs={event.faq} />}
+        <FAQSection faqs={event.faq} />
 
         <ContactSection event={event} />
       </div>
@@ -662,8 +791,7 @@ export default function EventPage() {
       >
         <button
           type="button"
-          onClick={() =>
-            document.getElementById('tickets-section')?.scrollIntoView({ behavior: 'smooth' })}
+          onClick={() => setShowTicketDrawer(true)}
           style={{
             width: '100%',
             height: 50,
@@ -683,6 +811,178 @@ export default function EventPage() {
           <Ticket size={18} /> רכוש כרטיס
         </button>
       </div>
+
+      {showTicketDrawer && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 200,
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'flex-end',
+          }}
+        >
+          <button
+            type="button"
+            aria-label="סגור"
+            onClick={() => setShowTicketDrawer(false)}
+            style={{
+              position: 'absolute',
+              inset: 0,
+              background: 'rgba(0,0,0,0.5)',
+              border: 'none',
+              cursor: 'pointer',
+              padding: 0,
+            }}
+          />
+          <div
+            style={{
+              position: 'relative',
+              background: '#0a1628',
+              borderRadius: '20px 20px 0 0',
+              padding: '20px 16px 40px',
+              maxHeight: '80vh',
+              overflowY: 'auto',
+              border: '1px solid rgba(255,255,255,0.1)',
+            }}
+          >
+            <div
+              style={{
+                width: 40,
+                height: 4,
+                borderRadius: 2,
+                background: 'rgba(255,255,255,0.2)',
+                margin: '0 auto 20px',
+              }}
+            />
+            <h3 style={{ margin: '0 0 16px', fontSize: 18, fontWeight: 700 }}>בחר כרטיס</h3>
+            {(event.ticket_types || []).map((tt) => {
+              const available =
+                tt.quantity_available
+                ?? (tt.quantity_total - (tt.quantity_sold || 0) - (tt.quantity_reserved || 0))
+              const isSoldOut = available <= 0
+              const isTable = tt.ticket_category === 'table'
+              const maxQ = Math.max(
+                1,
+                Math.min(tt.max_per_order || 10, available > 0 ? available : tt.max_per_order || 10),
+              )
+              const drawerBtn = event.display_config?.primary_color || '#00C37A'
+              return (
+                <div
+                  key={tt.id}
+                  style={{
+                    background: 'rgba(255,255,255,0.06)',
+                    border: `1px solid ${isSoldOut ? 'rgba(255,255,255,0.1)' : 'rgba(0,195,122,0.3)'}`,
+                    borderRadius: 12,
+                    padding: 16,
+                    marginBottom: 12,
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+                    <div>
+                      <p style={{ margin: 0, fontWeight: 700, fontSize: 16 }}>{tt.name}</p>
+                      {tt.description && (
+                        <p style={{ margin: '4px 0 0', fontSize: 13, color: 'rgba(255,255,255,0.6)' }}>
+                          {tt.description}
+                        </p>
+                      )}
+                    </div>
+                    <p style={{ margin: 0, fontSize: 20, fontWeight: 800, color: '#00C37A' }}>
+                      ₪{Number(tt.price).toFixed(0)}
+                    </p>
+                  </div>
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 12,
+                      marginBottom: 8,
+                    }}
+                  >
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setQuantities((q) => ({
+                          ...q,
+                          [tt.id]: Math.max(1, (q[tt.id] || 1) - 1),
+                        }))}
+                      style={{
+                        width: 32,
+                        height: 32,
+                        borderRadius: '50%',
+                        border: '1px solid rgba(255,255,255,0.2)',
+                        background: 'none',
+                        color: '#fff',
+                        fontSize: 18,
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      −
+                    </button>
+                    <span
+                      style={{ fontSize: 16, fontWeight: 700, minWidth: 20, textAlign: 'center' }}
+                    >
+                      {quantities[tt.id] || 1}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setQuantities((q) => ({
+                          ...q,
+                          [tt.id]: Math.min(maxQ, (q[tt.id] || 1) + 1),
+                        }))}
+                      style={{
+                        width: 32,
+                        height: 32,
+                        borderRadius: '50%',
+                        border: '1px solid rgba(255,255,255,0.2)',
+                        background: 'none',
+                        color: '#fff',
+                        fontSize: 18,
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      +
+                    </button>
+                    <span style={{ fontSize: 13, color: 'rgba(255,255,255,0.5)' }}>
+                      סה&quot;כ: ₪
+                      {((quantities[tt.id] || 1) * Number(tt.price || 0)).toFixed(0)}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    disabled={isSoldOut}
+                    onClick={() => {
+                      selectTicket(tt)
+                      setShowTicketDrawer(false)
+                    }}
+                    style={{
+                      width: '100%',
+                      height: 44,
+                      borderRadius: 8,
+                      border: 'none',
+                      background: isSoldOut ? 'rgba(255,255,255,0.1)' : drawerBtn,
+                      color: isSoldOut ? 'rgba(255,255,255,0.4)' : '#000',
+                      fontWeight: 700,
+                      fontSize: 15,
+                      cursor: isSoldOut ? 'not-allowed' : 'pointer',
+                    }}
+                  >
+                    {isSoldOut ? 'אזל המלאי' : isTable ? 'הזמן שולחן' : 'רכוש'}
+                  </button>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
 
       {modalTicket?.metadata?.seating_map_id && (
         <SeatingModal
@@ -708,7 +1008,7 @@ export default function EventPage() {
             display: 'flex',
             alignItems: 'flex-end',
             justifyContent: 'center',
-            zIndex: 150,
+            zIndex: 210,
           }}
           onClick={() => !paying && setModalTicket(null)}
         >
@@ -992,7 +1292,7 @@ export default function EventPage() {
                   color: '#fff',
                 }}
                 options={[1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
-                  .filter((n) => n <= modalTicket.quantity_available)
+                  .filter((n) => n <= ticketAvailable(modalTicket))
                   .map((n) => ({ value: n, label: String(n) }))}
               />
             </div>
