@@ -9,6 +9,8 @@ import {
   Ticket,
   ChevronDown,
   MessageCircle,
+  Navigation,
+  DoorOpen,
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import SeatingModal from '../components/SeatingModal'
@@ -51,6 +53,140 @@ function renderDescription(html) {
   `,
   )
   return <div dangerouslySetInnerHTML={{ __html: withEmbed }} />
+}
+
+function VenueSection({ event }) {
+  if (!event.venue_name && !event.location) return null
+
+  return (
+    <div style={{ marginTop: 32 }}>
+      <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 16 }}>המקום</h2>
+      <div
+        style={{
+          background: 'rgba(255,255,255,0.06)',
+          borderRadius: 12,
+          padding: 16,
+          border: '1px solid rgba(255,255,255,0.1)',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div
+            style={{
+              width: 48,
+              height: 48,
+              borderRadius: '50%',
+              background: 'rgba(0,195,122,0.15)',
+              border: '2px solid rgba(0,195,122,0.3)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexShrink: 0,
+              overflow: 'hidden',
+            }}
+          >
+            {event.venue_image ? (
+              <img src={event.venue_image} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            ) : (
+              <MapPin size={22} color="#00C37A" />
+            )}
+          </div>
+
+          <div style={{ flex: 1 }}>
+            <p style={{ margin: 0, fontWeight: 700, fontSize: 15 }}>
+              {event.venue_name || event.location}
+            </p>
+            {event.venue_address && (
+              <p style={{ margin: '2px 0 0', fontSize: 13, color: 'rgba(255,255,255,0.6)' }}>
+                {event.venue_address}
+              </p>
+            )}
+          </div>
+        </div>
+
+        {(event.venue_maps_url || event.venue_address) && (
+          <a
+            href={
+              event.venue_maps_url ||
+              `https://maps.google.com/?q=${encodeURIComponent(event.venue_address || event.venue_name)}`
+            }
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 8,
+              marginTop: 12,
+              padding: '10px',
+              borderRadius: 8,
+              background: 'rgba(0,195,122,0.1)',
+              border: '1px solid rgba(0,195,122,0.3)',
+              color: '#00C37A',
+              textDecoration: 'none',
+              fontSize: 14,
+              fontWeight: 600,
+            }}
+          >
+            <Navigation size={16} /> הצג במפה
+          </a>
+        )}
+
+        {(event.doors_open || event.event_end) && (
+          <div
+            style={{
+              display: 'flex',
+              gap: 16,
+              marginTop: 12,
+              paddingTop: 12,
+              borderTop: '1px solid rgba(255,255,255,0.08)',
+              flexWrap: 'wrap',
+            }}
+          >
+            {event.doors_open && (
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  fontSize: 13,
+                  color: 'rgba(255,255,255,0.6)',
+                }}
+              >
+                <DoorOpen size={14} color="#00C37A" />
+                <span>
+                  פתיחת דלתות:{' '}
+                  {new Date(event.doors_open).toLocaleTimeString('he-IL', {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  })}
+                </span>
+              </div>
+            )}
+            {event.event_end && (
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  fontSize: 13,
+                  color: 'rgba(255,255,255,0.6)',
+                }}
+              >
+                <Clock size={14} color="#00C37A" />
+                <span>
+                  סיום האירוע:{' '}
+                  {new Date(event.event_end).toLocaleTimeString('he-IL', {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  })}
+                </span>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  )
 }
 
 function ticketAvailable(tt) {
@@ -371,47 +507,115 @@ function FAQSection({ faqs }) {
   )
 }
 
-function ContactSection({ event }) {
+function OrganizerSection({ event }) {
+  const organizer = event.organizer || event.contact_info || {}
+  const initials = (organizer.name || event.title || 'A')[0].toUpperCase()
+
   return (
-    <div
-      style={{
-        marginTop: 32,
-        paddingTop: 24,
-        borderTop: '1px solid rgba(255,255,255,0.1)',
-      }}
-    >
-      <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 12 }}>יצירת קשר</h2>
-      {event.contact_info?.whatsapp && (
+    <div style={{ marginTop: 32 }}>
+      <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 16 }}>מארגן האירוע</h2>
+
+      <div
+        style={{
+          background: 'rgba(255,255,255,0.06)',
+          borderRadius: 12,
+          padding: 16,
+          border: '1px solid rgba(255,255,255,0.1)',
+          marginBottom: 16,
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div
+            style={{
+              width: 52,
+              height: 52,
+              borderRadius: '50%',
+              flexShrink: 0,
+              overflow: 'hidden',
+              background: 'rgba(0,195,122,0.15)',
+              border: '2px solid rgba(0,195,122,0.3)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            {organizer.avatar ? (
+              <img src={organizer.avatar} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            ) : (
+              <span style={{ fontSize: 22, fontWeight: 800, color: '#00C37A' }}>{initials}</span>
+            )}
+          </div>
+
+          <div style={{ flex: 1 }}>
+            <p style={{ margin: 0, fontWeight: 700, fontSize: 15 }}>
+              {organizer.name || 'מארגן האירוע'}
+            </p>
+            {organizer.email && (
+              <p style={{ margin: '2px 0 0', fontSize: 12, color: 'rgba(255,255,255,0.5)' }}>
+                {organizer.email}
+              </p>
+            )}
+          </div>
+
+          <a
+            href={`/w/${event.slug}/chat`}
+            style={{
+              width: 40,
+              height: 40,
+              borderRadius: '50%',
+              background: 'rgba(0,195,122,0.15)',
+              border: '1px solid rgba(0,195,122,0.3)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              textDecoration: 'none',
+              color: '#00C37A',
+            }}
+          >
+            <MessageCircle size={20} />
+          </a>
+        </div>
+      </div>
+
+      {organizer.whatsapp && (
         <a
-          href={`https://wa.me/${event.contact_info.whatsapp}`}
+          href={`https://wa.me/${organizer.whatsapp}`}
           target="_blank"
           rel="noopener noreferrer"
           style={{
             display: 'flex',
             alignItems: 'center',
             gap: 10,
-            padding: '14px 16px',
-            borderRadius: 12,
+            padding: '12px 16px',
+            borderRadius: 10,
             background: 'rgba(34,197,94,0.1)',
             border: '1px solid rgba(34,197,94,0.3)',
             color: '#22C55E',
             textDecoration: 'none',
-            fontSize: 15,
+            fontSize: 14,
             fontWeight: 600,
-            marginBottom: 12,
+            marginBottom: 10,
           }}
         >
-          <MessageCircle size={20} /> צור קשר בWhatsApp
+          <MessageCircle size={18} /> WhatsApp עם המארגן
         </a>
       )}
+
       {event.terms && (
         <a
           href={event.terms}
           target="_blank"
           rel="noopener noreferrer"
-          style={{ fontSize: 13, color: 'rgba(255,255,255,0.4)', textDecoration: 'none' }}
+          style={{
+            fontSize: 12,
+            color: 'rgba(255,255,255,0.4)',
+            textDecoration: 'none',
+            display: 'block',
+            textAlign: 'center',
+            marginTop: 8,
+          }}
         >
-          תנאי שימוש ומדיניות ביטול
+          תנאי שימוש ומדיניות ביטול →
         </a>
       )}
     </div>
@@ -771,9 +975,11 @@ export default function EventPage() {
           </div>
         )}
 
+        <VenueSection event={event} />
+
         <FAQSection faqs={event.faq} />
 
-        <ContactSection event={event} />
+        <OrganizerSection event={event} />
       </div>
 
       <div
