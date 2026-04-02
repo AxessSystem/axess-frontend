@@ -469,9 +469,24 @@ export default function EventEditModal({ event, onClose, onSave, authHeaders, bu
                   רזולוציה מומלצת: 1200×630px, עד 2MB
                 </p>
 
-                {form.cover_image_url && (
-                  <div style={{ marginBottom: 8, borderRadius: 8, overflow: 'hidden', height: 120 }}>
-                    <img src={form.cover_image_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                {(form.cover_image_url || form.image_url) && (
+                  <div
+                    style={{
+                      marginBottom: 8,
+                      borderRadius: 8,
+                      overflow: 'hidden',
+                      height: 160,
+                      width: '100%',
+                    }}
+                  >
+                    <img
+                      src={form.cover_image_url || form.image_url}
+                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                      alt="תצוגה מקדימה"
+                      onError={(e) => {
+                        e.target.style.display = 'none'
+                      }}
+                    />
                   </div>
                 )}
 
