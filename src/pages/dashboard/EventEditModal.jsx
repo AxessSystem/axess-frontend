@@ -197,7 +197,19 @@ export default function EventEditModal({ event, onClose, onSave, authHeaders, bu
           body: JSON.stringify({ image: e.target.result, folder: 'events' }),
         })
         const data = await res.json()
-        if (data.url) setForm((f) => ({ ...f, [field]: data.url }))
+        console.log('[upload] response:', data) // ← בדיקה
+        if (data.url) {
+          // עדכן גם image_url וגם cover_image_url:
+          setForm((f) => ({
+            ...f,
+            [field]: data.url,
+            image_url: data.url, // ← הוסף
+            cover_image_url: data.url, // ← הוסף
+          }))
+          console.log('[upload] form updated with:', data.url) // ← בדיקה
+        }
+      } catch (err) {
+        console.error('[upload] error:', err)
       } finally {
         setImageUploading(false)
       }
