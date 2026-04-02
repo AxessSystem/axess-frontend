@@ -242,6 +242,10 @@ export default function EventEditModal({ event, onClose, onSave, authHeaders, bu
             padding: '16px 20px',
             borderBottom: '1px solid var(--glass-border)',
             flexShrink: 0,
+            position: 'sticky',
+            top: 0,
+            background: 'var(--card, #1a1d2e)',
+            zIndex: 10,
           }}
         >
           <h2 style={{ margin: 0, fontSize: 17, fontWeight: 800 }}>עריכת אירוע — {event?.title}</h2>
