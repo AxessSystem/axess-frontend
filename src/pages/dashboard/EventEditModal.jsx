@@ -153,24 +153,35 @@ export default function EventEditModal({ event, onClose, onSave, authHeaders, bu
   const saveBasic = async () => {
     setSaving(true)
 
-    // המר תאריכים ריקים ל-null:
     const cleanDate = (val) => (val && val.trim() !== '') ? val : null
+    const cleanStr = (val) => (val && val.trim() !== '') ? val.trim() : null
+    const cleanInt = (val) => (val && val.toString().trim() !== '') ? parseInt(val) : null
 
     const payload = {
-      ...form,
+      title: form.title,
       date: cleanDate(form.date),
       doors_open: cleanDate(form.doors_open),
       event_end: cleanDate(form.event_end),
+      location: cleanStr(form.location),
+      venue_name: cleanStr(form.venue_name),
+      venue_address: cleanStr(form.venue_address),
+      venue_maps_url: cleanStr(form.venue_maps_url),
+      description: cleanStr(form.description),
+      image_url: cleanStr(form.image_url),
+      cover_image_url: cleanStr(form.cover_image_url),
+      age_restriction: cleanStr(form.age_restriction),
+      dress_code: cleanStr(form.dress_code),
       contact_info: {
-        name: form.organizer_name,
-        whatsapp: form.organizer_whatsapp,
-        email: form.organizer_email,
-        avatar: form.organizer_avatar,
+        name: cleanStr(form.organizer_name),
+        whatsapp: cleanStr(form.organizer_whatsapp),
+        email: cleanStr(form.organizer_email),
+        avatar: cleanStr(form.organizer_avatar),
       },
       display_config: {
         ...(event?.display_config || {}),
-        venue_image: form.venue_image,
+        venue_image: cleanStr(form.venue_image),
       },
+      faq: form.faq || [],
     }
 
     const res = await fetch(`${API_BASE}/api/admin/events/${event.id}`, {
@@ -179,7 +190,6 @@ export default function EventEditModal({ event, onClose, onSave, authHeaders, bu
       body: JSON.stringify(payload),
     })
 
-    const data = await res.json()
     setSaving(false)
 
     if (res.ok) {
@@ -187,6 +197,8 @@ export default function EventEditModal({ event, onClose, onSave, authHeaders, bu
       setTimeout(() => setSuccessMsg(''), 2000)
       onSave?.()
     } else {
+      const err = await res.json().catch(() => ({}))
+      console.error('[save] error:', err)
       toast.error('שגיאה בשמירה')
     }
   }
