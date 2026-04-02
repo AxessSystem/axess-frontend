@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { X, Upload, Link, Plus, Trash2, Globe, MapPin, Navigation, Share2, QrCode, Copy } from 'lucide-react'
+import { X, Upload, Link, Plus, Trash2, Users, QrCode, Globe, MapPin, Navigation, Share2, Copy } from 'lucide-react'
 import CustomSelect from '@/components/ui/CustomSelect'
 
 const API_BASE = import.meta.env.VITE_API_URL || 'https://api.axess.pro'
