@@ -16,6 +16,7 @@ import Tooltip from '../../components/ui/Tooltip'
 import DateTimePicker from '../../components/ui/DateTimePicker'
 import RichTextEditor from '../../components/ui/RichTextEditor'
 import CustomSelect from '@/components/ui/CustomSelect'
+import EventEditModal from './EventEditModal'
 
 const API_BASE = import.meta.env.VITE_API_URL || 'https://api.axess.pro'
 const FRONTEND_URL = import.meta.env.VITE_FRONTEND_URL || window.location.origin
@@ -828,6 +829,12 @@ export default function Events() {
     'Authorization': `Bearer ${session?.access_token}`,
     'X-Business-Id': businessId
   }), [session, businessId])
+  const loadEvents = useCallback(() => {
+    if (!businessId || businessId === 'null') return
+    fetch(`${API_BASE}/api/admin/events?business_id=${businessId}`, { headers: authHeaders() })
+      .then((r) => (r.ok ? r.json() : []))
+      .then(setEvents)
+  }, [businessId, authHeaders])
   const [staffModalEvent, setStaffModalEvent] = useState(null)
   const [promotersModalEvent, setPromotersModalEvent] = useState(null)
   const [detailEvent, setDetailEvent] = useState(null)
@@ -841,7 +848,6 @@ export default function Events() {
   const [closeWizardModalOpen, setCloseWizardModalOpen] = useState(false)
   const [draftDeleteConfirm, setDraftDeleteConfirm] = useState(null)
   const [editModalEvent, setEditModalEvent] = useState(null)
-  const [editForm, setEditForm] = useState({})
 
   const saveDraft = () => {
     const draftsArr = JSON.parse(localStorage.getItem('axess_event_drafts') || '[]')
@@ -946,50 +952,6 @@ export default function Events() {
 
   const openEditFromCard = (ev) => {
     setEditModalEvent(ev)
-  }
-
-  useEffect(() => {
-    if (!editModalEvent) {
-      setEditForm({})
-      return
-    }
-    setEditForm({
-      title: editModalEvent.title || '',
-      venue_name: editModalEvent.venue_name || '',
-      venue_address: editModalEvent.venue_address || '',
-      doors_open: editModalEvent.doors_open || null,
-      event_end: editModalEvent.event_end || null,
-      cover_image_url: editModalEvent.cover_image_url || editModalEvent.image_url || '',
-      description: editModalEvent.description || '',
-    })
-  }, [editModalEvent])
-
-  const saveEditModal = async () => {
-    if (!editModalEvent) return
-    try {
-      const body = {
-        title: editForm.title,
-        venue_name: editForm.venue_name || null,
-        venue_address: editForm.venue_address || null,
-        location: editForm.venue_address || editForm.venue_name || null,
-        doors_open: editForm.doors_open || null,
-        event_end: editForm.event_end || null,
-        cover_image_url: editForm.cover_image_url || null,
-        description: editForm.description || null,
-      }
-      const res = await fetch(`${API_BASE}/api/admin/events/${editModalEvent.id}`, {
-        method: 'PATCH',
-        headers: authHeaders(),
-        body: JSON.stringify(body),
-      })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'שגיאה')
-      setEvents(prev => prev.map(x => (x.id === editModalEvent.id ? { ...x, ...body, ...data } : x)))
-      setEditModalEvent(null)
-      toast.success('נשמר')
-    } catch (e) {
-      toast.error(e.message || 'שגיאה')
-    }
   }
 
   const openCampaignFromCard = (ev) => {
@@ -1920,46 +1882,14 @@ export default function Events() {
         <FloorStatusModal event={floorStatusEvent} onClose={() => setFloorStatusEvent(null)} />
       )}
 
-      {/* Edit event modal (not create wizard) */}
       {editModalEvent && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 210, display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={() => setEditModalEvent(null)}>
-          <div dir="rtl" style={{ position: 'relative', background: 'var(--v2-dark-2)', borderRadius: 16, padding: 24, maxWidth: 480, width: '90%', maxHeight: '90vh', overflowY: 'auto', border: '1px solid var(--glass-border)' }} onClick={e => e.stopPropagation()}>
-            <button type="button" onClick={() => setEditModalEvent(null)} style={MODAL_CLOSE_X} aria-label="סגור"><X size={20} /></button>
-            <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 20 }}>עריכת אירוע</h2>
-            <div style={{ marginBottom: 16 }}>
-              <label style={{ display: 'block', marginBottom: 6, color: 'var(--v2-gray-400)', fontSize: 14 }}>שם האירוע</label>
-              <input value={editForm.title ?? ''} onChange={e => setEditForm(f => ({ ...f, title: e.target.value }))} style={{ width: '100%', padding: 12, borderRadius: 12, border: '1px solid var(--glass-border)', background: 'var(--v2-dark-3)', color: '#fff' }} />
-            </div>
-            <div style={{ marginBottom: 16 }}>
-              <label style={{ display: 'block', marginBottom: 6, color: 'var(--v2-gray-400)', fontSize: 14 }}>שם המקום</label>
-              <input value={editForm.venue_name ?? ''} onChange={e => setEditForm(f => ({ ...f, venue_name: e.target.value }))} style={{ width: '100%', padding: 12, borderRadius: 12, border: '1px solid var(--glass-border)', background: 'var(--v2-dark-3)', color: '#fff' }} />
-            </div>
-            <div style={{ marginBottom: 16 }}>
-              <label style={{ display: 'block', marginBottom: 6, color: 'var(--v2-gray-400)', fontSize: 14 }}>כתובת</label>
-              <input value={editForm.venue_address ?? ''} onChange={e => setEditForm(f => ({ ...f, venue_address: e.target.value }))} style={{ width: '100%', padding: 12, borderRadius: 12, border: '1px solid var(--glass-border)', background: 'var(--v2-dark-3)', color: '#fff' }} />
-            </div>
-            <div style={{ marginBottom: 16 }}>
-              <label style={{ display: 'block', marginBottom: 6, color: 'var(--v2-gray-400)', fontSize: 14 }}>תיאור קצר</label>
-              <textarea value={editForm.description ?? ''} onChange={e => setEditForm(f => ({ ...f, description: e.target.value }))} rows={3} style={{ width: '100%', padding: 12, borderRadius: 12, border: '1px solid var(--glass-border)', background: 'var(--v2-dark-3)', color: '#fff', resize: 'vertical' }} />
-            </div>
-            <div style={{ marginBottom: 16 }}>
-              <label style={{ display: 'block', marginBottom: 6, color: 'var(--v2-gray-400)', fontSize: 14 }}>תמונת שער (URL)</label>
-              <input value={editForm.cover_image_url ?? ''} onChange={e => setEditForm(f => ({ ...f, cover_image_url: e.target.value }))} style={{ width: '100%', padding: 12, borderRadius: 12, border: '1px solid var(--glass-border)', background: 'var(--v2-dark-3)', color: '#fff' }} />
-            </div>
-            <div style={{ marginBottom: 16 }}>
-              <label style={{ display: 'block', marginBottom: 6, color: 'var(--v2-gray-400)', fontSize: 14 }}>פתיחת דלתות</label>
-              <DateTimePicker value={editForm.doors_open ?? null} onChange={v => setEditForm(f => ({ ...f, doors_open: v }))} placeholder="בחר תאריך ושעה" />
-            </div>
-            <div style={{ marginBottom: 24 }}>
-              <label style={{ display: 'block', marginBottom: 6, color: 'var(--v2-gray-400)', fontSize: 14 }}>סיום אירוע</label>
-              <DateTimePicker value={editForm.event_end ?? null} onChange={v => setEditForm(f => ({ ...f, event_end: v }))} placeholder="בחר תאריך ושעה" />
-            </div>
-            <div style={{ display: 'flex', gap: 12 }}>
-              <button type="button" onClick={() => setEditModalEvent(null)} style={{ flex: 1, padding: 14, borderRadius: 12, border: '1px solid var(--glass-border)', background: 'transparent', color: 'var(--v2-gray-400)', cursor: 'pointer', fontWeight: 600 }}>ביטול</button>
-              <button type="button" onClick={saveEditModal} style={{ flex: 1, padding: 14, borderRadius: 12, border: 'none', background: 'var(--v2-primary)', color: 'var(--v2-dark)', cursor: 'pointer', fontWeight: 700 }}>שמור</button>
-            </div>
-          </div>
-        </div>
+        <EventEditModal
+          event={editModalEvent}
+          onClose={() => setEditModalEvent(null)}
+          onSave={() => { loadEvents(); setEditModalEvent(null); }}
+          authHeaders={authHeaders}
+          businessId={businessId}
+        />
       )}
 
       {/* Event Detail Drawer */}
