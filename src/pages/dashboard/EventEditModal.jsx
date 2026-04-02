@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import toast from 'react-hot-toast'
 import { X, Upload, Link, Plus, Trash2, Users, QrCode, Globe, MapPin, Navigation, Share2, Copy } from 'lucide-react'
 import CustomSelect from '@/components/ui/CustomSelect'
 
@@ -151,19 +152,15 @@ export default function EventEditModal({ event, onClose, onSave, authHeaders, bu
 
   const saveBasic = async () => {
     setSaving(true)
-    let baseDisplay = {}
-    const rawDc = event?.display_config
-    if (rawDc && typeof rawDc === 'object') baseDisplay = { ...rawDc }
-    else if (typeof rawDc === 'string') {
-      try {
-        const p = JSON.parse(rawDc)
-        if (p && typeof p === 'object') baseDisplay = { ...p }
-      } catch {
-        baseDisplay = {}
-      }
-    }
+
+    // המר תאריכים ריקים ל-null:
+    const cleanDate = (val) => (val && val.trim() !== '') ? val : null
+
     const payload = {
       ...form,
+      date: cleanDate(form.date),
+      doors_open: cleanDate(form.doors_open),
+      event_end: cleanDate(form.event_end),
       contact_info: {
         name: form.organizer_name,
         whatsapp: form.organizer_whatsapp,
@@ -171,19 +168,27 @@ export default function EventEditModal({ event, onClose, onSave, authHeaders, bu
         avatar: form.organizer_avatar,
       },
       display_config: {
-        ...baseDisplay,
+        ...(event?.display_config || {}),
         venue_image: form.venue_image,
       },
     }
-    await fetch(`${API_BASE}/api/admin/events/${event.id}`, {
+
+    const res = await fetch(`${API_BASE}/api/admin/events/${event.id}`, {
       method: 'PATCH',
       headers: authHeaders(),
       body: JSON.stringify(payload),
     })
+
+    const data = await res.json()
     setSaving(false)
-    setSuccessMsg('נשמר!')
-    setTimeout(() => setSuccessMsg(''), 2000)
-    onSave?.()
+
+    if (res.ok) {
+      setSuccessMsg('נשמר!')
+      setTimeout(() => setSuccessMsg(''), 2000)
+      onSave?.()
+    } else {
+      toast.error('שגיאה בשמירה')
+    }
   }
 
   const handleImageUpload = async (file, field) => {
