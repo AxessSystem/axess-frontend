@@ -124,6 +124,31 @@ export default function EventEditModal({ event, onClose, onSave, authHeaders, bu
   const [imageUploading, setImageUploading] = useState(false)
   const [successMsg, setSuccessMsg] = useState('')
 
+  useEffect(() => {
+    const style = document.createElement('style')
+    style.id = 'datetime-dark'
+    style.textContent = `
+    input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+      filter: invert(1);
+      opacity: 0.7;
+      cursor: pointer;
+    }
+    input[type="datetime-local"]::-webkit-datetime-edit {
+      color: var(--text, #fff);
+    }
+    input[type="datetime-local"] {
+      color-scheme: dark;
+    }
+  `
+    if (!document.getElementById('datetime-dark')) {
+      document.head.appendChild(style)
+    }
+    return () => {
+      const el = document.getElementById('datetime-dark')
+      if (el) el.remove()
+    }
+  }, [])
+
   const saveBasic = async () => {
     setSaving(true)
     let baseDisplay = {}
@@ -374,7 +399,7 @@ export default function EventEditModal({ event, onClose, onSave, authHeaders, bu
                 <input
                   value={form.venue_name}
                   onChange={(e) => setForm((f) => ({ ...f, venue_name: e.target.value }))}
-                  placeholder="שם הקאנסוף/מועדון/אולם"
+                  placeholder="כתוב את שם המקום בו יתקיים האירוע (מועדון / אולם / גן אירועים...)"
                   style={{
                     width: '100%',
                     height: 40,
@@ -1337,7 +1362,12 @@ function RegistrationFieldsTab({ event, authHeaders }) {
 
 function PromotersTab({ eventId, authHeaders }) {
   const [promoters, setPromoters] = useState([])
-  const [newPromoter, setNewPromoter] = useState({ name: '', phone: '', commission_pct: 10 })
+  const [newPromoter, setNewPromoter] = useState({
+    name: '',
+    phone: '',
+    commission_pct: '',
+    commission_type: 'pct',
+  })
   const [showAdd, setShowAdd] = useState(false)
 
   useEffect(() => {
@@ -1415,7 +1445,7 @@ function PromotersTab({ eventId, authHeaders }) {
             <input
               value={newPromoter.name}
               onChange={(e) => setNewPromoter((f) => ({ ...f, name: e.target.value }))}
-              placeholder="שם יחצ'ן *"
+              placeholder="שם פרטי ושם משפחה *"
               style={{
                 height: 36,
                 borderRadius: 6,
@@ -1429,7 +1459,8 @@ function PromotersTab({ eventId, authHeaders }) {
             <input
               value={newPromoter.phone}
               onChange={(e) => setNewPromoter((f) => ({ ...f, phone: e.target.value }))}
-              placeholder="טלפון"
+              placeholder="נייד לאיש קשר *"
+              type="tel"
               style={{
                 height: 36,
                 borderRadius: 6,
@@ -1440,33 +1471,61 @@ function PromotersTab({ eventId, authHeaders }) {
                 fontSize: 13,
               }}
             />
-            <input
-              value={newPromoter.commission_pct}
-              onChange={(e) => setNewPromoter((f) => ({ ...f, commission_pct: e.target.value }))}
-              placeholder="% עמלה"
-              type="number"
-              style={{
-                height: 36,
-                borderRadius: 6,
-                border: '1px solid var(--glass-border)',
-                background: 'var(--card)',
-                color: 'var(--text)',
-                padding: '0 10px',
-                fontSize: 13,
-              }}
-            />
+            <div>
+              <label style={{ fontSize: 12, color: 'var(--v2-gray-400)', display: 'block', marginBottom: 6 }}>
+                דיל יחצ&quot;ן
+              </label>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <CustomSelect
+                  value={newPromoter.commission_type || 'pct'}
+                  onChange={(v) => setNewPromoter((f) => ({ ...f, commission_type: v }))}
+                  options={[
+                    { value: 'pct', label: '% מהכרטיס' },
+                    { value: 'fixed', label: '₪ קבוע לכרטיס' },
+                  ]}
+                  style={{ width: 140 }}
+                />
+                <input
+                  value={newPromoter.commission_pct || ''}
+                  onChange={(e) => setNewPromoter((f) => ({ ...f, commission_pct: e.target.value }))}
+                  placeholder={newPromoter.commission_type === 'fixed' ? '₪ לכרטיס' : '% עמלה'}
+                  type="number"
+                  style={{
+                    flex: 1,
+                    height: 36,
+                    borderRadius: 6,
+                    border: '1px solid var(--glass-border)',
+                    background: 'var(--card)',
+                    color: 'var(--text)',
+                    padding: '0 10px',
+                    fontSize: 13,
+                    boxSizing: 'border-box',
+                  }}
+                />
+              </div>
+              <p style={{ margin: '4px 0 0', fontSize: 11, color: 'var(--v2-gray-400)' }}>
+                {newPromoter.commission_type === 'fixed'
+                  ? 'סכום קבוע בש"ח עבור כל כרטיס שנמכר'
+                  : 'אחוז ממחיר הכרטיס הנמכר'}
+              </p>
+            </div>
             <div style={{ display: 'flex', gap: 8 }}>
               <button
                 type="button"
                 onClick={async () => {
-                  if (!newPromoter.name) return
+                  if (!newPromoter.name || !newPromoter.phone) return
                   await fetch(`${API_BASE}/api/admin/events/${eventId}/promoters`, {
                     method: 'POST',
                     headers: authHeaders(),
                     body: JSON.stringify(newPromoter),
                   })
                   setShowAdd(false)
-                  setNewPromoter({ name: '', phone: '', commission_pct: 10 })
+                  setNewPromoter({
+                    name: '',
+                    phone: '',
+                    commission_pct: '',
+                    commission_type: 'pct',
+                  })
                   loadPromoters()
                 }}
                 style={{
