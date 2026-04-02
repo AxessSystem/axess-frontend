@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react'
-import { X, Upload, Link, Plus, Trash2, Globe } from 'lucide-react'
+import { X, Upload, Link, Plus, Trash2, Globe, MapPin, Navigation, Share2, QrCode, Copy } from 'lucide-react'
 import CustomSelect from '@/components/ui/CustomSelect'
 
 const API_BASE = import.meta.env.VITE_API_URL || 'https://api.axess.pro'
+const FRONTEND_URL = import.meta.env.VITE_FRONTEND_URL || window.location.origin
 
 const EDIT_TABS = [
   { id: 'basic', label: 'פרטים' },
@@ -11,10 +12,54 @@ const EDIT_TABS = [
   { id: 'fields', label: 'שדות הרשמה' },
   { id: 'promoters', label: 'יחצ"נים' },
   { id: 'staff', label: 'צוות' },
+  { id: 'venue', label: 'מקום' },
+  { id: 'organizer', label: 'מארגן' },
+  { id: 'faq', label: 'שאלות נפוצות' },
   { id: 'webview', label: 'Webview' },
 ]
 
+function parseContactInfo(raw) {
+  if (!raw) return {}
+  if (typeof raw === 'object') return raw
+  if (typeof raw === 'string') {
+    try {
+      const p = JSON.parse(raw)
+      return typeof p === 'object' && p !== null ? p : {}
+    } catch {
+      return {}
+    }
+  }
+  return {}
+}
+
+function initialFaq(raw) {
+  if (Array.isArray(raw)) return raw
+  if (typeof raw === 'string') {
+    try {
+      const p = JSON.parse(raw)
+      return Array.isArray(p) ? p : []
+    } catch {
+      return []
+    }
+  }
+  return []
+}
+
 export default function EventEditModal({ event, onClose, onSave, authHeaders, businessId }) {
+  const contactInfo0 = parseContactInfo(event?.contact_info)
+  const displayConfig0 = (() => {
+    const raw = event?.display_config
+    if (raw && typeof raw === 'object') return raw
+    if (typeof raw === 'string') {
+      try {
+        const p = JSON.parse(raw)
+        return typeof p === 'object' && p !== null ? p : {}
+      } catch {
+        return {}
+      }
+    }
+    return {}
+  })()
   const [activeTab, setActiveTab] = useState('basic')
   const [form, setForm] = useState({
     title: event?.title || '',
@@ -30,6 +75,12 @@ export default function EventEditModal({ event, onClose, onSave, authHeaders, bu
     cover_image_url: event?.cover_image_url || '',
     age_restriction: event?.age_restriction || '',
     dress_code: event?.dress_code || '',
+    venue_image: displayConfig0.venue_image || '',
+    organizer_name: contactInfo0.name || '',
+    organizer_whatsapp: contactInfo0.whatsapp || '',
+    organizer_email: contactInfo0.email || '',
+    organizer_avatar: contactInfo0.avatar || '',
+    faq: initialFaq(event?.faq),
   })
   const [saving, setSaving] = useState(false)
   const [imageUploading, setImageUploading] = useState(false)
@@ -37,10 +88,34 @@ export default function EventEditModal({ event, onClose, onSave, authHeaders, bu
 
   const saveBasic = async () => {
     setSaving(true)
+    let baseDisplay = {}
+    const rawDc = event?.display_config
+    if (rawDc && typeof rawDc === 'object') baseDisplay = { ...rawDc }
+    else if (typeof rawDc === 'string') {
+      try {
+        const p = JSON.parse(rawDc)
+        if (p && typeof p === 'object') baseDisplay = { ...p }
+      } catch {
+        baseDisplay = {}
+      }
+    }
+    const payload = {
+      ...form,
+      contact_info: {
+        name: form.organizer_name,
+        whatsapp: form.organizer_whatsapp,
+        email: form.organizer_email,
+        avatar: form.organizer_avatar,
+      },
+      display_config: {
+        ...baseDisplay,
+        venue_image: form.venue_image,
+      },
+    }
     await fetch(`${API_BASE}/api/admin/events/${event.id}`, {
       method: 'PATCH',
       headers: authHeaders(),
-      body: JSON.stringify(form),
+      body: JSON.stringify(payload),
     })
     setSaving(false)
     setSuccessMsg('נשמר!')
@@ -457,9 +532,335 @@ export default function EventEditModal({ event, onClose, onSave, authHeaders, bu
           {activeTab === 'promoters' && <PromotersTab eventId={event?.id} authHeaders={authHeaders} />}
 
           {activeTab === 'staff' && (
-            <div style={{ textAlign: 'center', padding: 32, color: 'var(--v2-gray-400)' }}>
-              <p>ניהול צוות זמין בטאב &quot;שולחנות&quot; → צוות</p>
+            <div>
+              <div style={{ background: 'rgba(0,195,122,0.08)', borderRadius: 8, padding: 12, marginBottom: 16 }}>
+                <p style={{ margin: 0, fontSize: 13, color: '#00C37A' }}>
+                  לניהול מלא של הצוות — עבור לטאב &quot;שולחנות&quot; → כפתור &quot;צוות&quot;
+                </p>
+              </div>
+              <ScanStationsTab eventId={event?.id} authHeaders={authHeaders} eventSlug={event?.slug} />
             </div>
+          )}
+
+          {activeTab === 'venue' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+                <div style={{ position: 'relative' }}>
+                  <div
+                    style={{
+                      width: 72,
+                      height: 72,
+                      borderRadius: '50%',
+                      overflow: 'hidden',
+                      background: 'rgba(0,195,122,0.15)',
+                      border: '2px solid rgba(0,195,122,0.3)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    {form.venue_image ? (
+                      <img src={form.venue_image} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    ) : (
+                      <MapPin size={28} color="#00C37A" />
+                    )}
+                  </div>
+                  <label
+                    style={{
+                      position: 'absolute',
+                      bottom: 0,
+                      left: 0,
+                      width: 22,
+                      height: 22,
+                      borderRadius: '50%',
+                      background: '#00C37A',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <input
+                      type="file"
+                      accept="image/*"
+                      hidden
+                      onChange={async (e) => {
+                        const file = e.target.files[0]
+                        if (!file) return
+                        const reader = new FileReader()
+                        reader.onload = async (ev) => {
+                          const res = await fetch(`${API_BASE}/api/upload/image`, {
+                            method: 'POST',
+                            headers: authHeaders(),
+                            body: JSON.stringify({ image: ev.target.result, folder: 'venues' }),
+                          })
+                          const data = await res.json()
+                          if (data.url) setForm((f) => ({ ...f, venue_image: data.url }))
+                        }
+                        reader.readAsDataURL(file)
+                      }}
+                    />
+                    <Upload size={12} color="#000" />
+                  </label>
+                </div>
+                <div style={{ flex: 1 }}>
+                  <p style={{ margin: 0, fontSize: 12, color: 'var(--v2-gray-400)' }}>תמונת/לוגו המקום</p>
+                  <p style={{ margin: '2px 0 0', fontSize: 11, color: 'var(--v2-gray-400)' }}>
+                    יוצג בבלוק המקום בדף האירוע
+                  </p>
+                </div>
+              </div>
+
+              <input
+                value={form.venue_name || ''}
+                onChange={(e) => setForm((f) => ({ ...f, venue_name: e.target.value }))}
+                placeholder="שם המקום"
+                style={{
+                  height: 40,
+                  borderRadius: 8,
+                  border: '1px solid var(--glass-border)',
+                  background: 'var(--glass)',
+                  color: 'var(--text)',
+                  padding: '0 12px',
+                  fontSize: 14,
+                }}
+              />
+
+              <input
+                value={form.venue_address || ''}
+                onChange={(e) => setForm((f) => ({ ...f, venue_address: e.target.value }))}
+                placeholder="כתובת מלאה"
+                style={{
+                  height: 40,
+                  borderRadius: 8,
+                  border: '1px solid var(--glass-border)',
+                  background: 'var(--glass)',
+                  color: 'var(--text)',
+                  padding: '0 12px',
+                  fontSize: 14,
+                }}
+              />
+
+              {form.venue_address && (
+                <div style={{ borderRadius: 10, overflow: 'hidden', border: '1px solid var(--glass-border)' }}>
+                  <iframe
+                    src={`https://www.openstreetmap.org/export/embed.html?bbox=&layer=mapnik&marker=${encodeURIComponent(form.venue_address)}`}
+                    style={{ width: '100%', height: 200, border: 'none' }}
+                    title="מפה"
+                  />
+                  <div style={{ display: 'flex', gap: 8, padding: 10, background: 'var(--card)' }}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const mapsUrl = `https://www.openstreetmap.org/search?query=${encodeURIComponent(form.venue_address)}`
+                        window.open(mapsUrl, '_blank')
+                      }}
+                      style={{
+                        flex: 1,
+                        height: 36,
+                        borderRadius: 6,
+                        border: '1px solid var(--glass-border)',
+                        background: 'var(--glass)',
+                        color: 'var(--text)',
+                        fontSize: 13,
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: 6,
+                      }}
+                    >
+                      <Navigation size={13} color="#00C37A" /> פתח במפה
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const shareUrl = `https://axess.pro/e/${event?.slug}#venue`
+                        navigator.clipboard.writeText(shareUrl)
+                      }}
+                      style={{
+                        flex: 1,
+                        height: 36,
+                        borderRadius: 6,
+                        border: 'none',
+                        background: 'rgba(0,195,122,0.15)',
+                        color: '#00C37A',
+                        fontSize: 13,
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: 6,
+                      }}
+                    >
+                      <Share2 size={13} /> שתף מיקום
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              <button
+                type="button"
+                onClick={saveBasic}
+                style={{
+                  height: 42,
+                  borderRadius: 8,
+                  border: 'none',
+                  background: '#00C37A',
+                  color: '#000',
+                  fontWeight: 700,
+                  fontSize: 14,
+                  cursor: 'pointer',
+                }}
+              >
+                שמור
+              </button>
+            </div>
+          )}
+
+          {activeTab === 'organizer' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+                <div style={{ position: 'relative' }}>
+                  <div
+                    style={{
+                      width: 72,
+                      height: 72,
+                      borderRadius: '50%',
+                      overflow: 'hidden',
+                      background: 'rgba(0,195,122,0.15)',
+                      border: '2px solid rgba(0,195,122,0.3)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    {form.organizer_avatar ? (
+                      <img src={form.organizer_avatar} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    ) : (
+                      <span style={{ fontSize: 28, fontWeight: 800, color: '#00C37A' }}>
+                        {(form.organizer_name || form.title || 'M')[0].toUpperCase()}
+                      </span>
+                    )}
+                  </div>
+                  <label
+                    style={{
+                      position: 'absolute',
+                      bottom: 0,
+                      left: 0,
+                      width: 22,
+                      height: 22,
+                      borderRadius: '50%',
+                      background: '#00C37A',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <input
+                      type="file"
+                      accept="image/*"
+                      hidden
+                      onChange={async (e) => {
+                        const file = e.target.files[0]
+                        if (!file) return
+                        const reader = new FileReader()
+                        reader.onload = async (ev) => {
+                          const res = await fetch(`${API_BASE}/api/upload/image`, {
+                            method: 'POST',
+                            headers: authHeaders(),
+                            body: JSON.stringify({ image: ev.target.result, folder: 'organizers' }),
+                          })
+                          const data = await res.json()
+                          if (data.url) setForm((f) => ({ ...f, organizer_avatar: data.url }))
+                        }
+                        reader.readAsDataURL(file)
+                      }}
+                    />
+                    <Upload size={12} color="#000" />
+                  </label>
+                </div>
+                <div>
+                  <p style={{ margin: 0, fontSize: 13, fontWeight: 600 }}>תמונת פרופיל מארגן</p>
+                  <p style={{ margin: '2px 0 0', fontSize: 11, color: 'var(--v2-gray-400)' }}>
+                    יוצג בבלוק &quot;מארגן האירוע&quot;
+                  </p>
+                </div>
+              </div>
+
+              <input
+                value={form.organizer_name || ''}
+                onChange={(e) => setForm((f) => ({ ...f, organizer_name: e.target.value }))}
+                placeholder="שם המארגן / שם העסק"
+                style={{
+                  height: 40,
+                  borderRadius: 8,
+                  border: '1px solid var(--glass-border)',
+                  background: 'var(--glass)',
+                  color: 'var(--text)',
+                  padding: '0 12px',
+                  fontSize: 14,
+                }}
+              />
+
+              <input
+                value={form.organizer_whatsapp || ''}
+                onChange={(e) => setForm((f) => ({ ...f, organizer_whatsapp: e.target.value }))}
+                placeholder="מספר WhatsApp (972501234567)"
+                style={{
+                  height: 40,
+                  borderRadius: 8,
+                  border: '1px solid var(--glass-border)',
+                  background: 'var(--glass)',
+                  color: 'var(--text)',
+                  padding: '0 12px',
+                  fontSize: 14,
+                }}
+              />
+
+              <input
+                value={form.organizer_email || ''}
+                onChange={(e) => setForm((f) => ({ ...f, organizer_email: e.target.value }))}
+                placeholder="מייל ליצירת קשר"
+                style={{
+                  height: 40,
+                  borderRadius: 8,
+                  border: '1px solid var(--glass-border)',
+                  background: 'var(--glass)',
+                  color: 'var(--text)',
+                  padding: '0 12px',
+                  fontSize: 14,
+                }}
+              />
+
+              <div style={{ background: 'rgba(0,195,122,0.08)', borderRadius: 8, padding: 12 }}>
+                <p style={{ margin: 0, fontSize: 12, color: '#00C37A' }}>
+                  💬 צ&apos;אט עם המארגן יפתח ישירות ל-Webview inbox
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={saveBasic}
+                style={{
+                  height: 42,
+                  borderRadius: 8,
+                  border: 'none',
+                  background: '#00C37A',
+                  color: '#000',
+                  fontWeight: 700,
+                  fontSize: 14,
+                  cursor: 'pointer',
+                }}
+              >
+                שמור
+              </button>
+            </div>
+          )}
+
+          {activeTab === 'faq' && (
+            <FAQEditTab event={event} form={form} setForm={setForm} authHeaders={authHeaders} />
           )}
 
           {activeTab === 'webview' && <WebviewTab event={event} authHeaders={authHeaders} businessId={businessId} />}
@@ -1163,6 +1564,322 @@ function WebviewTab({ event, authHeaders: _authHeaders, businessId: _businessId 
       >
         <Globe size={16} color="#00C37A" /> ערוך Webview של האירוע
       </a>
+    </div>
+  )
+}
+
+function FAQEditTab({ event, form, setForm, authHeaders }) {
+  const [faqs, setFaqs] = useState(() => {
+    try {
+      return Array.isArray(form.faq) ? form.faq : JSON.parse(form.faq || '[]')
+    } catch {
+      return []
+    }
+  })
+  const [saving, setSaving] = useState(false)
+
+  const addFaq = () => setFaqs((prev) => [...prev, { question: '', answer: '' }])
+
+  const saveFaqs = async () => {
+    setSaving(true)
+    await fetch(`${API_BASE}/api/admin/events/${event.id}`, {
+      method: 'PATCH',
+      headers: authHeaders(),
+      body: JSON.stringify({ faq: faqs }),
+    })
+    setForm((f) => ({ ...f, faq: faqs }))
+    setSaving(false)
+  }
+
+  return (
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
+        <p style={{ margin: 0, fontSize: 13, color: 'var(--v2-gray-400)' }}>שאלות שיוצגו בדף האירוע</p>
+        <button
+          type="button"
+          onClick={addFaq}
+          style={{
+            padding: '6px 12px',
+            borderRadius: 6,
+            border: 'none',
+            background: '#00C37A',
+            color: '#000',
+            fontWeight: 600,
+            fontSize: 12,
+            cursor: 'pointer',
+          }}
+        >
+          + הוסף שאלה
+        </button>
+      </div>
+
+      {faqs.map((faq, i) => (
+        <div
+          key={i}
+          style={{
+            background: 'var(--glass)',
+            borderRadius: 8,
+            padding: 12,
+            marginBottom: 10,
+            border: '1px solid var(--glass-border)',
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+            <span style={{ fontSize: 12, color: 'var(--v2-gray-400)' }}>שאלה {i + 1}</span>
+            <button
+              type="button"
+              onClick={() => setFaqs((prev) => prev.filter((_, idx) => idx !== i))}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#EF4444' }}
+            >
+              <Trash2 size={14} />
+            </button>
+          </div>
+          <input
+            value={faq.question}
+            onChange={(e) => setFaqs((prev) => prev.map((f, idx) => (idx === i ? { ...f, question: e.target.value } : f)))}
+            placeholder="מה השאלה?"
+            style={{
+              width: '100%',
+              height: 36,
+              borderRadius: 6,
+              border: '1px solid var(--glass-border)',
+              background: 'var(--card)',
+              color: 'var(--text)',
+              padding: '0 10px',
+              fontSize: 13,
+              marginBottom: 6,
+              boxSizing: 'border-box',
+            }}
+          />
+          <textarea
+            value={faq.answer}
+            onChange={(e) => setFaqs((prev) => prev.map((f, idx) => (idx === i ? { ...f, answer: e.target.value } : f)))}
+            placeholder="מה התשובה?"
+            rows={2}
+            style={{
+              width: '100%',
+              borderRadius: 6,
+              border: '1px solid var(--glass-border)',
+              background: 'var(--card)',
+              color: 'var(--text)',
+              padding: '8px 10px',
+              fontSize: 13,
+              resize: 'vertical',
+              boxSizing: 'border-box',
+            }}
+          />
+        </div>
+      ))}
+
+      {faqs.length === 0 && (
+        <div style={{ textAlign: 'center', padding: 24, color: 'var(--v2-gray-400)' }}>
+          <p>אין שאלות עדיין — לחץ &quot;+ הוסף שאלה&quot;</p>
+        </div>
+      )}
+
+      <button
+        type="button"
+        onClick={saveFaqs}
+        disabled={saving}
+        style={{
+          width: '100%',
+          height: 42,
+          borderRadius: 8,
+          border: 'none',
+          background: '#00C37A',
+          color: '#000',
+          fontWeight: 700,
+          fontSize: 14,
+          cursor: 'pointer',
+          marginTop: 8,
+        }}
+      >
+        {saving ? 'שומר...' : 'שמור שאלות'}
+      </button>
+    </div>
+  )
+}
+
+function ScanStationsTab({ eventId, authHeaders, eventSlug }) {
+  const [tokens, setTokens] = useState([])
+  const [label, setLabel] = useState('')
+  const [newTokenResult, setNewTokenResult] = useState(null)
+
+  const loadTokens = () => {
+    if (!eventId) return
+    fetch(`${API_BASE}/api/admin/events/${eventId}/staff-tokens`)
+      .then((r) => (r.ok ? r.json() : []))
+      .then((d) => setTokens(Array.isArray(d) ? d : []))
+  }
+
+  useEffect(() => {
+    loadTokens()
+  }, [eventId])
+
+  const copy = (text) => {
+    navigator.clipboard?.writeText(text)
+  }
+
+  return (
+    <div>
+      <h3 style={{ margin: '0 0 12px', fontSize: 15, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8 }}>
+        <QrCode size={18} color="#00C37A" /> עמדות סריקה
+      </h3>
+      <p style={{ margin: '0 0 16px', fontSize: 13, color: 'var(--v2-gray-400)' }}>
+        צור לינקים לעמדות סריקה נפרדות (כניסה, בר, VIP וכו׳)
+      </p>
+
+      {tokens.length > 0 && (
+        <div style={{ marginBottom: 16 }}>
+          {tokens.map((t) => (
+            <div
+              key={t.id || t.token}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: 12,
+                background: 'var(--glass)',
+                borderRadius: 10,
+                marginBottom: 8,
+                border: '1px solid var(--glass-border)',
+              }}
+            >
+              <div>
+                <span style={{ fontWeight: 600 }}>{t.label || 'עמדת סריקה'}</span>
+                <span style={{ color: 'var(--v2-gray-400)', marginRight: 8 }}> — {t.scans_count || 0} סריקות</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => copy(`${FRONTEND_URL}/scan/${eventSlug}?token=${t.token}`)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  padding: '8px 12px',
+                  background: '#00C37A',
+                  color: '#000',
+                  border: 'none',
+                  borderRadius: 8,
+                  cursor: 'pointer',
+                  fontWeight: 600,
+                  fontSize: 13,
+                }}
+              >
+                <Copy size={14} /> העתק לינק
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
+        <input
+          value={label}
+          onChange={(e) => setLabel(e.target.value)}
+          placeholder="שם עמדה (אופציונלי)"
+          style={{
+            flex: 1,
+            minWidth: 140,
+            height: 40,
+            borderRadius: 8,
+            border: '1px solid var(--glass-border)',
+            background: 'var(--card)',
+            color: 'var(--text)',
+            padding: '0 12px',
+            fontSize: 14,
+          }}
+        />
+        <button
+          type="button"
+          onClick={async () => {
+            if (!eventId) return
+            try {
+              const r = await fetch(`${API_BASE}/api/admin/events/${eventId}/staff-tokens`, {
+                method: 'POST',
+                headers: authHeaders(),
+                body: JSON.stringify({ label: label || 'עמדת סריקה' }),
+              })
+              const data = await r.json()
+              if (!r.ok) throw new Error(data.error || 'שגיאה')
+              setNewTokenResult({ scan_url: data.scan_url })
+              setLabel('')
+              loadTokens()
+            } catch {
+              setNewTokenResult(null)
+            }
+          }}
+          style={{
+            padding: '0 16px',
+            height: 40,
+            borderRadius: 8,
+            border: 'none',
+            background: '#00C37A',
+            color: '#000',
+            fontWeight: 700,
+            cursor: 'pointer',
+          }}
+        >
+          צור עמדה
+        </button>
+      </div>
+
+      {newTokenResult && (
+        <div
+          style={{
+            padding: 14,
+            background: 'rgba(0,195,122,0.12)',
+            border: '1px solid rgba(0,195,122,0.35)',
+            borderRadius: 10,
+            marginTop: 8,
+          }}
+        >
+          <div style={{ fontWeight: 600, marginBottom: 8 }}>לינק חדש</div>
+          <div style={{ fontSize: 12, color: 'var(--v2-gray-400)', marginBottom: 10, wordBreak: 'break-all' }}>
+            {newTokenResult.scan_url}
+          </div>
+          <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+            <button
+              type="button"
+              onClick={() => copy(newTokenResult.scan_url)}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+                padding: '8px 14px',
+                background: '#00C37A',
+                color: '#000',
+                border: 'none',
+                borderRadius: 8,
+                cursor: 'pointer',
+                fontWeight: 600,
+              }}
+            >
+              <Copy size={14} /> העתק
+            </button>
+            <img
+              src={`https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(newTokenResult.scan_url)}`}
+              alt="QR"
+              style={{ width: 80, height: 80, borderRadius: 8 }}
+            />
+          </div>
+          <button
+            type="button"
+            onClick={() => setNewTokenResult(null)}
+            style={{
+              marginTop: 10,
+              padding: '6px 12px',
+              background: 'transparent',
+              border: '1px solid var(--glass-border)',
+              borderRadius: 8,
+              color: 'var(--v2-gray-400)',
+              cursor: 'pointer',
+            }}
+          >
+            סגור
+          </button>
+        </div>
+      )}
     </div>
   )
 }
