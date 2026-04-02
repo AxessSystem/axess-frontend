@@ -5,6 +5,44 @@ import CustomSelect from '@/components/ui/CustomSelect'
 const API_BASE = import.meta.env.VITE_API_URL || 'https://api.axess.pro'
 const FRONTEND_URL = import.meta.env.VITE_FRONTEND_URL || window.location.origin
 
+const DATETIME_LOCAL_STYLE = {
+  width: '100%',
+  height: 40,
+  borderRadius: 8,
+  border: '1px solid var(--glass-border)',
+  background: 'var(--glass)',
+  color: 'var(--text)',
+  padding: '0 10px',
+  fontSize: 13,
+  boxSizing: 'border-box',
+  colorScheme: 'dark',
+  WebkitAppearance: 'none',
+}
+
+function stationScannersFromMetadata(st) {
+  const m = st?.metadata
+  if (!m) return []
+  if (typeof m === 'object' && m !== null && Array.isArray(m.scanners)) return m.scanners
+  if (typeof m === 'string') {
+    try {
+      const p = JSON.parse(m)
+      return Array.isArray(p?.scanners) ? p.scanners : []
+    } catch {
+      return []
+    }
+  }
+  return []
+}
+
+function waMeDigits(phone) {
+  const d = String(phone || '').replace(/\D/g, '')
+  if (!d) return ''
+  if (d.startsWith('972')) return d
+  if (d.startsWith('0')) return `972${d.slice(1)}`
+  if (d.length === 9 && d.startsWith('5')) return `972${d}`
+  return d
+}
+
 const EDIT_TABS = [
   { id: 'basic', label: 'פרטים' },
   { id: 'tickets', label: 'כרטיסים' },
@@ -163,11 +201,12 @@ export default function EventEditModal({ event, onClose, onSave, authHeaders, bu
           borderRadius: 16,
           width: '100%',
           maxWidth: 680,
-          maxHeight: '92vh',
+          height: '90vh',
           display: 'flex',
           flexDirection: 'column',
           border: '1px solid var(--glass-border)',
           position: 'relative',
+          overflow: 'hidden',
         }}
       >
         <div
@@ -223,7 +262,7 @@ export default function EventEditModal({ event, onClose, onSave, authHeaders, bu
           ))}
         </div>
 
-        <div style={{ flex: 1, overflowY: 'auto', padding: '20px' }}>
+        <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', padding: '20px' }}>
           <div
             style={{
               background: 'rgba(0,195,122,0.08)',
@@ -271,7 +310,7 @@ export default function EventEditModal({ event, onClose, onSave, authHeaders, bu
                 />
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, width: '100%' }}>
                 <div>
                   <label style={{ fontSize: 12, color: 'var(--v2-gray-400)', display: 'block', marginBottom: 4 }}>
                     תאריך ושעת התחלה
@@ -280,17 +319,7 @@ export default function EventEditModal({ event, onClose, onSave, authHeaders, bu
                     type="datetime-local"
                     value={form.date}
                     onChange={(e) => setForm((f) => ({ ...f, date: e.target.value }))}
-                    style={{
-                      width: '100%',
-                      height: 40,
-                      borderRadius: 8,
-                      border: '1px solid var(--glass-border)',
-                      background: 'var(--glass)',
-                      color: 'var(--text)',
-                      padding: '0 10px',
-                      fontSize: 13,
-                      boxSizing: 'border-box',
-                    }}
+                    style={DATETIME_LOCAL_STYLE}
                   />
                 </div>
                 <div>
@@ -301,17 +330,7 @@ export default function EventEditModal({ event, onClose, onSave, authHeaders, bu
                     type="datetime-local"
                     value={form.doors_open}
                     onChange={(e) => setForm((f) => ({ ...f, doors_open: e.target.value }))}
-                    style={{
-                      width: '100%',
-                      height: 40,
-                      borderRadius: 8,
-                      border: '1px solid var(--glass-border)',
-                      background: 'var(--glass)',
-                      color: 'var(--text)',
-                      padding: '0 10px',
-                      fontSize: 13,
-                      boxSizing: 'border-box',
-                    }}
+                    style={DATETIME_LOCAL_STYLE}
                   />
                 </div>
                 <div>
@@ -322,17 +341,7 @@ export default function EventEditModal({ event, onClose, onSave, authHeaders, bu
                     type="datetime-local"
                     value={form.event_end}
                     onChange={(e) => setForm((f) => ({ ...f, event_end: e.target.value }))}
-                    style={{
-                      width: '100%',
-                      height: 40,
-                      borderRadius: 8,
-                      border: '1px solid var(--glass-border)',
-                      background: 'var(--glass)',
-                      color: 'var(--text)',
-                      padding: '0 10px',
-                      fontSize: 13,
-                      boxSizing: 'border-box',
-                    }}
+                    style={DATETIME_LOCAL_STYLE}
                   />
                 </div>
                 <div>
@@ -1704,8 +1713,9 @@ function ScanStationsTab({ eventId, authHeaders, eventSlug }) {
   const [tokens, setTokens] = useState([])
   const [label, setLabel] = useState('')
   const [newTokenResult, setNewTokenResult] = useState(null)
+  const [stationStaff, setStationStaff] = useState({})
 
-  const loadTokens = () => {
+  const loadStations = () => {
     if (!eventId) return
     fetch(`${API_BASE}/api/admin/events/${eventId}/staff-tokens`)
       .then((r) => (r.ok ? r.json() : []))
@@ -1713,11 +1723,19 @@ function ScanStationsTab({ eventId, authHeaders, eventSlug }) {
   }
 
   useEffect(() => {
-    loadTokens()
+    loadStations()
   }, [eventId])
 
   const copy = (text) => {
     navigator.clipboard?.writeText(text)
+  }
+
+  const draftFor = (stationId) => stationStaff[stationId] || { name: '', phone: '' }
+  const setDraftFor = (stationId, field, value) => {
+    setStationStaff((prev) => ({
+      ...prev,
+      [stationId]: { ...(prev[stationId] || { name: '', phone: '' }), [field]: value },
+    }))
   }
 
   return (
@@ -1731,45 +1749,137 @@ function ScanStationsTab({ eventId, authHeaders, eventSlug }) {
 
       {tokens.length > 0 && (
         <div style={{ marginBottom: 16 }}>
-          {tokens.map((t) => (
-            <div
-              key={t.id || t.token}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                padding: 12,
-                background: 'var(--glass)',
-                borderRadius: 10,
-                marginBottom: 8,
-                border: '1px solid var(--glass-border)',
-              }}
-            >
-              <div>
-                <span style={{ fontWeight: 600 }}>{t.label || 'עמדת סריקה'}</span>
-                <span style={{ color: 'var(--v2-gray-400)', marginRight: 8 }}> — {t.scans_count || 0} סריקות</span>
-              </div>
-              <button
-                type="button"
-                onClick={() => copy(`${FRONTEND_URL}/scan/${eventSlug}?token=${t.token}`)}
+          {tokens.map((station) => {
+            const scanners = stationScannersFromMetadata(station)
+            const draft = draftFor(station.id)
+            return (
+              <div
+                key={station.id || station.token}
                 style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 6,
-                  padding: '8px 12px',
-                  background: '#00C37A',
-                  color: '#000',
-                  border: 'none',
-                  borderRadius: 8,
-                  cursor: 'pointer',
-                  fontWeight: 600,
-                  fontSize: 13,
+                  padding: 12,
+                  background: 'var(--glass)',
+                  borderRadius: 10,
+                  marginBottom: 8,
+                  border: '1px solid var(--glass-border)',
                 }}
               >
-                <Copy size={14} /> העתק לינק
-              </button>
-            </div>
-          ))}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                  <div>
+                    <span style={{ fontWeight: 600 }}>{station.label || 'עמדת סריקה'}</span>
+                    <span style={{ color: 'var(--v2-gray-400)', marginRight: 8 }}> — {station.scans_count || 0} סריקות</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => copy(`${FRONTEND_URL}/scan/${eventSlug}?token=${station.token}`)}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 6,
+                      padding: '8px 12px',
+                      background: '#00C37A',
+                      color: '#000',
+                      border: 'none',
+                      borderRadius: 8,
+                      cursor: 'pointer',
+                      fontWeight: 600,
+                      fontSize: 13,
+                      flexShrink: 0,
+                    }}
+                  >
+                    <Copy size={14} /> העתק לינק
+                  </button>
+                </div>
+                <div style={{ marginTop: 8, paddingTop: 8, borderTop: '1px solid rgba(255,255,255,0.08)' }}>
+                  <p style={{ margin: '0 0 6px', fontSize: 11, color: 'var(--v2-gray-400)' }}>סורקים בעמדה:</p>
+                  {scanners.map((scanner, i) => {
+                    const wa = waMeDigits(scanner.phone)
+                    const scanUrl = `https://axess.pro/v/${station.token}`
+                    const msg = `שלום ${scanner.name}! לינק עמדת סריקה שלך: ${scanUrl}`
+                    return (
+                      <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                        <span style={{ fontSize: 12, flex: 1 }}>
+                          {scanner.name} · {scanner.phone}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (!wa) return
+                            window.open(`https://wa.me/${wa}?text=${encodeURIComponent(msg)}`, '_blank')
+                          }}
+                          style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#22C55E', fontSize: 11 }}
+                        >
+                          שלח WA
+                        </button>
+                      </div>
+                    )
+                  })}
+                  <div style={{ display: 'flex', gap: 6, marginTop: 6, flexWrap: 'wrap' }}>
+                    <input
+                      value={draft.name}
+                      onChange={(e) => setDraftFor(station.id, 'name', e.target.value)}
+                      placeholder="שם סורק"
+                      style={{
+                        flex: 2,
+                        minWidth: 80,
+                        height: 30,
+                        borderRadius: 6,
+                        border: '1px solid var(--glass-border)',
+                        background: 'var(--card)',
+                        color: 'var(--text)',
+                        padding: '0 8px',
+                        fontSize: 12,
+                        boxSizing: 'border-box',
+                      }}
+                    />
+                    <input
+                      value={draft.phone}
+                      onChange={(e) => setDraftFor(station.id, 'phone', e.target.value)}
+                      placeholder="נייד WA"
+                      style={{
+                        flex: 2,
+                        minWidth: 80,
+                        height: 30,
+                        borderRadius: 6,
+                        border: '1px solid var(--glass-border)',
+                        background: 'var(--card)',
+                        color: 'var(--text)',
+                        padding: '0 8px',
+                        fontSize: 12,
+                        boxSizing: 'border-box',
+                      }}
+                    />
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        if (!draft.name || !draft.phone) return
+                        const updatedScanners = [...scanners, { name: draft.name, phone: draft.phone }]
+                        await fetch(`${API_BASE}/api/admin/events/${eventId}/scan-stations/${station.id}`, {
+                          method: 'PATCH',
+                          headers: authHeaders(),
+                          body: JSON.stringify({ scanners: updatedScanners }),
+                        })
+                        setStationStaff((prev) => ({ ...prev, [station.id]: { name: '', phone: '' } }))
+                        loadStations()
+                      }}
+                      style={{
+                        height: 30,
+                        padding: '0 10px',
+                        borderRadius: 6,
+                        border: 'none',
+                        background: '#00C37A',
+                        color: '#000',
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                        fontSize: 12,
+                      }}
+                    >
+                      +
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )
+          })}
         </div>
       )}
 
@@ -1788,6 +1898,7 @@ function ScanStationsTab({ eventId, authHeaders, eventSlug }) {
             color: 'var(--text)',
             padding: '0 12px',
             fontSize: 14,
+            boxSizing: 'border-box',
           }}
         />
         <button
@@ -1804,7 +1915,7 @@ function ScanStationsTab({ eventId, authHeaders, eventSlug }) {
               if (!r.ok) throw new Error(data.error || 'שגיאה')
               setNewTokenResult({ scan_url: data.scan_url })
               setLabel('')
-              loadTokens()
+              loadStations()
             } catch {
               setNewTokenResult(null)
             }
