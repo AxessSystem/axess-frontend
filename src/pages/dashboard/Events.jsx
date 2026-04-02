@@ -1383,6 +1383,43 @@ export default function Events() {
                     <ExternalLink size={12} /> צפה באירוע
                   </a>
 
+                  {/* כפתור פרסום — רק לטיוטות */}
+                  {ev.status === 'draft' && (
+                    <button
+                      type="button"
+                      onClick={async (e) => {
+                        e.stopPropagation()
+                        try {
+                          const res = await fetch(`${API_BASE}/api/admin/events/${ev.id}/publish`, {
+                            method: 'POST',
+                            headers: authHeaders(),
+                          })
+                          const data = await res.json()
+                          if (res.ok) {
+                            toast.success('האירוע פורסם בהצלחה!')
+                            loadEvents()
+                          } else {
+                            toast.error(data.message || 'שגיאה בפרסום')
+                          }
+                        } catch (e) {
+                          toast.error('שגיאה בפרסום')
+                        }
+                      }}
+                      style={{
+                        padding: '6px 14px',
+                        borderRadius: 8,
+                        border: 'none',
+                        background: '#00C37A',
+                        color: '#000',
+                        fontWeight: 700,
+                        fontSize: 12,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      פרסם
+                    </button>
+                  )}
+
                   <div style={{ display: 'flex', gap: 8 }}>
                     <button
                       type="button"
