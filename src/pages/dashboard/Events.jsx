@@ -928,13 +928,21 @@ export default function Events() {
 
   const formatEventDate = (dateVal) => {
     if (!dateVal) return '—'
-    console.log('[format] input:', dateVal, 'parsed:', new Date(dateVal).toString()) // ← הוסף
     try {
-      return new Date(dateVal).toLocaleDateString('he-IL', {
-        dateStyle: 'medium',
-        timeStyle: 'short',
+      const d = new Date(dateVal)
+      if (isNaN(d.getTime())) return '—'
+      const date = d.toLocaleDateString('he-IL', {
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric',
         timeZone: 'Asia/Jerusalem',
       })
+      const time = d.toLocaleTimeString('he-IL', {
+        hour: '2-digit',
+        minute: '2-digit',
+        timeZone: 'Asia/Jerusalem',
+      })
+      return `${date} · ${time}`
     } catch {
       return '—'
     }
