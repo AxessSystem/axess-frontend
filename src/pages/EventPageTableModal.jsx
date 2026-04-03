@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Wine, ShoppingBag, CreditCard, Check, Users, Search } from 'lucide-react'
+import { Wine, ShoppingBag, CreditCard, Check, Users, Search, X } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 function normIncludedExtras(x) {
@@ -122,10 +122,53 @@ export function TableBookingModalContent({
 
   const canContinueStep1 =
     Object.keys(tableForm.selected_drinks || {}).length > 0 && totalBottles > 0
+  const maxGuests = tableForm.guest_count - 1
 
   return (
     <>
-      <div style={{ width: 40, height: 4, borderRadius: 2, background: 'rgba(255,255,255,0.2)', margin: '0 auto 16px' }} />
+      <div
+        style={{
+          position: 'relative',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: 16,
+        }}
+      >
+        <div
+          style={{
+            width: 40,
+            height: 4,
+            borderRadius: 2,
+            background: 'rgba(255,255,255,0.2)',
+            margin: '0 auto',
+          }}
+        />
+        <button
+          type="button"
+          onClick={() => {
+            if (!paying) resetAfterClose()
+          }}
+          style={{
+            position: 'absolute',
+            top: 16,
+            left: 16,
+            background: 'rgba(255,255,255,0.1)',
+            border: 'none',
+            borderRadius: '50%',
+            width: 32,
+            height: 32,
+            cursor: paying ? 'not-allowed' : 'pointer',
+            color: '#fff',
+            fontSize: 18,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <X size={18} />
+        </button>
+      </div>
       <div style={{ marginBottom: 20 }}>
         <h3 style={{ margin: '0 0 8px', fontSize: 18, fontWeight: 800 }}>{modalTicket.name}</h3>
         <div style={{ display: 'flex', gap: 4 }}>
@@ -780,20 +823,23 @@ export function TableBookingModalContent({
           ))}
           <button
             type="button"
+            disabled={tableForm.guests.length >= maxGuests}
             onClick={() => setTableForm((f) => ({ ...f, guests: [...f.guests, { name: '', phone: '' }] }))}
             style={{
               width: '100%',
               height: 42,
               borderRadius: 10,
-              border: '2px dashed rgba(255,255,255,0.2)',
+              border: `2px dashed ${tableForm.guests.length >= maxGuests ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.2)'}`,
               background: 'none',
-              color: 'rgba(255,255,255,0.5)',
+              color: tableForm.guests.length >= maxGuests ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.5)',
               fontSize: 14,
-              cursor: 'pointer',
+              cursor: tableForm.guests.length >= maxGuests ? 'not-allowed' : 'pointer',
               marginBottom: 16,
             }}
           >
-            + הוסף חבר שולחן
+            {tableForm.guests.length >= maxGuests
+              ? `הגעת למקסימום (${maxGuests} חברים)`
+              : '+ הוסף חבר שולחן'}
           </button>
           <div style={{ display: 'flex', gap: 10 }}>
             <button
@@ -905,6 +951,118 @@ export function TableBookingModalContent({
               <p style={{ margin: '2px 0 0', fontSize: 13, color: 'rgba(255,255,255,0.5)' }}>{opt.sub}</p>
             </div>
           ))}
+          {tableForm.payment_mode === 'full' && (
+            <div style={{ background: 'rgba(0,195,122,0.08)', borderRadius: 10, padding: 12, marginBottom: 16 }}>
+              <p style={{ margin: 0, fontSize: 13, color: '#00C37A' }}>
+                ✅ אתה משלם ₪{total.toLocaleString()} עבור כל השולחן
+              </p>
+              <p style={{ margin: '4px 0 0', fontSize: 12, color: 'rgba(255,255,255,0.5)' }}>
+                כל חבר יקבל QR אישי בWA לאחר התשלום
+              </p>
+            </div>
+          )}
+          {tableForm.payment_mode === 'split_equal' && (
+            <div style={{ background: 'rgba(59,130,246,0.08)', borderRadius: 10, padding: 12, marginBottom: 16 }}>
+              <p style={{ margin: '0 0 8px', fontSize: 13, fontWeight: 700 }}>חלוקה שווה:</p>
+              <p style={{ margin: '0 0 4px', fontSize: 13, color: 'rgba(255,255,255,0.7)' }}>
+                אתה משלם: ₪{Math.ceil(total / (tableForm.guests.length + 1)).toLocaleString()}
+              </p>
+              {tableForm.guests.length > 0 ? (
+                <>
+                  <p style={{ margin: '0 0 4px', fontSize: 12, color: 'rgba(255,255,255,0.5)' }}>
+                    {tableForm.guests.length} חברים יקבלו לינק תשלום בWA:
+                  </p>
+                  {tableForm.guests.map((g, i) => (
+                    <p key={i} style={{ margin: '2px 0', fontSize: 12, color: 'rgba(255,255,255,0.5)' }}>
+                      • {g.name || `חבר ${i + 1}`} — ₪
+                      {Math.ceil(total / (tableForm.guests.length + 1)).toLocaleString()}
+                    </p>
+                  ))}
+                </>
+              ) : (
+                <p style={{ margin: 0, fontSize: 12, color: '#F59E0B' }}>
+                  ⚠️ הוסף חברי שולחן בשלב הקודם לחלוקת תשלום
+                </p>
+              )}
+            </div>
+          )}
+          {tableForm.payment_mode === 'split_custom' && (
+            <div style={{ background: 'rgba(139,92,246,0.08)', borderRadius: 10, padding: 12, marginBottom: 16 }}>
+              <p style={{ margin: '0 0 10px', fontSize: 13, fontWeight: 700 }}>הגדר כמה כל אחד משלם:</p>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                <span style={{ flex: 1, fontSize: 13 }}>
+                  אני ({tableForm.customer_name || 'ראש קבוצה'})
+                </span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <span style={{ fontSize: 13 }}>₪</span>
+                  <input
+                    value={tableForm.custom_split_amounts?.['main'] || ''}
+                    onChange={(e) =>
+                      setTableForm((f) => ({
+                        ...f,
+                        custom_split_amounts: { ...(f.custom_split_amounts || {}), main: e.target.value },
+                      }))
+                    }
+                    type="number"
+                    placeholder="0"
+                    style={{
+                      width: 80,
+                      height: 34,
+                      borderRadius: 6,
+                      border: '1px solid rgba(255,255,255,0.2)',
+                      background: 'rgba(255,255,255,0.08)',
+                      color: '#fff',
+                      padding: '0 8px',
+                      fontSize: 13,
+                    }}
+                  />
+                </div>
+              </div>
+              {tableForm.guests.map((g, i) => (
+                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                  <span style={{ flex: 1, fontSize: 13 }}>{g.name || `חבר ${i + 1}`}</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <span style={{ fontSize: 13 }}>₪</span>
+                    <input
+                      value={tableForm.custom_split_amounts?.[i] || ''}
+                      onChange={(e) =>
+                        setTableForm((f) => ({
+                          ...f,
+                          custom_split_amounts: { ...(f.custom_split_amounts || {}), [i]: e.target.value },
+                        }))
+                      }
+                      type="number"
+                      placeholder="0"
+                      style={{
+                        width: 80,
+                        height: 34,
+                        borderRadius: 6,
+                        border: '1px solid rgba(255,255,255,0.2)',
+                        background: 'rgba(255,255,255,0.08)',
+                        color: '#fff',
+                        padding: '0 8px',
+                        fontSize: 13,
+                      }}
+                    />
+                  </div>
+                </div>
+              ))}
+              {(() => {
+                const amounts = Object.values(tableForm.custom_split_amounts || {})
+                const splitTotal = amounts.reduce((s, a) => s + parseFloat(a || 0), 0)
+                const remaining = total - splitTotal
+                return (
+                  <div style={{ borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: 8, marginTop: 8 }}>
+                    <p style={{ margin: 0, fontSize: 13, color: remaining === 0 ? '#00C37A' : '#F59E0B' }}>
+                      {remaining === 0
+                        ? '✅ סכום מאוזן'
+                        : `נותר לחלק: ₪${remaining.toLocaleString()}`}
+                    </p>
+                  </div>
+                )
+              })()}
+            </div>
+          )}
           <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
             <button
               type="button"
