@@ -66,15 +66,15 @@ export default function DateTimePicker({ value, onChange, placeholder = 'בחר 
       {open && (
         <div
           style={{
-            position: 'absolute',
-            top: '100%',
-            right: 0,
-            marginTop: 8,
+            position: 'fixed',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            zIndex: 9999,
             background: 'var(--v2-dark-2)',
             border: '1px solid var(--glass-border)',
             borderRadius: 'var(--radius-md)',
             padding: 16,
-            zIndex: 60,
             minWidth: 280,
             boxShadow: 'var(--shadow-lg)',
           }}

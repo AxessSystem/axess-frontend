@@ -369,10 +369,10 @@ export default function EventEditModal({ event, onClose, onSave, authHeaders, bu
                 />
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, width: '100%' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, width: '100%', alignItems: 'start' }}>
                 <div>
                   <label style={{ fontSize: 12, color: 'var(--v2-gray-400)', display: 'block', marginBottom: 4 }}>
-                    תאריך ושעת התחלה (פתיחת דלתות)
+                    תחילת אירוע
                   </label>
                   <DateTimePicker
                     value={form.date}
@@ -382,7 +382,7 @@ export default function EventEditModal({ event, onClose, onSave, authHeaders, bu
                 </div>
                 <div>
                   <label style={{ fontSize: 12, color: 'var(--v2-gray-400)', display: 'block', marginBottom: 4 }}>
-                    תאריך ושעת סיום האירוע
+                    סיום אירוע
                   </label>
                   <DateTimePicker
                     value={form.event_end}
