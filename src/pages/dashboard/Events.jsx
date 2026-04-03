@@ -878,12 +878,14 @@ export default function Events() {
   }, [businessId, loadEvents])
 
   useEffect(() => {
-    if (!businessId) return
+    if (!businessId) return;
     Promise.all([
-      fetch(`${API_BASE}/api/admin/menus?business_id=${businessId}`).then(r => r.ok ? r.json() : []),
-      fetch(`${API_BASE}/api/admin/layouts?business_id=${businessId}`).then(r => r.ok ? r.json() : []),
-    ]).then(([m, l]) => { setMenus(m); setLayouts(l) }).catch(() => {})
-  }, [businessId])
+      fetch(`${API_BASE}/api/admin/menus?business_id=${businessId}`, { headers: authHeaders() })
+        .then(r => r.ok ? r.json() : []),
+      fetch(`${API_BASE}/api/admin/layouts?business_id=${businessId}`, { headers: authHeaders() })
+        .then(r => r.ok ? r.json() : []),
+    ]).then(([m, l]) => { setMenus(m); setLayouts(l) }).catch(() => {});
+  }, [businessId, authHeaders]); // ← הוסף authHeaders לdependencies
 
   useEffect(() => {
     const saved = JSON.parse(localStorage.getItem('axess_event_drafts') || '[]')
