@@ -508,8 +508,8 @@ export default function EventEditModal({ event, onClose, onSave, authHeaders, bu
                 <label style={{ fontSize: 12, color: 'var(--v2-gray-400)', display: 'block', marginBottom: 8 }}>
                   תמונת כרטיס (Banner)
                 </label>
-                <p style={{ margin: '0 0 8px', fontSize: 11, color: 'var(--v2-gray-400)' }}>
-                  רזולוציה מומלצת: 1200×630px, עד 2MB
+                <p style={{ fontSize: 11, color: 'var(--v2-gray-400)', margin: '0 0 10px' }}>
+                  רזולוציה מומלצת: 1080×1080px · עד 5MB · JPG/PNG/WebP
                 </p>
 
                 {(form.cover_image_url || form.image_url) && (

@@ -793,34 +793,39 @@ export default function EventPage() {
 
   return (
     <div dir="rtl" style={{ minHeight: '100vh', background: 'var(--v2-dark)', color: '#fff' }}>
-      <div
-        style={{
+      <div style={{
+        maxWidth: 640,
+        margin: '16px auto 0',
+        padding: '0 16px',
+      }}
+      >
+        <div style={{
           width: '100%',
-          height: 300,
+          paddingBottom: '100%',
           position: 'relative',
+          borderRadius: 16,
           overflow: 'hidden',
+          boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
           background: coverSrc
             ? undefined
             : `linear-gradient(135deg, ${primaryColor}33 0%, var(--v2-accent)22 100%)`,
         }}
-      >
-        {coverSrc && (
-          <img
-            src={coverSrc}
-            alt={event.title}
-            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-          />
-        )}
-        <div
-          style={{
-            position: 'absolute',
-            bottom: 0,
-            left: 0,
-            right: 0,
-            height: 80,
-            background: 'linear-gradient(to bottom, transparent, rgba(0,0,0,0.8))',
-          }}
-        />
+        >
+          {coverSrc && (
+            <img
+              src={event.cover_image_url || event.image_url}
+              alt={event.title}
+              style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                width: '100%',
+                height: '100%',
+                objectFit: 'cover',
+              }}
+            />
+          )}
+        </div>
       </div>
 
       <div style={{ maxWidth: 640, margin: '0 auto', padding: '0 16px 120px' }}>
