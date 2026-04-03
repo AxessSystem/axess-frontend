@@ -830,10 +830,14 @@ export default function Events() {
     'X-Business-Id': businessId
   }), [session, businessId])
   const loadEvents = useCallback(() => {
-    if (!businessId || businessId === 'null') return
+    if (!businessId) return
     fetch(`${API_BASE}/api/admin/events?business_id=${businessId}`, { headers: authHeaders() })
       .then((r) => (r.ok ? r.json() : []))
-      .then(setEvents)
+      .then((data) => {
+        setEvents(data)
+        setLoading(false)
+      })
+      .catch(() => setLoading(false))
   }, [businessId, authHeaders])
   const [staffModalEvent, setStaffModalEvent] = useState(null)
   const [promotersModalEvent, setPromotersModalEvent] = useState(null)
@@ -869,12 +873,9 @@ export default function Events() {
   }
 
   useEffect(() => {
-    if (!businessId || businessId === 'null') return;
-    fetch(`${API_BASE}/api/admin/events?business_id=${businessId}`, { headers: authHeaders() })
-      .then(r => r.ok ? r.json() : [])
-      .then(data => { setEvents(data); setLoading(false) })
-      .catch(() => setLoading(false))
-  }, [businessId, authHeaders])
+    if (!businessId) return
+    loadEvents()
+  }, [businessId, loadEvents])
 
   useEffect(() => {
     if (!businessId) return
