@@ -1,13 +1,8 @@
 import { useState, useEffect } from 'react'
 import toast from 'react-hot-toast'
-import DatePicker from 'react-datepicker'
-import 'react-datepicker/dist/react-datepicker.css'
-import { registerLocale } from 'react-datepicker'
-import he from 'date-fns/locale/he'
 import { X, Upload, Link, Plus, Trash2, Users, QrCode, Globe, MapPin, Navigation, Share2, Copy } from 'lucide-react'
 import CustomSelect from '@/components/ui/CustomSelect'
-
-registerLocale('he', he)
+import DateTimePicker from '@/components/ui/DateTimePicker'
 
 const API_BASE = import.meta.env.VITE_API_URL || 'https://api.axess.pro'
 const FRONTEND_URL = import.meta.env.VITE_FRONTEND_URL || window.location.origin
@@ -379,70 +374,20 @@ export default function EventEditModal({ event, onClose, onSave, authHeaders, bu
                   <label style={{ fontSize: 12, color: 'var(--v2-gray-400)', display: 'block', marginBottom: 4 }}>
                     תאריך ושעת התחלה (פתיחת דלתות)
                   </label>
-                  <DatePicker
-                    selected={form.date ? new Date(form.date) : null}
-                    onChange={(date) =>
-                      setForm((f) => ({
-                        ...f,
-                        date: date?.toISOString() || null,
-                        doors_open: date?.toISOString() || null,
-                      }))
-                    }
-                    showTimeSelect
-                    timeFormat="HH:mm"
-                    timeIntervals={15}
-                    dateFormat="dd/MM/yyyy HH:mm"
-                    locale="he"
-                    placeholderText="בחר תאריך ושעה"
-                    popperPlacement="bottom-start"
-                    customInput={
-                      <input
-                        style={{
-                          width: '100%',
-                          height: 40,
-                          borderRadius: 8,
-                          border: '1px solid rgba(255,255,255,0.15)',
-                          background: 'rgba(255,255,255,0.08)',
-                          color: '#fff',
-                          padding: '0 12px',
-                          fontSize: 14,
-                          cursor: 'pointer',
-                          boxSizing: 'border-box',
-                        }}
-                      />
-                    }
+                  <DateTimePicker
+                    value={form.date}
+                    onChange={(v) => setForm((f) => ({ ...f, date: v, doors_open: v }))}
+                    placeholder="בחר תאריך ושעת התחלה"
                   />
                 </div>
                 <div>
                   <label style={{ fontSize: 12, color: 'var(--v2-gray-400)', display: 'block', marginBottom: 4 }}>
                     תאריך ושעת סיום האירוע
                   </label>
-                  <DatePicker
-                    selected={form.event_end ? new Date(form.event_end) : null}
-                    onChange={(date) => setForm((f) => ({ ...f, event_end: date?.toISOString() || null }))}
-                    showTimeSelect
-                    timeFormat="HH:mm"
-                    timeIntervals={15}
-                    dateFormat="dd/MM/yyyy HH:mm"
-                    locale="he"
-                    placeholderText="בחר תאריך סיום"
-                    popperPlacement="bottom-start"
-                    customInput={
-                      <input
-                        style={{
-                          width: '100%',
-                          height: 40,
-                          borderRadius: 8,
-                          border: '1px solid rgba(255,255,255,0.15)',
-                          background: 'rgba(255,255,255,0.08)',
-                          color: '#fff',
-                          padding: '0 12px',
-                          fontSize: 14,
-                          cursor: 'pointer',
-                          boxSizing: 'border-box',
-                        }}
-                      />
-                    }
+                  <DateTimePicker
+                    value={form.event_end}
+                    onChange={(v) => setForm((f) => ({ ...f, event_end: v }))}
+                    placeholder="בחר תאריך סיום"
                   />
                 </div>
               </div>
