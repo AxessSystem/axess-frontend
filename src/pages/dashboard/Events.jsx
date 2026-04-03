@@ -927,9 +927,11 @@ export default function Events() {
   })
 
   const formatEventDate = (dateVal) => {
-    if (!dateVal) return '—'
+    if (dateVal == null || String(dateVal).trim() === '') return '—'
     try {
-      return new Date(dateVal).toLocaleDateString('he-IL', {
+      const d = new Date(dateVal)
+      if (Number.isNaN(d.getTime())) return '—'
+      return d.toLocaleDateString('he-IL', {
         dateStyle: 'medium',
         timeStyle: 'short',
         timeZone: 'Asia/Jerusalem',
