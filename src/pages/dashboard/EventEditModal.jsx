@@ -160,7 +160,7 @@ export default function EventEditModal({ event, onClose, onSave, authHeaders, bu
     const payload = {
       title: form.title,
       date: cleanDate(form.date),
-      doors_open: cleanDate(form.doors_open),
+      doors_open: cleanDate(form.date),
       event_end: cleanDate(form.event_end),
       location: cleanStr(form.location),
       venue_name: cleanStr(form.venue_name),
@@ -371,45 +371,14 @@ export default function EventEditModal({ event, onClose, onSave, authHeaders, bu
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, width: '100%' }}>
                 <div>
                   <label style={{ fontSize: 12, color: 'var(--v2-gray-400)', display: 'block', marginBottom: 4 }}>
-                    תאריך ושעת התחלה
+                    תאריך ושעת התחלה (פתיחת דלתות)
                   </label>
                   <input
                     type="datetime-local"
                     value={form.date}
-                    onChange={(e) => setForm((f) => ({ ...f, date: e.target.value }))}
-                    style={DATETIME_LOCAL_STYLE}
-                  />
-                </div>
-                <div>
-                  <label style={{ fontSize: 12, color: 'var(--v2-gray-400)', display: 'block', marginBottom: 4 }}>
-                    פתיחת דלתות
-                  </label>
-                  <input
-                    type="datetime-local"
-                    value={form.doors_open}
-                    onChange={(e) => setForm((f) => ({ ...f, doors_open: e.target.value }))}
-                    style={DATETIME_LOCAL_STYLE}
-                  />
-                </div>
-                <div>
-                  <label style={{ fontSize: 12, color: 'var(--v2-gray-400)', display: 'block', marginBottom: 4 }}>
-                    סיום האירוע
-                  </label>
-                  <input
-                    type="datetime-local"
-                    value={form.event_end}
-                    onChange={(e) => setForm((f) => ({ ...f, event_end: e.target.value }))}
-                    style={DATETIME_LOCAL_STYLE}
-                  />
-                </div>
-                <div>
-                  <label style={{ fontSize: 12, color: 'var(--v2-gray-400)', display: 'block', marginBottom: 4 }}>
-                    הגבלת גיל
-                  </label>
-                  <input
-                    value={form.age_restriction || ''}
-                    onChange={(e) => setForm((f) => ({ ...f, age_restriction: e.target.value }))}
-                    placeholder="למשל: 18+"
+                    onChange={(e) =>
+                      setForm((f) => ({ ...f, date: e.target.value, doors_open: e.target.value }))
+                    }
                     style={{
                       width: '100%',
                       height: 40,
@@ -420,9 +389,54 @@ export default function EventEditModal({ event, onClose, onSave, authHeaders, bu
                       padding: '0 10px',
                       fontSize: 13,
                       boxSizing: 'border-box',
+                      colorScheme: 'dark',
                     }}
                   />
                 </div>
+                <div>
+                  <label style={{ fontSize: 12, color: 'var(--v2-gray-400)', display: 'block', marginBottom: 4 }}>
+                    תאריך ושעת סיום האירוע
+                  </label>
+                  <input
+                    type="datetime-local"
+                    value={form.event_end}
+                    onChange={(e) => setForm((f) => ({ ...f, event_end: e.target.value }))}
+                    style={{
+                      width: '100%',
+                      height: 40,
+                      borderRadius: 8,
+                      border: '1px solid var(--glass-border)',
+                      background: 'var(--glass)',
+                      color: 'var(--text)',
+                      padding: '0 10px',
+                      fontSize: 13,
+                      boxSizing: 'border-box',
+                      colorScheme: 'dark',
+                    }}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label style={{ fontSize: 12, color: 'var(--v2-gray-400)', display: 'block', marginBottom: 4 }}>
+                  הגבלת גיל
+                </label>
+                <input
+                  value={form.age_restriction || ''}
+                  onChange={(e) => setForm((f) => ({ ...f, age_restriction: e.target.value }))}
+                  placeholder="למשל: 18+"
+                  style={{
+                    width: '100%',
+                    height: 40,
+                    borderRadius: 8,
+                    border: '1px solid var(--glass-border)',
+                    background: 'var(--glass)',
+                    color: 'var(--text)',
+                    padding: '0 10px',
+                    fontSize: 13,
+                    boxSizing: 'border-box',
+                  }}
+                />
               </div>
 
               <div>
