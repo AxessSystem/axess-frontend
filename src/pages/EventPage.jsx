@@ -643,8 +643,9 @@ export default function EventPage() {
   const [quantities, setQuantities] = useState({})
   const [showTicketDrawer, setShowTicketDrawer] = useState(false)
   const [tableStep, setTableStep] = useState(1)
-  const [selectedCategory, setSelectedCategory] = useState(null)
   const [tableForm, setTableForm] = useState({
+    selected_drinks: {},
+    extras_by_drink: {},
     drink_item_id: '',
     drink_name: '',
     drink_price: 0,
@@ -664,15 +665,24 @@ export default function EventPage() {
   })
 
   const calcTablePrice = useCallback(() => {
-    const base = tableForm.drink_price * tableForm.drink_quantity
-    const freeRule = tableForm.free_rule
-    const freePeople = tableForm.drink_price > freeRule.price_threshold
-      ? freeRule.people
-      : freeRule.below_threshold_people
-    const totalFreePeople = freePeople * tableForm.drink_quantity
+    const drinks = Object.values(tableForm.selected_drinks || {})
+    const totalBottles = drinks.reduce((s, d) => s + (d.quantity || 0), 0)
+    const drinksTotal = drinks.reduce((s, d) => s + parseFloat(d.price || 0) * (d.quantity || 0), 0)
+    const avgPrice = totalBottles > 0 ? drinksTotal / totalBottles : 0
+    const freePeoplePerBottle = avgPrice > 1000 ? 3 : 2
+    const totalFreePeople = freePeoplePerBottle * totalBottles
     const extraPeople = Math.max(0, tableForm.guest_count - totalFreePeople)
-    const extraTicketsCost = extraPeople * tableForm.extra_ticket_price
-    return { base, extraPeople, extraTicketsCost, total: base + extraTicketsCost }
+    const extraTicketsCost = extraPeople * (tableForm.extra_ticket_price || 0)
+    const maxExtras = totalBottles
+    return {
+      drinksTotal,
+      totalBottles,
+      totalFreePeople,
+      extraPeople,
+      extraTicketsCost,
+      maxExtras,
+      total: drinksTotal + extraTicketsCost,
+    }
   }, [tableForm])
 
   useEffect(() => {
@@ -763,13 +773,7 @@ export default function EventPage() {
     }
   }
 
-  const { extraPeople, extraTicketsCost, total } = calcTablePrice()
-  const freeRule = tableForm.free_rule
-  const freePeople = tableForm.drink_price > freeRule.price_threshold
-    ? freeRule.people
-    : freeRule.below_threshold_people
-  const totalFreePeople = freePeople * tableForm.drink_quantity
-  const maxExtras = tableForm.drink_quantity * (tableForm.free_rule?.per_liter || 1)
+  const { extraPeople, extraTicketsCost, total, totalFreePeople, maxExtras, totalBottles, drinksTotal } = calcTablePrice()
 
   if (loading) {
     return (
@@ -816,13 +820,6 @@ export default function EventPage() {
   const dc = event.display_config || {}
   const primaryColor = dc.primary_color || 'var(--v2-primary)'
   const coverSrc = event.cover_image_url || event.image_url
-  const categories = [
-    ...new Set(
-      (event.table_menu || [])
-        .filter((m) => m.category !== 'תוספות')
-        .map((m) => m.category),
-    ),
-  ]
   const selectTicket = (tt) => {
     const available = ticketAvailable(tt)
     const maxQ = Math.max(
@@ -838,9 +835,13 @@ export default function EventPage() {
     setResidentCity('')
     setCustomFields({})
     if (tt.ticket_category === 'table' && !tt.metadata?.seating_map_id) {
+      const genTt =
+        event?.ticket_types?.find((t) => String(t.ticket_category || '') === 'general')
+        || event?.ticket_types?.find((t) => String(t.ticket_category || '') !== 'table')
       setTableStep(1)
-      setSelectedCategory(null)
       setTableForm({
+        selected_drinks: {},
+        extras_by_drink: {},
         drink_item_id: '',
         drink_name: '',
         drink_price: 0,
@@ -848,7 +849,7 @@ export default function EventPage() {
         free_rule: { people: 3, per_liter: 1, price_threshold: 1000, below_threshold_people: 2 },
         guest_count: 1,
         extra_tickets: 0,
-        extra_ticket_price: 0,
+        extra_ticket_price: Number(genTt?.price || 0),
         extras: [],
         customer_name: '',
         customer_phone: '',
@@ -1296,7 +1297,6 @@ export default function EventPage() {
               if (!paying) {
                 setModalTicket(null)
                 setTableStep(1)
-                setSelectedCategory(null)
               }
             }}
             style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.6)' }}
@@ -1320,11 +1320,10 @@ export default function EventPage() {
               setTableStep={setTableStep}
               tableForm={tableForm}
               setTableForm={setTableForm}
-              selectedCategory={selectedCategory}
-              setSelectedCategory={setSelectedCategory}
-              categories={categories}
               totalFreePeople={totalFreePeople}
               maxExtras={maxExtras}
+              totalBottles={totalBottles}
+              drinksTotal={drinksTotal}
               extraPeople={extraPeople}
               extraTicketsCost={extraTicketsCost}
               total={total}

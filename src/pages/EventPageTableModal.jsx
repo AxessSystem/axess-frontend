@@ -1,7 +1,20 @@
-import { Wine, ShoppingBag, CreditCard, ChevronLeft, Check, Users } from 'lucide-react'
+import { useState } from 'react'
+import { Wine, ShoppingBag, CreditCard, Check, Users, Search } from 'lucide-react'
 import toast from 'react-hot-toast'
 
-/* Smart table booking sheet (used from EventPage) */
+function normIncludedExtras(x) {
+  if (Array.isArray(x)) return x
+  if (typeof x === 'string') {
+    try {
+      const p = JSON.parse(x)
+      return Array.isArray(p) ? p : []
+    } catch {
+      return []
+    }
+  }
+  return []
+}
+
 export function TableBookingModalContent({
   modalTicket,
   event,
@@ -9,11 +22,10 @@ export function TableBookingModalContent({
   setTableStep,
   tableForm,
   setTableForm,
-  selectedCategory,
-  setSelectedCategory,
-  categories,
   totalFreePeople,
   maxExtras,
+  totalBottles,
+  drinksTotal,
   extraPeople,
   extraTicketsCost,
   total,
@@ -26,58 +38,23 @@ export function TableBookingModalContent({
   setPendingApproval,
   API_BASE,
 }) {
-  const genTt =
-    event.ticket_types?.find((t) => String(t.ticket_category || '') === 'general')
-    || event.ticket_types?.find((t) => String(t.ticket_category || '') !== 'table')
+  const [drinkSearch, setDrinkSearch] = useState('')
 
-  const pickDrinkItem = (item) => {
-    const freePpl = item.price > 1000 ? 3 : 2
-    setTableForm((f) => ({
-      ...f,
-      drink_item_id: item.id,
-      drink_name: item.name,
-      drink_price: parseFloat(item.price),
-      free_rule: {
-        ...f.free_rule,
-        people: freePpl,
-        per_liter: item.free_extras ?? 1,
-        price_threshold: 1000,
-      },
-      extra_ticket_price: Number(genTt?.price || 0),
-    }))
+  const resetAfterClose = () => {
+    setModalTicket(null)
+    setTableStep(1)
+    setDrinkSearch('')
   }
 
-  const drinkCard = (item) => (
-    <div
-      key={item.id}
-      onClick={() => pickDrinkItem(item)}
-      style={{
-        padding: 14,
-        borderRadius: 12,
-        cursor: 'pointer',
-        border: `2px solid ${tableForm.drink_item_id === item.id ? '#00C37A' : 'rgba(255,255,255,0.1)'}`,
-        background: tableForm.drink_item_id === item.id ? 'rgba(0,195,122,0.1)' : 'rgba(255,255,255,0.05)',
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-      }}
-    >
-      <div>
-        <p style={{ margin: 0, fontWeight: 700, fontSize: 15 }}>{item.name}</p>
-        <p style={{ margin: '2px 0 0', fontSize: 12, color: 'rgba(255,255,255,0.5)' }}>
-          {item.price > 1000 ? '3 אנשים חינם' : '2 אנשים חינם'} + {item.free_extras ?? 1} תוספת לבקבוק
-        </p>
-      </div>
-      <span style={{ fontWeight: 800, fontSize: 18, color: '#00C37A' }}>₪{item.price}</span>
-    </div>
-  )
-
-  const canContinueStep1 =
-    !!tableForm.drink_item_id && (categories.length === 0 || !!selectedCategory)
+  const flatExtras = () =>
+    Object.values(tableForm.extras_by_drink || {}).reduce((acc, arr) => acc.concat(arr || []), [])
 
   const submitTableReserve = async () => {
     setPaying(true)
     try {
+      const drinks = Object.values(tableForm.selected_drinks || {})
+      const drinkSummary = drinks.map((d) => `${d.name}×${d.quantity}`).join(', ')
+      const ex = flatExtras()
       const payload = {
         ticket_type_id: modalTicket.id,
         quantity: 1,
@@ -85,12 +62,20 @@ export function TableBookingModalContent({
         buyer_phone: tableForm.customer_phone.trim(),
         buyer_email: tableForm.customer_email.trim() || undefined,
         total_amount: total,
-        table_data: { ...tableForm, guest_count: tableForm.guest_count },
+        table_data: {
+          ...tableForm,
+          guest_count: tableForm.guest_count,
+          drink_summary: drinkSummary,
+          drink_quantity: totalBottles,
+          drink_name: drinkSummary || tableForm.drink_name,
+        },
         custom_fields: {
           instagram: tableForm.customer_instagram || undefined,
-          drink: tableForm.drink_name,
-          drink_quantity: tableForm.drink_quantity,
-          extras: tableForm.extras,
+          drink: drinkSummary,
+          drink_quantity: totalBottles,
+          extras: ex,
+          extras_by_drink: tableForm.extras_by_drink,
+          selected_drinks: tableForm.selected_drinks,
           guests: tableForm.guests,
           payment_mode: tableForm.payment_mode,
         },
@@ -107,9 +92,7 @@ export function TableBookingModalContent({
       }
       if (data.status === 'pending_approval') {
         setPendingApproval(true)
-        setModalTicket(null)
-        setTableStep(1)
-        setSelectedCategory(null)
+        resetAfterClose()
         toast.success('הבקשה נשלחה לאישור')
         return
       }
@@ -122,15 +105,11 @@ export function TableBookingModalContent({
         const confData = await conf.json()
         if (!conf.ok) throw new Error(confData.error || 'שגיאה')
         setSuccess(true)
-        setModalTicket(null)
-        setTableStep(1)
-        setSelectedCategory(null)
+        resetAfterClose()
         toast.success('הכרטיס בדרך!')
       } else if (data.client_secret) {
         setSuccess(true)
-        setModalTicket(null)
-        setTableStep(1)
-        setSelectedCategory(null)
+        resetAfterClose()
         toast.success('המשך לתשלום — הכרטיס בדרך!')
       }
     } catch (e) {
@@ -140,6 +119,9 @@ export function TableBookingModalContent({
       setPaying(false)
     }
   }
+
+  const canContinueStep1 =
+    Object.keys(tableForm.selected_drinks || {}).length > 0 && totalBottles > 0
 
   return (
     <>
@@ -166,66 +148,215 @@ export function TableBookingModalContent({
 
       {tableStep === 1 && (
         <div>
-          <h4 style={{ margin: '0 0 16px', fontSize: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
-            <Wine size={18} color="#00C37A" /> בחר משקה
+          <h4 style={{ margin: '0 0 12px', fontSize: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Wine size={18} color="#00C37A" /> בחר משקאות
           </h4>
-          {categories.length === 0 ? (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {(event.table_menu || [])
+
+          <div style={{ position: 'relative', marginBottom: 14 }}>
+            <input
+              value={drinkSearch}
+              onChange={(e) => setDrinkSearch(e.target.value)}
+              placeholder="חפש מוצר או קטגוריה..."
+              style={{
+                width: '100%',
+                height: 44,
+                borderRadius: 10,
+                border: '1px solid rgba(255,255,255,0.15)',
+                background: 'rgba(255,255,255,0.08)',
+                color: '#fff',
+                padding: '0 14px 0 40px',
+                fontSize: 14,
+                boxSizing: 'border-box',
+              }}
+            />
+            <Search
+              size={16}
+              style={{
+                position: 'absolute',
+                left: 12,
+                top: '50%',
+                transform: 'translateY(-50%)',
+                color: 'rgba(255,255,255,0.4)',
+              }}
+            />
+          </div>
+
+          <div
+            style={{
+              maxHeight: 380,
+              overflowY: 'auto',
+              scrollbarWidth: 'thin',
+              scrollbarColor: 'rgba(0,195,122,0.3) transparent',
+            }}
+          >
+            {Object.entries(
+              (event.table_menu || [])
                 .filter((m) => m.category !== 'תוספות')
-                .map((item) => drinkCard(item))}
-            </div>
-          ) : !selectedCategory ? (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {categories.map((cat) => (
-                <div
-                  key={cat}
-                  onClick={() => setSelectedCategory(cat)}
+                .filter(
+                  (m) =>
+                    !drinkSearch
+                    || String(m.name || '')
+                      .toLowerCase()
+                      .includes(drinkSearch.toLowerCase())
+                    || String(m.category || '')
+                      .toLowerCase()
+                      .includes(drinkSearch.toLowerCase()),
+                )
+                .reduce((acc, item) => {
+                  const c = item.category || 'אחר'
+                  if (!acc[c]) acc[c] = []
+                  acc[c].push(item)
+                  return acc
+                }, {}),
+            ).map(([category, items]) => (
+              <div key={category}>
+                <p
                   style={{
-                    padding: '16px 14px',
-                    borderRadius: 12,
-                    cursor: 'pointer',
-                    border: '1px solid rgba(255,255,255,0.15)',
-                    background: 'rgba(255,255,255,0.05)',
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
+                    margin: '8px 0 6px',
+                    fontSize: 11,
+                    fontWeight: 700,
+                    color: 'rgba(255,255,255,0.4)',
+                    textTransform: 'uppercase',
+                    letterSpacing: 1,
                   }}
                 >
-                  <span style={{ fontSize: 16, fontWeight: 700 }}>{cat}</span>
-                  <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: 13 }}>
-                    {(event.table_menu || []).filter((m) => m.category === cat).length} מוצרים ›
-                  </span>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div>
-              <button
-                type="button"
-                onClick={() => setSelectedCategory(null)}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  color: '#00C37A',
-                  cursor: 'pointer',
-                  fontSize: 14,
-                  marginBottom: 12,
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 4,
-                }}
-              >
-                <ChevronLeft size={16} /> חזור לקטגוריות
-              </button>
-              <h5 style={{ margin: '0 0 12px', fontSize: 15, color: 'rgba(255,255,255,0.6)' }}>{selectedCategory}</h5>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                {(event.table_menu || [])
-                  .filter((m) => m.category === selectedCategory)
-                  .map((item) => drinkCard(item))}
+                  {category}
+                </p>
+                {items.map((item) => {
+                  const qty = tableForm.selected_drinks?.[item.id]?.quantity || 0
+                  const incl = normIncludedExtras(item.included_extras)
+                  return (
+                    <div
+                      key={item.id}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 10,
+                        padding: '10px 12px',
+                        borderRadius: 10,
+                        marginBottom: 6,
+                        border: `1px solid ${qty > 0 ? 'rgba(0,195,122,0.4)' : 'rgba(255,255,255,0.08)'}`,
+                        background: qty > 0 ? 'rgba(0,195,122,0.08)' : 'rgba(255,255,255,0.03)',
+                        transition: 'all 0.15s',
+                      }}
+                    >
+                      <div style={{ flex: 1 }}>
+                        <p style={{ margin: 0, fontSize: 14, fontWeight: qty > 0 ? 700 : 400 }}>{item.name}</p>
+                        <p style={{ margin: '2px 0 0', fontSize: 11, color: 'rgba(255,255,255,0.4)' }}>
+                          {item.category}
+                          {incl.length > 0 && (
+                            <span style={{ color: 'rgba(0,195,122,0.6)', marginRight: 6 }}>
+                              · {incl.length} תוספות כלולות
+                            </span>
+                          )}
+                        </p>
+                      </div>
+                      <span
+                        style={{
+                          fontSize: 15,
+                          fontWeight: 700,
+                          color: '#00C37A',
+                          minWidth: 60,
+                          textAlign: 'left',
+                        }}
+                      >
+                        ₪
+                        {parseFloat(item.price).toLocaleString()}
+                      </span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        {qty > 0 && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const newQty = qty - 1
+                              setTableForm((f) => {
+                                const drinks = { ...(f.selected_drinks || {}) }
+                                if (newQty === 0) {
+                                  delete drinks[item.id]
+                                  const eb = { ...(f.extras_by_drink || {}) }
+                                  delete eb[item.id]
+                                  return { ...f, selected_drinks: drinks, extras_by_drink: eb }
+                                }
+                                drinks[item.id] = { ...item, quantity: newQty }
+                                return { ...f, selected_drinks: drinks }
+                              })
+                            }}
+                            style={{
+                              width: 28,
+                              height: 28,
+                              borderRadius: '50%',
+                              border: '1px solid rgba(239,68,68,0.4)',
+                              background: 'rgba(239,68,68,0.1)',
+                              color: '#EF4444',
+                              fontSize: 16,
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                            }}
+                          >
+                            −
+                          </button>
+                        )}
+                        {qty > 0 && (
+                          <span style={{ fontSize: 15, fontWeight: 800, minWidth: 20, textAlign: 'center' }}>
+                            {qty}
+                          </span>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setTableForm((f) => {
+                              const drinks = { ...(f.selected_drinks || {}) }
+                              drinks[item.id] = {
+                                ...item,
+                                quantity: (drinks[item.id]?.quantity || 0) + 1,
+                                included_extras: normIncludedExtras(item.included_extras),
+                              }
+                              return { ...f, selected_drinks: drinks }
+                            })
+                          }}
+                          style={{
+                            width: 28,
+                            height: 28,
+                            borderRadius: '50%',
+                            border: '1px solid rgba(0,195,122,0.5)',
+                            background: 'rgba(0,195,122,0.1)',
+                            color: '#00C37A',
+                            fontSize: 16,
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                          }}
+                        >
+                          +
+                        </button>
+                      </div>
+                    </div>
+                  )
+                })}
               </div>
+            ))}
+          </div>
+
+          {Object.keys(tableForm.selected_drinks || {}).length > 0 && (
+            <div style={{ background: 'rgba(0,195,122,0.08)', borderRadius: 10, padding: 12, marginTop: 12 }}>
+              <p style={{ margin: '0 0 6px', fontSize: 13, fontWeight: 700, color: '#00C37A' }}>נבחרו:</p>
+              {Object.values(tableForm.selected_drinks || {}).map((d) => (
+                <p key={d.id} style={{ margin: '2px 0', fontSize: 13 }}>
+                  {d.name} ×{d.quantity} — ₪{(parseFloat(d.price) * d.quantity).toLocaleString()}
+                </p>
+              ))}
+              <p style={{ margin: '8px 0 0', fontWeight: 800, fontSize: 15, color: '#00C37A' }}>
+                סה&quot;כ שתייה: ₪
+                {Object.values(tableForm.selected_drinks || {})
+                  .reduce((s, d) => s + parseFloat(d.price) * d.quantity, 0)
+                  .toLocaleString()}
+              </p>
             </div>
           )}
+
           <button
             type="button"
             disabled={!canContinueStep1}
@@ -251,52 +382,19 @@ export function TableBookingModalContent({
       {tableStep === 2 && (
         <div>
           <h4 style={{ margin: '0 0 8px', fontSize: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
-            <ShoppingBag size={18} color="#00C37A" /> כמות בקבוקים
+            <ShoppingBag size={18} color="#00C37A" /> סיכום משקאות
           </h4>
-          <p style={{ margin: '0 0 20px', fontSize: 13, color: 'rgba(255,255,255,0.5)' }}>
-            {tableForm.drink_name} — ₪{tableForm.drink_price} לבקבוק
-          </p>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 24, marginBottom: 20 }}>
-            <button
-              type="button"
-              onClick={() => setTableForm((f) => ({ ...f, drink_quantity: Math.max(1, f.drink_quantity - 1) }))}
-              style={{
-                width: 48,
-                height: 48,
-                borderRadius: '50%',
-                border: '2px solid rgba(255,255,255,0.2)',
-                background: 'none',
-                color: '#fff',
-                fontSize: 24,
-                cursor: 'pointer',
-              }}
-            >
-              −
-            </button>
-            <span style={{ fontSize: 36, fontWeight: 900 }}>{tableForm.drink_quantity}</span>
-            <button
-              type="button"
-              onClick={() => setTableForm((f) => ({ ...f, drink_quantity: f.drink_quantity + 1 }))}
-              style={{
-                width: 48,
-                height: 48,
-                borderRadius: '50%',
-                border: '2px solid #00C37A',
-                background: 'rgba(0,195,122,0.1)',
-                color: '#00C37A',
-                fontSize: 24,
-                cursor: 'pointer',
-              }}
-            >
-              +
-            </button>
-          </div>
           <div style={{ background: 'rgba(0,195,122,0.08)', borderRadius: 10, padding: 14, marginBottom: 20 }}>
-            <p style={{ margin: 0, fontSize: 14, color: '#00C37A', fontWeight: 600 }}>
-              {tableForm.drink_quantity} בקבוקים = {totalFreePeople} אנשים חינם + {maxExtras} תוספות
+            {Object.values(tableForm.selected_drinks || {}).map((d) => (
+              <p key={d.id} style={{ margin: '4px 0', fontSize: 14 }}>
+                {d.name} ×{d.quantity} — ₪{(parseFloat(d.price) * d.quantity).toLocaleString()}
+              </p>
+            ))}
+            <p style={{ margin: '12px 0 0', fontSize: 14, color: '#00C37A', fontWeight: 600 }}>
+              {totalBottles} בקבוקים = {totalFreePeople} אנשים חינם + עד {maxExtras} תוספות
             </p>
             <p style={{ margin: '4px 0 0', fontSize: 13, color: 'rgba(255,255,255,0.6)' }}>
-              סה&quot;כ שתייה: ₪{(tableForm.drink_price * tableForm.drink_quantity).toLocaleString()}
+              סה&quot;כ שתייה: ₪{drinksTotal.toLocaleString()}
             </p>
           </div>
           <div style={{ display: 'flex', gap: 10 }}>
@@ -395,7 +493,8 @@ export function TableBookingModalContent({
                 ⚠️ {extraPeople} אנשים מעל המכסה החינמית
               </p>
               <p style={{ margin: '4px 0 0', fontSize: 12, color: 'rgba(255,255,255,0.6)' }}>
-                כרטיס נוסף: ₪{tableForm.extra_ticket_price} × {extraPeople} = ₪{extraTicketsCost.toLocaleString()}
+                כרטיס נוסף: ₪{tableForm.extra_ticket_price} × {extraPeople} = ₪
+                {extraTicketsCost.toLocaleString()}
               </p>
             </div>
           )}
@@ -440,59 +539,75 @@ export function TableBookingModalContent({
 
       {tableStep === 4 && (
         <div>
-          <h4 style={{ margin: '0 0 8px', fontSize: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
-            <Check size={18} color="#00C37A" /> בחר תוספות
+          <h4 style={{ margin: '0 0 12px', fontSize: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Check size={18} color="#00C37A" /> תוספות לשולחן
           </h4>
-          <p style={{ margin: '0 0 16px', fontSize: 13, color: 'rgba(255,255,255,0.5)' }}>
-            בחר עד {maxExtras} תוספות ({tableForm.extras.length}/{maxExtras} נבחרו)
-          </p>
-          <div
-            style={{
-              background: '#0f1624',
-              border: '1px solid rgba(255,255,255,0.12)',
-              borderRadius: 12,
-              boxShadow: '0 16px 48px rgba(0,0,0,0.6)',
-              overflowY: 'auto',
-              maxHeight: 280,
-              scrollbarWidth: 'thin',
-              scrollbarColor: 'rgba(0,195,122,0.3) transparent',
-              padding: 8,
-            }}
-          >
-            {(event.table_menu || [])
-              .filter((m) => m.category === 'תוספות')
-              .map((item) => {
-                const isSelected = tableForm.extras.includes(item.name)
-                const canAdd = !isSelected && tableForm.extras.length < maxExtras
-                return (
-                  <div
-                    key={item.id}
-                    onClick={() => {
-                      if (!isSelected && !canAdd) return
-                      setTableForm((f) => ({
-                        ...f,
-                        extras: isSelected ? f.extras.filter((e) => e !== item.name) : [...f.extras, item.name],
-                      }))
-                    }}
-                    style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                      padding: '12px 14px',
-                      borderRadius: 10,
-                      marginBottom: 8,
-                      cursor: canAdd || isSelected ? 'pointer' : 'not-allowed',
-                      border: `1px solid ${isSelected ? '#00C37A' : 'rgba(255,255,255,0.1)'}`,
-                      background: isSelected ? 'rgba(0,195,122,0.1)' : 'rgba(255,255,255,0.05)',
-                      opacity: !isSelected && !canAdd ? 0.4 : 1,
-                    }}
-                  >
-                    <span style={{ fontSize: 15 }}>{item.name}</span>
-                    <span style={{ fontSize: 18 }}>{isSelected ? '✅' : '⬜'}</span>
-                  </div>
-                )
-              })}
-          </div>
+
+          {Object.values(tableForm.selected_drinks || {}).map((drink) =>
+            normIncludedExtras(drink.included_extras).length > 0 ? (
+              <div key={drink.id} style={{ marginBottom: 16 }}>
+                <p
+                  style={{
+                    fontSize: 13,
+                    fontWeight: 700,
+                    color: 'rgba(255,255,255,0.6)',
+                    margin: '0 0 8px',
+                  }}
+                >
+                  {drink.name} ×{drink.quantity} — בחר {drink.quantity} תוספות:
+                </p>
+                {normIncludedExtras(drink.included_extras).map((extra) => {
+                  const current = [...(tableForm.extras_by_drink?.[drink.id] || [])]
+                  const selectedCount = current.filter((e) => e === extra).length
+                  const maxForDrink = drink.quantity
+                  const totalSelected = current.length
+
+                  return (
+                    <div
+                      key={`${drink.id}_${extra}`}
+                      onClick={() => {
+                        if (selectedCount === 0 && totalSelected >= maxForDrink) return
+                        setTableForm((f) => {
+                          const cur = [...(f.extras_by_drink?.[drink.id] || [])]
+                          const idx = cur.indexOf(extra)
+                          if (idx >= 0) cur.splice(idx, 1)
+                          else cur.push(extra)
+                          return { ...f, extras_by_drink: { ...(f.extras_by_drink || {}), [drink.id]: cur } }
+                        })
+                      }}
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        padding: '10px 12px',
+                        borderRadius: 10,
+                        marginBottom: 6,
+                        cursor: 'pointer',
+                        border: `1px solid ${selectedCount > 0 ? '#00C37A' : 'rgba(255,255,255,0.1)'}`,
+                        background: selectedCount > 0 ? 'rgba(0,195,122,0.1)' : 'rgba(255,255,255,0.04)',
+                        opacity: selectedCount === 0 && totalSelected >= maxForDrink ? 0.4 : 1,
+                      }}
+                    >
+                      <span style={{ fontSize: 14 }}>{extra}</span>
+                      <span style={{ fontSize: 18 }}>{selectedCount > 0 ? '✅' : '⬜'}</span>
+                    </div>
+                  )
+                })}
+                <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', margin: '4px 0 0' }}>
+                  {(tableForm.extras_by_drink?.[drink.id] || []).length}/{drink.quantity} תוספות נבחרו
+                </p>
+              </div>
+            ) : null,
+          )}
+
+          {Object.values(tableForm.selected_drinks || {}).every(
+            (d) => normIncludedExtras(d.included_extras).length === 0,
+          ) && (
+            <div style={{ textAlign: 'center', padding: 24, color: 'rgba(255,255,255,0.4)' }}>
+              <p>אין תוספות לבקבוקים שנבחרו</p>
+            </div>
+          )}
+
           <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
             <button
               type="button"
@@ -725,21 +840,26 @@ export function TableBookingModalContent({
             <CreditCard size={18} color="#00C37A" /> סיכום ותשלום
           </h4>
           <div style={{ background: 'rgba(255,255,255,0.05)', borderRadius: 12, padding: 14, marginBottom: 16 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8, fontSize: 14 }}>
-              <span>
-                🍾 {tableForm.drink_name} ×{tableForm.drink_quantity}
-              </span>
-              <span>₪{(tableForm.drink_price * tableForm.drink_quantity).toLocaleString()}</span>
-            </div>
+            {Object.values(tableForm.selected_drinks || {}).map((d) => (
+              <div
+                key={d.id}
+                style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8, fontSize: 14 }}
+              >
+                <span>
+                  🍾 {d.name} ×{d.quantity}
+                </span>
+                <span>₪{(parseFloat(d.price) * d.quantity).toLocaleString()}</span>
+              </div>
+            ))}
             {extraPeople > 0 && (
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8, fontSize: 14, color: '#F59E0B' }}>
                 <span>🎫 כרטיס נוסף ×{extraPeople}</span>
                 <span>₪{extraTicketsCost.toLocaleString()}</span>
               </div>
             )}
-            {tableForm.extras.length > 0 && (
+            {flatExtras().length > 0 && (
               <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.5)', marginBottom: 8 }}>
-                🥤 תוספות: {tableForm.extras.join(', ')}
+                🥤 תוספות: {flatExtras().join(', ')}
               </div>
             )}
             <div

@@ -608,6 +608,9 @@ export default function EventEditModal({ event, onClose, onSave, authHeaders, bu
           {activeTab === 'tables' && (
             <div style={{ textAlign: 'center', padding: 32, color: 'var(--v2-gray-400)' }}>
               <p>הגדרות שולחנות זמינות בטאב &quot;שולחנות&quot; בדף האירוע</p>
+              <p style={{ marginTop: 8, fontSize: 13 }}>
+                תוספות כלולות לכל משקה מוגדרות בתפריט השולחנות (ניהול שולחנות → רשימת תפריט → כפתור תוספות)
+              </p>
               <button
                 type="button"
                 onClick={onClose}

@@ -27,6 +27,19 @@ const STATUS_CONFIG = {
   closed: { label: 'סגור/שולם', color: '#6B7280', bg: 'rgba(107,114,128,0.15)' },
 }
 
+function parseMenuIncludedExtras(raw) {
+  if (Array.isArray(raw)) return raw
+  if (typeof raw === 'string') {
+    try {
+      const p = JSON.parse(raw)
+      return Array.isArray(p) ? p : []
+    } catch {
+      return []
+    }
+  }
+  return []
+}
+
 function normalizeOrderItems(order) {
   let items = order.items
   if (items == null) items = []
@@ -183,6 +196,7 @@ export default function EventTables({
   })
   const [editMenuItemId, setEditMenuItemId] = useState(null)
   const [editMenuPrice, setEditMenuPrice] = useState('')
+  const [editingExtrasFor, setEditingExtrasFor] = useState(null)
   const [openExtrasOrder, setOpenExtrasOrder] = useState(null)
   const [showStaffPanel, setShowStaffPanel] = useState(false)
   const [newStaff, setNewStaff] = useState({
@@ -2472,6 +2486,27 @@ export default function EventTables({
                               {item.price}
                             </span>
                           )}
+                          {item.category !== 'תוספות' && (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setEditingExtrasFor({
+                                  ...item,
+                                  included_extras: parseMenuIncludedExtras(item.included_extras),
+                                })
+                              }
+                              style={{
+                                background: 'none',
+                                border: 'none',
+                                cursor: 'pointer',
+                                color: '#00C37A',
+                                fontSize: 12,
+                                whiteSpace: 'nowrap',
+                              }}
+                            >
+                              🥤 {parseMenuIncludedExtras(item.included_extras).length} תוספות
+                            </button>
+                          )}
                           <button
                             type="button"
                             onClick={async () => {
@@ -2495,6 +2530,129 @@ export default function EventTables({
                   </div>
                 ))
               })()}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {editingExtrasFor && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.65)',
+            zIndex: 1100,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 16,
+          }}
+          onClick={() => setEditingExtrasFor(null)}
+        >
+          <div
+            style={{
+              background: 'var(--card, #1a1d2e)',
+              borderRadius: 16,
+              padding: 20,
+              maxWidth: 420,
+              width: '100%',
+              border: '1px solid var(--glass-border)',
+              maxHeight: '85vh',
+              overflowY: 'auto',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h4 style={{ margin: '0 0 12px', fontSize: 16, fontWeight: 800 }}>
+              תוספות ל־{editingExtrasFor.name}
+            </h4>
+            <p style={{ margin: '0 0 12px', fontSize: 12, color: 'var(--v2-gray-400)' }}>
+              סמן פריטים מקטגוריית &quot;תוספות&quot; בתפריט
+            </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {uniqueMenuItems
+                .filter((m) => m.category === 'תוספות')
+                .map((extra) => {
+                  const isIncluded = (editingExtrasFor.included_extras || []).includes(extra.name)
+                  return (
+                    <div
+                      key={extra.id}
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => {
+                        const current = editingExtrasFor.included_extras || []
+                        const updated = isIncluded ? current.filter((e) => e !== extra.name) : [...current, extra.name]
+                        setEditingExtrasFor({ ...editingExtrasFor, included_extras: updated })
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault()
+                          const current = editingExtrasFor.included_extras || []
+                          const updated = isIncluded ? current.filter((x) => x !== extra.name) : [...current, extra.name]
+                          setEditingExtrasFor({ ...editingExtrasFor, included_extras: updated })
+                        }
+                      }}
+                      style={{
+                        padding: '10px 12px',
+                        borderRadius: 10,
+                        border: `1px solid ${isIncluded ? 'rgba(0,195,122,0.5)' : 'var(--glass-border)'}`,
+                        background: isIncluded ? 'rgba(0,195,122,0.08)' : 'var(--glass)',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        fontSize: 14,
+                      }}
+                    >
+                      <span>{extra.name}</span>
+                      <span>{isIncluded ? '✅' : '⬜'}</span>
+                    </div>
+                  )
+                })}
+            </div>
+            <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
+              <button
+                type="button"
+                onClick={() => setEditingExtrasFor(null)}
+                style={{
+                  flex: 1,
+                  height: 44,
+                  borderRadius: 10,
+                  border: '1px solid var(--glass-border)',
+                  background: 'none',
+                  color: 'var(--text)',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                }}
+              >
+                ביטול
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  await fetch(
+                    `${API_BASE}/api/admin/events/${eventId}/table-menu/${editingExtrasFor.id}`,
+                    {
+                      method: 'PATCH',
+                      headers: authHeaders(),
+                      body: JSON.stringify({ included_extras: editingExtrasFor.included_extras || [] }),
+                    },
+                  )
+                  setEditingExtrasFor(null)
+                  loadData()
+                }}
+                style={{
+                  flex: 2,
+                  height: 44,
+                  borderRadius: 10,
+                  border: 'none',
+                  background: '#00C37A',
+                  color: '#000',
+                  fontWeight: 800,
+                  cursor: 'pointer',
+                }}
+              >
+                שמור
+              </button>
             </div>
           </div>
         </div>
