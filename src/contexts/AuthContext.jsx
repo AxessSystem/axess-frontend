@@ -38,8 +38,8 @@ export function AuthProvider({ children }) {
         .eq('status', 'active')
         .limit(1)
 
-      console.log('[auth] members result:', members, 'error:', error) // ← הוסף
-
+      console.log('[auth] members result:', members, 'error:', error)
+      if (error) console.error('[auth] supabase error details:', JSON.stringify(error))
       if (error || !members?.length) return null
 
       const m = members[0]
