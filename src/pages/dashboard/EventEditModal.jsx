@@ -518,13 +518,24 @@ export default function EventEditModal({ event, onClose, onSave, authHeaders, bu
                       key={form.cover_image_url || form.image_url}
                       src={form.cover_image_url || form.image_url}
                       style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                      onError={e => { e.target.style.display = 'none' }}
                       alt="תצוגה מקדימה"
-                      onError={(e) => {
-                        e.target.style.display = 'none'
-                      }}
                     />
                   </div>
-                ) : null}
+                ) : (
+                  <div style={{
+                    height: 160, borderRadius: 10, marginBottom: 8,
+                    background: 'linear-gradient(135deg, #1a1d2e 0%, #2a2d3e 100%)',
+                    display: 'flex', flexDirection: 'column',
+                    alignItems: 'center', justifyContent: 'center', gap: 8,
+                    border: '2px dashed rgba(0,195,122,0.3)'
+                  }}>
+                    <span style={{ fontSize: 20, fontWeight: 900, color: '#00C37A', letterSpacing: 3 }}>AXESS</span>
+                    <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)', display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <Upload size={12} /> העלאת תמונת אירוע
+                    </span>
+                  </div>
+                )}
 
                 <div style={{ display: 'flex', gap: 8 }}>
                   <label

@@ -74,7 +74,13 @@ export function AuthProvider({ children }) {
       try {
         session = await getValidSession(supabase)
       } catch (e) {
-        // ignore
+        console.warn('[auth] getValidSession failed, fallback:', e.message)
+        try {
+          const { data } = await supabase.auth.getSession()
+          session = data?.session || null
+        } catch (e2) {
+          console.error('[auth] fallback getSession failed:', e2.message)
+        }
       }
 
       setSession(session)
