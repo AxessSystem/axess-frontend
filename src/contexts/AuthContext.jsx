@@ -95,14 +95,28 @@ export function AuthProvider({ children }) {
     init()
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
+      async (event, session) => {
         if (event === 'SIGNED_OUT') {
           setSession(null)
           setProfile(null)
           setBusinessMember(null)
           setIdentityReady(true)
-        } else {
+        } else if (session?.user?.id) {
           setSession(session)
+          // טען businessMember אם חסר:
+          if (!businessMember) {
+            try {
+              const [bm, p] = await Promise.all([
+                fetchBusinessMember(session.user.id),
+                fetchProfile(session.user.id)
+              ])
+              if (bm) setBusinessMember(bm)
+              if (p) setProfile(p)
+            } catch (e) {
+              console.error('onAuthStateChange fetch error:', e)
+            }
+          }
+          setIdentityReady(true)
         }
       }
     )
