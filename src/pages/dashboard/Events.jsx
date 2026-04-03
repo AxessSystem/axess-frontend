@@ -929,7 +929,11 @@ export default function Events() {
   const formatEventDate = (dateVal) => {
     if (!dateVal) return '—'
     try {
-      return new Date(dateVal).toLocaleDateString('he-IL', { dateStyle: 'medium', timeStyle: 'short' })
+      return new Date(dateVal).toLocaleDateString('he-IL', {
+        dateStyle: 'medium',
+        timeStyle: 'short',
+        timeZone: 'Asia/Jerusalem',
+      })
     } catch {
       return '—'
     }
@@ -1261,7 +1265,7 @@ export default function Events() {
         >
           {filteredEvents.map(ev => {
             const uiStatus = eventCardUiStatus(ev)
-            const dateRaw = ev.doors_open || ev.date || ev.event_end
+            const dateRaw = ev.date || ev.doors_open || ev.event_end || ev.created_at
             return (
               <div
                 key={ev.id}
@@ -1288,9 +1292,10 @@ export default function Events() {
               >
                 <div style={{ position: 'relative', height: 180, overflow: 'hidden' }}>
                   <img
-                    src={ev.cover_image_url || ev.image_url || 'https://images.unsplash.com/photo-1540039155733?w=600'}
-                    alt={ev.title || ''}
+                    src={ev.cover_image_url || ev.image_url}
+                    alt={ev.title}
                     style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                    onError={(e) => { e.target.style.display = 'none' }}
                   />
                   <div style={{
                     position: 'absolute',
@@ -1332,7 +1337,7 @@ export default function Events() {
 
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: 'var(--v2-gray-400)', marginBottom: 8 }}>
                     <Calendar size={14} color="#00C37A" />
-                    <span>{formatEventDate(ev.date || dateRaw)}</span>
+                    <span>{formatEventDate(dateRaw)}</span>
                   </div>
 
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: 'var(--v2-gray-400)', marginBottom: 8 }}>
