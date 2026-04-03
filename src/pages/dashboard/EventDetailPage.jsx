@@ -52,15 +52,6 @@ const VAT_MODES = [
   { value: 'exempt', label: 'פטור' },
 ]
 
-function formatDate(dateVal) {
-  if (!dateVal) return '—'
-  try {
-    return new Date(dateVal).toLocaleDateString('he-IL', { dateStyle: 'medium', timeStyle: 'short' })
-  } catch {
-    return '—'
-  }
-}
-
 function formatEventDate(dateVal) {
   if (!dateVal) return '—'
   try {
