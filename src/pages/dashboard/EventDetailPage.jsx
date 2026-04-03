@@ -923,7 +923,7 @@ export default function EventDetailPage() {
             <div style={{ display: 'flex', gap: 16, fontSize: 13, color: 'var(--v2-gray-400)', flexWrap: 'wrap' }}>
               <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                 <Calendar size={13} color="#00C37A" />
-                {formatDate(event.date)}
+                {formatEventDate(event.date)}
               </span>
               <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                 <MapPin size={13} color="#00C37A" />
