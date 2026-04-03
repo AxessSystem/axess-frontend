@@ -927,11 +927,10 @@ export default function Events() {
   })
 
   const formatEventDate = (dateVal) => {
-    if (dateVal == null || String(dateVal).trim() === '') return '—'
+    if (!dateVal) return '—'
+    console.log('[format] input:', dateVal, 'parsed:', new Date(dateVal).toString()) // ← הוסף
     try {
-      const d = new Date(dateVal)
-      if (Number.isNaN(d.getTime())) return '—'
-      return d.toLocaleDateString('he-IL', {
+      return new Date(dateVal).toLocaleDateString('he-IL', {
         dateStyle: 'medium',
         timeStyle: 'short',
         timeZone: 'Asia/Jerusalem',
