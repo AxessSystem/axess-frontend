@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useParams, useSearchParams, Link } from 'react-router-dom'
 import {
   MapPin,
@@ -16,6 +16,7 @@ import toast from 'react-hot-toast'
 import SeatingModal from '../components/SeatingModal'
 import Tooltip from '../components/ui/Tooltip'
 import CustomSelect from '../components/ui/CustomSelect'
+import { TableBookingModalContent } from './EventPageTableModal'
 
 const API_BASE = import.meta.env.VITE_API_URL || 'https://api.axess.pro'
 
@@ -641,6 +642,38 @@ export default function EventPage() {
   const [pendingApproval, setPendingApproval] = useState(false)
   const [quantities, setQuantities] = useState({})
   const [showTicketDrawer, setShowTicketDrawer] = useState(false)
+  const [tableStep, setTableStep] = useState(1)
+  const [selectedCategory, setSelectedCategory] = useState(null)
+  const [tableForm, setTableForm] = useState({
+    drink_item_id: '',
+    drink_name: '',
+    drink_price: 0,
+    drink_quantity: 1,
+    free_rule: { people: 3, per_liter: 1, price_threshold: 1000, below_threshold_people: 2 },
+    guest_count: 1,
+    extra_tickets: 0,
+    extra_ticket_price: 0,
+    extras: [],
+    customer_name: '',
+    customer_phone: '',
+    customer_email: '',
+    customer_instagram: '',
+    guests: [],
+    payment_mode: 'full',
+    split_count: 1,
+  })
+
+  const calcTablePrice = useCallback(() => {
+    const base = tableForm.drink_price * tableForm.drink_quantity
+    const freeRule = tableForm.free_rule
+    const freePeople = tableForm.drink_price > freeRule.price_threshold
+      ? freeRule.people
+      : freeRule.below_threshold_people
+    const totalFreePeople = freePeople * tableForm.drink_quantity
+    const extraPeople = Math.max(0, tableForm.guest_count - totalFreePeople)
+    const extraTicketsCost = extraPeople * tableForm.extra_ticket_price
+    return { base, extraPeople, extraTicketsCost, total: base + extraTicketsCost }
+  }, [tableForm])
 
   useEffect(() => {
     if (!slug) return
@@ -730,6 +763,14 @@ export default function EventPage() {
     }
   }
 
+  const { extraPeople, extraTicketsCost, total } = calcTablePrice()
+  const freeRule = tableForm.free_rule
+  const freePeople = tableForm.drink_price > freeRule.price_threshold
+    ? freeRule.people
+    : freeRule.below_threshold_people
+  const totalFreePeople = freePeople * tableForm.drink_quantity
+  const maxExtras = tableForm.drink_quantity * (tableForm.free_rule?.per_liter || 1)
+
   if (loading) {
     return (
       <div
@@ -775,6 +816,13 @@ export default function EventPage() {
   const dc = event.display_config || {}
   const primaryColor = dc.primary_color || 'var(--v2-primary)'
   const coverSrc = event.cover_image_url || event.image_url
+  const categories = [
+    ...new Set(
+      (event.table_menu || [])
+        .filter((m) => m.category !== 'תוספות')
+        .map((m) => m.category),
+    ),
+  ]
   const selectTicket = (tt) => {
     const available = ticketAvailable(tt)
     const maxQ = Math.max(
@@ -789,6 +837,28 @@ export default function EventPage() {
     setIdNumber('')
     setResidentCity('')
     setCustomFields({})
+    if (tt.ticket_category === 'table' && !tt.metadata?.seating_map_id) {
+      setTableStep(1)
+      setSelectedCategory(null)
+      setTableForm({
+        drink_item_id: '',
+        drink_name: '',
+        drink_price: 0,
+        drink_quantity: 1,
+        free_rule: { people: 3, per_liter: 1, price_threshold: 1000, below_threshold_people: 2 },
+        guest_count: 1,
+        extra_tickets: 0,
+        extra_ticket_price: 0,
+        extras: [],
+        customer_name: '',
+        customer_phone: '',
+        customer_email: '',
+        customer_instagram: '',
+        guests: [],
+        payment_mode: 'full',
+        split_count: 1,
+      })
+    }
   }
 
   return (
@@ -1210,7 +1280,68 @@ export default function EventPage() {
         />
       )}
 
-      {modalTicket && !modalTicket?.metadata?.seating_map_id && (
+      {modalTicket && modalTicket.ticket_category === 'table' && !modalTicket?.metadata?.seating_map_id && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 200,
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'flex-end',
+          }}
+        >
+          <div
+            onClick={() => {
+              if (!paying) {
+                setModalTicket(null)
+                setTableStep(1)
+                setSelectedCategory(null)
+              }
+            }}
+            style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.6)' }}
+          />
+          <div
+            style={{
+              position: 'relative',
+              background: '#0a1628',
+              borderRadius: '20px 20px 0 0',
+              padding: '20px 16px 40px',
+              maxHeight: '92vh',
+              overflowY: 'auto',
+              border: '1px solid rgba(255,255,255,0.1)',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <TableBookingModalContent
+              modalTicket={modalTicket}
+              event={event}
+              tableStep={tableStep}
+              setTableStep={setTableStep}
+              tableForm={tableForm}
+              setTableForm={setTableForm}
+              selectedCategory={selectedCategory}
+              setSelectedCategory={setSelectedCategory}
+              categories={categories}
+              totalFreePeople={totalFreePeople}
+              maxExtras={maxExtras}
+              extraPeople={extraPeople}
+              extraTicketsCost={extraTicketsCost}
+              total={total}
+              paying={paying}
+              setPaying={setPaying}
+              setModalTicket={setModalTicket}
+              slug={slug}
+              promoRef={ref}
+              setSuccess={setSuccess}
+              setPendingApproval={setPendingApproval}
+              API_BASE={API_BASE}
+            />
+          </div>
+        </div>
+      )}
+
+      {modalTicket && modalTicket.ticket_category !== 'table' && !modalTicket?.metadata?.seating_map_id && (
         <div
           style={{
             position: 'fixed',
