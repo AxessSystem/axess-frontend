@@ -61,6 +61,28 @@ function formatDate(dateVal) {
   }
 }
 
+function formatEventDate(dateVal) {
+  if (!dateVal) return '—'
+  try {
+    const d = new Date(dateVal)
+    if (isNaN(d.getTime())) return '—'
+    const date = d.toLocaleDateString('he-IL', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+      timeZone: 'Asia/Jerusalem',
+    })
+    const time = d.toLocaleTimeString('he-IL', {
+      hour: '2-digit',
+      minute: '2-digit',
+      timeZone: 'Asia/Jerusalem',
+    })
+    return `${date} · ${time}`
+  } catch {
+    return '—'
+  }
+}
+
 function downloadChannelReport(ordersData, channelName) {
   const headers = ['שם', 'שם משפחה', 'נייד', 'מייל', 'סוג כרטיס', 'סכום',
     'מזהה עסקה', 'ת"ז', 'יחצ"ן', 'אינסטגרם', 'ערוץ', 'תאריך']
@@ -1503,7 +1525,7 @@ export default function EventDetailPage() {
                       {event?.title}
                       {' '}
                       ·
-                      {event?.date ? new Date(event.date).toLocaleDateString('he-IL') : ''}
+                      {event?.date ? formatEventDate(event.date) : ''}
                     </p>
                   </div>
                   <button
@@ -1539,7 +1561,7 @@ export default function EventDetailPage() {
                     <tbody>
                       <tr style={{ borderTop: '1px solid var(--glass-border)', background: 'rgba(0,195,122,0.04)' }}>
                         <td style={{ padding: '8px 12px', fontSize: 12, color: 'var(--v2-gray-400)' }}>
-                          {event?.date ? new Date(event.date).toLocaleDateString('he-IL') : '—'}
+                          {event?.date ? formatEventDate(event.date) : '—'}
                         </td>
                         <td style={{ padding: '8px 12px', fontSize: 13, fontWeight: 600, color: '#00C37A' }}>
                           AXESS
@@ -1646,7 +1668,7 @@ export default function EventDetailPage() {
                       {event?.title}
                       {' '}
                       ·
-                      {event?.date ? new Date(event.date).toLocaleDateString('he-IL') : ''}
+                      {event?.date ? formatEventDate(event.date) : ''}
                     </p>
                   </div>
                   <button

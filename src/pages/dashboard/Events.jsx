@@ -1275,7 +1275,6 @@ export default function Events() {
           {filteredEvents.map(ev => {
             const uiStatus = eventCardUiStatus(ev)
             const dateRaw = ev.date || ev.doors_open || ev.event_end || ev.created_at
-            console.log('[card] ev.date:', ev.date, 'dateRaw:', ev.date || ev.doors_open || ev.event_end || ev.created_at, 'title:', ev.title)
             return (
               <div
                 key={ev.id}
