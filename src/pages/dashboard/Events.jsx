@@ -1300,12 +1300,24 @@ export default function Events() {
                 }}
               >
                 <div style={{ position: 'relative', height: 180, overflow: 'hidden' }}>
-                  <img
-                    src={ev.cover_image_url || ev.image_url}
-                    alt={ev.title}
-                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                    onError={(e) => { e.target.style.display = 'none' }}
-                  />
+                  {ev.cover_image_url || ev.image_url ? (
+                    <img
+                      src={ev.cover_image_url || ev.image_url}
+                      alt={ev.title}
+                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                      onError={e => { e.target.style.display = 'none'; }}
+                    />
+                  ) : (
+                    <div style={{
+                      width: '100%', height: '100%',
+                      background: 'linear-gradient(135deg, #1a1d2e 0%, #2a2d3e 100%)',
+                      display: 'flex', flexDirection: 'column',
+                      alignItems: 'center', justifyContent: 'center', gap: 8
+                    }}>
+                      <span style={{ fontSize: 18, fontWeight: 900, color: '#00C37A', letterSpacing: 3 }}>AXESS</span>
+                      <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)' }}>העלאת תמונת אירוע</span>
+                    </div>
+                  )}
                   <div style={{
                     position: 'absolute',
                     inset: 0,
