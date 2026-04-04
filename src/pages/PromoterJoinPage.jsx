@@ -15,7 +15,7 @@ export default function PromoterJoinPage() {
       setStep('error')
       return
     }
-    fetch(`${API_BASE}/api/promoter/join/${code}`)
+    fetch(`${API_BASE}/promoter/join/${code}`)
       .then((r) => r.json())
       .then((d) => {
         if (d.promoter) {
@@ -38,7 +38,7 @@ export default function PromoterJoinPage() {
 
   const handleSubmit = async () => {
     setSaving(true)
-    const r = await fetch(`${API_BASE}/api/promoter/join/${code}`, {
+    const r = await fetch(`${API_BASE}/promoter/join/${code}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(form),
