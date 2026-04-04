@@ -279,6 +279,9 @@ function StaffTemplate({ data, onUpdate, eventId, businessId, authHeaders, reque
     scan_station: '',
   })
 
+  const [allEvents, setAllEvents] = useState([])
+  const [sourceEventId, setSourceEventId] = useState(eventId)
+
   const ROLES = [
     'בעלים', 'מנהל ערב', 'מנהל שולחנות', 'מנהל בר',
     'מלצר/ית', 'קופאי/ת', 'סלקטור/ית', 'סורק/ת', 'מארח/ת', 'ברמן/ית',
@@ -291,22 +294,43 @@ function StaffTemplate({ data, onUpdate, eventId, businessId, authHeaders, reque
   }, [data])
 
   useEffect(() => {
-    console.log('[staff] eventId:', eventId, 'authHeaders:', !!authHeaders)
-    if (!eventId || !authHeaders) return
-    fetch(`${API_BASE}/api/admin/events/${eventId}/table-staff`, { headers: authHeaders() })
+    if (!businessId || !authHeaders) return
+    fetch(`${API_BASE}/api/admin/events?business_id=${businessId}`, { headers: authHeaders() })
+      .then((r) => r.json())
+      .then((d) => setAllEvents(Array.isArray(d) ? d : []))
+  }, [businessId])
+
+  useEffect(() => {
+    if (!sourceEventId || !authHeaders) return
+    fetch(`${API_BASE}/api/admin/events/${sourceEventId}/table-staff`, { headers: authHeaders() })
       .then((r) => r.json())
       .then((d) => {
-        console.log('[staff] result:', d)
         const dbStaff = d.staff || []
-        if (dbStaff.length > 0 && staff.length === 0) {
-          setStaff(dbStaff)
-        }
+        if (dbStaff.length > 0) setStaff(dbStaff)
       })
-      .catch((e) => console.error('[staff] error:', e))
-  }, [eventId])
+      .catch(() => {})
+  }, [sourceEventId])
 
   return (
     <div>
+      <div style={{ marginBottom: 12 }}>
+        <label style={{ fontSize: 12, color: 'var(--v2-gray-400)', display: 'block', marginBottom: 4 }}>
+          טען צוות מאירוע:
+        </label>
+        <select
+          value={sourceEventId}
+          onChange={(e) => setSourceEventId(e.target.value)}
+          style={{ width: '100%', height: 38, borderRadius: 8, border: '1px solid var(--glass-border)', background: 'var(--glass)', color: 'var(--text)', padding: '0 10px', fontSize: 13 }}
+        >
+          {allEvents.map((ev) => (
+            <option key={ev.id} value={ev.id}>
+              {ev.title}
+              {' '}
+              {ev.id === eventId ? '(נוכחי)' : ''}
+            </option>
+          ))}
+        </select>
+      </div>
       {staff.map((member, i) => (
         <div
           key={i}
