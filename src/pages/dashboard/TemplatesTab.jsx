@@ -819,6 +819,7 @@ function PromotersTemplate({ data: _data, onUpdate: _onUpdate, businessId, authH
   const GENRE_TAGS = ['טכנו', 'מיינסטרים', 'היפ-הופ', 'R&B', 'ים תיכוני', 'אלקטרוני', 'כלל']
 
   useEffect(() => {
+    console.log('[promoters] businessId:', businessId)
     if (!businessId) return
     fetch(`${API_BASE}/api/admin/promoters?business_id=${businessId}`, { headers: authHeaders() })
       .then((r) => r.json())
