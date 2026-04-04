@@ -9,6 +9,7 @@ import toast from 'react-hot-toast'
 import { useAuth } from '@/contexts/AuthContext'
 import CustomSelect from '@/components/ui/CustomSelect'
 import EventTables from './EventTables'
+import TemplatesTab from './TemplatesTab'
 import { exportToExcel, exportEventReport, exportAudienceToExcel } from '@/utils/exportExcel'
 
 const API_BASE = import.meta.env.VITE_API_URL || 'https://api.axess.pro'
@@ -1037,6 +1038,7 @@ export default function EventDetailPage() {
           { id: 'audience', label: 'קהל' },
           { id: 'financials', label: 'כספים מלא' },
           { id: 'tables', label: 'שולחנות' },
+          { id: 'templates', label: '⭐ תבניות' },
           { id: 'campaigns', label: 'קמפיינים' },
           { id: 'channels', label: 'ערוצי מכירה' },
           { id: 'webview', label: 'Webview' },
@@ -2702,6 +2704,14 @@ export default function EventDetailPage() {
             businessId={businessId}
             authHeaders={authHeaders}
             session={session}
+          />
+        )}
+
+        {activeTab === 'templates' && (
+          <TemplatesTab
+            eventId={id}
+            businessId={businessId}
+            authHeaders={authHeaders}
           />
         )}
 

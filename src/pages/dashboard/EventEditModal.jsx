@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react'
 import toast from 'react-hot-toast'
 import {
-  X, Upload, Link, Plus, Trash2, Users, QrCode, Globe, MapPin, Navigation, Share2, Copy,
-  UtensilsCrossed, LayoutGrid, Megaphone, Store, Receipt, Save, Loader2,
+  X, Upload, Link, Plus, Trash2, QrCode, Globe, MapPin, Navigation, Share2, Copy,
 } from 'lucide-react'
 import CustomSelect from '@/components/ui/CustomSelect'
+import TemplatesTab from './TemplatesTab'
 import DateTimePicker from '@/components/ui/DateTimePicker'
 
 const API_BASE = import.meta.env.VITE_API_URL || 'https://api.axess.pro'
@@ -1820,142 +1820,6 @@ function FAQEditTab({ event, form, setForm, authHeaders }) {
       >
         {saving ? 'שומר...' : 'שמור שאלות'}
       </button>
-    </div>
-  )
-}
-
-function TemplatesTab({ eventId, businessId, authHeaders }) {
-  const [saving, setSaving] = useState(null)
-  const [saved, setSaved] = useState(null)
-
-  const TEMPLATE_TYPES = [
-    { id: 'staff', label: 'הצוות שלי', desc: 'שמור את הצוות הקבוע שלך', icon: <Users size={20} color="#00C37A" /> },
-    { id: 'menu', label: 'התפריט שלי', desc: 'שמור את התפריט המעודכן', icon: <UtensilsCrossed size={20} color="#00C37A" /> },
-    { id: 'tables', label: 'השולחנות שלי', desc: 'כלל חינם + מספור שולחנות', icon: <LayoutGrid size={20} color="#00C37A" /> },
-    { id: 'promoters', label: 'היחצ"נים שלי', desc: 'רשימת יחצ"נים קבועה', icon: <Megaphone size={20} color="#00C37A" /> },
-    { id: 'vendors', label: 'הספקים שלי', desc: 'ספקים חוזרים', icon: <Store size={20} color="#00C37A" /> },
-    { id: 'expenses', label: 'קטגוריות הוצאות', desc: 'קטגוריות הוצאות קבועות', icon: <Receipt size={20} color="#00C37A" /> },
-  ]
-
-  const saveTemplate = async (type) => {
-    setSaving(type)
-    try {
-      const res = await fetch(`${API_BASE}/api/admin/business/${businessId}/templates`, {
-        method: 'POST',
-        headers: authHeaders(),
-        body: JSON.stringify({ template_type: type, source_event_id: eventId }),
-      })
-      const data = await res.json().catch(() => ({}))
-      if (!res.ok) throw new Error(data.error || data.message || 'שגיאה')
-      setSaved(type)
-      setTimeout(() => setSaved(null), 2000)
-    } catch (e) {
-      toast.error(e.message || 'שגיאה')
-    } finally {
-      setSaving(null)
-    }
-  }
-
-  return (
-    <div>
-      <div style={{ background: 'rgba(0,195,122,0.08)', borderRadius: 10, padding: 12, marginBottom: 20 }}>
-        <p style={{ margin: 0, fontSize: 13, color: '#00C37A', fontWeight: 600 }}>
-          ⭐ התבניות שלי
-        </p>
-        <p style={{ margin: '4px 0 0', fontSize: 12, color: 'rgba(255,255,255,0.5)' }}>
-          שמור את ההגדרות מאירוע זה כתבנית — תועתק אוטומטית לאירועים חדשים
-        </p>
-      </div>
-
-      {TEMPLATE_TYPES.map((t) => (
-        <div
-          key={t.id}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 14,
-            padding: '16px',
-            borderRadius: 12,
-            marginBottom: 10,
-            background: 'var(--glass)',
-            border: `1px solid ${saved === t.id ? 'rgba(0,195,122,0.4)' : 'var(--glass-border)'}`,
-            transition: 'all 0.15s',
-            cursor: 'default',
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.background = 'rgba(0,195,122,0.05)'
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.background = 'var(--glass)'
-          }}
-        >
-          <div
-            style={{
-              width: 44,
-              height: 44,
-              borderRadius: 10,
-              flexShrink: 0,
-              background: 'rgba(0,195,122,0.1)',
-              border: '1px solid rgba(0,195,122,0.2)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            {t.icon}
-          </div>
-
-          <div style={{ flex: 1 }}>
-            <p style={{ margin: 0, fontSize: 14, fontWeight: 700 }}>{t.label}</p>
-            <p style={{ margin: '3px 0 0', fontSize: 12, color: 'var(--v2-gray-400)' }}>{t.desc}</p>
-            {saved === t.id && (
-              <p style={{ margin: '3px 0 0', fontSize: 11, color: '#00C37A' }}>
-                ✅ נשמר בהצלחה
-              </p>
-            )}
-          </div>
-
-          <button
-            type="button"
-            onClick={() => saveTemplate(t.id)}
-            disabled={saving === t.id}
-            style={{
-              padding: '8px 16px',
-              borderRadius: 8,
-              border: 'none',
-              background: saved === t.id ? '#00C37A' : 'rgba(0,195,122,0.15)',
-              color: saved === t.id ? '#000' : '#00C37A',
-              fontWeight: 700,
-              fontSize: 13,
-              cursor: saving === t.id ? 'wait' : 'pointer',
-              minWidth: 90,
-              transition: 'all 0.2s',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 6,
-            }}
-          >
-            {saving === t.id ? (
-              <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                <Loader2 size={14} className="animate-spin" style={{ color: '#00C37A' }} />
-                שומר...
-              </span>
-            ) : saved === t.id ? (
-              '✅ נשמר'
-            ) : (
-              <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                <Save size={13} /> שמור
-              </span>
-            )}
-          </button>
-        </div>
-      ))}
-
-      <div style={{ borderTop: '1px solid var(--glass-border)', paddingTop: 16, marginTop: 8 }}>
-        <p style={{ fontSize: 12, color: 'var(--v2-gray-400)', textAlign: 'center', margin: 0 }}>
-          תבניות נשמרות ברמת העסק ומועתקות לכל אירוע חדש
-        </p>
-      </div>
     </div>
   )
 }
