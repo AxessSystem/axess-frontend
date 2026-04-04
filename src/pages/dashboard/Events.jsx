@@ -1357,6 +1357,19 @@ export default function Events() {
 
                 <div style={{ padding: '16px' }}>
                   <h3 style={{ margin: '0 0 8px', fontSize: 17, fontWeight: 800 }}>{ev.title}</h3>
+                  {ev.event_number && (
+                    <span
+                      style={{
+                        fontSize: 11,
+                        color: 'rgba(255,255,255,0.3)',
+                        fontFamily: 'monospace',
+                        display: 'block',
+                        marginBottom: 8,
+                      }}
+                    >
+                      #{ev.event_number}
+                    </span>
+                  )}
 
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: 'var(--v2-gray-400)', marginBottom: 8 }}>
                     <Calendar size={14} color="#00C37A" />

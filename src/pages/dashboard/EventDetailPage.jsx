@@ -910,7 +910,21 @@ export default function EventDetailPage() {
             <ChevronLeft size={20} color="#00C37A" />
           </button>
           <div>
-            <h1 style={{ margin: '0 0 4px', fontSize: 22, fontWeight: 800 }}>{event.title}</h1>
+            <h1 style={{ margin: '0 0 4px', fontSize: 22, fontWeight: 800, display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 4 }}>
+              {event?.event_number && (
+                <span
+                  style={{
+                    fontSize: 12,
+                    color: 'rgba(255,255,255,0.3)',
+                    fontFamily: 'monospace',
+                    marginRight: 8,
+                  }}
+                >
+                  #{event.event_number}
+                </span>
+              )}
+              <span>{event.title}</span>
+            </h1>
             <div style={{ display: 'flex', gap: 16, fontSize: 13, color: 'var(--v2-gray-400)', flexWrap: 'wrap' }}>
               <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                 <Calendar size={13} color="#00C37A" />
