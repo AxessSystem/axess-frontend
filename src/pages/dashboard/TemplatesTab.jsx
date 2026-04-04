@@ -235,7 +235,7 @@ function TemplateContent({ type, data, onUpdate, eventId, businessId, authHeader
   if (type === 'staff') return <StaffTemplate data={data} onUpdate={onUpdate} eventId={eventId} businessId={businessId} authHeaders={authHeaders} requestConfirm={requestConfirm} />
   if (type === 'menu') return <MenuTemplate data={data} onUpdate={onUpdate} eventId={eventId} businessId={businessId} authHeaders={authHeaders} requestConfirm={requestConfirm} />
   if (type === 'tables') return <TablesTemplate data={data} onUpdate={onUpdate} />
-  if (type === 'promoters') return <PromotersTemplate key="promoters" data={data} onUpdate={onUpdate} />
+  if (type === 'promoters') return <PromotersTemplate key="promoters" data={data} onUpdate={onUpdate} businessId={businessId} authHeaders={authHeaders} />
   if (type === 'expenses' || type === 'vendors') return <ExpensesTemplate data={data} onUpdate={onUpdate} eventId={eventId} businessId={businessId} authHeaders={authHeaders} requestConfirm={requestConfirm} />
   return null
 }
@@ -792,110 +792,230 @@ function TablesTemplate({ data, onUpdate }) {
   )
 }
 
-function PromotersTemplate({ data, onUpdate }) {
-  const [promoters, setPromoters] = useState(data?.promoters || [])
+function PromotersTemplate({ data: _data, onUpdate: _onUpdate, businessId, authHeaders }) {
+  const [promoters, setPromoters] = useState([])
   const [showAdd, setShowAdd] = useState(false)
+  const [loading, setLoading] = useState(true)
   const [newPromoter, setNewPromoter] = useState({
-    name: '', phone: '',
+    first_name: '', last_name: '', phone: '', email: '',
+    identification_number: '',
+    role: 'salesman',
+    commission_per_ticket: 10,
+    commission_per_table: 0,
+    commission_type: 'pct',
+    auto_approve_clients: false,
+    genre_tags: [],
+    seller_code: '',
+    is_active: true,
     deals: [],
   })
-  const [newDeal, setNewDeal] = useState({ type: 'pct_sales', value: 10, condition: '' })
 
-  const DEAL_TYPES = [
-    { value: 'pct_sales', label: '% מהמכירות' },
-    { value: 'fixed_per_ticket', label: '₪ קבוע לכרטיס' },
-    { value: 'fixed_per_n_tickets', label: '₪ על כל X כרטיסים' },
-    { value: 'pct_tables', label: '% ממכירת שולחנות' },
-    { value: 'combo', label: 'שילוב מסלולים' },
+  const ROLES = [
+    { value: 'manager', label: 'מנהל' },
+    { value: 'head_seller', label: 'ראש מוכרים' },
+    { value: 'salesman', label: 'יחצ"ן' },
   ]
 
+  const GENRE_TAGS = ['טכנו', 'מיינסטרים', 'היפ-הופ', 'R&B', 'ים תיכוני', 'אלקטרוני', 'כלל']
+
   useEffect(() => {
-    setPromoters(data?.promoters || [])
-  }, [data])
+    if (!businessId) return
+    fetch(`${API_BASE}/api/admin/promoters?business_id=${businessId}`, { headers: authHeaders() })
+      .then((r) => r.json())
+      .then((d) => {
+        const list = Array.isArray(d) ? d : (d.promoters || [])
+        setPromoters(list)
+        setLoading(false)
+      })
+      .catch(() => setLoading(false))
+  }, [businessId, authHeaders])
+
+  const generateCode = () => Math.random().toString(36).substring(2, 10).toUpperCase()
+
+  if (loading) return <div style={{ textAlign: 'center', padding: 20, color: 'var(--v2-gray-400)' }}>טוען...</div>
 
   return (
     <div>
       {promoters.map((p, i) => (
-        <div key={i} style={{ background: 'var(--glass)', borderRadius: 10, padding: 12, marginBottom: 8, border: '1px solid var(--glass-border)' }}>
+        <div
+          key={p.id || i}
+          style={{
+            background: 'var(--glass)', borderRadius: 10, padding: 12, marginBottom: 8,
+            border: `1px solid ${p.is_active !== false ? 'rgba(0,195,122,0.2)' : 'rgba(255,255,255,0.08)'}`,
+          }}
+        >
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <div style={{ flex: 1 }}>
-              <p style={{ margin: 0, fontWeight: 700, fontSize: 14 }}>{p.name}</p>
-              <p style={{ margin: '2px 0 0', fontSize: 12, color: 'var(--v2-gray-400)' }}>{p.phone}</p>
-              {p.deals?.map((d, di) => (
-                <span key={di} style={{ fontSize: 11, background: 'rgba(245,158,11,0.15)', color: '#F59E0B', padding: '2px 8px', borderRadius: 8, display: 'inline-block', marginTop: 4, marginLeft: 4 }}>
-                  {DEAL_TYPES.find((t) => t.value === d.type)?.label}
-                  :
-                  {' '}
-                  {d.value}
-                  {d.type.includes('pct') ? '%' : '₪'}
-                  {d.condition && ` (${d.condition})`}
-                </span>
-              ))}
+            <div style={{ width: 38, height: 38, borderRadius: '50%', background: 'rgba(0,195,122,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#00C37A', fontWeight: 700, fontSize: 15, flexShrink: 0 }}>
+              {(p.first_name || p.name || '?')[0]}
             </div>
-            <button
-              type="button"
-              onClick={() => { const u = promoters.filter((_, idx) => idx !== i); setPromoters(u); onUpdate({ promoters: u }) }}
-              style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#EF4444' }}
-            >
-              <Trash2 size={14} />
-            </button>
+            <div style={{ flex: 1 }}>
+              <p style={{ margin: 0, fontWeight: 700, fontSize: 14 }}>
+                {p.first_name && p.last_name ? `${p.first_name} ${p.last_name}` : p.name}
+                <span style={{ fontSize: 11, background: 'rgba(59,130,246,0.15)', color: '#3B82F6', padding: '1px 6px', borderRadius: 8, marginRight: 6 }}>
+                  {ROLES.find((r) => r.value === p.role)?.label || 'יחצ"ן'}
+                </span>
+              </p>
+              <p style={{ margin: '2px 0 0', fontSize: 12, color: 'var(--v2-gray-400)' }}>
+                {p.phone} · {p.email}
+              </p>
+              <div style={{ display: 'flex', gap: 6, marginTop: 4, flexWrap: 'wrap' }}>
+                {p.seller_code && (
+                  <span style={{ fontSize: 10, background: 'rgba(245,158,11,0.15)', color: '#F59E0B', padding: '1px 6px', borderRadius: 8 }}>
+                    קוד:
+                    {' '}
+                    {p.seller_code}
+                  </span>
+                )}
+                {Number(p.commission_per_ticket) > 0 && (
+                  <span style={{ fontSize: 10, background: 'rgba(0,195,122,0.1)', color: '#00C37A', padding: '1px 6px', borderRadius: 8 }}>
+                    כרטיס:
+                    {p.commission_per_ticket}
+                    %
+                  </span>
+                )}
+                {Number(p.commission_per_table) > 0 && (
+                  <span style={{ fontSize: 10, background: 'rgba(139,92,246,0.15)', color: '#8B5CF6', padding: '1px 6px', borderRadius: 8 }}>
+                    שולחן: ₪
+                    {p.commission_per_table}
+                  </span>
+                )}
+                {p.auto_approve_clients && (
+                  <span style={{ fontSize: 10, background: 'rgba(34,197,94,0.15)', color: '#22C55E', padding: '1px 6px', borderRadius: 8 }}>
+                    אישור אוטומטי
+                  </span>
+                )}
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: 4 }}>
+              <button
+                type="button"
+                onClick={() => {
+                  const url = `https://axess.pro/e/?ref=${p.seller_code || p.id}`
+                  navigator.clipboard?.writeText(url)
+                  toast.success('לינק הועתק!')
+                }}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#00C37A', fontSize: 11, padding: '4px 6px' }}
+              >
+                📋 לינק
+              </button>
+            </div>
           </div>
         </div>
       ))}
 
       {showAdd ? (
-        <div style={{ background: 'var(--glass)', borderRadius: 10, padding: 14, border: '1px solid rgba(0,195,122,0.3)' }}>
+        <div style={{ background: 'var(--glass)', borderRadius: 12, padding: 16, border: '1px solid rgba(0,195,122,0.3)' }}>
+          <p style={{ margin: '0 0 12px', fontSize: 14, fontWeight: 700 }}>יחצ&quot;ן חדש</p>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            <input value={newPromoter.name} onChange={(e) => setNewPromoter((f) => ({ ...f, name: e.target.value }))} placeholder="שם יחצ'ן *" style={{ height: 36, borderRadius: 6, border: '1px solid var(--glass-border)', background: 'var(--card)', color: 'var(--text)', padding: '0 10px', fontSize: 13 }} />
-            <input value={newPromoter.phone} onChange={(e) => setNewPromoter((f) => ({ ...f, phone: e.target.value }))} placeholder="טלפון" style={{ height: 36, borderRadius: 6, border: '1px solid var(--glass-border)', background: 'var(--card)', color: 'var(--text)', padding: '0 10px', fontSize: 13 }} />
-
-            <p style={{ margin: '4px 0', fontSize: 12, fontWeight: 700 }}>מסלולי עמלה:</p>
-            {newPromoter.deals.map((d, di) => (
-              <div key={di} style={{ display: 'flex', gap: 6, alignItems: 'center', fontSize: 12 }}>
-                <span style={{ flex: 1, color: 'var(--v2-gray-400)' }}>
-                  {DEAL_TYPES.find((t) => t.value === d.type)?.label}
-                  :
-                  {' '}
-                  {d.value}
-                  {d.type.includes('pct') ? '%' : '₪'}
-                </span>
-                <button type="button" onClick={() => setNewPromoter((f) => ({ ...f, deals: f.deals.filter((_, idx) => idx !== di) }))} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#EF4444' }}>×</button>
-              </div>
-            ))}
-
-            <div style={{ display: 'flex', gap: 6 }}>
-              <select value={newDeal.type} onChange={(e) => setNewDeal((f) => ({ ...f, type: e.target.value }))} style={{ flex: 2, height: 32, borderRadius: 6, border: '1px solid var(--glass-border)', background: 'var(--card)', color: 'var(--text)', padding: '0 6px', fontSize: 12 }}>
-                {DEAL_TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
-              </select>
-              <input value={newDeal.value} onChange={(e) => setNewDeal((f) => ({ ...f, value: parseFloat(e.target.value) || 0 }))} type="number" placeholder="ערך" style={{ flex: 1, height: 32, borderRadius: 6, border: '1px solid var(--glass-border)', background: 'var(--card)', color: 'var(--text)', padding: '0 6px', fontSize: 12 }} />
-              <input value={newDeal.condition} onChange={(e) => setNewDeal((f) => ({ ...f, condition: e.target.value }))} placeholder="תנאי (אופ.)" style={{ flex: 1, height: 32, borderRadius: 6, border: '1px solid var(--glass-border)', background: 'var(--card)', color: 'var(--text)', padding: '0 6px', fontSize: 12 }} />
-              <button type="button" onClick={() => { setNewPromoter((f) => ({ ...f, deals: [...f.deals, { ...newDeal }] })); setNewDeal({ type: 'pct_sales', value: 10, condition: '' }) }} style={{ height: 32, padding: '0 8px', borderRadius: 6, border: 'none', background: 'rgba(0,195,122,0.2)', color: '#00C37A', fontWeight: 700, cursor: 'pointer' }}>+</button>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+              <input value={newPromoter.first_name} onChange={(e) => setNewPromoter((f) => ({ ...f, first_name: e.target.value }))} placeholder="שם פרטי *" style={{ height: 36, borderRadius: 6, border: '1px solid var(--glass-border)', background: 'var(--card)', color: 'var(--text)', padding: '0 10px', fontSize: 13 }} />
+              <input value={newPromoter.last_name} onChange={(e) => setNewPromoter((f) => ({ ...f, last_name: e.target.value }))} placeholder="שם משפחה *" style={{ height: 36, borderRadius: 6, border: '1px solid var(--glass-border)', background: 'var(--card)', color: 'var(--text)', padding: '0 10px', fontSize: 13 }} />
             </div>
 
-            <div style={{ display: 'flex', gap: 8 }}>
+            <input value={newPromoter.phone} onChange={(e) => setNewPromoter((f) => ({ ...f, phone: e.target.value }))} placeholder="טלפון * (972...)" style={{ height: 36, borderRadius: 6, border: '1px solid var(--glass-border)', background: 'var(--card)', color: 'var(--text)', padding: '0 10px', fontSize: 13 }} />
+            <input value={newPromoter.email} onChange={(e) => setNewPromoter((f) => ({ ...f, email: e.target.value }))} placeholder="מייל" style={{ height: 36, borderRadius: 6, border: '1px solid var(--glass-border)', background: 'var(--card)', color: 'var(--text)', padding: '0 10px', fontSize: 13 }} />
+            <input value={newPromoter.identification_number} onChange={(e) => setNewPromoter((f) => ({ ...f, identification_number: e.target.value }))} placeholder="ת.ז (לחשבונית)" style={{ height: 36, borderRadius: 6, border: '1px solid var(--glass-border)', background: 'var(--card)', color: 'var(--text)', padding: '0 10px', fontSize: 13 }} />
+
+            <select value={newPromoter.role} onChange={(e) => setNewPromoter((f) => ({ ...f, role: e.target.value }))} style={{ height: 36, borderRadius: 6, border: '1px solid var(--glass-border)', background: 'var(--card)', color: 'var(--text)', padding: '0 8px', fontSize: 13 }}>
+              {ROLES.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
+            </select>
+
+            <div style={{ display: 'flex', gap: 6 }}>
+              <input value={newPromoter.seller_code} onChange={(e) => setNewPromoter((f) => ({ ...f, seller_code: e.target.value }))} placeholder="קוד יחצ'ן (ייווצר אוטומטי)" style={{ flex: 1, height: 36, borderRadius: 6, border: '1px solid var(--glass-border)', background: 'var(--card)', color: 'var(--text)', padding: '0 10px', fontSize: 13 }} />
+              <button type="button" onClick={() => setNewPromoter((f) => ({ ...f, seller_code: generateCode() }))} style={{ height: 36, padding: '0 10px', borderRadius: 6, border: '1px solid var(--glass-border)', background: 'var(--glass)', color: 'var(--text)', fontSize: 12, cursor: 'pointer' }}>
+                🎲 צור
+              </button>
+            </div>
+
+            <p style={{ margin: '4px 0 0', fontSize: 12, fontWeight: 700, color: 'var(--v2-gray-400)' }}>עמלות:</p>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+              <div>
+                <label style={{ fontSize: 11, color: 'var(--v2-gray-400)', display: 'block', marginBottom: 3 }}>% עמלה לכרטיס</label>
+                <input value={newPromoter.commission_per_ticket} onChange={(e) => setNewPromoter((f) => ({ ...f, commission_per_ticket: parseFloat(e.target.value) || 0 }))} type="number" placeholder="10" style={{ width: '100%', height: 36, borderRadius: 6, border: '1px solid var(--glass-border)', background: 'var(--card)', color: 'var(--text)', padding: '0 10px', fontSize: 13, boxSizing: 'border-box' }} />
+              </div>
+              <div>
+                <label style={{ fontSize: 11, color: 'var(--v2-gray-400)', display: 'block', marginBottom: 3 }}>₪ עמלה לשולחן</label>
+                <input value={newPromoter.commission_per_table} onChange={(e) => setNewPromoter((f) => ({ ...f, commission_per_table: parseFloat(e.target.value) || 0 }))} type="number" placeholder="0" style={{ width: '100%', height: 36, borderRadius: 6, border: '1px solid var(--glass-border)', background: 'var(--card)', color: 'var(--text)', padding: '0 10px', fontSize: 13, boxSizing: 'border-box' }} />
+              </div>
+            </div>
+
+            <p style={{ margin: '4px 0 0', fontSize: 12, fontWeight: 700, color: 'var(--v2-gray-400)' }}>תחומי חוזקה:</p>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+              {GENRE_TAGS.map((tag) => {
+                const isSelected = newPromoter.genre_tags.includes(tag)
+                return (
+                  <span
+                    key={tag}
+                    role="presentation"
+                    onClick={() => setNewPromoter((f) => ({
+                      ...f,
+                      genre_tags: isSelected ? f.genre_tags.filter((t) => t !== tag) : [...f.genre_tags, tag],
+                    }))}
+                    style={{
+                      fontSize: 12, padding: '3px 10px', borderRadius: 20, cursor: 'pointer',
+                      background: isSelected ? 'rgba(0,195,122,0.2)' : 'rgba(255,255,255,0.05)',
+                      border: `1px solid ${isSelected ? '#00C37A' : 'rgba(255,255,255,0.1)'}`,
+                      color: isSelected ? '#00C37A' : 'var(--v2-gray-400)',
+                    }}
+                  >
+                    {tag}
+                  </span>
+                )
+              })}
+            </div>
+
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, cursor: 'pointer' }}>
+              <input type="checkbox" checked={newPromoter.auto_approve_clients} onChange={(e) => setNewPromoter((f) => ({ ...f, auto_approve_clients: e.target.checked }))} />
+              אישור לקוחות אוטומטי (ללא אישור מפיק)
+            </label>
+
+            <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
               <button
                 type="button"
-                onClick={() => {
-                  if (!newPromoter.name) return
-                  const u = [...promoters, newPromoter]
-                  setPromoters(u)
-                  onUpdate({ promoters: u })
-                  setNewPromoter({ name: '', phone: '', deals: [] })
-                  setShowAdd(false)
+                onClick={async () => {
+                  if (!newPromoter.first_name || !newPromoter.phone) return
+                  const code = newPromoter.seller_code || generateCode()
+                  const payload = {
+                    ...newPromoter,
+                    name: `${newPromoter.first_name} ${newPromoter.last_name}`.trim(),
+                    seller_code: code,
+                    business_id: businessId,
+                  }
+                  try {
+                    const res = await fetch(`${API_BASE}/api/admin/promoters`, {
+                      method: 'POST',
+                      headers: authHeaders(),
+                      body: JSON.stringify(payload),
+                    })
+                    const d = await res.json().catch(() => ({}))
+                    if (!res.ok) {
+                      toast.error(d.error || 'שגיאה בשמירה')
+                      return
+                    }
+                    const row = d.promoter || d
+                    setPromoters((prev) => [...prev, row])
+                    setNewPromoter({
+                      first_name: '', last_name: '', phone: '', email: '', identification_number: '', role: 'salesman', commission_per_ticket: 10, commission_per_table: 0, commission_type: 'pct', auto_approve_clients: false, genre_tags: [], seller_code: '', is_active: true, deals: [],
+                    })
+                    setShowAdd(false)
+                    toast.success('יחצ"ן נוסף בהצלחה!')
+                  } catch (e) {
+                    toast.error('שגיאה בשמירה')
+                  }
                 }}
-                style={{ flex: 1, height: 36, borderRadius: 6, border: 'none', background: '#00C37A', color: '#000', fontWeight: 700, cursor: 'pointer' }}
+                style={{ flex: 1, height: 40, borderRadius: 8, border: 'none', background: '#00C37A', color: '#000', fontWeight: 700, cursor: 'pointer' }}
               >
-                הוסף יחצ'ן
+                הוסף יחצ&apos;ן
               </button>
-              <button type="button" onClick={() => setShowAdd(false)} style={{ flex: 1, height: 36, borderRadius: 6, border: '1px solid var(--glass-border)', background: 'transparent', color: 'var(--text)', cursor: 'pointer' }}>
+              <button type="button" onClick={() => setShowAdd(false)} style={{ flex: 1, height: 40, borderRadius: 8, border: '1px solid var(--glass-border)', background: 'transparent', color: 'var(--text)', cursor: 'pointer' }}>
                 ביטול
               </button>
             </div>
           </div>
         </div>
       ) : (
-        <button type="button" onClick={() => setShowAdd(true)} style={{ width: '100%', height: 38, borderRadius: 8, border: '2px dashed rgba(0,195,122,0.3)', background: 'none', color: '#00C37A', fontSize: 13, cursor: 'pointer' }}>
-          + הוסף יחצ'ן
+        <button type="button" onClick={() => setShowAdd(true)} style={{ width: '100%', height: 40, borderRadius: 8, border: '2px dashed rgba(0,195,122,0.3)', background: 'none', color: '#00C37A', fontSize: 13, cursor: 'pointer' }}>
+          + הוסף יחצ&quot;ן
         </button>
       )}
     </div>
