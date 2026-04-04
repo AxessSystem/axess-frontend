@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Users, UtensilsCrossed, LayoutGrid, Megaphone, Store, Receipt, Save, ChevronDown, ChevronUp, Trash2, Search, Plus } from 'lucide-react'
 import toast from 'react-hot-toast'
 
@@ -11,6 +11,15 @@ const TEMPLATE_TYPES = [
   { id: 'promoters', label: 'היחצ"נים שלי', desc: 'רשימת יחצ"נים קבועה', icon: 'megaphone' },
   { id: 'vendors', label: 'הספקים שלי', desc: 'ספקים חוזרים', icon: 'store' },
   { id: 'expenses', label: 'קטגוריות הוצאות', desc: 'קטגוריות הוצאות קבועות', icon: 'receipt' },
+]
+
+const PRESET_MENU_CATEGORIES = ['וויסקי', 'וודקה', 'טקילה', 'ג\'ין', 'רום', 'אניס', 'יין ושמפניה', 'קוניאק', 'ליקרים', 'נישנושים']
+
+const VENDOR_TYPES = [
+  { value: 'none', label: 'ללא' },
+  { value: 'ltd', label: 'בע"מ' },
+  { value: 'osek_murshe', label: 'עוסק מורשה' },
+  { value: 'osek_patur', label: 'עוסק פטור' },
 ]
 
 const ICONS = {
@@ -29,6 +38,20 @@ export default function TemplatesTab({ eventId, businessId, authHeaders }) {
   const [loading, setLoading] = useState(true)
   const [activeTemplate, setActiveTemplate] = useState(null)
   const [templateData, setTemplateData] = useState({})
+  const [confirmAction, setConfirmAction] = useState(null)
+
+  const requestConfirm = useCallback((message, onConfirm) => {
+    setConfirmAction({
+      message,
+      onConfirm: async () => {
+        try {
+          await onConfirm()
+        } finally {
+          setConfirmAction(null)
+        }
+      },
+    })
+  }, [])
 
   useEffect(() => {
     loadTemplates()
@@ -118,6 +141,26 @@ export default function TemplatesTab({ eventId, businessId, authHeaders }) {
 
   return (
     <div>
+      {confirmAction && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+          <div style={{ background: '#1a1d2e', borderRadius: 14, padding: 24, maxWidth: 360, width: '100%', border: '1px solid rgba(255,255,255,0.1)', textAlign: 'center' }}>
+            <p style={{ fontSize: 16, fontWeight: 700, margin: '0 0 8px' }}>אישור פעולה</p>
+            <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.7)', margin: '0 0 20px' }}>{confirmAction.message}</p>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button type="button" onClick={() => setConfirmAction(null)} style={{ flex: 1, height: 42, borderRadius: 8, border: '1px solid rgba(255,255,255,0.2)', background: 'transparent', color: '#fff', fontWeight: 600, cursor: 'pointer' }}>
+                ביטול
+              </button>
+              <button
+                type="button"
+                onClick={() => { Promise.resolve(confirmAction.onConfirm()).catch(() => {}) }}
+                style={{ flex: 1, height: 42, borderRadius: 8, border: 'none', background: '#00C37A', color: '#000', fontWeight: 700, cursor: 'pointer' }}
+              >
+                אישור
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       <div style={{ background: 'rgba(0,195,122,0.08)', borderRadius: 10, padding: 12, marginBottom: 20, border: '1px solid rgba(0,195,122,0.2)' }}>
         <p style={{ margin: 0, fontSize: 13, color: '#00C37A', fontWeight: 700 }}>⭐ התבניות שלי</p>
         <p style={{ margin: '4px 0 0', fontSize: 12, color: 'rgba(255,255,255,0.5)' }}>
@@ -171,6 +214,7 @@ export default function TemplatesTab({ eventId, businessId, authHeaders }) {
                   eventId={eventId}
                   businessId={businessId}
                   authHeaders={authHeaders}
+                  requestConfirm={requestConfirm}
                 />
               </div>
             )}
@@ -187,16 +231,16 @@ export default function TemplatesTab({ eventId, businessId, authHeaders }) {
   )
 }
 
-function TemplateContent({ type, data, onUpdate, eventId, businessId, authHeaders }) {
-  if (type === 'staff') return <StaffTemplate data={data} onUpdate={onUpdate} eventId={eventId} businessId={businessId} authHeaders={authHeaders} />
-  if (type === 'menu') return <MenuTemplate data={data} onUpdate={onUpdate} eventId={eventId} businessId={businessId} authHeaders={authHeaders} />
+function TemplateContent({ type, data, onUpdate, eventId, businessId, authHeaders, requestConfirm }) {
+  if (type === 'staff') return <StaffTemplate data={data} onUpdate={onUpdate} eventId={eventId} businessId={businessId} authHeaders={authHeaders} requestConfirm={requestConfirm} />
+  if (type === 'menu') return <MenuTemplate data={data} onUpdate={onUpdate} eventId={eventId} businessId={businessId} authHeaders={authHeaders} requestConfirm={requestConfirm} />
   if (type === 'tables') return <TablesTemplate data={data} onUpdate={onUpdate} />
-  if (type === 'promoters') return <PromotersTemplate data={data} onUpdate={onUpdate} />
-  if (type === 'expenses' || type === 'vendors') return <ExpensesTemplate data={data} onUpdate={onUpdate} eventId={eventId} businessId={businessId} authHeaders={authHeaders} />
+  if (type === 'promoters') return <PromotersTemplate key="promoters" data={data} onUpdate={onUpdate} />
+  if (type === 'expenses' || type === 'vendors') return <ExpensesTemplate data={data} onUpdate={onUpdate} eventId={eventId} businessId={businessId} authHeaders={authHeaders} requestConfirm={requestConfirm} />
   return null
 }
 
-function StaffTemplate({ data, onUpdate, eventId, businessId: _businessId, authHeaders }) {
+function StaffTemplate({ data, onUpdate, eventId, businessId: _businessId, authHeaders, requestConfirm }) {
   const [staff, setStaff] = useState(data?.staff || [])
   const [showAdd, setShowAdd] = useState(false)
   const [newMember, setNewMember] = useState({
@@ -236,7 +280,7 @@ function StaffTemplate({ data, onUpdate, eventId, businessId: _businessId, authH
             <div style={{ flex: 1 }}>
               <p style={{ margin: 0, fontWeight: 700, fontSize: 14 }}>{member.name}</p>
               <p style={{ margin: '2px 0 0', fontSize: 12, color: 'var(--v2-gray-400)' }}>
-                {member.role} · {member.phone}
+                {Array.isArray(member.roles) ? member.roles.join(' + ') : member.role} · {member.phone}
                 {member.scan_station && ` · עמדה: ${member.scan_station}`}
               </p>
             </div>
@@ -244,7 +288,23 @@ function StaffTemplate({ data, onUpdate, eventId, businessId: _businessId, authH
               {member.is_permanent && <span style={{ fontSize: 10, background: 'rgba(59,130,246,0.2)', color: '#3B82F6', padding: '2px 6px', borderRadius: 8 }}>קבוע</span>}
               {member.on_shift && <span style={{ fontSize: 10, background: 'rgba(0,195,122,0.2)', color: '#00C37A', padding: '2px 6px', borderRadius: 8 }}>במשמרת</span>}
             </div>
-            <div style={{ display: 'flex', gap: 4 }}>
+            <div style={{ display: 'flex', gap: 4, alignItems: 'center', flexWrap: 'wrap' }}>
+              <button
+                type="button"
+                onClick={() => {
+                  const role = window.prompt('הוסף תפקיד לאירוע זה:')
+                  if (!role) return
+                  const updated = staff.map((s, idx) => (idx === i ? {
+                    ...s,
+                    roles: [...(Array.isArray(s.roles) ? s.roles : [s.role].filter(Boolean)), role],
+                  } : s))
+                  setStaff(updated)
+                  onUpdate({ staff: updated })
+                }}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#3B82F6', fontSize: 11 }}
+              >
+                + תפקיד
+              </button>
               <button
                 type="button"
                 onClick={() => {
@@ -347,16 +407,21 @@ function StaffTemplate({ data, onUpdate, eventId, businessId: _businessId, authH
 
       <button
         type="button"
-        onClick={async () => {
-          if (!window.confirm('לייבא צוות מהתבנית לאירוע זה?')) return
-          for (const member of staff.filter((s) => s.on_shift)) {
-            await fetch(`${API_BASE}/api/admin/events/${eventId}/table-staff`, {
-              method: 'POST',
-              headers: authHeaders(),
-              body: JSON.stringify({ name: member.name, phone: member.phone, role: member.role, wa_notifications: true }),
-            }).catch(() => {})
-          }
-          toast.success(`${staff.filter((s) => s.on_shift).length} אנשי צוות יובאו לאירוע!`)
+        onClick={() => {
+          requestConfirm('לייבא צוות מהתבנית לאירוע זה?', async () => {
+            const shiftStaff = staff.filter((s) => s.on_shift)
+            for (const member of shiftStaff) {
+              const roleStr = Array.isArray(member.roles) && member.roles.length
+                ? member.roles.join(' + ')
+                : member.role
+              await fetch(`${API_BASE}/api/admin/events/${eventId}/table-staff`, {
+                method: 'POST',
+                headers: authHeaders(),
+                body: JSON.stringify({ name: member.name, phone: member.phone, role: roleStr, wa_notifications: true }),
+              }).catch(() => {})
+            }
+            toast.success(`${shiftStaff.length} אנשי צוות יובאו לאירוע!`)
+          })
         }}
         style={{ width: '100%', height: 42, borderRadius: 8, border: 'none', background: 'rgba(59,130,246,0.15)', color: '#3B82F6', fontWeight: 700, fontSize: 14, cursor: 'pointer', marginTop: 12 }}
       >
@@ -366,15 +431,17 @@ function StaffTemplate({ data, onUpdate, eventId, businessId: _businessId, authH
   )
 }
 
-function MenuTemplate({ data, onUpdate, eventId, businessId, authHeaders }) {
+function MenuTemplate({ data, onUpdate, eventId, businessId, authHeaders, requestConfirm }) {
   const [menu, setMenu] = useState(data?.menu || [])
   const [search, setSearch] = useState('')
   const [editingItem, setEditingItem] = useState(null)
   const [showAdd, setShowAdd] = useState(false)
-  const [newItem, setNewItem] = useState({ name: '', category: '', price: '', unit: 'bottle', free_entries: 3, free_extras: 5, included_extras: [] })
+  const [newItem, setNewItem] = useState({
+    name: '', category: '', price: '', description: '', unit: 'bottle', free_entries: 3, free_extras: 5, included_extras: [],
+  })
   const [customCategories, setCustomCategories] = useState([])
 
-  const categories = [...new Set(menu.map((m) => m.category).filter(Boolean)), ...customCategories]
+  const categoryOptions = [...PRESET_MENU_CATEGORIES, ...new Set(menu.map((m) => m.category).filter(Boolean)), ...customCategories]
   const filtered = menu.filter((m) => !search
     || (m.name || '').toLowerCase().includes(search.toLowerCase())
     || (m.category || '').toLowerCase().includes(search.toLowerCase()))
@@ -386,6 +453,32 @@ function MenuTemplate({ data, onUpdate, eventId, businessId, authHeaders }) {
     setMenu(data?.menu || [])
   }, [data])
 
+  useEffect(() => {
+    if (!businessId || !eventId) return
+    if ((data?.menu || []).length > 0) return
+    let cancelled = false
+    const hdrs = authHeaders()
+    fetch(`${API_BASE}/api/admin/events/${eventId}/table-menu`, { headers: hdrs })
+      .then((r) => r.json())
+      .then((d) => {
+        if (cancelled) return
+        if (d.menu?.length > 0) {
+          setMenu(d.menu)
+          onUpdate({ menu: d.menu })
+        }
+      })
+      .catch(() => {
+        fetch(`${API_BASE}/api/admin/events/00000000-0000-0000-0000-000000000000/table-menu`, { headers: hdrs })
+          .then((r) => r.json())
+          .then((d) => {
+            if (cancelled || !d.menu?.length) return
+            setMenu((prev) => (prev.length > 0 ? prev : d.menu))
+          })
+          .catch(() => {})
+      })
+    return () => { cancelled = true }
+  }, [eventId, businessId, data?.menu])
+
   return (
     <div>
       <div style={{ position: 'relative', marginBottom: 12 }}>
@@ -395,23 +488,43 @@ function MenuTemplate({ data, onUpdate, eventId, businessId, authHeaders }) {
 
       <div style={{ maxHeight: 400, overflowY: 'auto', scrollbarWidth: 'thin', scrollbarColor: 'rgba(0,195,122,0.3) transparent' }}>
         {Object.entries(byCategory).map(([cat, items]) => (
-          <div key={cat} style={{ marginBottom: 12 }}>
-            <p style={{ margin: '0 0 6px', fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: 1 }}>
+          <div key={cat} style={{ marginBottom: 16 }}>
+            <p style={{
+              margin: '0 0 8px', fontSize: 11, fontWeight: 700,
+              color: 'rgba(255,255,255,0.4)',
+              textTransform: 'uppercase', letterSpacing: 1,
+              borderBottom: '1px solid rgba(255,255,255,0.06)',
+              paddingBottom: 6,
+            }}
+            >
               {cat}
               {' '}
               (
               {items.length}
               )
             </p>
+
             {items.map((item, i) => (
-              <div key={item.id || `${cat}_${i}`} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', borderRadius: 8, marginBottom: 4, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
+              <div
+                key={item.id || `${cat}_${i}`}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 10,
+                  padding: '10px 12px', borderRadius: 10, marginBottom: 6,
+                  border: '1px solid rgba(255,255,255,0.08)',
+                  background: 'rgba(255,255,255,0.03)',
+                }}
+              >
                 <div style={{ flex: 1 }}>
-                  <p style={{ margin: 0, fontSize: 13, fontWeight: 600 }}>{item.name}</p>
-                  <p style={{ margin: '2px 0 0', fontSize: 11, color: 'var(--v2-gray-400)' }}>
-                    {item.free_entries > 0 && `${item.free_entries} כניסות חינם`}
-                    {item.included_extras?.length > 0 && ` · ${item.included_extras.length} תוספות`}
+                  <p style={{ margin: 0, fontSize: 14, fontWeight: 600 }}>{item.name}</p>
+                  {item.description && (
+                    <p style={{ margin: '2px 0 0', fontSize: 11, color: 'rgba(255,255,255,0.4)' }}>{item.description}</p>
+                  )}
+                  <p style={{ margin: '3px 0 0', fontSize: 11, color: 'rgba(0,195,122,0.7)' }}>
+                    {item.free_entries > 0 ? `${item.free_entries} כניסות חינם` : 'ללא כניסות חינם'}
+                    {item.included_extras?.length > 0 && ` · ${item.included_extras.length} תוספות כלולות`}
                   </p>
                 </div>
+
                 {editingItem === `${cat}_${i}` ? (
                   <input
                     defaultValue={item.price}
@@ -423,14 +536,15 @@ function MenuTemplate({ data, onUpdate, eventId, businessId, authHeaders }) {
                       setEditingItem(null)
                     }}
                     onKeyDown={(e) => e.key === 'Enter' && e.target.blur()}
-                    style={{ width: 70, height: 28, borderRadius: 4, border: '1px solid #00C37A', background: 'var(--glass)', color: 'var(--text)', padding: '0 6px', fontSize: 13, textAlign: 'center' }}
+                    style={{ width: 80, height: 32, borderRadius: 6, border: '1px solid #00C37A', background: 'var(--glass)', color: '#00C37A', padding: '0 8px', fontSize: 14, textAlign: 'center', fontWeight: 700 }}
                   />
                 ) : (
-                  <span onClick={() => setEditingItem(`${cat}_${i}`)} style={{ fontSize: 14, fontWeight: 700, color: '#00C37A', cursor: 'text', minWidth: 60, textAlign: 'left' }}>
+                  <span onClick={() => setEditingItem(`${cat}_${i}`)} style={{ fontSize: 16, fontWeight: 800, color: '#00C37A', cursor: 'text', minWidth: 70, textAlign: 'left' }}>
                     ₪
-                    {item.price}
+                    {(Number(item.price) || 0).toLocaleString()}
                   </span>
                 )}
+
                 <button
                   type="button"
                   onClick={() => {
@@ -438,9 +552,9 @@ function MenuTemplate({ data, onUpdate, eventId, businessId, authHeaders }) {
                     setMenu(updated)
                     onUpdate({ menu: updated })
                   }}
-                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#EF4444' }}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#EF4444', padding: 4 }}
                 >
-                  <Trash2 size={12} />
+                  <Trash2 size={14} />
                 </button>
               </div>
             ))}
@@ -450,24 +564,57 @@ function MenuTemplate({ data, onUpdate, eventId, businessId, authHeaders }) {
 
       {showAdd ? (
         <div style={{ background: 'var(--glass)', borderRadius: 10, padding: 14, marginTop: 10, border: '1px solid rgba(0,195,122,0.3)' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-            <input value={newItem.name} onChange={(e) => setNewItem((f) => ({ ...f, name: e.target.value }))} placeholder="שם המוצר *" style={{ height: 36, borderRadius: 6, border: '1px solid var(--glass-border)', background: 'var(--card)', color: 'var(--text)', padding: '0 8px', fontSize: 13 }} />
-            <select
-              value={newItem.category}
-              onChange={(e) => {
-                if (e.target.value === '__new__') {
-                  const c = window.prompt('שם קטגוריה חדשה:')
-                  if (c) { setCustomCategories((p) => [...p, c]); setNewItem((f) => ({ ...f, category: c })) }
-                } else setNewItem((f) => ({ ...f, category: e.target.value }))
-              }}
-              style={{ height: 36, borderRadius: 6, border: '1px solid var(--glass-border)', background: 'var(--card)', color: 'var(--text)', padding: '0 8px', fontSize: 13 }}
-            >
-              <option value="">בחר קטגוריה</option>
-              {categories.map((c) => <option key={c} value={c}>{c}</option>)}
-              <option value="__new__">+ קטגוריה חדשה</option>
-            </select>
-            <input value={newItem.price} onChange={(e) => setNewItem((f) => ({ ...f, price: e.target.value }))} placeholder="מחיר ₪ *" type="number" style={{ height: 36, borderRadius: 6, border: '1px solid var(--glass-border)', background: 'var(--card)', color: 'var(--text)', padding: '0 8px', fontSize: 13 }} />
-            <input value={newItem.free_entries} onChange={(e) => setNewItem((f) => ({ ...f, free_entries: parseInt(e.target.value, 10) || 0 }))} placeholder="כניסות חינם" type="number" style={{ height: 36, borderRadius: 6, border: '1px solid var(--glass-border)', background: 'var(--card)', color: 'var(--text)', padding: '0 8px', fontSize: 13 }} />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <div>
+              <label style={{ fontSize: 11, color: 'var(--v2-gray-400)', display: 'block', marginBottom: 3 }}>שם המוצר *</label>
+              <input value={newItem.name} onChange={(e) => setNewItem((f) => ({ ...f, name: e.target.value }))} placeholder="למשל: יימסון, בלאק לייבל..." style={{ width: '100%', height: 36, borderRadius: 6, border: '1px solid var(--glass-border)', background: 'var(--card)', color: 'var(--text)', padding: '0 10px', fontSize: 13, boxSizing: 'border-box' }} />
+            </div>
+            <div>
+              <label style={{ fontSize: 11, color: 'var(--v2-gray-400)', display: 'block', marginBottom: 3 }}>קטגוריה *</label>
+              <select
+                value={newItem.category}
+                onChange={(e) => {
+                  if (e.target.value === '__new__') {
+                    const c = window.prompt('שם קטגוריה חדשה:')
+                    if (c) { setCustomCategories((p) => [...p, c]); setNewItem((f) => ({ ...f, category: c })) }
+                  } else setNewItem((f) => ({ ...f, category: e.target.value }))
+                }}
+                style={{ width: '100%', height: 36, borderRadius: 6, border: '1px solid var(--glass-border)', background: 'var(--card)', color: 'var(--text)', padding: '0 8px', fontSize: 13 }}
+              >
+                <option value="">בחר קטגוריה</option>
+                {categoryOptions.filter((c, idx, arr) => arr.indexOf(c) === idx).map((c) => <option key={c} value={c}>{c}</option>)}
+                <option value="__new__">+ קטגוריה חדשה</option>
+              </select>
+            </div>
+            <div>
+              <label style={{ fontSize: 11, color: 'var(--v2-gray-400)', display: 'block', marginBottom: 3 }}>מחיר בש&quot;ח לליטר/בקבוק *</label>
+              <input value={newItem.price} onChange={(e) => setNewItem((f) => ({ ...f, price: e.target.value }))} placeholder="₪0" type="number" style={{ width: '100%', height: 36, borderRadius: 6, border: '1px solid var(--glass-border)', background: 'var(--card)', color: 'var(--text)', padding: '0 10px', fontSize: 13, boxSizing: 'border-box' }} />
+            </div>
+            <div>
+              <label style={{ fontSize: 11, color: 'var(--v2-gray-400)', display: 'block', marginBottom: 3 }}>תיאור (אופציונלי)</label>
+              <input value={newItem.description || ''} onChange={(e) => setNewItem((f) => ({ ...f, description: e.target.value }))} placeholder="פרטים נוספים על המוצר..." style={{ width: '100%', height: 36, borderRadius: 6, border: '1px solid var(--glass-border)', background: 'var(--card)', color: 'var(--text)', padding: '0 10px', fontSize: 13, boxSizing: 'border-box' }} />
+            </div>
+            <div>
+              <label style={{ fontSize: 11, color: 'var(--v2-gray-400)', display: 'block', marginBottom: 3 }}>כניסות חינם לליטר/בקבוק</label>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                <input
+                  value={newItem.free_entries}
+                  onChange={(e) => setNewItem((f) => ({ ...f, free_entries: parseInt(e.target.value, 10) || 0 }))}
+                  type="number"
+                  min="0"
+                  max="10"
+                  style={{ width: 80, height: 36, borderRadius: 6, border: '1px solid var(--glass-border)', background: 'var(--card)', color: 'var(--text)', padding: '0 8px', fontSize: 13 }}
+                />
+                <label style={{ fontSize: 12, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <input
+                    type="checkbox"
+                    checked={newItem.free_entries === 0}
+                    onChange={(e) => setNewItem((f) => ({ ...f, free_entries: e.target.checked ? 0 : 3 }))}
+                  />
+                  ללא כניסות חינם
+                </label>
+              </div>
+            </div>
           </div>
 
           <p style={{ margin: '10px 0 6px', fontSize: 12, fontWeight: 600 }}>תוספות כלולות:</p>
@@ -477,6 +624,7 @@ function MenuTemplate({ data, onUpdate, eventId, businessId, authHeaders }) {
               return (
                 <span
                   key={extra}
+                  role="presentation"
                   onClick={() => setNewItem((f) => ({
                     ...f,
                     included_extras: isSelected ? f.included_extras.filter((e) => e !== extra) : [...f.included_extras, extra],
@@ -502,7 +650,9 @@ function MenuTemplate({ data, onUpdate, eventId, businessId, authHeaders }) {
                 const updated = [...menu, { ...newItem, price: parseFloat(newItem.price) }]
                 setMenu(updated)
                 onUpdate({ menu: updated })
-                setNewItem({ name: '', category: '', price: '', unit: 'bottle', free_entries: 3, free_extras: 5, included_extras: [] })
+                setNewItem({
+                  name: '', category: '', price: '', description: '', unit: 'bottle', free_entries: 3, free_extras: 5, included_extras: [],
+                })
                 setShowAdd(false)
               }}
               style={{ flex: 1, height: 36, borderRadius: 6, border: 'none', background: '#00C37A', color: '#000', fontWeight: 700, cursor: 'pointer' }}
@@ -523,21 +673,22 @@ function MenuTemplate({ data, onUpdate, eventId, businessId, authHeaders }) {
       <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
         <button
           type="button"
-          onClick={async () => {
-            if (!window.confirm('לייבא תפריט מהתבנית לאירוע זה?')) return
-            for (const item of menu) {
-              const { id: _id, ...rest } = item
-              await fetch(`${API_BASE}/api/admin/events/${eventId}/table-menu`, {
-                method: 'POST',
-                headers: authHeaders(),
-                body: JSON.stringify({
-                  name: rest.name,
-                  category: rest.category,
-                  price: rest.price,
-                }),
-              }).catch(() => {})
-            }
-            toast.success(`${menu.length} פריטים יובאו לתפריט האירוע!`)
+          onClick={() => {
+            requestConfirm('לייבא תפריט מהתבנית לאירוע זה?', async () => {
+              for (const item of menu) {
+                const { id: _id, ...rest } = item
+                await fetch(`${API_BASE}/api/admin/events/${eventId}/table-menu`, {
+                  method: 'POST',
+                  headers: authHeaders(),
+                  body: JSON.stringify({
+                    name: rest.name,
+                    category: rest.category,
+                    price: rest.price,
+                  }),
+                }).catch(() => {})
+              }
+              toast.success(`${menu.length} פריטים יובאו לתפריט האירוע!`)
+            })
           }}
           style={{ flex: 1, height: 40, borderRadius: 8, border: 'none', background: 'rgba(59,130,246,0.15)', color: '#3B82F6', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}
         >
@@ -751,11 +902,24 @@ function PromotersTemplate({ data, onUpdate }) {
   )
 }
 
-function ExpensesTemplate({ data, onUpdate, eventId, businessId: _businessId, authHeaders }) {
-  const [categories, setCategories] = useState(data?.categories || ['אמנים', 'ציוד', 'שמע ותאורה', 'אבטחה', 'שיווק', 'מקום', 'כיבוד', 'אחר'])
+function ExpensesTemplate({ data, onUpdate, eventId, businessId: _businessId, authHeaders, requestConfirm }) {
+  const [categories, setCategories] = useState(
+    data?.categories || ['אמנים', 'ציוד', 'שמע ותאורה', 'אבטחה', 'שיווק', 'מקום', 'כיבוד', 'אחר'],
+  )
   const [vendors, setVendors] = useState(data?.vendors || [])
   const [newCat, setNewCat] = useState('')
-  const [newVendor, setNewVendor] = useState({ vendor_name: '', category: '', contact: '', phone: '' })
+  const [newVendor, setNewVendor] = useState({
+    vendor_name: '',
+    category: '',
+    vendor_type: 'none',
+    contact_name: '',
+    contact_phone: '',
+    contact_email: '',
+    address: '',
+    default_price: '',
+    items: [],
+  })
+  const [newVendorItem, setNewVendorItem] = useState({ name: '', price: '' })
   const [showAddVendor, setShowAddVendor] = useState(false)
 
   useEffect(() => {
@@ -793,7 +957,9 @@ function ExpensesTemplate({ data, onUpdate, eventId, businessId: _businessId, au
           <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 0', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
             <div style={{ flex: 1 }}>
               <p style={{ margin: 0, fontSize: 13, fontWeight: 600 }}>{v.vendor_name}</p>
-              <p style={{ margin: 0, fontSize: 11, color: 'var(--v2-gray-400)' }}>{v.category} · {v.phone}</p>
+              <p style={{ margin: 0, fontSize: 11, color: 'var(--v2-gray-400)' }}>
+                {v.category} · {v.contact_phone || v.phone}
+              </p>
             </div>
             <button
               type="button"
@@ -821,31 +987,88 @@ function ExpensesTemplate({ data, onUpdate, eventId, businessId: _businessId, au
         ))}
 
         {showAddVendor && (
-          <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 6 }}>
-            <input value={newVendor.vendor_name} onChange={(e) => setNewVendor((f) => ({ ...f, vendor_name: e.target.value }))} placeholder="שם ספק *" style={{ height: 32, borderRadius: 6, border: '1px solid var(--glass-border)', background: 'var(--card)', color: 'var(--text)', padding: '0 8px', fontSize: 12 }} />
-            <div style={{ display: 'flex', gap: 6 }}>
-              <select value={newVendor.category} onChange={(e) => setNewVendor((f) => ({ ...f, category: e.target.value }))} style={{ flex: 1, height: 32, borderRadius: 6, border: '1px solid var(--glass-border)', background: 'var(--card)', color: 'var(--text)', padding: '0 6px', fontSize: 12 }}>
-                <option value="">קטגוריה</option>
-                {categories.map((c) => <option key={c} value={c}>{c}</option>)}
+          <div style={{ background: 'var(--card)', borderRadius: 10, padding: 14, marginTop: 10, border: '1px solid rgba(0,195,122,0.3)' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <input value={newVendor.vendor_name} onChange={(e) => setNewVendor((f) => ({ ...f, vendor_name: e.target.value }))} placeholder="שם ספק *" style={{ height: 36, borderRadius: 6, border: '1px solid var(--glass-border)', background: 'var(--glass)', color: 'var(--text)', padding: '0 10px', fontSize: 13 }} />
+
+              <select value={newVendor.vendor_type} onChange={(e) => setNewVendor((f) => ({ ...f, vendor_type: e.target.value }))} style={{ height: 36, borderRadius: 6, border: '1px solid var(--glass-border)', background: 'var(--glass)', color: 'var(--text)', padding: '0 8px', fontSize: 13 }}>
+                {VENDOR_TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
               </select>
-              <input value={newVendor.phone} onChange={(e) => setNewVendor((f) => ({ ...f, phone: e.target.value }))} placeholder="נייד" style={{ flex: 1, height: 32, borderRadius: 6, border: '1px solid var(--glass-border)', background: 'var(--card)', color: 'var(--text)', padding: '0 6px', fontSize: 12 }} />
-            </div>
-            <div style={{ display: 'flex', gap: 6 }}>
-              <button
-                type="button"
-                onClick={() => {
-                  if (!newVendor.vendor_name) return
-                  const u = [...vendors, newVendor]
-                  setVendors(u)
-                  onUpdate({ ...data, vendors: u })
-                  setNewVendor({ vendor_name: '', category: '', contact: '', phone: '' })
-                  setShowAddVendor(false)
+
+              <select
+                value={newVendor.category}
+                onChange={(e) => {
+                  if (e.target.value === '__new__') {
+                    const c = window.prompt('קטגוריה חדשה:')
+                    if (c) { setCategories((p) => [...p, c]); setNewVendor((f) => ({ ...f, category: c })) }
+                  } else setNewVendor((f) => ({ ...f, category: e.target.value }))
                 }}
-                style={{ flex: 1, height: 32, borderRadius: 6, border: 'none', background: '#00C37A', color: '#000', fontWeight: 700, cursor: 'pointer' }}
+                style={{ height: 36, borderRadius: 6, border: '1px solid var(--glass-border)', background: 'var(--glass)', color: 'var(--text)', padding: '0 8px', fontSize: 13 }}
               >
-                שמור
-              </button>
-              <button type="button" onClick={() => setShowAddVendor(false)} style={{ flex: 1, height: 32, borderRadius: 6, border: '1px solid var(--glass-border)', background: 'transparent', color: 'var(--text)', cursor: 'pointer' }}>ביטול</button>
+                <option value="">בחר קטגוריה</option>
+                {categories.map((c) => <option key={c} value={c}>{c}</option>)}
+                <option value="__new__">+ קטגוריה חדשה</option>
+              </select>
+
+              <input value={newVendor.contact_name} onChange={(e) => setNewVendor((f) => ({ ...f, contact_name: e.target.value }))} placeholder="איש קשר" style={{ height: 36, borderRadius: 6, border: '1px solid var(--glass-border)', background: 'var(--glass)', color: 'var(--text)', padding: '0 10px', fontSize: 13 }} />
+
+              <input value={newVendor.contact_phone} onChange={(e) => setNewVendor((f) => ({ ...f, contact_phone: e.target.value }))} placeholder="טלפון" style={{ height: 36, borderRadius: 6, border: '1px solid var(--glass-border)', background: 'var(--glass)', color: 'var(--text)', padding: '0 10px', fontSize: 13 }} />
+
+              <input value={newVendor.contact_email} onChange={(e) => setNewVendor((f) => ({ ...f, contact_email: e.target.value }))} placeholder="מייל (אופציונלי)" style={{ height: 36, borderRadius: 6, border: '1px solid var(--glass-border)', background: 'var(--glass)', color: 'var(--text)', padding: '0 10px', fontSize: 13 }} />
+
+              <input value={newVendor.address || ''} onChange={(e) => setNewVendor((f) => ({ ...f, address: e.target.value }))} placeholder="כתובת (אופציונלי)" style={{ height: 36, borderRadius: 6, border: '1px solid var(--glass-border)', background: 'var(--glass)', color: 'var(--text)', padding: '0 10px', fontSize: 13 }} />
+
+              <input value={newVendor.default_price} onChange={(e) => setNewVendor((f) => ({ ...f, default_price: e.target.value }))} placeholder="מחיר משוער ₪ (אופציונלי)" type="number" style={{ height: 36, borderRadius: 6, border: '1px solid var(--glass-border)', background: 'var(--glass)', color: 'var(--text)', padding: '0 10px', fontSize: 13 }} />
+
+              <p style={{ margin: '4px 0', fontSize: 12, fontWeight: 700 }}>פריטים/שירותים:</p>
+              {newVendor.items.map((item, j) => (
+                <div key={j} style={{ display: 'flex', gap: 6, alignItems: 'center', fontSize: 12 }}>
+                  <span style={{ flex: 1 }}>{item.name} — ₪{item.price}</span>
+                  <button type="button" onClick={() => setNewVendor((f) => ({ ...f, items: f.items.filter((_, idx) => idx !== j) }))} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#EF4444' }}>×</button>
+                </div>
+              ))}
+              <div style={{ display: 'flex', gap: 6 }}>
+                <input value={newVendorItem.name} onChange={(e) => setNewVendorItem((f) => ({ ...f, name: e.target.value }))} placeholder="שם פריט/שירות" style={{ flex: 2, height: 30, borderRadius: 6, border: '1px solid var(--glass-border)', background: 'var(--glass)', color: 'var(--text)', padding: '0 6px', fontSize: 12 }} />
+                <input value={newVendorItem.price} onChange={(e) => setNewVendorItem((f) => ({ ...f, price: e.target.value }))} placeholder="₪" type="number" style={{ flex: 1, height: 30, borderRadius: 6, border: '1px solid var(--glass-border)', background: 'var(--glass)', color: 'var(--text)', padding: '0 6px', fontSize: 12 }} />
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!newVendorItem.name) return
+                    setNewVendor((f) => ({ ...f, items: [...f.items, { ...newVendorItem, price: newVendorItem.price || 0 }] }))
+                    setNewVendorItem({ name: '', price: '' })
+                  }}
+                  style={{ height: 30, padding: '0 8px', borderRadius: 6, border: 'none', background: 'rgba(0,195,122,0.2)', color: '#00C37A', fontWeight: 700, cursor: 'pointer' }}
+                >
+                  +
+                </button>
+              </div>
+
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!newVendor.vendor_name) return
+                    const row = {
+                      ...newVendor,
+                      phone: newVendor.contact_phone,
+                      items: newVendor.items.map((it) => ({ name: it.name, price: parseFloat(it.price) || 0 })),
+                    }
+                    const u = [...vendors, row]
+                    setVendors(u)
+                    onUpdate({ ...data, vendors: u })
+                    setNewVendor({
+                      vendor_name: '', category: '', vendor_type: 'none', contact_name: '', contact_phone: '', contact_email: '', address: '', default_price: '', items: [],
+                    })
+                    setShowAddVendor(false)
+                  }}
+                  style={{ flex: 1, height: 36, borderRadius: 6, border: 'none', background: '#00C37A', color: '#000', fontWeight: 700, cursor: 'pointer' }}
+                >
+                  שמור ספק
+                </button>
+                <button type="button" onClick={() => setShowAddVendor(false)} style={{ flex: 1, height: 36, borderRadius: 6, border: '1px solid var(--glass-border)', background: 'transparent', color: 'var(--text)', cursor: 'pointer' }}>
+                  ביטול
+                </button>
+              </div>
             </div>
           </div>
         )}
@@ -853,9 +1076,10 @@ function ExpensesTemplate({ data, onUpdate, eventId, businessId: _businessId, au
 
       <button
         type="button"
-        onClick={async () => {
-          if (!window.confirm('לייבא קטגוריות הוצאות לאירוע זה?')) return
-          toast.success('קטגוריות יובאו!')
+        onClick={() => {
+          requestConfirm('לייבא קטגוריות הוצאות לאירוע זה?', async () => {
+            toast.success('קטגוריות יובאו!')
+          })
         }}
         style={{ width: '100%', height: 40, borderRadius: 8, border: 'none', background: 'rgba(59,130,246,0.15)', color: '#3B82F6', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}
       >
