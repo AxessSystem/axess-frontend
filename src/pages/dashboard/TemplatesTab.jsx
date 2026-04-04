@@ -281,6 +281,8 @@ function StaffTemplate({ data, onUpdate, eventId, businessId, authHeaders, reque
 
   const [allEvents, setAllEvents] = useState([])
   const [sourceEventId, setSourceEventId] = useState(eventId)
+  const [showEventPicker, setShowEventPicker] = useState(false)
+  const selectedEvent = allEvents.find((ev) => ev.id === sourceEventId)
 
   const ROLES = [
     'בעלים', 'מנהל ערב', 'מנהל שולחנות', 'מנהל בר',
@@ -313,23 +315,57 @@ function StaffTemplate({ data, onUpdate, eventId, businessId, authHeaders, reque
 
   return (
     <div>
-      <div style={{ marginBottom: 12 }}>
+      <div style={{ position: 'relative', marginBottom: 12 }}>
         <label style={{ fontSize: 12, color: 'var(--v2-gray-400)', display: 'block', marginBottom: 4 }}>
           טען צוות מאירוע:
         </label>
-        <select
-          value={sourceEventId}
-          onChange={(e) => setSourceEventId(e.target.value)}
-          style={{ width: '100%', height: 38, borderRadius: 8, border: '1px solid var(--glass-border)', background: 'var(--glass)', color: 'var(--text)', padding: '0 10px', fontSize: 13 }}
+
+        <div
+          onClick={() => setShowEventPicker((p) => !p)}
+          style={{
+            height: 40, borderRadius: 8, border: '1px solid var(--glass-border)',
+            background: 'var(--glass)', color: 'var(--text)',
+            padding: '0 12px', fontSize: 13, cursor: 'pointer',
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          }}
         >
-          {allEvents.map((ev) => (
-            <option key={ev.id} value={ev.id}>
-              {ev.title}
-              {' '}
-              {ev.id === eventId ? '(נוכחי)' : ''}
-            </option>
-          ))}
-        </select>
+          <span>{selectedEvent?.title || 'בחר אירוע...'}</span>
+          <ChevronDown size={16} color="var(--v2-gray-400)" style={{ transform: showEventPicker ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }} />
+        </div>
+
+        {showEventPicker && (
+          <div style={{
+            position: 'absolute', top: '100%', right: 0, left: 0, zIndex: 100,
+            background: '#1a1d2e', border: '1px solid rgba(255,255,255,0.12)',
+            borderRadius: 10, marginTop: 4, maxHeight: 240, overflowY: 'auto',
+            boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
+            scrollbarWidth: 'thin', scrollbarColor: 'rgba(0,195,122,0.3) transparent',
+          }}
+          >
+            {allEvents.map((ev) => (
+              <div
+                key={ev.id}
+                onClick={() => { setSourceEventId(ev.id); setShowEventPicker(false) }}
+                style={{
+                  padding: '10px 14px', cursor: 'pointer', fontSize: 13,
+                  background: ev.id === sourceEventId ? 'rgba(0,195,122,0.1)' : 'transparent',
+                  color: ev.id === sourceEventId ? '#00C37A' : 'var(--text)',
+                  borderBottom: '1px solid rgba(255,255,255,0.05)',
+                  display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.05)' }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = ev.id === sourceEventId ? 'rgba(0,195,122,0.1)' : 'transparent' }}
+              >
+                <span>{ev.title}</span>
+                {ev.id === eventId && (
+                  <span style={{ fontSize: 10, color: '#00C37A', background: 'rgba(0,195,122,0.1)', padding: '1px 6px', borderRadius: 8 }}>
+                    נוכחי
+                  </span>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
       </div>
       {staff.map((member, i) => (
         <div
