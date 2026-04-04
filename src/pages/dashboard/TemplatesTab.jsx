@@ -291,16 +291,18 @@ function StaffTemplate({ data, onUpdate, eventId, businessId, authHeaders, reque
   }, [data])
 
   useEffect(() => {
+    console.log('[staff] eventId:', eventId, 'authHeaders:', !!authHeaders)
     if (!eventId || !authHeaders) return
     fetch(`${API_BASE}/api/admin/events/${eventId}/table-staff`, { headers: authHeaders() })
       .then((r) => r.json())
       .then((d) => {
+        console.log('[staff] result:', d)
         const dbStaff = d.staff || []
         if (dbStaff.length > 0 && staff.length === 0) {
           setStaff(dbStaff)
         }
       })
-      .catch(() => {})
+      .catch((e) => console.error('[staff] error:', e))
   }, [eventId])
 
   return (
