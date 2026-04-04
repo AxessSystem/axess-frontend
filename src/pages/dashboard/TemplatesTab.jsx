@@ -267,7 +267,7 @@ function TemplateContent({ type, data, onUpdate, eventId, businessId, authHeader
   return null
 }
 
-function StaffTemplate({ data, onUpdate, eventId, businessId: _businessId, authHeaders, requestConfirm }) {
+function StaffTemplate({ data, onUpdate, eventId, businessId, authHeaders, requestConfirm }) {
   const [staff, setStaff] = useState(data?.staff || [])
   const [showAdd, setShowAdd] = useState(false)
   const [newMember, setNewMember] = useState({
@@ -289,6 +289,19 @@ function StaffTemplate({ data, onUpdate, eventId, businessId: _businessId, authH
   useEffect(() => {
     setStaff(data?.staff || [])
   }, [data])
+
+  useEffect(() => {
+    if (!eventId || !authHeaders) return
+    fetch(`${API_BASE}/api/admin/events/${eventId}/table-staff`, { headers: authHeaders() })
+      .then((r) => r.json())
+      .then((d) => {
+        const dbStaff = d.staff || []
+        if (dbStaff.length > 0 && staff.length === 0) {
+          setStaff(dbStaff)
+        }
+      })
+      .catch(() => {})
+  }, [eventId])
 
   return (
     <div>
