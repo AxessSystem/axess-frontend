@@ -172,6 +172,7 @@ export default function TemplatesTab({ eventId, businessId, authHeaders }) {
         const existing = templates[t.id]
         const isExpanded = expanded === t.id
         const dataForPanel = activeTemplate === t.id && isExpanded ? templateData : (existing?.template_data || {})
+        const alwaysShow = ['staff', 'promoters']
 
         return (
           <div key={t.id} style={{ marginBottom: 10, borderRadius: 12, border: `1px solid ${isExpanded ? 'rgba(0,195,122,0.3)' : 'var(--glass-border)'}`, overflow: 'hidden', transition: 'all 0.2s' }}>
@@ -204,10 +205,10 @@ export default function TemplatesTab({ eventId, businessId, authHeaders }) {
             </div>
 
             {/* תוכן מורחב */}
-            {isExpanded && existing && (
+            {isExpanded && (existing || alwaysShow.includes(t.id)) && (
               <div style={{ padding: '12px 16px', background: 'rgba(0,0,0,0.2)', borderTop: '1px solid var(--glass-border)' }}>
                 <TemplateContent
-                  key={String(existing.updated_at)}
+                  key={String(existing?.updated_at ?? t.id)}
                   type={t.id}
                   data={dataForPanel}
                   onUpdate={(newData) => handleTemplateUpdate(t.id, newData)}
@@ -219,7 +220,7 @@ export default function TemplatesTab({ eventId, businessId, authHeaders }) {
               </div>
             )}
 
-            {isExpanded && !existing && (
+            {isExpanded && !existing && !alwaysShow.includes(t.id) && (
               <div style={{ padding: 16, textAlign: 'center', color: 'var(--v2-gray-400)', fontSize: 13 }}>
                 לא נשמרה תבנית עדיין — לחץ &quot;שמור&quot; כדי לשמור מאירוע זה
               </div>
