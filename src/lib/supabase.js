@@ -5,6 +5,10 @@ const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
+    // השבת LockManager — מונע timeout בכמה טאבים:
+    lock: async (name, acquireTimeout, fn) => {
+      return fn();
+    },
     autoRefreshToken: true,
     persistSession: true,
     detectSessionInUrl: true,
