@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Users, UtensilsCrossed, LayoutGrid, Megaphone, Store, Receipt, Save, ChevronDown, ChevronUp, Trash2, Search, Plus } from 'lucide-react'
+import { Users, UtensilsCrossed, LayoutGrid, Megaphone, Store, Receipt, Save, ChevronDown, ChevronUp, Trash2, Search, Plus, X } from 'lucide-react'
 import toast from 'react-hot-toast'
+import CustomSelect from '@/components/ui/CustomSelect'
 
 const API_BASE = import.meta.env.VITE_API_URL || 'https://api.axess.pro'
 
@@ -15,11 +16,20 @@ const TEMPLATE_TYPES = [
 
 const PRESET_MENU_CATEGORIES = ['וויסקי', 'וודקה', 'טקילה', 'ג\'ין', 'רום', 'אניס', 'יין ושמפניה', 'קוניאק', 'ליקרים', 'נישנושים']
 
-const VENDOR_TYPES = [
-  { value: 'none', label: 'ללא' },
+const EXPENSE_CATEGORIES = [
+  { value: 'staff', label: 'כוח אדם' },
+  { value: 'lineup', label: 'ליינאפ' },
+  { value: 'marketing', label: 'שיווק' },
+  { value: 'operations', label: 'תפעול' },
+  { value: 'fixed', label: 'עלויות קבועות' },
+  { value: 'other', label: 'שונות' },
+]
+
+const INVOICE_TYPES = [
+  { value: 'authorized', label: 'מורשה' },
   { value: 'ltd', label: 'בע"מ' },
-  { value: 'osek_murshe', label: 'עוסק מורשה' },
-  { value: 'osek_patur', label: 'עוסק פטור' },
+  { value: 'exempt', label: 'פטור' },
+  { value: 'none', label: 'ללא' },
 ]
 
 const ICONS = {
@@ -39,6 +49,7 @@ export default function TemplatesTab({ eventId, businessId, authHeaders }) {
   const [activeTemplate, setActiveTemplate] = useState(null)
   const [templateData, setTemplateData] = useState({})
   const [confirmAction, setConfirmAction] = useState(null)
+  const [eventSlug, setEventSlug] = useState('')
 
   const requestConfirm = useCallback((message, onConfirm) => {
     setConfirmAction({
@@ -56,6 +67,19 @@ export default function TemplatesTab({ eventId, businessId, authHeaders }) {
   useEffect(() => {
     loadTemplates()
   }, [businessId])
+
+  useEffect(() => {
+    if (!eventId || !businessId) return
+    let cancelled = false
+    fetch(`${API_BASE}/api/admin/events/${eventId}`, { headers: authHeaders() })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((ev) => {
+        if (cancelled || !ev || ev.error) return
+        setEventSlug(ev.slug || '')
+      })
+      .catch(() => {})
+    return () => { cancelled = true }
+  }, [eventId, businessId, authHeaders])
 
   useEffect(() => {
     if (expanded && templates[expanded]) {
@@ -172,7 +196,7 @@ export default function TemplatesTab({ eventId, businessId, authHeaders }) {
         const existing = templates[t.id]
         const isExpanded = expanded === t.id
         const dataForPanel = activeTemplate === t.id && isExpanded ? templateData : (existing?.template_data || {})
-        const alwaysShow = ['staff', 'promoters']
+        const alwaysShow = ['staff', 'promoters', 'vendors']
 
         return (
           <div key={t.id} style={{ marginBottom: 10, borderRadius: 12, border: `1px solid ${isExpanded ? 'rgba(0,195,122,0.3)' : 'var(--glass-border)'}`, overflow: 'hidden', transition: 'all 0.2s' }}>
@@ -216,6 +240,7 @@ export default function TemplatesTab({ eventId, businessId, authHeaders }) {
                   businessId={businessId}
                   authHeaders={authHeaders}
                   requestConfirm={requestConfirm}
+                  eventSlug={eventSlug}
                 />
               </div>
             )}
@@ -232,12 +257,13 @@ export default function TemplatesTab({ eventId, businessId, authHeaders }) {
   )
 }
 
-function TemplateContent({ type, data, onUpdate, eventId, businessId, authHeaders, requestConfirm }) {
+function TemplateContent({ type, data, onUpdate, eventId, businessId, authHeaders, requestConfirm, eventSlug }) {
   if (type === 'staff') return <StaffTemplate data={data} onUpdate={onUpdate} eventId={eventId} businessId={businessId} authHeaders={authHeaders} requestConfirm={requestConfirm} />
   if (type === 'menu') return <MenuTemplate data={data} onUpdate={onUpdate} eventId={eventId} businessId={businessId} authHeaders={authHeaders} requestConfirm={requestConfirm} />
   if (type === 'tables') return <TablesTemplate data={data} onUpdate={onUpdate} />
-  if (type === 'promoters') return <PromotersTemplate key="promoters" data={data} onUpdate={onUpdate} businessId={businessId} authHeaders={authHeaders} />
-  if (type === 'expenses' || type === 'vendors') return <ExpensesTemplate data={data} onUpdate={onUpdate} eventId={eventId} businessId={businessId} authHeaders={authHeaders} requestConfirm={requestConfirm} />
+  if (type === 'promoters') return <PromotersTemplate key="promoters" data={data} onUpdate={onUpdate} businessId={businessId} authHeaders={authHeaders} eventSlug={eventSlug} />
+  if (type === 'vendors') return <VendorsTemplate data={data} onUpdate={onUpdate} eventId={eventId} businessId={businessId} authHeaders={authHeaders} />
+  if (type === 'expenses') return <ExpensesTemplate data={data} onUpdate={onUpdate} eventId={eventId} businessId={businessId} authHeaders={authHeaders} requestConfirm={requestConfirm} />
   return null
 }
 
@@ -793,7 +819,14 @@ function TablesTemplate({ data, onUpdate }) {
   )
 }
 
-function PromotersTemplate({ data: _data, onUpdate: _onUpdate, businessId, authHeaders }) {
+function waDigits(phone) {
+  const d = String(phone || '').replace(/\D/g, '')
+  if (d.startsWith('0')) return `972${d.slice(1)}`
+  if (d.startsWith('972')) return d
+  return d
+}
+
+function PromotersTemplate({ data: _data, onUpdate: _onUpdate, businessId, authHeaders, eventSlug }) {
   const [promoters, setPromoters] = useState([])
   const [showAdd, setShowAdd] = useState(false)
   const [loading, setLoading] = useState(true)
@@ -804,6 +837,8 @@ function PromotersTemplate({ data: _data, onUpdate: _onUpdate, businessId, authH
     commission_per_ticket: 10,
     commission_per_table: 0,
     commission_type: 'pct',
+    ticket_commission_type: 'pct',
+    ticket_commission_n: '',
     auto_approve_clients: false,
     genre_tags: [],
     seller_code: '',
@@ -834,76 +869,137 @@ function PromotersTemplate({ data: _data, onUpdate: _onUpdate, businessId, authH
 
   const generateCode = () => Math.random().toString(36).substring(2, 10).toUpperCase()
 
+  const eventRefBase = (eventSlug && String(eventSlug).trim())
+    ? `https://axess.pro/e/${String(eventSlug).trim()}`
+    : 'https://axess.pro/e'
+
   if (loading) return <div style={{ textAlign: 'center', padding: 20, color: 'var(--v2-gray-400)' }}>טוען...</div>
 
   return (
     <div>
-      {promoters.map((p, i) => (
-        <div
-          key={p.id || i}
-          style={{
-            background: 'var(--glass)', borderRadius: 10, padding: 12, marginBottom: 8,
-            border: `1px solid ${p.is_active !== false ? 'rgba(0,195,122,0.2)' : 'rgba(255,255,255,0.08)'}`,
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <div style={{ width: 38, height: 38, borderRadius: '50%', background: 'rgba(0,195,122,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#00C37A', fontWeight: 700, fontSize: 15, flexShrink: 0 }}>
-              {(p.first_name || p.name || '?')[0]}
-            </div>
-            <div style={{ flex: 1 }}>
-              <p style={{ margin: 0, fontWeight: 700, fontSize: 14 }}>
-                {p.first_name && p.last_name ? `${p.first_name} ${p.last_name}` : p.name}
-                <span style={{ fontSize: 11, background: 'rgba(59,130,246,0.15)', color: '#3B82F6', padding: '1px 6px', borderRadius: 8, marginRight: 6 }}>
-                  {ROLES.find((r) => r.value === p.role)?.label || 'יחצ"ן'}
-                </span>
-              </p>
-              <p style={{ margin: '2px 0 0', fontSize: 12, color: 'var(--v2-gray-400)' }}>
-                {p.phone} · {p.email}
-              </p>
-              <div style={{ display: 'flex', gap: 6, marginTop: 4, flexWrap: 'wrap' }}>
-                {p.seller_code && (
-                  <span style={{ fontSize: 10, background: 'rgba(245,158,11,0.15)', color: '#F59E0B', padding: '1px 6px', borderRadius: 8 }}>
-                    קוד:
-                    {' '}
-                    {p.seller_code}
+      {promoters.map((p, i) => {
+        const tct = p.ticket_commission_type || p.commission_type || 'pct'
+        const ticketLabel = Number(p.commission_per_ticket) > 0
+          ? (tct === 'pct' ? `כרטיס: ${p.commission_per_ticket}%` : tct === 'fixed_per_n' ? `כרטיס: ₪${p.commission_per_ticket} / ${p.ticket_commission_n || 'X'} כרטיסים` : `כרטיס: ₪${p.commission_per_ticket}`)
+          : null
+        return (
+          <div
+            key={p.id || i}
+            style={{
+              background: 'var(--glass)', borderRadius: 10, padding: 12, marginBottom: 8,
+              border: `1px solid ${p.is_active !== false ? 'rgba(0,195,122,0.2)' : 'rgba(255,255,255,0.08)'}`,
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+              <div style={{ width: 38, height: 38, borderRadius: '50%', background: 'rgba(0,195,122,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#00C37A', fontWeight: 700, fontSize: 15, flexShrink: 0 }}>
+                {(p.first_name || p.name || '?')[0]}
+              </div>
+              <div style={{ flex: 1 }}>
+                <p style={{ margin: 0, fontWeight: 700, fontSize: 14 }}>
+                  {p.first_name && p.last_name ? `${p.first_name} ${p.last_name}` : p.name}
+                  <span style={{ fontSize: 11, background: 'rgba(59,130,246,0.15)', color: '#3B82F6', padding: '1px 6px', borderRadius: 8, marginRight: 6 }}>
+                    {ROLES.find((r) => r.value === p.role)?.label || 'יחצ"ן'}
                   </span>
-                )}
-                {Number(p.commission_per_ticket) > 0 && (
-                  <span style={{ fontSize: 10, background: 'rgba(0,195,122,0.1)', color: '#00C37A', padding: '1px 6px', borderRadius: 8 }}>
-                    כרטיס:
-                    {p.commission_per_ticket}
-                    %
-                  </span>
-                )}
-                {Number(p.commission_per_table) > 0 && (
-                  <span style={{ fontSize: 10, background: 'rgba(139,92,246,0.15)', color: '#8B5CF6', padding: '1px 6px', borderRadius: 8 }}>
-                    שולחן: ₪
-                    {p.commission_per_table}
-                  </span>
-                )}
-                {p.auto_approve_clients && (
-                  <span style={{ fontSize: 10, background: 'rgba(34,197,94,0.15)', color: '#22C55E', padding: '1px 6px', borderRadius: 8 }}>
-                    אישור אוטומטי
-                  </span>
-                )}
+                </p>
+                <p style={{ margin: '2px 0 0', fontSize: 12, color: 'var(--v2-gray-400)' }}>
+                  {p.phone} · {p.email}
+                </p>
+                <div style={{ display: 'flex', gap: 6, marginTop: 4, flexWrap: 'wrap' }}>
+                  {p.seller_code && (
+                    <span style={{ fontSize: 10, background: 'rgba(245,158,11,0.15)', color: '#F59E0B', padding: '1px 6px', borderRadius: 8 }}>
+                      קוד:
+                      {' '}
+                      {p.seller_code}
+                    </span>
+                  )}
+                  {ticketLabel && (
+                    <span style={{ fontSize: 10, background: 'rgba(0,195,122,0.1)', color: '#00C37A', padding: '1px 6px', borderRadius: 8 }}>
+                      {ticketLabel}
+                    </span>
+                  )}
+                  {Number(p.commission_per_table) > 0 && (
+                    <span style={{ fontSize: 10, background: 'rgba(139,92,246,0.15)', color: '#8B5CF6', padding: '1px 6px', borderRadius: 8 }}>
+                      שולחן:
+                      {p.commission_per_table}
+                      %
+                    </span>
+                  )}
+                  {p.auto_approve_clients && (
+                    <span style={{ fontSize: 10, background: 'rgba(34,197,94,0.15)', color: '#22C55E', padding: '1px 6px', borderRadius: 8 }}>
+                      אישור אוטומטי
+                    </span>
+                  )}
+                </div>
+                <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 6 }}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const url = `${eventRefBase}?ref=${p.seller_code || p.id}`
+                      navigator.clipboard?.writeText(url)
+                      toast.success('לינק אישי הועתק!')
+                    }}
+                    style={{ fontSize: 11, padding: '3px 8px', borderRadius: 6, border: '1px solid rgba(0,195,122,0.3)', background: 'rgba(0,195,122,0.1)', color: '#00C37A', cursor: 'pointer' }}
+                  >
+                    📋 לינק לאירוע
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const url = `${eventRefBase}?ref=${p.seller_code || p.id}`
+                      const msg = `שלום ${p.first_name || p.name}! הלינק האישי שלך לאירוע: ${url}`
+                      const w = waDigits(p.phone)
+                      if (!w) {
+                        toast.error('אין מספר טלפון ליחצ"ן')
+                        return
+                      }
+                      window.open(`https://wa.me/${w}?text=${encodeURIComponent(msg)}`, '_blank')
+                    }}
+                    style={{ fontSize: 11, padding: '3px 8px', borderRadius: 6, border: '1px solid rgba(34,197,94,0.3)', background: 'rgba(34,197,94,0.1)', color: '#22C55E', cursor: 'pointer' }}
+                  >
+                    💬 שלח WA
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const joinUrl = `https://axess.pro/promoter/join/${p.seller_code || p.id}`
+                      navigator.clipboard?.writeText(joinUrl)
+                      toast.success('לינק הצטרפות הועתק!')
+                    }}
+                    style={{ fontSize: 11, padding: '3px 8px', borderRadius: 6, border: '1px solid rgba(59,130,246,0.3)', background: 'rgba(59,130,246,0.1)', color: '#3B82F6', cursor: 'pointer' }}
+                  >
+                    🔗 לינק הצטרפות
+                  </button>
+                </div>
               </div>
             </div>
-            <div style={{ display: 'flex', gap: 4 }}>
-              <button
-                type="button"
-                onClick={() => {
-                  const url = `https://axess.pro/e/?ref=${p.seller_code || p.id}`
-                  navigator.clipboard?.writeText(url)
-                  toast.success('לינק הועתק!')
-                }}
-                style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#00C37A', fontSize: 11, padding: '4px 6px' }}
-              >
-                📋 לינק
-              </button>
-            </div>
           </div>
+        )
+      })}
+
+      {promoters.length > 0 && (
+        <div style={{ marginTop: 16, paddingTop: 12, borderTop: '1px solid var(--glass-border)' }}>
+          <button
+            type="button"
+            onClick={() => {
+              const activeWithPhone = promoters.filter((p) => p.is_active !== false && p.phone)
+              activeWithPhone.forEach((p) => {
+                const url = `${eventRefBase}?ref=${p.seller_code || p.id}`
+                const msg = `שלום ${p.first_name || p.name}! הלינק האישי שלך לאירוע: ${url}`
+                const w = waDigits(p.phone)
+                if (w) window.open(`https://wa.me/${w}?text=${encodeURIComponent(msg)}`, '_blank')
+              })
+              toast.success(`נשלחו ${activeWithPhone.length} הודעות!`)
+            }}
+            style={{
+              width: '100%', height: 42, borderRadius: 8, border: 'none', background: 'rgba(34,197,94,0.15)', color: '#22C55E', fontWeight: 700, fontSize: 14, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+            }}
+          >
+            💬 שלח לינק לכל היחצ&quot;נים הפעילים (
+            {promoters.filter((p) => p.is_active !== false).length}
+            )
+          </button>
         </div>
-      ))}
+      )}
 
       {showAdd ? (
         <div style={{ background: 'var(--glass)', borderRadius: 12, padding: 16, border: '1px solid rgba(0,195,122,0.3)' }}>
@@ -929,15 +1025,50 @@ function PromotersTemplate({ data: _data, onUpdate: _onUpdate, businessId, authH
               </button>
             </div>
 
-            <p style={{ margin: '4px 0 0', fontSize: 12, fontWeight: 700, color: 'var(--v2-gray-400)' }}>עמלות:</p>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-              <div>
-                <label style={{ fontSize: 11, color: 'var(--v2-gray-400)', display: 'block', marginBottom: 3 }}>% עמלה לכרטיס</label>
-                <input value={newPromoter.commission_per_ticket} onChange={(e) => setNewPromoter((f) => ({ ...f, commission_per_ticket: parseFloat(e.target.value) || 0 }))} type="number" placeholder="10" style={{ width: '100%', height: 36, borderRadius: 6, border: '1px solid var(--glass-border)', background: 'var(--card)', color: 'var(--text)', padding: '0 10px', fontSize: 13, boxSizing: 'border-box' }} />
+            <p style={{ margin: '4px 0 0', fontSize: 12, fontWeight: 700, color: 'var(--v2-gray-400)' }}>מסלולי עמלה:</p>
+
+            <div style={{ background: 'rgba(0,195,122,0.05)', borderRadius: 8, padding: 10, border: '1px solid rgba(0,195,122,0.15)' }}>
+              <p style={{ margin: '0 0 8px', fontSize: 12, fontWeight: 700 }}>🎫 עמלת כרטיסים</p>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                <select
+                  value={newPromoter.ticket_commission_type || 'pct'}
+                  onChange={(e) => setNewPromoter((f) => ({ ...f, ticket_commission_type: e.target.value }))}
+                  style={{ flex: 1, minWidth: 140, height: 34, borderRadius: 6, border: '1px solid var(--glass-border)', background: 'var(--card)', color: 'var(--text)', padding: '0 8px', fontSize: 12 }}
+                >
+                  <option value="pct">% מהמכירות</option>
+                  <option value="fixed">₪ קבוע לכרטיס</option>
+                  <option value="fixed_per_n">₪ על כל X כרטיסים</option>
+                </select>
+                <input
+                  value={newPromoter.commission_per_ticket}
+                  onChange={(e) => setNewPromoter((f) => ({ ...f, commission_per_ticket: parseFloat(e.target.value) || 0 }))}
+                  type="number"
+                  placeholder={newPromoter.ticket_commission_type === 'pct' ? '%' : '₪'}
+                  style={{ width: 70, height: 34, borderRadius: 6, border: '1px solid var(--glass-border)', background: 'var(--card)', color: 'var(--text)', padding: '0 8px', fontSize: 13, textAlign: 'center' }}
+                />
+                {newPromoter.ticket_commission_type === 'fixed_per_n' && (
+                  <input
+                    value={newPromoter.ticket_commission_n || ''}
+                    onChange={(e) => setNewPromoter((f) => ({ ...f, ticket_commission_n: parseInt(e.target.value, 10) || 0 }))}
+                    type="number"
+                    placeholder="X כרטיסים"
+                    style={{ width: 90, height: 34, borderRadius: 6, border: '1px solid var(--glass-border)', background: 'var(--card)', color: 'var(--text)', padding: '0 8px', fontSize: 12 }}
+                  />
+                )}
               </div>
-              <div>
-                <label style={{ fontSize: 11, color: 'var(--v2-gray-400)', display: 'block', marginBottom: 3 }}>₪ עמלה לשולחן</label>
-                <input value={newPromoter.commission_per_table} onChange={(e) => setNewPromoter((f) => ({ ...f, commission_per_table: parseFloat(e.target.value) || 0 }))} type="number" placeholder="0" style={{ width: '100%', height: 36, borderRadius: 6, border: '1px solid var(--glass-border)', background: 'var(--card)', color: 'var(--text)', padding: '0 10px', fontSize: 13, boxSizing: 'border-box' }} />
+            </div>
+
+            <div style={{ background: 'rgba(139,92,246,0.05)', borderRadius: 8, padding: 10, border: '1px solid rgba(139,92,246,0.15)' }}>
+              <p style={{ margin: '0 0 8px', fontSize: 12, fontWeight: 700 }}>🪑 עמלת שולחנות (% בלבד)</p>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                <input
+                  value={newPromoter.commission_per_table}
+                  onChange={(e) => setNewPromoter((f) => ({ ...f, commission_per_table: parseFloat(e.target.value) || 0 }))}
+                  type="number"
+                  placeholder="% מהשולחן"
+                  style={{ width: 80, height: 34, borderRadius: 6, border: '1px solid var(--glass-border)', background: 'var(--card)', color: 'var(--text)', padding: '0 8px', fontSize: 13, textAlign: 'center' }}
+                />
+                <span style={{ fontSize: 13, color: 'var(--v2-gray-400)' }}>% ממחיר השולחן (ללא טיפ)</span>
               </div>
             </div>
 
@@ -977,11 +1108,15 @@ function PromotersTemplate({ data: _data, onUpdate: _onUpdate, businessId, authH
                 onClick={async () => {
                   if (!newPromoter.first_name || !newPromoter.phone) return
                   const code = newPromoter.seller_code || generateCode()
+                  const tctype = newPromoter.ticket_commission_type || 'pct'
                   const payload = {
                     ...newPromoter,
                     name: `${newPromoter.first_name} ${newPromoter.last_name}`.trim(),
                     seller_code: code,
                     business_id: businessId,
+                    commission_type: tctype === 'pct' ? 'pct' : 'fixed',
+                    ticket_commission_type: tctype,
+                    ticket_commission_n: tctype === 'fixed_per_n' ? (parseInt(newPromoter.ticket_commission_n, 10) || 0) : null,
                   }
                   try {
                     const res = await fetch(`${API_BASE}/api/admin/promoters`, {
@@ -997,7 +1132,7 @@ function PromotersTemplate({ data: _data, onUpdate: _onUpdate, businessId, authH
                     const row = d.promoter || d
                     setPromoters((prev) => [...prev, row])
                     setNewPromoter({
-                      first_name: '', last_name: '', phone: '', email: '', identification_number: '', role: 'salesman', commission_per_ticket: 10, commission_per_table: 0, commission_type: 'pct', auto_approve_clients: false, genre_tags: [], seller_code: '', is_active: true, deals: [],
+                      first_name: '', last_name: '', phone: '', email: '', identification_number: '', role: 'salesman', commission_per_ticket: 10, commission_per_table: 0, commission_type: 'pct', ticket_commission_type: 'pct', ticket_commission_n: '', auto_approve_clients: false, genre_tags: [], seller_code: '', is_active: true, deals: [],
                     })
                     setShowAdd(false)
                     toast.success('יחצ"ן נוסף בהצלחה!')
@@ -1024,15 +1159,14 @@ function PromotersTemplate({ data: _data, onUpdate: _onUpdate, businessId, authH
   )
 }
 
-function ExpensesTemplate({ data, onUpdate, eventId, businessId: _businessId, authHeaders, requestConfirm }) {
-  const [categories, setCategories] = useState(
-    data?.categories || ['אמנים', 'ציוד', 'שמע ותאורה', 'אבטחה', 'שיווק', 'מקום', 'כיבוד', 'אחר'],
-  )
-  const [vendors, setVendors] = useState(data?.vendors || [])
-  const [newCat, setNewCat] = useState('')
-  const [newVendor, setNewVendor] = useState({
-    vendor_name: '',
+function VendorsTemplate({ data: _data, onUpdate: _onUpdate, eventId: _eventId, businessId, authHeaders }) {
+  const [vendors, setVendors] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [showAddVendor, setShowAddVendor] = useState(false)
+  const [vendorForm, setVendorForm] = useState({
+    name: '',
     category: '',
+    custom_category: '',
     vendor_type: 'none',
     contact_name: '',
     contact_phone: '',
@@ -1042,12 +1176,278 @@ function ExpensesTemplate({ data, onUpdate, eventId, businessId: _businessId, au
     items: [],
   })
   const [newVendorItem, setNewVendorItem] = useState({ name: '', price: '' })
-  const [showAddVendor, setShowAddVendor] = useState(false)
+
+  const loadVendors = useCallback(() => {
+    if (!businessId) return Promise.resolve()
+    setLoading(true)
+    return fetch(`${API_BASE}/api/admin/vendors`, { headers: authHeaders() })
+      .then((r) => (r.ok ? r.json() : { vendors: [] }))
+      .then((d) => {
+        setVendors(Array.isArray(d.vendors) ? d.vendors : [])
+      })
+      .catch(() => setVendors([]))
+      .finally(() => setLoading(false))
+  }, [businessId, authHeaders])
+
+  useEffect(() => {
+    loadVendors()
+  }, [loadVendors])
+
+  if (loading) return <div style={{ textAlign: 'center', padding: 20, color: 'var(--v2-gray-400)' }}>טוען ספקים...</div>
+
+  return (
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+        <p style={{ margin: 0, fontSize: 14, fontWeight: 700 }}>הספקים של העסק</p>
+        <button
+          type="button"
+          onClick={() => setShowAddVendor(true)}
+          style={{ background: 'rgba(0,195,122,0.15)', border: 'none', borderRadius: 8, color: '#00C37A', fontWeight: 700, fontSize: 12, padding: '8px 12px', cursor: 'pointer' }}
+        >
+          + הוסף ספק
+        </button>
+      </div>
+
+      {vendors.length === 0 ? (
+        <p style={{ color: 'var(--v2-gray-400)', fontSize: 13, margin: 0 }}>אין ספקים שמורים עדיין</p>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {vendors.map((v) => (
+            <div
+              key={v.id}
+              style={{
+                background: 'var(--glass)', borderRadius: 10, padding: 12, border: '1px solid var(--glass-border)',
+              }}
+            >
+              <p style={{ margin: 0, fontSize: 14, fontWeight: 700 }}>{v.name}</p>
+              <p style={{ margin: '4px 0 0', fontSize: 12, color: 'var(--v2-gray-400)' }}>
+                {EXPENSE_CATEGORIES.find((c) => c.value === v.category)?.label || v.category || '—'}
+                {' '}
+                · ₪
+                {(Number(v.default_price) || 0).toLocaleString()}
+                {v.contact_phone ? ` · ${v.contact_phone}` : ''}
+              </p>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {showAddVendor && (
+        <div style={{
+          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16,
+        }}
+        >
+          <div style={{
+            background: 'var(--card, #1a1d2e)', borderRadius: 12, padding: 24, maxWidth: 440, width: '100%', position: 'relative', border: '1px solid var(--glass-border)', maxHeight: '90vh', overflow: 'auto',
+          }}
+          >
+            <button
+              type="button"
+              onClick={() => setShowAddVendor(false)}
+              style={{ position: 'absolute', top: 12, left: 12, background: 'none', border: 'none', cursor: 'pointer', color: 'var(--v2-gray-400)' }}
+            >
+              <X size={20} />
+            </button>
+            <h3 style={{ margin: '0 0 20px', fontSize: 16, fontWeight: 700 }}>הוסף ספק</h3>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <input
+                value={vendorForm.name}
+                onChange={(e) => setVendorForm((f) => ({ ...f, name: e.target.value }))}
+                placeholder="שם הספק"
+                style={{ height: 40, borderRadius: 8, border: '1px solid var(--glass-border)', background: 'var(--glass)', color: 'var(--text)', padding: '0 12px', fontSize: 14 }}
+              />
+              <CustomSelect
+                value={vendorForm.vendor_type}
+                onChange={(v) => setVendorForm((f) => ({ ...f, vendor_type: v }))}
+                options={INVOICE_TYPES}
+              />
+              <CustomSelect
+                value={vendorForm.category}
+                onChange={(v) => setVendorForm((f) => ({
+                  ...f,
+                  category: v,
+                  custom_category: v === 'custom' ? f.custom_category : '',
+                }))}
+                options={[
+                  ...EXPENSE_CATEGORIES,
+                  { value: 'custom', label: '+ הוסף קטגוריה חדשה' },
+                ]}
+              />
+              {vendorForm.category === 'custom' && (
+                <input
+                  value={vendorForm.custom_category}
+                  onChange={(e) => setVendorForm((f) => ({ ...f, custom_category: e.target.value }))}
+                  placeholder="שם הקטגוריה החדשה (למשל: בוקינג אמנים)"
+                  style={{ height: 40, borderRadius: 8, border: '1px solid #00C37A', background: 'var(--glass)', color: 'var(--text)', padding: '0 12px', fontSize: 14 }}
+                />
+              )}
+              <input
+                value={vendorForm.contact_name}
+                onChange={(e) => setVendorForm((f) => ({ ...f, contact_name: e.target.value }))}
+                placeholder="איש קשר"
+                style={{ height: 40, borderRadius: 8, border: '1px solid var(--glass-border)', background: 'var(--glass)', color: 'var(--text)', padding: '0 12px', fontSize: 14 }}
+              />
+              <input
+                value={vendorForm.contact_phone}
+                onChange={(e) => setVendorForm((f) => ({ ...f, contact_phone: e.target.value }))}
+                placeholder="טלפון"
+                style={{ height: 40, borderRadius: 8, border: '1px solid var(--glass-border)', background: 'var(--glass)', color: 'var(--text)', padding: '0 12px', fontSize: 14 }}
+              />
+              <input
+                value={vendorForm.contact_email}
+                onChange={(e) => setVendorForm((f) => ({ ...f, contact_email: e.target.value }))}
+                placeholder="מייל"
+                style={{ height: 40, borderRadius: 8, border: '1px solid var(--glass-border)', background: 'var(--glass)', color: 'var(--text)', padding: '0 12px', fontSize: 14 }}
+              />
+              <input
+                value={vendorForm.address}
+                onChange={(e) => setVendorForm((f) => ({ ...f, address: e.target.value }))}
+                placeholder="כתובת (אופציונלי)"
+                style={{ height: 40, borderRadius: 8, border: '1px solid var(--glass-border)', background: 'var(--glass)', color: 'var(--text)', padding: '0 12px', fontSize: 14 }}
+              />
+              <input
+                value={vendorForm.default_price}
+                onChange={(e) => setVendorForm((f) => ({ ...f, default_price: e.target.value }))}
+                placeholder="מחיר ברירת מחדל / משוער ₪"
+                type="number"
+                style={{ height: 40, borderRadius: 8, border: '1px solid var(--glass-border)', background: 'var(--glass)', color: 'var(--text)', padding: '0 12px', fontSize: 14 }}
+              />
+              <div style={{ border: '1px solid var(--glass-border)', borderRadius: 8, padding: 12 }}>
+                <p style={{ margin: '0 0 8px', fontSize: 13, fontWeight: 600 }}>
+                  פריטים משוייכים לספק
+                </p>
+                <p style={{ margin: '0 0 8px', fontSize: 11, color: 'var(--v2-gray-400)' }}>
+                  למשל: שם אמן, שם תפקיד, שם שירות ספציפי
+                </p>
+                {vendorForm.items.map((item, idx) => (
+                  <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                    <span style={{ flex: 1, fontSize: 13 }}>{item.name}</span>
+                    <span style={{ fontSize: 13, color: '#00C37A' }}>
+                      ₪
+                      {item.price || 0}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setVendorForm((f) => ({ ...f, items: f.items.filter((_, i) => i !== idx) }))}
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#EF4444' }}
+                    >
+                      <Trash2 size={13} />
+                    </button>
+                  </div>
+                ))}
+                <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
+                  <input
+                    value={newVendorItem.name}
+                    onChange={(e) => setNewVendorItem((i) => ({ ...i, name: e.target.value }))}
+                    placeholder="שם פריט (למשל: DJ Avicii)"
+                    style={{ flex: 2, height: 34, borderRadius: 6, border: '1px solid var(--glass-border)', background: 'var(--glass)', color: 'var(--text)', padding: '0 8px', fontSize: 13 }}
+                  />
+                  <input
+                    value={newVendorItem.price}
+                    onChange={(e) => setNewVendorItem((i) => ({ ...i, price: e.target.value }))}
+                    placeholder="₪ מחיר"
+                    type="number"
+                    style={{ flex: 1, height: 34, borderRadius: 6, border: '1px solid var(--glass-border)', background: 'var(--glass)', color: 'var(--text)', padding: '0 8px', fontSize: 13 }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!newVendorItem.name) return
+                      setVendorForm((f) => ({
+                        ...f,
+                        items: [...f.items, { name: newVendorItem.name, price: newVendorItem.price || 0 }],
+                      }))
+                      setNewVendorItem({ name: '', price: '' })
+                    }}
+                    style={{
+                      height: 34,
+                      padding: '0 10px',
+                      borderRadius: 6,
+                      border: 'none',
+                      background: '#00C37A',
+                      color: '#000',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    +
+                  </button>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={async () => {
+                  if (!vendorForm.name?.trim()) {
+                    toast.error('יש למלא שם ספק')
+                    return
+                  }
+                  const category = vendorForm.category === 'custom'
+                    ? vendorForm.custom_category.trim()
+                    : vendorForm.category
+                  if (!category) {
+                    toast.error('בחר או הזן קטגוריה')
+                    return
+                  }
+                  const r = await fetch(`${API_BASE}/api/admin/vendors`, {
+                    method: 'POST',
+                    headers: authHeaders(),
+                    body: JSON.stringify({
+                      name: vendorForm.name.trim(),
+                      category,
+                      vendor_type: vendorForm.vendor_type,
+                      contact_name: vendorForm.contact_name || null,
+                      contact_phone: vendorForm.contact_phone || null,
+                      contact_email: vendorForm.contact_email || null,
+                      address: vendorForm.address || null,
+                      default_price: parseFloat(vendorForm.default_price) || 0,
+                      items: vendorForm.items.map((it) => ({
+                        name: it.name,
+                        price: parseFloat(it.price) || 0,
+                      })),
+                    }),
+                  })
+                  if (!r.ok) {
+                    toast.error('שמירת ספק נכשלה')
+                    return
+                  }
+                  setShowAddVendor(false)
+                  setVendorForm({
+                    name: '',
+                    category: '',
+                    custom_category: '',
+                    vendor_type: 'none',
+                    contact_name: '',
+                    contact_phone: '',
+                    contact_email: '',
+                    address: '',
+                    default_price: '',
+                    items: [],
+                  })
+                  setNewVendorItem({ name: '', price: '' })
+                  await loadVendors()
+                  toast.success('ספק נוסף!')
+                }}
+                style={{ height: 44, borderRadius: 8, border: 'none', background: '#00C37A', color: '#000', fontWeight: 700, fontSize: 15, cursor: 'pointer' }}
+              >
+                שמור ספק
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function ExpensesTemplate({ data, onUpdate, eventId, businessId: _businessId, authHeaders, requestConfirm }) {
+  const [categories, setCategories] = useState(
+    data?.categories || ['אמנים', 'ציוד', 'שמע ותאורה', 'אבטחה', 'שיווק', 'מקום', 'כיבוד', 'אחר'],
+  )
+  const [newCat, setNewCat] = useState('')
 
   useEffect(() => {
     if (data && typeof data === 'object') {
       if (Array.isArray(data.categories)) setCategories(data.categories)
-      if (Array.isArray(data.vendors)) setVendors(data.vendors)
     }
   }, [data])
 
@@ -1067,133 +1467,6 @@ function ExpensesTemplate({ data, onUpdate, eventId, businessId: _businessId, au
           <input value={newCat} onChange={(e) => setNewCat(e.target.value)} placeholder="קטגוריה חדשה..." style={{ flex: 1, height: 32, borderRadius: 6, border: '1px solid var(--glass-border)', background: 'var(--card)', color: 'var(--text)', padding: '0 8px', fontSize: 12 }} />
           <button type="button" onClick={() => { if (!newCat.trim()) return; const u = [...categories, newCat.trim()]; setCategories(u); setNewCat(''); onUpdate({ ...data, categories: u }) }} style={{ height: 32, padding: '0 12px', borderRadius: 6, border: 'none', background: '#00C37A', color: '#000', fontWeight: 700, cursor: 'pointer' }}>+</button>
         </div>
-      </div>
-
-      <div style={{ background: 'var(--glass)', borderRadius: 10, padding: 14, marginBottom: 12 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-          <p style={{ margin: 0, fontSize: 13, fontWeight: 700 }}>הספקים שלי</p>
-          <button type="button" onClick={() => setShowAddVendor(true)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#00C37A', fontSize: 12 }}>+ הוסף ספק</button>
-        </div>
-
-        {vendors.map((v, i) => (
-          <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 0', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-            <div style={{ flex: 1 }}>
-              <p style={{ margin: 0, fontSize: 13, fontWeight: 600 }}>{v.vendor_name}</p>
-              <p style={{ margin: 0, fontSize: 11, color: 'var(--v2-gray-400)' }}>
-                {v.category} · {v.contact_phone || v.phone}
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={async () => {
-                await fetch(`${API_BASE}/api/admin/events/${eventId}/expenses`, {
-                  method: 'POST',
-                  headers: authHeaders(),
-                  body: JSON.stringify({
-                    category: v.category || 'other',
-                    item_name: v.vendor_name,
-                    amount: 0,
-                    payment_status: 'pending',
-                  }),
-                }).catch(() => {})
-                toast.success(`${v.vendor_name} נוסף להוצאות!`)
-              }}
-              style={{ background: 'rgba(0,195,122,0.1)', border: '1px solid rgba(0,195,122,0.2)', borderRadius: 6, cursor: 'pointer', color: '#00C37A', fontSize: 11, padding: '3px 8px' }}
-            >
-              + לאירוע
-            </button>
-            <button type="button" onClick={() => { const u = vendors.filter((_, idx) => idx !== i); setVendors(u); onUpdate({ ...data, vendors: u }) }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#EF4444' }}>
-              <Trash2 size={13} />
-            </button>
-          </div>
-        ))}
-
-        {showAddVendor && (
-          <div style={{ background: 'var(--card)', borderRadius: 10, padding: 14, marginTop: 10, border: '1px solid rgba(0,195,122,0.3)' }}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              <input value={newVendor.vendor_name} onChange={(e) => setNewVendor((f) => ({ ...f, vendor_name: e.target.value }))} placeholder="שם ספק *" style={{ height: 36, borderRadius: 6, border: '1px solid var(--glass-border)', background: 'var(--glass)', color: 'var(--text)', padding: '0 10px', fontSize: 13 }} />
-
-              <select value={newVendor.vendor_type} onChange={(e) => setNewVendor((f) => ({ ...f, vendor_type: e.target.value }))} style={{ height: 36, borderRadius: 6, border: '1px solid var(--glass-border)', background: 'var(--glass)', color: 'var(--text)', padding: '0 8px', fontSize: 13 }}>
-                {VENDOR_TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
-              </select>
-
-              <select
-                value={newVendor.category}
-                onChange={(e) => {
-                  if (e.target.value === '__new__') {
-                    const c = window.prompt('קטגוריה חדשה:')
-                    if (c) { setCategories((p) => [...p, c]); setNewVendor((f) => ({ ...f, category: c })) }
-                  } else setNewVendor((f) => ({ ...f, category: e.target.value }))
-                }}
-                style={{ height: 36, borderRadius: 6, border: '1px solid var(--glass-border)', background: 'var(--glass)', color: 'var(--text)', padding: '0 8px', fontSize: 13 }}
-              >
-                <option value="">בחר קטגוריה</option>
-                {categories.map((c) => <option key={c} value={c}>{c}</option>)}
-                <option value="__new__">+ קטגוריה חדשה</option>
-              </select>
-
-              <input value={newVendor.contact_name} onChange={(e) => setNewVendor((f) => ({ ...f, contact_name: e.target.value }))} placeholder="איש קשר" style={{ height: 36, borderRadius: 6, border: '1px solid var(--glass-border)', background: 'var(--glass)', color: 'var(--text)', padding: '0 10px', fontSize: 13 }} />
-
-              <input value={newVendor.contact_phone} onChange={(e) => setNewVendor((f) => ({ ...f, contact_phone: e.target.value }))} placeholder="טלפון" style={{ height: 36, borderRadius: 6, border: '1px solid var(--glass-border)', background: 'var(--glass)', color: 'var(--text)', padding: '0 10px', fontSize: 13 }} />
-
-              <input value={newVendor.contact_email} onChange={(e) => setNewVendor((f) => ({ ...f, contact_email: e.target.value }))} placeholder="מייל (אופציונלי)" style={{ height: 36, borderRadius: 6, border: '1px solid var(--glass-border)', background: 'var(--glass)', color: 'var(--text)', padding: '0 10px', fontSize: 13 }} />
-
-              <input value={newVendor.address || ''} onChange={(e) => setNewVendor((f) => ({ ...f, address: e.target.value }))} placeholder="כתובת (אופציונלי)" style={{ height: 36, borderRadius: 6, border: '1px solid var(--glass-border)', background: 'var(--glass)', color: 'var(--text)', padding: '0 10px', fontSize: 13 }} />
-
-              <input value={newVendor.default_price} onChange={(e) => setNewVendor((f) => ({ ...f, default_price: e.target.value }))} placeholder="מחיר משוער ₪ (אופציונלי)" type="number" style={{ height: 36, borderRadius: 6, border: '1px solid var(--glass-border)', background: 'var(--glass)', color: 'var(--text)', padding: '0 10px', fontSize: 13 }} />
-
-              <p style={{ margin: '4px 0', fontSize: 12, fontWeight: 700 }}>פריטים/שירותים:</p>
-              {newVendor.items.map((item, j) => (
-                <div key={j} style={{ display: 'flex', gap: 6, alignItems: 'center', fontSize: 12 }}>
-                  <span style={{ flex: 1 }}>{item.name} — ₪{item.price}</span>
-                  <button type="button" onClick={() => setNewVendor((f) => ({ ...f, items: f.items.filter((_, idx) => idx !== j) }))} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#EF4444' }}>×</button>
-                </div>
-              ))}
-              <div style={{ display: 'flex', gap: 6 }}>
-                <input value={newVendorItem.name} onChange={(e) => setNewVendorItem((f) => ({ ...f, name: e.target.value }))} placeholder="שם פריט/שירות" style={{ flex: 2, height: 30, borderRadius: 6, border: '1px solid var(--glass-border)', background: 'var(--glass)', color: 'var(--text)', padding: '0 6px', fontSize: 12 }} />
-                <input value={newVendorItem.price} onChange={(e) => setNewVendorItem((f) => ({ ...f, price: e.target.value }))} placeholder="₪" type="number" style={{ flex: 1, height: 30, borderRadius: 6, border: '1px solid var(--glass-border)', background: 'var(--glass)', color: 'var(--text)', padding: '0 6px', fontSize: 12 }} />
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (!newVendorItem.name) return
-                    setNewVendor((f) => ({ ...f, items: [...f.items, { ...newVendorItem, price: newVendorItem.price || 0 }] }))
-                    setNewVendorItem({ name: '', price: '' })
-                  }}
-                  style={{ height: 30, padding: '0 8px', borderRadius: 6, border: 'none', background: 'rgba(0,195,122,0.2)', color: '#00C37A', fontWeight: 700, cursor: 'pointer' }}
-                >
-                  +
-                </button>
-              </div>
-
-              <div style={{ display: 'flex', gap: 8 }}>
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (!newVendor.vendor_name) return
-                    const row = {
-                      ...newVendor,
-                      phone: newVendor.contact_phone,
-                      items: newVendor.items.map((it) => ({ name: it.name, price: parseFloat(it.price) || 0 })),
-                    }
-                    const u = [...vendors, row]
-                    setVendors(u)
-                    onUpdate({ ...data, vendors: u })
-                    setNewVendor({
-                      vendor_name: '', category: '', vendor_type: 'none', contact_name: '', contact_phone: '', contact_email: '', address: '', default_price: '', items: [],
-                    })
-                    setShowAddVendor(false)
-                  }}
-                  style={{ flex: 1, height: 36, borderRadius: 6, border: 'none', background: '#00C37A', color: '#000', fontWeight: 700, cursor: 'pointer' }}
-                >
-                  שמור ספק
-                </button>
-                <button type="button" onClick={() => setShowAddVendor(false)} style={{ flex: 1, height: 36, borderRadius: 6, border: '1px solid var(--glass-border)', background: 'transparent', color: 'var(--text)', cursor: 'pointer' }}>
-                  ביטול
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
 
       <button
