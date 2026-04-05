@@ -1263,55 +1263,122 @@ export default function EventDetailPage() {
             </div>
 
             {ordersTab === 'interested' && (
-              <div style={{ border: '1px solid var(--glass-border)', borderRadius: 10, overflow: 'hidden' }}>
-                {interests.map((interest) => (
-                  <div
-                    key={interest.id}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 12,
-                      padding: '10px 12px',
-                      borderBottom: '1px solid var(--glass-border)',
-                      flexWrap: 'wrap',
-                    }}
-                  >
-                    <div style={{ flex: 1, minWidth: 140 }}>
-                      <p style={{ margin: 0, fontWeight: 600, fontSize: 14 }}>
-                        {interest.first_name
-                          ? `${interest.first_name} ${interest.last_name || ''}`.trim()
-                          : interest.phone}
-                      </p>
-                      <p style={{ margin: 0, fontSize: 12, color: 'var(--v2-gray-400)' }}>{interest.phone}</p>
-                    </div>
-                    <span style={{
-                      padding: '3px 10px', borderRadius: 12, fontSize: 11,
-                      background: 'rgba(59,130,246,0.15)', color: '#3B82F6', fontWeight: 600,
-                    }}
-                    >
-                      {interest.source === 'pixel' ? 'ביקר בדף'
-                        : interest.source === 'whatsapp' ? 'WA'
-                          : interest.source === 'sms' ? 'SMS' : 'מתעניין'}
-                    </span>
-                    <span style={{ fontSize: 12, color: 'var(--v2-gray-400)' }}>
-                      {interest.created_at ? new Date(interest.created_at).toLocaleDateString('he-IL') : ''}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => window.open(`${window.location.origin}/dashboard/audiences?search=${encodeURIComponent(interest.phone || '')}`, '_blank')}
-                      style={{
-                        background: 'none', border: 'none', cursor: 'pointer', color: '#00C37A', fontSize: 12,
-                      }}
-                    >
-                      צפה בפרופיל →
-                    </button>
-                  </div>
-                ))}
-                {interests.length === 0 && (
-                  <p style={{ textAlign: 'center', color: 'var(--v2-gray-400)', padding: 24, margin: 0 }}>
-                    אין מתעניינים עדיין
-                  </p>
-                )}
+              <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch', width: '100%' }}>
+                <table style={{ width: '100%', minWidth: 800, borderCollapse: 'collapse' }}>
+                  <thead>
+                    <tr>
+                      {['פעולות', 'מקור', 'שם', 'טלפון', 'מייל', 'שלב נטישה', 'UTM', 'תאריך'].map((h) => (
+                        <th key={h} style={{ padding: '10px 12px', textAlign: 'right', fontSize: 12, fontWeight: 600, color: 'var(--v2-gray-400)', background: 'var(--card)', borderBottom: '1px solid var(--glass-border)', whiteSpace: 'nowrap' }}>
+                          {h}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {interests.length === 0 ? (
+                      <tr>
+                        <td colSpan={8} style={{ padding: 32, textAlign: 'center', color: 'var(--v2-gray-400)', fontSize: 13 }}>
+                          אין מתעניינים עדיין
+                        </td>
+                      </tr>
+                    ) : interests.map((interest) => (
+                      <tr key={interest.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+
+                        <td style={{ padding: '8px 12px' }}>
+                          <div style={{ display: 'flex', gap: 6 }}>
+                            {interest.phone && (
+                              <button
+                                type="button"
+                                title="שלח WA"
+                                onClick={() => {
+                                  window.open(`https://wa.me/${interest.phone}`, '_blank')
+                                }}
+                                style={{ width: 28, height: 28, borderRadius: 6, border: 'none', background: 'rgba(34,197,94,0.1)', color: '#22C55E', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                              >
+                                <MessageCircle size={13} />
+                              </button>
+                            )}
+                            <button
+                              type="button"
+                              title="הוסף לקמפיין"
+                              onClick={() => {
+                                toast('בקרוב — ייבוא לקמפיין', { icon: '📣' })
+                              }}
+                              style={{ width: 28, height: 28, borderRadius: 6, border: '1px solid var(--glass-border)', background: 'transparent', color: 'var(--text)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                            >
+                              <Plus size={13} />
+                            </button>
+                            <button
+                              type="button"
+                              title="צפה בפרופיל"
+                              onClick={() => {
+                                window.location.href = `/dashboard/audiences?search=${interest.phone || interest.email || ''}`
+                              }}
+                              style={{ width: 28, height: 28, borderRadius: 6, border: '1px solid var(--glass-border)', background: 'transparent', color: '#00C37A', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                            >
+                              <ExternalLink size={13} />
+                            </button>
+                          </div>
+                        </td>
+
+                        <td style={{ padding: '8px 12px', whiteSpace: 'nowrap' }}>
+                          <span style={{
+                            fontSize: 11, padding: '3px 8px', borderRadius: 20, fontWeight: 600,
+                            background: interest.source === 'page_view' ? 'rgba(59,130,246,0.15)'
+                              : interest.source === 'modal_open' ? 'rgba(245,158,11,0.15)'
+                                : interest.source?.includes('abandon') ? 'rgba(239,68,68,0.15)' : 'rgba(255,255,255,0.1)',
+                            color: interest.source === 'page_view' ? '#3B82F6'
+                              : interest.source === 'modal_open' ? '#F59E0B'
+                                : interest.source?.includes('abandon') ? '#EF4444' : 'var(--v2-gray-400)',
+                          }}
+                          >
+                            {interest.source === 'page_view' ? '👁 ביקר בדף'
+                              : interest.source === 'modal_open' ? '🎫 פתח מודל'
+                                : interest.source?.includes('abandon') ? `🚪 נטש שלב ${interest.source.split('_').pop()}`
+                                  : interest.source === 'pixel' ? '📡 Pixel'
+                                    : interest.source || 'לא ידוע'}
+                          </span>
+                        </td>
+
+                        <td style={{ padding: '8px 12px', fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap' }}>
+                          {interest.first_name || interest.last_name
+                            ? `${interest.first_name || ''} ${interest.last_name || ''}`.trim()
+                            : '—'}
+                        </td>
+
+                        <td style={{ padding: '8px 12px', fontSize: 13, whiteSpace: 'nowrap', direction: 'ltr' }}>
+                          {interest.phone || '—'}
+                        </td>
+
+                        <td style={{ padding: '8px 12px', fontSize: 12, color: 'var(--v2-gray-400)', whiteSpace: 'nowrap' }}>
+                          {interest.email || '—'}
+                        </td>
+
+                        <td style={{ padding: '8px 12px', fontSize: 12, whiteSpace: 'nowrap' }}>
+                          {interest.source?.includes('abandon') ? (
+                            <span style={{ color: '#EF4444' }}>
+                              שלב
+                              {' '}
+                              {interest.source.split('_').pop()}
+                              {' '}
+                              מתוך 7
+                            </span>
+                          ) : '—'}
+                        </td>
+
+                        <td style={{ padding: '8px 12px', fontSize: 11, color: 'var(--v2-gray-400)', whiteSpace: 'nowrap' }}>
+                          {interest.metadata?.utm_source
+                            ? `${interest.metadata.utm_source}/${interest.metadata.utm_medium || ''}`
+                            : interest.metadata?.ref ? `יחצ"ן: ${interest.metadata.ref}` : '—'}
+                        </td>
+
+                        <td style={{ padding: '8px 12px', fontSize: 11, color: 'var(--v2-gray-400)', whiteSpace: 'nowrap' }}>
+                          {interest.created_at ? new Date(interest.created_at).toLocaleString('he-IL') : '—'}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             )}
 
