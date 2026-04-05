@@ -103,6 +103,9 @@ export function TableBookingModalContent({
         toast.success('הבקשה נשלחה לאישור')
         return
       }
+      if (!data.order_id) {
+        throw new Error('שגיאה ביצירת הזמנה')
+      }
       if (data.total_amount === 0 || data.client_secret === 'free_order') {
         const conf = await fetch(`${API_BASE}/e/${slug}/confirm`, {
           method: 'POST',
@@ -114,10 +117,27 @@ export function TableBookingModalContent({
         setSuccess(true)
         resetAfterClose()
         toast.success('הכרטיס בדרך!')
-      } else if (data.client_secret) {
-        setSuccess(true)
-        resetAfterClose()
-        toast.success('המשך לתשלום — הכרטיס בדרך!')
+        return
+      }
+
+      const payRes = await fetch(`${API_BASE}/e/${slug}/pay`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          order_id: data.order_id,
+          customer_name: tableForm.customer_name,
+          customer_phone: tableForm.customer_phone,
+          customer_email: tableForm.customer_email,
+        }),
+      })
+      const payData = await payRes.json()
+      if (!payRes.ok) {
+        throw new Error(payData.error || payData.message || 'שגיאה ביצירת תשלום')
+      }
+      if (payData.payment_url) {
+        window.location.href = payData.payment_url
+      } else {
+        throw new Error('שגיאה ביצירת לינק תשלום')
       }
     } catch (e) {
       console.error(e)

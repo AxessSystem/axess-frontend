@@ -640,6 +640,7 @@ export default function EventPage() {
   const [paying, setPaying] = useState(false)
   const [success, setSuccess] = useState(false)
   const [pendingApproval, setPendingApproval] = useState(false)
+  const [paymentResult, setPaymentResult] = useState(null)
   const [quantities, setQuantities] = useState({})
   const [showTicketDrawer, setShowTicketDrawer] = useState(false)
   const [tableStep, setTableStep] = useState(1)
@@ -720,6 +721,29 @@ export default function EventPage() {
     // window.fbq?.('track', 'ViewContent');
     // window.ttq?.track('ViewContent');
   }, [slug, promoRef])
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const orderParam = params.get('order')
+    const statusParam = params.get('status')
+    const errorCode = params.get('error_code')
+    const errorDesc = params.get('error_description')
+
+    if (orderParam && statusParam === 'success') {
+      setPaymentResult({
+        success: true,
+        order_id: orderParam,
+        message: 'התשלום בוצע בהצלחה! הכרטיס שלך בדרך אליך בWA 🎉',
+      })
+    } else if (orderParam && (statusParam === 'error' || statusParam === 'cancel')) {
+      setPaymentResult({
+        success: false,
+        order_id: orderParam,
+        message: errorDesc || 'התשלום נכשל — אנא נסה שנית',
+        error_code: errorCode,
+      })
+    }
+  }, [])
 
   const trackStep = useCallback((step) => {
     if (!slug) return
@@ -1742,6 +1766,63 @@ export default function EventPage() {
               }}
             >
               {paying ? 'מעבד...' : 'לתשלום'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {paymentResult && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.8)',
+            zIndex: 9999,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 20,
+          }}
+        >
+          <div
+            style={{
+              background: '#1a1d2e',
+              borderRadius: 16,
+              padding: 32,
+              maxWidth: 380,
+              width: '100%',
+              border: `1px solid ${paymentResult.success ? 'rgba(0,195,122,0.3)' : 'rgba(239,68,68,0.3)'}`,
+              textAlign: 'center',
+            }}
+          >
+            <p style={{ fontSize: 48, margin: '0 0 16px' }}>
+              {paymentResult.success ? '🎉' : '❌'}
+            </p>
+            <p style={{ fontSize: 20, fontWeight: 800, margin: '0 0 8px', color: '#fff' }}>
+              {paymentResult.success ? 'תשלום בוצע!' : 'תשלום נכשל'}
+            </p>
+            <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.7)', margin: '0 0 24px' }}>
+              {paymentResult.message}
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                setPaymentResult(null)
+                window.history.replaceState({}, '', window.location.pathname)
+              }}
+              style={{
+                width: '100%',
+                height: 46,
+                borderRadius: 10,
+                border: 'none',
+                background: paymentResult.success ? '#00C37A' : 'rgba(255,255,255,0.1)',
+                color: paymentResult.success ? '#000' : '#fff',
+                fontWeight: 700,
+                fontSize: 15,
+                cursor: 'pointer',
+              }}
+            >
+              {paymentResult.success ? 'מעולה!' : 'נסה שנית'}
             </button>
           </div>
         </div>
