@@ -1683,6 +1683,26 @@ export default function EventDetailPage() {
                       </td>
                     </tr>
                   ))}
+                  {filteredOrders.length > 0 && (
+                    <tr style={{ borderTop: '2px solid rgba(0,195,122,0.3)', background: 'rgba(0,195,122,0.05)' }}>
+                      <td colSpan={4} style={{ padding: '10px 12px', fontSize: 13, fontWeight: 700, color: '#00C37A' }}>
+                        סה&quot;כ (
+                        {filteredOrders.length}
+                        {' '}
+                        רשומות)
+                      </td>
+                      <td colSpan={10} />
+                      <td style={{ padding: '10px 12px', fontSize: 14, fontWeight: 800, color: '#00C37A', whiteSpace: 'nowrap' }}>
+                        ₪
+                        {filteredOrders.reduce((sum, o) => sum + (parseFloat(o.total_amount) || 0), 0).toLocaleString()}
+                      </td>
+                      <td style={{ padding: '10px 12px', fontSize: 13, fontWeight: 700, color: '#F59E0B', whiteSpace: 'nowrap' }}>
+                        ₪
+                        {filteredOrders.reduce((sum, o) => sum + (parseFloat(o.promoter_commission) || 0), 0).toLocaleString()}
+                      </td>
+                      <td colSpan={AUDIENCE_COLUMNS.length - 4 - 10 - 1 - 1} />
+                    </tr>
+                  )}
                   {filteredOrders.length === 0 && (
                     <tr>
                       <td colSpan={AUDIENCE_COLUMNS.length} style={{ padding: 24, textAlign: 'center', color: 'var(--v2-gray-400)', fontSize: 14 }}>
