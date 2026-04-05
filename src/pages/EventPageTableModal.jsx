@@ -37,10 +37,17 @@ export function TableBookingModalContent({
   setSuccess,
   setPendingApproval,
   API_BASE,
+  trackStep,
 }) {
   const [drinkSearch, setDrinkSearch] = useState('')
 
+  const backTo = (nextStep) => {
+    trackStep?.(tableStep)
+    setTableStep(nextStep)
+  }
+
   const resetAfterClose = () => {
+    trackStep?.(tableStep)
     setModalTicket(null)
     setTableStep(1)
     setDrinkSearch('')
@@ -443,7 +450,7 @@ export function TableBookingModalContent({
           <div style={{ display: 'flex', gap: 10 }}>
             <button
               type="button"
-              onClick={() => setTableStep(1)}
+              onClick={() => backTo(1)}
               style={{
                 flex: 1,
                 height: 50,
@@ -544,7 +551,7 @@ export function TableBookingModalContent({
           <div style={{ display: 'flex', gap: 10 }}>
             <button
               type="button"
-              onClick={() => setTableStep(2)}
+              onClick={() => backTo(2)}
               style={{
                 flex: 1,
                 height: 50,
@@ -654,7 +661,7 @@ export function TableBookingModalContent({
           <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
             <button
               type="button"
-              onClick={() => setTableStep(3)}
+              onClick={() => backTo(3)}
               style={{
                 flex: 1,
                 height: 50,
@@ -723,7 +730,7 @@ export function TableBookingModalContent({
           <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
             <button
               type="button"
-              onClick={() => setTableStep(4)}
+              onClick={() => backTo(4)}
               style={{
                 flex: 1,
                 height: 50,
@@ -844,7 +851,7 @@ export function TableBookingModalContent({
           <div style={{ display: 'flex', gap: 10 }}>
             <button
               type="button"
-              onClick={() => setTableStep(5)}
+              onClick={() => backTo(5)}
               style={{
                 flex: 1,
                 height: 50,
@@ -1066,7 +1073,7 @@ export function TableBookingModalContent({
           <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
             <button
               type="button"
-              onClick={() => setTableStep(6)}
+              onClick={() => backTo(6)}
               style={{
                 flex: 1,
                 height: 50,

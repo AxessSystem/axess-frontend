@@ -700,6 +700,39 @@ export default function EventPage() {
       .finally(() => setLoading(false))
   }, [slug])
 
+  const promoRef = ref
+
+  useEffect(() => {
+    if (!slug) return
+    const params = new URLSearchParams(window.location.search)
+    fetch(`${API_BASE}/e/${slug}/track`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        event: 'page_view',
+        ref: promoRef || null,
+        utm_source: params.get('utm_source'),
+        utm_medium: params.get('utm_medium'),
+        utm_campaign: params.get('utm_campaign'),
+      }),
+    }).catch(() => {})
+    // window.gtag?.('event', 'page_view');
+    // window.fbq?.('track', 'ViewContent');
+    // window.ttq?.track('ViewContent');
+  }, [slug, promoRef])
+
+  const trackStep = useCallback((step) => {
+    if (!slug) return
+    fetch(`${API_BASE}/e/${slug}/track`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        event: `abandon_step_${step}`,
+        ref: promoRef || null,
+      }),
+    }).catch(() => {})
+  }, [slug, promoRef])
+
   const handleReserve = async () => {
     if (!modalTicket || !modalName.trim() || !modalPhone.trim()) {
       toast.error('מלא שם וטלפון')
@@ -860,6 +893,16 @@ export default function EventPage() {
         split_count: 1,
       })
     }
+    fetch(`${API_BASE}/e/${slug}/track`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        event: 'modal_open',
+        ticket_id: tt.id,
+        ticket_category: tt.ticket_category,
+        ref: promoRef || null,
+      }),
+    }).catch(() => {})
   }
 
   return (
@@ -1295,6 +1338,7 @@ export default function EventPage() {
           <div
             onClick={() => {
               if (!paying) {
+                trackStep(tableStep)
                 setModalTicket(null)
                 setTableStep(1)
               }
@@ -1335,6 +1379,7 @@ export default function EventPage() {
               setSuccess={setSuccess}
               setPendingApproval={setPendingApproval}
               API_BASE={API_BASE}
+              trackStep={trackStep}
             />
           </div>
         </div>
