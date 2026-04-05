@@ -877,6 +877,10 @@ export default function EventPage() {
   const dc = event.display_config || {}
   const primaryColor = dc.primary_color || 'var(--v2-primary)'
   const coverSrc = event.cover_image_url || event.image_url
+  const regFieldTypes = (event?.registration_fields || []).map((f) => f.type)
+  const hasPhoneField = regFieldTypes.includes('phone')
+  const hasIdField = regFieldTypes.includes('id') || regFieldTypes.includes('identification')
+  const hasNameField = regFieldTypes.includes('name') || regFieldTypes.includes('full_name')
   const selectTicket = (tt) => {
     const available = ticketAvailable(tt)
     const maxQ = Math.max(
@@ -1477,67 +1481,71 @@ export default function EventPage() {
             )}
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              <div>
-                <label
-                  style={{
-                    fontSize: 12,
-                    color: 'rgba(255,255,255,0.5)',
-                    display: 'block',
-                    marginBottom: 4,
-                  }}
-                >
-                  שם מלא *
-                </label>
-                <input
-                  value={modalName}
-                  onChange={(e) => setModalName(e.target.value)}
-                  placeholder="שם פרטי ושם משפחה"
-                  style={{
-                    width: '100%',
-                    height: 46,
-                    borderRadius: 10,
-                    border: `1px solid ${!modalName ? 'rgba(255,255,255,0.15)' : 'rgba(0,195,122,0.4)'}`,
-                    background: 'rgba(255,255,255,0.08)',
-                    color: '#fff',
-                    padding: '0 14px',
-                    fontSize: 15,
-                    boxSizing: 'border-box',
-                  }}
-                />
-              </div>
+              {!hasNameField && (
+                <div>
+                  <label
+                    style={{
+                      fontSize: 12,
+                      color: 'rgba(255,255,255,0.5)',
+                      display: 'block',
+                      marginBottom: 4,
+                    }}
+                  >
+                    שם מלא *
+                  </label>
+                  <input
+                    value={modalName}
+                    onChange={(e) => setModalName(e.target.value)}
+                    placeholder="שם פרטי ושם משפחה"
+                    style={{
+                      width: '100%',
+                      height: 46,
+                      borderRadius: 10,
+                      border: `1px solid ${!modalName ? 'rgba(255,255,255,0.15)' : 'rgba(0,195,122,0.4)'}`,
+                      background: 'rgba(255,255,255,0.08)',
+                      color: '#fff',
+                      padding: '0 14px',
+                      fontSize: 15,
+                      boxSizing: 'border-box',
+                    }}
+                  />
+                </div>
+              )}
 
-              <div>
-                <label
-                  style={{
-                    fontSize: 12,
-                    color: 'rgba(255,255,255,0.5)',
-                    display: 'block',
-                    marginBottom: 4,
-                  }}
-                >
-                  טלפון * (לקבלת כרטיס בWA)
-                </label>
-                <input
-                  value={modalPhone}
-                  onChange={(e) => setModalPhone(e.target.value)}
-                  placeholder="05XXXXXXXX"
-                  type="tel"
-                  dir="ltr"
-                  style={{
-                    width: '100%',
-                    height: 46,
-                    borderRadius: 10,
-                    border: `1px solid ${!modalPhone ? 'rgba(255,255,255,0.15)' : 'rgba(0,195,122,0.4)'}`,
-                    background: 'rgba(255,255,255,0.08)',
-                    color: '#fff',
-                    padding: '0 14px',
-                    fontSize: 15,
-                    boxSizing: 'border-box',
-                  }}
-                />
-              </div>
+              {!hasPhoneField && (
+                <div>
+                  <label
+                    style={{
+                      fontSize: 12,
+                      color: 'rgba(255,255,255,0.5)',
+                      display: 'block',
+                      marginBottom: 4,
+                    }}
+                  >
+                    טלפון * (לקבלת כרטיס בWA)
+                  </label>
+                  <input
+                    value={modalPhone}
+                    onChange={(e) => setModalPhone(e.target.value)}
+                    placeholder="05XXXXXXXX"
+                    type="tel"
+                    dir="ltr"
+                    style={{
+                      width: '100%',
+                      height: 46,
+                      borderRadius: 10,
+                      border: `1px solid ${!modalPhone ? 'rgba(255,255,255,0.15)' : 'rgba(0,195,122,0.4)'}`,
+                      background: 'rgba(255,255,255,0.08)',
+                      color: '#fff',
+                      padding: '0 14px',
+                      fontSize: 15,
+                      boxSizing: 'border-box',
+                    }}
+                  />
+                </div>
+              )}
 
-              {event?.requires_id && (
+              {event?.requires_id && !hasIdField && (
                 <div>
                   <label
                     style={{
@@ -1622,6 +1630,69 @@ export default function EventPage() {
                     {field.label}
                     {field.required ? ' *' : ''}
                   </label>
+
+                  {field.type === 'phone' && (
+                    <input
+                      value={modalPhone}
+                      onChange={(e) => setModalPhone(e.target.value)}
+                      placeholder="05XXXXXXXX"
+                      type="tel"
+                      dir="ltr"
+                      style={{
+                        width: '100%',
+                        height: 46,
+                        borderRadius: 10,
+                        border: '1px solid rgba(255,255,255,0.15)',
+                        background: 'rgba(255,255,255,0.08)',
+                        color: '#fff',
+                        padding: '0 14px',
+                        fontSize: 15,
+                        boxSizing: 'border-box',
+                      }}
+                    />
+                  )}
+
+                  {(field.type === 'id' || field.type === 'identification') && (
+                    <input
+                      value={idNumber}
+                      onChange={(e) => setIdNumber(e.target.value.replace(/\D/g, ''))}
+                      placeholder="000000000"
+                      type="text"
+                      inputMode="numeric"
+                      maxLength={9}
+                      dir="ltr"
+                      style={{
+                        width: '100%',
+                        height: 46,
+                        borderRadius: 10,
+                        border: '1px solid rgba(255,255,255,0.15)',
+                        background: 'rgba(255,255,255,0.08)',
+                        color: '#fff',
+                        padding: '0 14px',
+                        fontSize: 15,
+                        boxSizing: 'border-box',
+                      }}
+                    />
+                  )}
+
+                  {(field.type === 'name' || field.type === 'full_name') && (
+                    <input
+                      value={modalName}
+                      onChange={(e) => setModalName(e.target.value)}
+                      placeholder="שם פרטי ושם משפחה"
+                      style={{
+                        width: '100%',
+                        height: 46,
+                        borderRadius: 10,
+                        border: '1px solid rgba(255,255,255,0.15)',
+                        background: 'rgba(255,255,255,0.08)',
+                        color: '#fff',
+                        padding: '0 14px',
+                        fontSize: 15,
+                        boxSizing: 'border-box',
+                      }}
+                    />
+                  )}
 
                   {field.type === 'text' && (
                     <input
