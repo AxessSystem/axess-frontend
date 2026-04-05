@@ -132,6 +132,7 @@ const CustomSelect = ({
             boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
             maxHeight: searchable ? 280 : 220,
             overflowY: 'auto',
+            scrollbarWidth: 'thin',
           }}
           onMouseDown={(e) => e.stopPropagation()}
         >
