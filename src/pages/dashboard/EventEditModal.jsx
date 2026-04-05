@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import toast from 'react-hot-toast'
 import {
   X, Upload, Link, Plus, Trash2, QrCode, Globe, MapPin, Navigation, Share2, Copy,
+  Target, Wine, PencilLine, ClipboardList,
 } from 'lucide-react'
 import CustomSelect from '@/components/ui/CustomSelect'
 import TemplatesTab from './TemplatesTab'
@@ -582,7 +583,9 @@ export default function EventEditModal({ event, onClose, onSave, authHeaders, bu
             </div>
           )}
 
-          {activeTab === 'tickets' && <TicketsTab eventId={event?.id} authHeaders={authHeaders} />}
+          {activeTab === 'tickets' && (
+            <TicketsTab eventId={event?.id} authHeaders={authHeaders} onClose={onClose} />
+          )}
 
           {activeTab === 'tables' && (
             <div style={{ textAlign: 'center', padding: 32, color: 'var(--v2-gray-400)' }}>
@@ -960,17 +963,26 @@ export default function EventEditModal({ event, onClose, onSave, authHeaders, bu
   )
 }
 
-function TicketsTab({ eventId, authHeaders }) {
+function TicketsTab({ eventId, authHeaders, onClose }) {
   const [tickets, setTickets] = useState([])
   const [showAdd, setShowAdd] = useState(false)
+  const [menuItems, setMenuItems] = useState([])
   const [newTicket, setNewTicket] = useState({
     name: '',
     description: '',
-    price: '',
+    price: '0',
     quantity_total: '',
     max_per_order: 10,
     ticket_category: 'general',
     status: 'active',
+    table_type: 'smart',
+    free_people_premium: 3,
+    free_people_standard: 2,
+    price_threshold: 1000,
+    extras_per_bottle: 1,
+    min_spend: 0,
+    approval_required: false,
+    show_menu_link: true,
   })
 
   useEffect(() => {
@@ -978,6 +990,13 @@ function TicketsTab({ eventId, authHeaders }) {
     fetch(`${API_BASE}/api/admin/events/${eventId}/ticket-types`, { headers: authHeaders() })
       .then((r) => r.json())
       .then((d) => setTickets(d.ticket_types || d || []))
+  }, [eventId, authHeaders])
+
+  useEffect(() => {
+    if (!eventId) return
+    fetch(`${API_BASE}/api/admin/events/${eventId}/table-menu`, { headers: authHeaders() })
+      .then((r) => r.json())
+      .then((d) => setMenuItems(d.menu || []))
   }, [eventId, authHeaders])
 
   const loadTickets = () => {
@@ -1197,25 +1216,456 @@ function TicketsTab({ eventId, authHeaders }) {
               onChange={(v) => setNewTicket((f) => ({ ...f, ticket_category: v }))}
               options={TICKET_CATEGORIES}
             />
+            {newTicket.ticket_category === 'table' && (
+              <div
+                style={{
+                  background: 'rgba(0,195,122,0.05)',
+                  borderRadius: 10,
+                  padding: 14,
+                  border: '1px solid rgba(0,195,122,0.2)',
+                }}
+              >
+                <p style={{ margin: '0 0 12px', fontSize: 13, fontWeight: 700, color: '#00C37A' }}>
+                  הגדרות שולחן
+                </p>
+
+                <div style={{ marginBottom: 10 }}>
+                  <label
+                    style={{
+                      fontSize: 12,
+                      color: 'var(--v2-gray-400)',
+                      display: 'block',
+                      marginBottom: 6,
+                    }}
+                  >
+                    סוג שולחן
+                  </label>
+                  <div style={{ display: 'flex', gap: 10 }}>
+                    {[
+                      {
+                        value: 'smart',
+                        label: 'שולחן חכם',
+                        sub: 'הלקוח בוחר שתייה וכמות',
+                        Icon: Target,
+                      },
+                      {
+                        value: 'specific',
+                        label: 'שולחן ספציפי',
+                        sub: 'מוצר ומחיר קבועים',
+                        Icon: Wine,
+                      },
+                    ].map((opt) => {
+                      const TableKindIcon = opt.Icon
+                      return (
+                        <div
+                          key={opt.value}
+                          role="button"
+                          tabIndex={0}
+                          onClick={() => setNewTicket((f) => ({ ...f, table_type: opt.value }))}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                              e.preventDefault()
+                              setNewTicket((f) => ({ ...f, table_type: opt.value }))
+                            }
+                          }}
+                          style={{
+                            flex: 1,
+                            padding: 12,
+                            borderRadius: 8,
+                            cursor: 'pointer',
+                            border: `2px solid ${newTicket.table_type === opt.value ? '#00C37A' : 'var(--glass-border)'}`,
+                            background:
+                              newTicket.table_type === opt.value
+                                ? 'rgba(0,195,122,0.1)'
+                                : 'var(--glass)',
+                          }}
+                        >
+                          <p
+                            style={{
+                              margin: 0,
+                              fontSize: 13,
+                              fontWeight: 700,
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: 6,
+                            }}
+                          >
+                            <TableKindIcon size={16} color="#00C37A" strokeWidth={2} />
+                            {opt.label}
+                          </p>
+                          <p style={{ margin: '3px 0 0', fontSize: 11, color: 'var(--v2-gray-400)' }}>{opt.sub}</p>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+
+                {newTicket.table_type !== 'specific' && (
+                  <div
+                    style={{
+                      display: 'grid',
+                      gridTemplateColumns: '1fr 1fr',
+                      gap: 8,
+                      marginBottom: 8,
+                    }}
+                  >
+                    <div>
+                      <label
+                        style={{
+                          fontSize: 11,
+                          color: 'var(--v2-gray-400)',
+                          display: 'block',
+                          marginBottom: 3,
+                        }}
+                      >
+                        אנשים חינם (מעל ₪1,000)
+                      </label>
+                      <input
+                        value={newTicket.free_people_premium ?? 3}
+                        onChange={(e) =>
+                          setNewTicket((f) => ({ ...f, free_people_premium: parseInt(e.target.value, 10) || 3 }))
+                        }
+                        type="number"
+                        min="0"
+                        max="10"
+                        style={{
+                          width: '100%',
+                          height: 34,
+                          borderRadius: 8,
+                          border: '1px solid var(--glass-border)',
+                          background: 'var(--card)',
+                          color: 'var(--text)',
+                          padding: '0 8px',
+                          fontSize: 13,
+                          boxSizing: 'border-box',
+                        }}
+                      />
+                    </div>
+                    <div>
+                      <label
+                        style={{
+                          fontSize: 11,
+                          color: 'var(--v2-gray-400)',
+                          display: 'block',
+                          marginBottom: 3,
+                        }}
+                      >
+                        אנשים חינם (עד ₪1,000)
+                      </label>
+                      <input
+                        value={newTicket.free_people_standard ?? 2}
+                        onChange={(e) =>
+                          setNewTicket((f) => ({ ...f, free_people_standard: parseInt(e.target.value, 10) || 2 }))
+                        }
+                        type="number"
+                        min="0"
+                        max="10"
+                        style={{
+                          width: '100%',
+                          height: 34,
+                          borderRadius: 8,
+                          border: '1px solid var(--glass-border)',
+                          background: 'var(--card)',
+                          color: 'var(--text)',
+                          padding: '0 8px',
+                          fontSize: 13,
+                          boxSizing: 'border-box',
+                        }}
+                      />
+                    </div>
+                    <div>
+                      <label
+                        style={{
+                          fontSize: 11,
+                          color: 'var(--v2-gray-400)',
+                          display: 'block',
+                          marginBottom: 3,
+                        }}
+                      >
+                        סף מחיר (₪)
+                      </label>
+                      <input
+                        value={newTicket.price_threshold ?? 1000}
+                        onChange={(e) =>
+                          setNewTicket((f) => ({ ...f, price_threshold: parseInt(e.target.value, 10) || 1000 }))
+                        }
+                        type="number"
+                        style={{
+                          width: '100%',
+                          height: 34,
+                          borderRadius: 8,
+                          border: '1px solid var(--glass-border)',
+                          background: 'var(--card)',
+                          color: 'var(--text)',
+                          padding: '0 8px',
+                          fontSize: 13,
+                          boxSizing: 'border-box',
+                        }}
+                      />
+                    </div>
+                    <div>
+                      <label
+                        style={{
+                          fontSize: 11,
+                          color: 'var(--v2-gray-400)',
+                          display: 'block',
+                          marginBottom: 3,
+                        }}
+                      >
+                        תוספות לבקבוק
+                      </label>
+                      <input
+                        value={newTicket.extras_per_bottle ?? 1}
+                        onChange={(e) =>
+                          setNewTicket((f) => ({ ...f, extras_per_bottle: parseInt(e.target.value, 10) || 1 }))
+                        }
+                        type="number"
+                        min="0"
+                        max="5"
+                        style={{
+                          width: '100%',
+                          height: 34,
+                          borderRadius: 8,
+                          border: '1px solid var(--glass-border)',
+                          background: 'var(--card)',
+                          color: 'var(--text)',
+                          padding: '0 8px',
+                          fontSize: 13,
+                          boxSizing: 'border-box',
+                        }}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                  <div>
+                    <label
+                      style={{
+                        fontSize: 11,
+                        color: 'var(--v2-gray-400)',
+                        display: 'block',
+                        marginBottom: 3,
+                      }}
+                    >
+                      מינימום הזמנה ₪
+                    </label>
+                    <input
+                      value={newTicket.min_spend ?? 0}
+                      onChange={(e) =>
+                        setNewTicket((f) => ({ ...f, min_spend: parseInt(e.target.value, 10) || 0 }))
+                      }
+                      type="number"
+                      style={{
+                        width: '100%',
+                        height: 34,
+                        borderRadius: 8,
+                        border: '1px solid var(--glass-border)',
+                        background: 'var(--card)',
+                        color: 'var(--text)',
+                        padding: '0 8px',
+                        fontSize: 13,
+                        boxSizing: 'border-box',
+                      }}
+                    />
+                  </div>
+                  <div>
+                    <label
+                      style={{
+                        fontSize: 11,
+                        color: 'var(--v2-gray-400)',
+                        display: 'block',
+                        marginBottom: 3,
+                      }}
+                    >
+                      כמות שולחנות
+                    </label>
+                    <input
+                      value={newTicket.quantity_total ?? ''}
+                      onChange={(e) => setNewTicket((f) => ({ ...f, quantity_total: e.target.value }))}
+                      type="number"
+                      placeholder="ללא הגבלה"
+                      style={{
+                        width: '100%',
+                        height: 34,
+                        borderRadius: 8,
+                        border: '1px solid var(--glass-border)',
+                        background: 'var(--card)',
+                        color: 'var(--text)',
+                        padding: '0 8px',
+                        fontSize: 13,
+                        boxSizing: 'border-box',
+                      }}
+                    />
+                  </div>
+                </div>
+
+                <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  <label
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 8,
+                      fontSize: 13,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={!!newTicket.approval_required}
+                      onChange={(e) =>
+                        setNewTicket((f) => ({ ...f, approval_required: e.target.checked }))
+                      }
+                    />
+                    דורש אישור מפיק (מומלץ)
+                  </label>
+                  <label
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 8,
+                      fontSize: 13,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={newTicket.show_menu_link !== false}
+                      onChange={(e) =>
+                        setNewTicket((f) => ({ ...f, show_menu_link: e.target.checked }))
+                      }
+                    />
+                    הצג לינק תפריט בדף האירוע
+                  </label>
+                </div>
+
+                <div
+                  style={{
+                    marginTop: 10,
+                    padding: 12,
+                    background: 'rgba(255,255,255,0.03)',
+                    borderRadius: 8,
+                    border: '1px solid rgba(255,255,255,0.08)',
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div>
+                      <p style={{ margin: 0, fontSize: 13, fontWeight: 600 }}>תפריט מקושר</p>
+                      <p style={{ margin: '2px 0 0', fontSize: 11, color: 'var(--v2-gray-400)' }}>
+                        {menuItems?.length > 0
+                          ? `${menuItems.length} פריטים בתפריט`
+                          : 'אין תפריט מוגדר עדיין'}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onClose?.()
+                        toast('עבור לטאב "תבניות" → "התפריט שלי" לעריכת התפריט', {
+                          icon: <ClipboardList size={18} color="#00C37A" />,
+                          duration: 4000,
+                        })
+                      }}
+                      style={{
+                        padding: '6px 12px',
+                        borderRadius: 8,
+                        border: '1px solid rgba(0,195,122,0.3)',
+                        background: 'rgba(0,195,122,0.1)',
+                        color: '#00C37A',
+                        fontSize: 12,
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 6,
+                      }}
+                    >
+                      {menuItems?.length > 0 ? (
+                        <>
+                          <PencilLine size={14} /> ערוך תפריט
+                        </>
+                      ) : (
+                        <>
+                          <Plus size={14} /> הוסף תפריט
+                        </>
+                      )}
+                    </button>
+                  </div>
+
+                  {menuItems?.length > 0 && (
+                    <div style={{ marginTop: 10, display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                      {[...new Set(menuItems.map((m) => m.category))].slice(0, 5).map((cat) => (
+                        <span
+                          key={cat}
+                          style={{
+                            fontSize: 10,
+                            background: 'rgba(0,195,122,0.1)',
+                            color: '#00C37A',
+                            padding: '2px 8px',
+                            borderRadius: 10,
+                          }}
+                        >
+                          {cat}
+                        </span>
+                      ))}
+                      {menuItems.length > 5 && (
+                        <span style={{ fontSize: 10, color: 'var(--v2-gray-400)' }}>ועוד...</span>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
             <div style={{ display: 'flex', gap: 8 }}>
               <button
                 type="button"
                 onClick={async () => {
-                  if (!newTicket.name || !newTicket.price || !newTicket.quantity_total) return
+                  if (!newTicket.name?.trim()) return
+                  if (newTicket.ticket_category !== 'table') {
+                    if (!newTicket.price || !newTicket.quantity_total) return
+                  }
+                  const showMenu = newTicket.show_menu_link !== false
+                  const body = {
+                    ...newTicket,
+                    price: newTicket.ticket_category === 'table' ? 0 : newTicket.price,
+                    metadata:
+                      newTicket.ticket_category === 'table'
+                        ? {
+                            table_type: newTicket.table_type,
+                            free_rule: {
+                              people: newTicket.free_people_premium,
+                              below_threshold_people: newTicket.free_people_standard,
+                              price_threshold: newTicket.price_threshold,
+                              per_liter: newTicket.extras_per_bottle,
+                            },
+                            min_spend: newTicket.min_spend,
+                            show_menu_link: showMenu,
+                            approval_required: newTicket.approval_required,
+                          }
+                        : {},
+                  }
                   await fetch(`${API_BASE}/api/admin/events/${eventId}/ticket-types`, {
                     method: 'POST',
                     headers: authHeaders(),
-                    body: JSON.stringify(newTicket),
+                    body: JSON.stringify(body),
                   })
                   setShowAdd(false)
                   setNewTicket({
                     name: '',
                     description: '',
-                    price: '',
+                    price: '0',
                     quantity_total: '',
                     max_per_order: 10,
                     ticket_category: 'general',
                     status: 'active',
+                    table_type: 'smart',
+                    free_people_premium: 3,
+                    free_people_standard: 2,
+                    price_threshold: 1000,
+                    extras_per_bottle: 1,
+                    min_spend: 0,
+                    approval_required: false,
+                    show_menu_link: true,
                   })
                   loadTickets()
                 }}
