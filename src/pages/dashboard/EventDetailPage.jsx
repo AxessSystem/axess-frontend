@@ -53,6 +53,32 @@ const VAT_MODES = [
   { value: 'exempt', label: 'פטור' },
 ]
 
+const AUDIENCE_COLUMNS = [
+  { key: 'actions', label: 'פעולות', sticky: true },
+  { key: 'status', label: 'סטטוס' },
+  { key: 'ticket_name', label: 'שם כרטיס' },
+  { key: 'ticket_category', label: 'סוג' },
+  { key: 'first_name', label: 'שם' },
+  { key: 'last_name', label: 'שם משפחה' },
+  { key: 'phone', label: 'טלפון' },
+  { key: 'email', label: 'מייל' },
+  { key: 'instagram', label: 'אינסטגרם' },
+  { key: 'identification_number', label: 'ת.ז' },
+  { key: 'promoter_name', label: 'יחצ"ן' },
+  { key: 'promoter_commission', label: 'עמלה' },
+  { key: 'order_number', label: 'מספר הזמנה' },
+  { key: 'payment_id', label: 'מספר תשלום' },
+  { key: 'total_amount', label: 'סכום' },
+  { key: 'payment_mode', label: 'מסלול תשלום' },
+  { key: 'created_at', label: 'תאריך רכישה' },
+  { key: 'event_date', label: 'תאריך אירוע' },
+  { key: 'checked_in', label: 'נסרק' },
+  { key: 'checked_in_at', label: 'זמן כניסה' },
+  { key: 'approved_at', label: 'אושר ב' },
+  { key: 'cancelled_at', label: 'בוטל ב' },
+  { key: 'event_number', label: 'מספר אירוע' },
+]
+
 function formatEventDate(dateVal) {
   if (!dateVal) return '—'
   try {
@@ -636,6 +662,7 @@ export default function EventDetailPage() {
   const [activeTab, setActiveTab] = useState('overview')
   const [orders, setOrders] = useState([])
   const [ordersTab, setOrdersTab] = useState('approved')
+  const [eventPromoters, setEventPromoters] = useState([])
   const [loading, setLoading] = useState(true)
   const [interests, setInterests] = useState([])
   const [webviewAnalyticsRows, setWebviewAnalyticsRows] = useState([])
@@ -775,6 +802,14 @@ export default function EventDetailPage() {
   }, [id, businessId, loadData])
 
   useEffect(() => {
+    if (!id) return
+    fetch(`${API_BASE}/api/admin/events/${id}/promoters`, { headers: authHeaders() })
+      .then((r) => r.json())
+      .then((d) => setEventPromoters(Array.isArray(d) ? d : (d.promoters || [])))
+      .catch(() => {})
+  }, [id, authHeaders])
+
+  useEffect(() => {
     const list = selectedChannel === 'all'
       ? orders
       : orders.filter((o) => (o.sales_channel || 'axess') === selectedChannel)
@@ -819,6 +854,19 @@ export default function EventDetailPage() {
     } catch {
       toast.error('שגיאה בביטול')
     }
+  }
+
+  const handleApproveOrder = approveOrder
+  const handleCancelOrder = cancelOrder
+
+  const handleSendMessage = (order) => {
+    const raw = String(order.phone || order.customer_phone || '').replace(/\D/g, '')
+    if (!raw) {
+      toast.error('אין מספר טלפון')
+      return
+    }
+    const intl = raw.startsWith('972') ? raw : (raw.startsWith('0') ? `972${raw.slice(1)}` : `972${raw}`)
+    window.open(`https://wa.me/${intl}`, '_blank', 'noopener,noreferrer')
   }
 
   if (loading) return <div style={{ padding: 32, textAlign: 'center' }}>טוען...</div>
@@ -1159,6 +1207,7 @@ export default function EventDetailPage() {
                 { id: 'cancelled', label: `מבוטלים (${cancelled.length})` },
                 { id: 'checkin', label: `נסרקו (${checkedIn.length})` },
                 { id: 'interested', label: `מתעניינים (${interests.length})` },
+                { id: 'promoters', label: `יחצ"נים (${eventPromoters.length})` },
                 { id: 'all', label: `כולם (${orders.length})` },
               ].map((t) => (
                 <button
@@ -1178,7 +1227,7 @@ export default function EventDetailPage() {
                   {t.label}
                 </button>
               ))}
-              {ordersTab !== 'interested' && (
+              {ordersTab !== 'interested' && ordersTab !== 'promoters' && (
                 <button
                   type="button"
                   onClick={() => handleExportAudience(filteredOrders)}
@@ -1248,7 +1297,54 @@ export default function EventDetailPage() {
               </div>
             )}
 
-            {ordersTab !== 'interested' && (
+            {ordersTab === 'promoters' && (
+              <div>
+                {eventPromoters.length === 0 ? (
+                  <p style={{ textAlign: 'center', color: 'var(--v2-gray-400)', padding: 32 }}>אין יחצ"נים לאירוע זה</p>
+                ) : eventPromoters.map((p) => {
+                  const refCode = p.seller_code || p.promo_code || ''
+                  const displayName = p.promoter_name || p.name || '—'
+                  const displayRole = p.role || p.commission_type || ''
+                  const commission = p.total_commission != null ? p.total_commission : p.commission_earned
+                  return (
+                    <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', borderBottom: '1px solid var(--glass-border)' }}>
+                      <div style={{
+                        width: 36, height: 36, borderRadius: '50%', background: 'rgba(245,158,11,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#F59E0B', fontWeight: 700, fontSize: 14,
+                      }}
+                      >
+                        {(displayName || '?')[0]}
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <p style={{ margin: 0, fontWeight: 700, fontSize: 14 }}>{displayName}</p>
+                        <p style={{ margin: '2px 0 0', fontSize: 12, color: 'var(--v2-gray-400)' }}>
+                          {displayRole}
+                          {displayRole ? ' · ' : ''}
+                          {p.tickets_sold || 0}
+                          {' '}
+                          כרטיסים · עמלה: ₪
+                          {commission || 0}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const url = `https://axess.pro/e/${event?.slug}?ref=${refCode}`
+                          navigator.clipboard.writeText(url)
+                          toast.success('לינק הועתק!')
+                        }}
+                        style={{
+                          padding: '6px 12px', borderRadius: 6, border: '1px solid var(--glass-border)', background: 'transparent', color: '#00C37A', fontSize: 12, cursor: 'pointer',
+                        }}
+                      >
+                        📋 לינק
+                      </button>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+
+            {ordersTab !== 'interested' && ordersTab !== 'promoters' && (
             <div style={{
               overflowX: 'auto',
               WebkitOverflowScrolling: 'touch',
@@ -1257,94 +1353,202 @@ export default function EventDetailPage() {
             }}
             >
             <div style={{ border: '1px solid var(--glass-border)', borderRadius: 10, overflow: 'hidden' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 900 }}>
+              <table style={{ width: '100%', minWidth: 1400, borderCollapse: 'collapse' }}>
                 <thead>
-                  <tr style={{ background: 'var(--glass)', fontSize: 12, color: 'var(--v2-gray-400)' }}>
-                    {['שם', 'טלפון', 'סוג כרטיס', 'סכום', 'יחצ"ן', 'סטטוס', 'פעולות'].map((h) => (
-                      <th key={h} style={{ padding: '10px 12px', textAlign: 'right', fontWeight: 600, whiteSpace: 'nowrap' }}>{h}</th>
+                  <tr>
+                    {AUDIENCE_COLUMNS.map((col) => (
+                      <th
+                        key={col.key}
+                        style={{
+                          padding: '10px 12px', textAlign: 'right', fontSize: 12,
+                          fontWeight: 600, color: 'var(--v2-gray-400)',
+                          background: 'var(--card)', whiteSpace: 'nowrap',
+                          borderBottom: '1px solid var(--glass-border)',
+                          position: col.sticky ? 'sticky' : 'static',
+                          right: col.sticky ? 0 : 'auto',
+                          zIndex: col.sticky ? 2 : 'auto',
+                        }}
+                      >
+                        {col.label}
+                      </th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredOrders.map((order, idx) => (
-                    <tr
-                      key={order.id}
-                      style={{
-                        borderTop: '1px solid var(--glass-border)',
-                        background: idx % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.01)',
+                  {filteredOrders.map((order) => (
+                    <tr key={order.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+
+                      <td style={{
+                        padding: '8px 12px', position: 'sticky', right: 0, background: 'var(--card)', zIndex: 1, whiteSpace: 'nowrap',
                       }}
-                    >
-                      <td style={{ padding: '10px 12px', fontSize: 13 }}>
-                        {order.first_name}
-                        {' '}
-                        {order.last_name}
+                      >
+                        <div style={{ display: 'flex', gap: 4 }}>
+                          {order.approval_status === 'pending_approval' && (
+                            <button
+                              type="button"
+                              onClick={() => handleApproveOrder(order.id)}
+                              style={{
+                                padding: '4px 8px', borderRadius: 6, border: 'none', background: 'rgba(0,195,122,0.2)', color: '#00C37A', fontSize: 11, cursor: 'pointer', fontWeight: 700,
+                              }}
+                            >
+                              ✅ אשר
+                            </button>
+                          )}
+                          {order.status !== 'cancelled' && (
+                            <button
+                              type="button"
+                              onClick={() => handleCancelOrder(order.id)}
+                              style={{
+                                padding: '4px 8px', borderRadius: 6, border: 'none', background: 'rgba(239,68,68,0.15)', color: '#EF4444', fontSize: 11, cursor: 'pointer',
+                              }}
+                            >
+                              ❌ בטל
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => handleSendMessage(order)}
+                            style={{
+                              padding: '4px 8px', borderRadius: 6, border: '1px solid var(--glass-border)', background: 'transparent', color: 'var(--text)', fontSize: 11, cursor: 'pointer',
+                            }}
+                          >
+                            💬
+                          </button>
+                        </div>
                       </td>
-                      <td style={{ padding: '10px 12px', fontSize: 13, direction: 'ltr' }}>
-                        {order.phone}
-                      </td>
-                      <td style={{ padding: '10px 12px', fontSize: 13 }}>
-                        {order.ticket_type || 'רגיל'}
-                      </td>
-                      <td style={{ padding: '10px 12px', fontSize: 13 }}>
-                        ₪
-                        {order.total_price || order.amount || 0}
-                      </td>
-                      <td style={{ padding: '10px 12px', fontSize: 13 }}>
-                        {order.promoter_name || '—'}
-                      </td>
-                      <td style={{ padding: '10px 12px' }}>
+
+                      <td style={{ padding: '8px 12px', whiteSpace: 'nowrap' }}>
                         <span style={{
-                          padding: '3px 10px', borderRadius: 12, fontSize: 11, fontWeight: 600,
-                          background: order.status === 'interested' ? 'rgba(6,182,212,0.15)'
-                            : order.status === 'approved' || order.status === 'confirmed' ? 'rgba(0,195,122,0.15)'
-                              : order.status === 'pending' ? 'rgba(245,158,11,0.15)' : 'rgba(239,68,68,0.15)',
-                          color: order.status === 'interested' ? '#06B6D4'
-                            : order.status === 'approved' || order.status === 'confirmed' ? '#00C37A'
-                              : order.status === 'pending' ? '#F59E0B' : '#EF4444',
+                          fontSize: 11, padding: '3px 8px', borderRadius: 20, fontWeight: 600,
+                          background: order.approval_status === 'approved' ? 'rgba(0,195,122,0.15)'
+                            : order.approval_status === 'pending_approval' ? 'rgba(245,158,11,0.15)'
+                              : order.status === 'cancelled' ? 'rgba(239,68,68,0.15)' : 'rgba(255,255,255,0.1)',
+                          color: order.approval_status === 'approved' ? '#00C37A'
+                            : order.approval_status === 'pending_approval' ? '#F59E0B'
+                              : order.status === 'cancelled' ? '#EF4444' : 'var(--v2-gray-400)',
                         }}
                         >
-                          {order.status === 'interested' ? 'מתעניין'
-                            : order.status === 'approved' || order.status === 'confirmed' ? 'מאושר'
-                              : order.status === 'pending' ? 'ממתין' : 'בוטל'}
+                          {order.approval_status === 'approved' && order.checked_in ? 'נסרק'
+                            : order.approval_status === 'approved' ? 'מאושר'
+                              : order.approval_status === 'pending_approval' ? 'ממתין'
+                                : order.status === 'cancelled' ? 'מבוטל' : order.status}
                         </span>
                       </td>
-                      <td style={{ padding: '10px 12px' }}>
-                        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                          {order.status === 'pending' && (
-                            <button
-                              type="button"
-                              onClick={() => approveOrder(order.id)}
-                              style={{
-                                background: 'rgba(0,195,122,0.1)', border: 'none', borderRadius: 6,
-                                padding: '4px 10px', cursor: 'pointer', color: '#00C37A', fontSize: 12,
-                                display: 'inline-flex', alignItems: 'center', gap: 4,
-                              }}
-                            >
-                              <CheckCircle size={12} />
-                              אשר
-                            </button>
-                          )}
-                          {order.status !== 'cancelled' && order.status !== 'interested' && (
-                            <button
-                              type="button"
-                              onClick={() => cancelOrder(order.id)}
-                              style={{
-                                background: 'rgba(239,68,68,0.1)', border: 'none', borderRadius: 6,
-                                padding: '4px 10px', cursor: 'pointer', color: '#EF4444', fontSize: 12,
-                                display: 'inline-flex', alignItems: 'center', gap: 4,
-                              }}
-                            >
-                              <XCircle size={12} />
-                              בטל
-                            </button>
-                          )}
-                        </div>
+
+                      <td style={{ padding: '8px 12px', fontSize: 13, whiteSpace: 'nowrap' }}>
+                        {order.ticket_name || order.ticket_type_name || '—'}
+                      </td>
+
+                      <td style={{ padding: '8px 12px', whiteSpace: 'nowrap' }}>
+                        <span style={{
+                          fontSize: 11, padding: '2px 8px', borderRadius: 10,
+                          background: order.ticket_category === 'table' ? 'rgba(139,92,246,0.15)' : 'rgba(0,195,122,0.1)',
+                          color: order.ticket_category === 'table' ? '#8B5CF6' : '#00C37A',
+                        }}
+                        >
+                          {order.ticket_category === 'table' ? '🪑 שולחן'
+                            : order.ticket_category === 'vip' ? '⭐ VIP'
+                              : (Number(order.total_amount ?? order.total_price ?? order.amount ?? 0) === 0 ? '🎟 הרשמה חינם' : '🎫 כניסה')}
+                        </span>
+                      </td>
+
+                      <td style={{ padding: '8px 12px', fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap' }}>
+                        {order.first_name || order.customer_name || '—'}
+                      </td>
+                      <td style={{ padding: '8px 12px', fontSize: 13, whiteSpace: 'nowrap' }}>
+                        {order.last_name || '—'}
+                      </td>
+
+                      <td style={{ padding: '8px 12px', fontSize: 13, whiteSpace: 'nowrap', direction: 'ltr' }}>
+                        {order.phone || order.customer_phone || '—'}
+                      </td>
+
+                      <td style={{ padding: '8px 12px', fontSize: 12, color: 'var(--v2-gray-400)', whiteSpace: 'nowrap' }}>
+                        {order.email || order.customer_email || '—'}
+                      </td>
+
+                      <td style={{ padding: '8px 12px', fontSize: 12, whiteSpace: 'nowrap' }}>
+                        {order.instagram ? `@${String(order.instagram).replace('@', '')}` : '—'}
+                      </td>
+
+                      <td style={{ padding: '8px 12px', fontSize: 13, whiteSpace: 'nowrap' }}>
+                        {order.identification_number || '—'}
+                      </td>
+
+                      <td style={{ padding: '8px 12px', fontSize: 12, whiteSpace: 'nowrap' }}>
+                        {order.promoter_name ? (
+                          <span style={{ color: '#F59E0B' }}>
+                            {order.promoter_name}
+                            {order.promoter_role && (
+                              <span style={{ fontSize: 10, marginRight: 4, color: 'var(--v2-gray-400)' }}>
+                                (
+                                {order.promoter_role}
+                                )
+                              </span>
+                            )}
+                          </span>
+                        ) : '—'}
+                      </td>
+
+                      <td style={{ padding: '8px 12px', fontSize: 12, color: '#F59E0B', whiteSpace: 'nowrap' }}>
+                        {order.promoter_commission ? `₪${order.promoter_commission}` : '—'}
+                      </td>
+
+                      <td style={{ padding: '8px 12px', fontSize: 11, color: 'var(--v2-gray-400)', whiteSpace: 'nowrap', fontFamily: 'monospace' }}>
+                        #
+                        {order.id?.slice(0, 8)}
+                      </td>
+
+                      <td style={{ padding: '8px 12px', fontSize: 11, color: 'var(--v2-gray-400)', whiteSpace: 'nowrap', fontFamily: 'monospace' }}>
+                        {order.payment_intent_id || order.stripe_payment_id || '—'}
+                      </td>
+
+                      <td style={{ padding: '8px 12px', fontSize: 13, fontWeight: 700, color: '#00C37A', whiteSpace: 'nowrap' }}>
+                        {Number(order.total_amount ?? order.total_price ?? order.amount ?? 0) > 0
+                          ? `₪${order.total_amount ?? order.total_price ?? order.amount}`
+                          : 'חינם'}
+                      </td>
+
+                      <td style={{ padding: '8px 12px', fontSize: 11, whiteSpace: 'nowrap' }}>
+                        {order.payment_mode === 'split_equal' ? 'פיצול שווה'
+                          : order.payment_mode === 'split_custom' ? 'פיצול מותאם' : 'מלא'}
+                      </td>
+
+                      <td style={{ padding: '8px 12px', fontSize: 12, color: 'var(--v2-gray-400)', whiteSpace: 'nowrap' }}>
+                        {order.created_at ? new Date(order.created_at).toLocaleString('he-IL') : '—'}
+                      </td>
+
+                      <td style={{ padding: '8px 12px', fontSize: 12, color: 'var(--v2-gray-400)', whiteSpace: 'nowrap' }}>
+                        {event?.date ? new Date(event.date).toLocaleDateString('he-IL') : '—'}
+                      </td>
+
+                      <td style={{ padding: '8px 12px', whiteSpace: 'nowrap' }}>
+                        {order.checked_in
+                          ? <span style={{ color: '#00C37A', fontSize: 12 }}>✅</span>
+                          : <span style={{ color: 'var(--v2-gray-400)', fontSize: 12 }}>—</span>}
+                      </td>
+
+                      <td style={{ padding: '8px 12px', fontSize: 11, color: 'var(--v2-gray-400)', whiteSpace: 'nowrap' }}>
+                        {order.checked_in_at ? new Date(order.checked_in_at).toLocaleString('he-IL') : '—'}
+                      </td>
+
+                      <td style={{ padding: '8px 12px', fontSize: 11, color: 'var(--v2-gray-400)', whiteSpace: 'nowrap' }}>
+                        {order.approved_at ? new Date(order.approved_at).toLocaleString('he-IL') : '—'}
+                      </td>
+
+                      <td style={{ padding: '8px 12px', fontSize: 11, color: '#EF4444', whiteSpace: 'nowrap' }}>
+                        {order.cancelled_at ? new Date(order.cancelled_at).toLocaleString('he-IL') : '—'}
+                      </td>
+
+                      <td style={{ padding: '8px 12px', fontSize: 11, color: 'var(--v2-gray-400)', whiteSpace: 'nowrap', fontFamily: 'monospace' }}>
+                        #
+                        {event?.event_number || '—'}
                       </td>
                     </tr>
                   ))}
                   {filteredOrders.length === 0 && (
                     <tr>
-                      <td colSpan={7} style={{ padding: 24, textAlign: 'center', color: 'var(--v2-gray-400)', fontSize: 14 }}>
+                      <td colSpan={AUDIENCE_COLUMNS.length} style={{ padding: 24, textAlign: 'center', color: 'var(--v2-gray-400)', fontSize: 14 }}>
                         אין רשומים בקטגוריה זו
                       </td>
                     </tr>
