@@ -7,6 +7,7 @@ import {
   Clock,
   Users,
   Ticket,
+  X,
   ChevronDown,
   MessageCircle,
   Navigation,
@@ -14,8 +15,6 @@ import {
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import SeatingModal from '../components/SeatingModal'
-import Tooltip from '../components/ui/Tooltip'
-import CustomSelect from '../components/ui/CustomSelect'
 import { TableBookingModalContent } from './EventPageTableModal'
 
 const API_BASE = import.meta.env.VITE_API_URL || 'https://api.axess.pro'
@@ -632,6 +631,7 @@ export default function EventPage() {
   const [error, setError] = useState(null)
   const [modalTicket, setModalTicket] = useState(null)
   const [modalQty, setModalQty] = useState(1)
+  const [modalPaymentMode, setModalPaymentMode] = useState('full')
   const [modalName, setModalName] = useState('')
   const [modalPhone, setModalPhone] = useState('')
   const [idNumber, setIdNumber] = useState('')
@@ -1422,351 +1422,558 @@ export default function EventPage() {
           }}
           onClick={() => !paying && setModalTicket(null)}
         >
+          <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
           <div
             style={{
-              background: 'var(--v2-dark-2)',
+              background: '#0a1628',
               borderTopLeftRadius: 24,
               borderTopRightRadius: 24,
-              padding: 24,
+              padding: '20px 16px 40px',
               width: '100%',
               maxWidth: 480,
-              maxHeight: '80vh',
+              maxHeight: '92vh',
               overflowY: 'auto',
+              position: 'relative',
+              border: '1px solid rgba(255,255,255,0.1)',
             }}
             onClick={(e) => e.stopPropagation()}
           >
-            <h3 style={{ fontSize: 20, fontWeight: 700, marginBottom: 20 }}>{modalTicket.name}</h3>
-            <div style={{ marginBottom: 16 }}>
-              <label
-                style={{
-                  display: 'block',
-                  fontSize: 14,
-                  color: 'var(--v2-gray-400)',
-                  marginBottom: 6,
-                }}
-              >
-                שם מלא
-              </label>
-              <input
-                type="text"
-                value={modalName}
-                onChange={(e) => setModalName(e.target.value)}
-                placeholder="הכנס את שמך"
-                style={{
-                  width: '100%',
-                  padding: 12,
-                  borderRadius: 12,
-                  border: '1px solid var(--glass-border)',
-                  background: 'var(--v2-dark-3)',
-                  color: '#fff',
-                }}
-              />
-            </div>
-            <div style={{ marginBottom: 16 }}>
-              <label
-                style={{
-                  display: 'block',
-                  fontSize: 14,
-                  color: 'var(--v2-gray-400)',
-                  marginBottom: 6,
-                }}
-              >
-                טלפון
-              </label>
-              <input
-                type="tel"
-                value={modalPhone}
-                onChange={(e) => setModalPhone(e.target.value)}
-                placeholder="05XXXXXXXX"
-                dir="ltr"
-                style={{
-                  width: '100%',
-                  padding: 12,
-                  borderRadius: 12,
-                  border: '1px solid var(--glass-border)',
-                  background: 'var(--v2-dark-3)',
-                  color: '#fff',
-                }}
-              />
-            </div>
-            {event?.requires_id && (
-              <div style={{ marginBottom: 16 }}>
+            <div
+              style={{
+                width: 40,
+                height: 4,
+                borderRadius: 2,
+                background: 'rgba(255,255,255,0.2)',
+                margin: '0 auto 16px',
+              }}
+            />
+            <button
+              type="button"
+              onClick={() => setModalTicket(null)}
+              style={{
+                position: 'absolute',
+                top: 16,
+                left: 16,
+                background: 'rgba(255,255,255,0.1)',
+                border: 'none',
+                borderRadius: '50%',
+                width: 32,
+                height: 32,
+                cursor: 'pointer',
+                color: '#fff',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <X size={18} />
+            </button>
+
+            <h3 style={{ fontSize: 18, fontWeight: 800, margin: '0 0 4px' }}>{modalTicket.name}</h3>
+            {modalTicket.description && (
+              <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.5)', margin: '0 0 20px' }}>
+                {modalTicket.description}
+              </p>
+            )}
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <div>
                 <label
                   style={{
+                    fontSize: 12,
+                    color: 'rgba(255,255,255,0.5)',
                     display: 'block',
-                    fontSize: 14,
-                    color: 'var(--v2-gray-400)',
-                    marginBottom: 6,
+                    marginBottom: 4,
                   }}
                 >
-                  תעודת זהות * <Tooltip text="נדרש לאימות גיל באירוע זה (18+)" />
+                  שם מלא *
                 </label>
                 <input
-                  type="text"
-                  inputMode="numeric"
-                  maxLength={9}
-                  placeholder="000000000"
-                  value={idNumber}
-                  onChange={(e) => setIdNumber(e.target.value.replace(/\D/g, ''))}
+                  value={modalName}
+                  onChange={(e) => setModalName(e.target.value)}
+                  placeholder="שם פרטי ושם משפחה"
+                  style={{
+                    width: '100%',
+                    height: 46,
+                    borderRadius: 10,
+                    border: `1px solid ${!modalName ? 'rgba(255,255,255,0.15)' : 'rgba(0,195,122,0.4)'}`,
+                    background: 'rgba(255,255,255,0.08)',
+                    color: '#fff',
+                    padding: '0 14px',
+                    fontSize: 15,
+                    boxSizing: 'border-box',
+                  }}
+                />
+              </div>
+
+              <div>
+                <label
+                  style={{
+                    fontSize: 12,
+                    color: 'rgba(255,255,255,0.5)',
+                    display: 'block',
+                    marginBottom: 4,
+                  }}
+                >
+                  טלפון * (לקבלת כרטיס בWA)
+                </label>
+                <input
+                  value={modalPhone}
+                  onChange={(e) => setModalPhone(e.target.value)}
+                  placeholder="05XXXXXXXX"
+                  type="tel"
                   dir="ltr"
                   style={{
                     width: '100%',
-                    padding: 12,
-                    borderRadius: 12,
-                    border: '1px solid var(--glass-border)',
-                    background: 'var(--v2-dark-3)',
+                    height: 46,
+                    borderRadius: 10,
+                    border: `1px solid ${!modalPhone ? 'rgba(255,255,255,0.15)' : 'rgba(0,195,122,0.4)'}`,
+                    background: 'rgba(255,255,255,0.08)',
                     color: '#fff',
+                    padding: '0 14px',
+                    fontSize: 15,
+                    boxSizing: 'border-box',
                   }}
                 />
               </div>
-            )}
-            {event?.city_code && (
-              <div style={{ marginBottom: 16 }}>
-                <label
-                  style={{
-                    display: 'block',
-                    fontSize: 14,
-                    color: 'var(--v2-gray-400)',
-                    marginBottom: 6,
-                  }}
-                >
-                  עיר מגורים <Tooltip text={`תושבי ${event.city_name || 'העיר'} נהנים ממחיר מיוחד`} />
-                </label>
-                <input
-                  type="text"
-                  placeholder="הקלד את שם עירך"
-                  value={residentCity}
-                  onChange={(e) => setResidentCity(e.target.value)}
-                  style={{
-                    width: '100%',
-                    padding: 12,
-                    borderRadius: 12,
-                    border: '1px solid var(--glass-border)',
-                    background: 'var(--v2-dark-3)',
-                    color: '#fff',
-                  }}
-                />
-              </div>
-            )}
-            {(event?.registration_fields || []).map((field) => (
-              <div key={field.id} style={{ marginBottom: 16 }}>
-                <label
-                  style={{
-                    display: 'block',
-                    fontSize: 14,
-                    color: 'var(--v2-gray-400)',
-                    marginBottom: 6,
-                  }}
-                >
-                  {field.label}
-                  {field.required ? ' *' : ''}
-                </label>
-                {field.type === 'text' && (
+
+              {event?.requires_id && (
+                <div>
+                  <label
+                    style={{
+                      fontSize: 12,
+                      color: 'rgba(255,255,255,0.5)',
+                      display: 'block',
+                      marginBottom: 4,
+                    }}
+                  >
+                    תעודת זהות *{' '}
+                    <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.3)' }}>
+                      (לאימות גיל 18+)
+                    </span>
+                  </label>
                   <input
+                    value={idNumber}
+                    onChange={(e) => setIdNumber(e.target.value.replace(/\D/g, ''))}
+                    placeholder="000000000"
                     type="text"
-                    value={customFields[field.id] || ''}
-                    onChange={(e) =>
-                      setCustomFields((f) => ({ ...f, [field.id]: e.target.value }))}
-                    placeholder={field.placeholder}
-                    style={{
-                      width: '100%',
-                      padding: 12,
-                      borderRadius: 12,
-                      border: '1px solid var(--glass-border)',
-                      background: 'var(--v2-dark-3)',
-                      color: '#fff',
-                    }}
-                  />
-                )}
-                {field.type === 'number' && (
-                  <input
-                    type="number"
-                    value={customFields[field.id] ?? ''}
-                    onChange={(e) =>
-                      setCustomFields((f) => ({ ...f, [field.id]: e.target.value }))}
-                    placeholder={field.placeholder}
-                    style={{
-                      width: '100%',
-                      padding: 12,
-                      borderRadius: 12,
-                      border: '1px solid var(--glass-border)',
-                      background: 'var(--v2-dark-3)',
-                      color: '#fff',
-                    }}
-                  />
-                )}
-                {field.type === 'select' && (
-                  <CustomSelect
-                    light
-                    value={customFields[field.id] || ''}
-                    onChange={(val) => setCustomFields((f) => ({ ...f, [field.id]: val }))}
-                    style={{
-                      width: '100%',
-                      padding: 12,
-                      borderRadius: 12,
-                      border: '1px solid var(--glass-border)',
-                      background: 'var(--v2-dark-3)',
-                      color: '#fff',
-                    }}
-                    placeholder="בחר..."
-                    options={[
-                      { value: '', label: 'בחר...' },
-                      ...(field.options || []).map((opt) => ({ value: opt, label: opt })),
-                    ]}
-                  />
-                )}
-                {field.type === 'checkbox' && (
-                  <input
-                    type="checkbox"
-                    checked={!!customFields[field.id]}
-                    onChange={(e) =>
-                      setCustomFields((f) => ({ ...f, [field.id]: e.target.checked }))}
-                    style={{ marginLeft: 8 }}
-                  />
-                )}
-                {field.type === 'phone' && (
-                  <input
-                    type="tel"
                     inputMode="numeric"
-                    value={customFields[field.id] || ''}
-                    onChange={(e) =>
-                      setCustomFields((f) => ({ ...f, [field.id]: e.target.value }))}
-                    placeholder={field.placeholder}
+                    maxLength={9}
                     dir="ltr"
                     style={{
                       width: '100%',
-                      padding: 12,
-                      borderRadius: 12,
-                      border: '1px solid var(--glass-border)',
-                      background: 'var(--v2-dark-3)',
+                      height: 46,
+                      borderRadius: 10,
+                      border: '1px solid rgba(255,255,255,0.15)',
+                      background: 'rgba(255,255,255,0.08)',
                       color: '#fff',
+                      padding: '0 14px',
+                      fontSize: 15,
+                      boxSizing: 'border-box',
                     }}
                   />
-                )}
-                {field.type === 'email' && (
+                </div>
+              )}
+
+              {event?.city_code && (
+                <div>
+                  <label
+                    style={{
+                      fontSize: 12,
+                      color: 'rgba(255,255,255,0.5)',
+                      display: 'block',
+                      marginBottom: 4,
+                    }}
+                  >
+                    עיר מגורים{' '}
+                    <span style={{ fontSize: 11, color: '#00C37A' }}>
+                      (תושבי {event.city_name || 'העיר'} — מחיר מיוחד)
+                    </span>
+                  </label>
                   <input
-                    type="email"
-                    value={customFields[field.id] || ''}
-                    onChange={(e) =>
-                      setCustomFields((f) => ({ ...f, [field.id]: e.target.value }))}
-                    placeholder={field.placeholder}
+                    value={residentCity}
+                    onChange={(e) => setResidentCity(e.target.value)}
+                    placeholder="שם העיר"
                     style={{
                       width: '100%',
-                      padding: 12,
-                      borderRadius: 12,
-                      border: '1px solid var(--glass-border)',
-                      background: 'var(--v2-dark-3)',
+                      height: 46,
+                      borderRadius: 10,
+                      border: '1px solid rgba(255,255,255,0.15)',
+                      background: 'rgba(255,255,255,0.08)',
                       color: '#fff',
+                      padding: '0 14px',
+                      fontSize: 15,
+                      boxSizing: 'border-box',
                     }}
                   />
-                )}
-                {field.type === 'date' && (
-                  <input
-                    type="date"
-                    value={customFields[field.id] || ''}
-                    onChange={(e) =>
-                      setCustomFields((f) => ({ ...f, [field.id]: e.target.value }))}
+                </div>
+              )}
+
+              {(event?.registration_fields || []).map((field) => (
+                <div key={field.id}>
+                  <label
                     style={{
-                      width: '100%',
-                      padding: 12,
-                      borderRadius: 12,
-                      border: '1px solid var(--glass-border)',
-                      background: 'var(--v2-dark-3)',
-                      color: '#fff',
+                      fontSize: 12,
+                      color: 'rgba(255,255,255,0.5)',
+                      display: 'block',
+                      marginBottom: 4,
                     }}
-                  />
-                )}
-              </div>
-            ))}
-            <div style={{ marginBottom: 16 }}>
-              <label
-                style={{
-                  display: 'block',
-                  fontSize: 14,
-                  color: 'var(--v2-gray-400)',
-                  marginBottom: 6,
-                }}
-              >
-                כמות
-              </label>
-              <CustomSelect
-                light
-                value={modalQty}
-                onChange={(val) => setModalQty(parseInt(val, 10))}
+                  >
+                    {field.label}
+                    {field.required ? ' *' : ''}
+                  </label>
+
+                  {field.type === 'text' && (
+                    <input
+                      value={customFields[field.id] || ''}
+                      onChange={(e) =>
+                        setCustomFields((f) => ({ ...f, [field.id]: e.target.value }))}
+                      placeholder={field.placeholder || ''}
+                      style={{
+                        width: '100%',
+                        height: 46,
+                        borderRadius: 10,
+                        border: '1px solid rgba(255,255,255,0.15)',
+                        background: 'rgba(255,255,255,0.08)',
+                        color: '#fff',
+                        padding: '0 14px',
+                        fontSize: 15,
+                        boxSizing: 'border-box',
+                      }}
+                    />
+                  )}
+
+                  {field.type === 'number' && (
+                    <input
+                      value={customFields[field.id] ?? ''}
+                      onChange={(e) =>
+                        setCustomFields((f) => ({ ...f, [field.id]: e.target.value }))}
+                      type="number"
+                      placeholder={field.placeholder || ''}
+                      style={{
+                        width: '100%',
+                        height: 46,
+                        borderRadius: 10,
+                        border: '1px solid rgba(255,255,255,0.15)',
+                        background: 'rgba(255,255,255,0.08)',
+                        color: '#fff',
+                        padding: '0 14px',
+                        fontSize: 15,
+                        boxSizing: 'border-box',
+                      }}
+                    />
+                  )}
+
+                  {field.type === 'select' && (
+                    <div style={{ position: 'relative' }}>
+                      <select
+                        value={customFields[field.id] || ''}
+                        onChange={(e) =>
+                          setCustomFields((f) => ({ ...f, [field.id]: e.target.value }))}
+                        style={{
+                          width: '100%',
+                          height: 46,
+                          borderRadius: 10,
+                          border: '1px solid rgba(255,255,255,0.15)',
+                          background: '#0f1c2e',
+                          color: '#fff',
+                          padding: '0 14px',
+                          fontSize: 15,
+                          appearance: 'none',
+                          boxSizing: 'border-box',
+                        }}
+                      >
+                        <option value="">בחר...</option>
+                        {(field.options || []).map((opt) => (
+                          <option key={opt} value={opt}>
+                            {opt}
+                          </option>
+                        ))}
+                      </select>
+                      <ChevronDown
+                        size={16}
+                        style={{
+                          position: 'absolute',
+                          left: 14,
+                          top: '50%',
+                          transform: 'translateY(-50%)',
+                          color: 'rgba(255,255,255,0.4)',
+                          pointerEvents: 'none',
+                        }}
+                      />
+                    </div>
+                  )}
+
+                  {field.type === 'gender' && (
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      {[
+                        { v: 'male', l: 'זכר' },
+                        { v: 'female', l: 'נקבה' },
+                        { v: 'other', l: 'אחר' },
+                      ].map((opt) => (
+                        <button
+                          key={opt.v}
+                          type="button"
+                          onClick={() =>
+                            setCustomFields((f) => ({ ...f, [field.id]: opt.v }))}
+                          style={{
+                            flex: 1,
+                            height: 44,
+                            borderRadius: 10,
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontSize: 14,
+                            fontWeight: 600,
+                            border: `2px solid ${customFields[field.id] === opt.v ? '#00C37A' : 'rgba(255,255,255,0.15)'}`,
+                            background:
+                              customFields[field.id] === opt.v
+                                ? 'rgba(0,195,122,0.1)'
+                                : 'rgba(255,255,255,0.05)',
+                            color:
+                              customFields[field.id] === opt.v
+                                ? '#00C37A'
+                                : 'rgba(255,255,255,0.7)',
+                          }}
+                        >
+                          {opt.l}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  {field.type === 'date' && (
+                    <input
+                      value={customFields[field.id] || ''}
+                      onChange={(e) =>
+                        setCustomFields((f) => ({ ...f, [field.id]: e.target.value }))}
+                      type="date"
+                      style={{
+                        width: '100%',
+                        height: 46,
+                        borderRadius: 10,
+                        border: '1px solid rgba(255,255,255,0.15)',
+                        background: '#0f1c2e',
+                        color: '#fff',
+                        padding: '0 14px',
+                        fontSize: 15,
+                        boxSizing: 'border-box',
+                        colorScheme: 'dark',
+                      }}
+                    />
+                  )}
+
+                  {field.type === 'checkbox' && (
+                    <label
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 10,
+                        cursor: 'pointer',
+                        fontSize: 14,
+                      }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={!!customFields[field.id]}
+                        onChange={(e) =>
+                          setCustomFields((f) => ({ ...f, [field.id]: e.target.checked }))}
+                      />
+                      {field.placeholder}
+                    </label>
+                  )}
+                </div>
+              ))}
+
+              {modalTicket.max_per_order > 1 && (
+                <div>
+                  <label
+                    style={{
+                      fontSize: 12,
+                      color: 'rgba(255,255,255,0.5)',
+                      display: 'block',
+                      marginBottom: 8,
+                    }}
+                  >
+                    כמות כרטיסים
+                  </label>
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 16,
+                      justifyContent: 'center',
+                    }}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => setModalQty((q) => Math.max(1, q - 1))}
+                      style={{
+                        width: 44,
+                        height: 44,
+                        borderRadius: '50%',
+                        border: '2px solid rgba(255,255,255,0.2)',
+                        background: 'none',
+                        color: '#fff',
+                        fontSize: 22,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      −
+                    </button>
+                    <span style={{ fontSize: 28, fontWeight: 800 }}>{modalQty}</span>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setModalQty((q) => Math.min(modalTicket.max_per_order || 10, q + 1))}
+                      style={{
+                        width: 44,
+                        height: 44,
+                        borderRadius: '50%',
+                        border: '2px solid #00C37A',
+                        background: 'rgba(0,195,122,0.1)',
+                        color: '#00C37A',
+                        fontSize: 22,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      +
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {modalQty > 1 && modalTicket.price > 0 && (
+                <div
+                  style={{
+                    background: 'rgba(0,195,122,0.05)',
+                    borderRadius: 12,
+                    padding: 14,
+                    border: '1px solid rgba(0,195,122,0.15)',
+                  }}
+                >
+                  <p style={{ margin: '0 0 10px', fontSize: 13, fontWeight: 700 }}>
+                    💳 איך לשלם?
+                  </p>
+                  {[
+                    {
+                      value: 'full',
+                      label: 'אני משלם על הכולם',
+                      sub: `₪${(modalTicket.price * modalQty).toLocaleString()}`,
+                    },
+                    {
+                      value: 'split_equal',
+                      label: 'נתחלק שווה',
+                      sub: `₪${Math.ceil((modalTicket.price * modalQty) / modalQty).toLocaleString()} לאדם`,
+                    },
+                  ].map((opt) => (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => setModalPaymentMode(opt.value)}
+                      style={{
+                        width: '100%',
+                        padding: '10px 12px',
+                        borderRadius: 8,
+                        marginBottom: 6,
+                        cursor: 'pointer',
+                        textAlign: 'right',
+                        border: `2px solid ${modalPaymentMode === opt.value ? '#00C37A' : 'rgba(255,255,255,0.1)'}`,
+                        background:
+                          modalPaymentMode === opt.value
+                            ? 'rgba(0,195,122,0.1)'
+                            : 'transparent',
+                        color: '#fff',
+                      }}
+                    >
+                      <p style={{ margin: 0, fontWeight: 700, fontSize: 14 }}>{opt.label}</p>
+                      <p style={{ margin: '2px 0 0', fontSize: 12, color: 'rgba(255,255,255,0.5)' }}>
+                        {opt.sub}
+                      </p>
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {modalTicket.price > 0 && (
+                <div
+                  style={{
+                    background: 'rgba(255,255,255,0.04)',
+                    borderRadius: 10,
+                    padding: 14,
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                  }}
+                >
+                  <span style={{ fontSize: 14, color: 'rgba(255,255,255,0.6)' }}>
+                    {modalQty > 1 ? `${modalQty} × ₪${modalTicket.price}` : 'מחיר'}
+                  </span>
+                  <span style={{ fontSize: 20, fontWeight: 800, color: '#00C37A' }}>
+                    ₪{(modalTicket.price * modalQty).toLocaleString()}
+                  </span>
+                </div>
+              )}
+
+              {modalTicket.price === 0 && (
+                <div
+                  style={{
+                    background: 'rgba(0,195,122,0.08)',
+                    borderRadius: 10,
+                    padding: 14,
+                    textAlign: 'center',
+                  }}
+                >
+                  <span style={{ fontSize: 16, fontWeight: 700, color: '#00C37A' }}>
+                    {modalTicket.approval_required
+                      ? '🎟 הרשמה חינמית — ממתין לאישור'
+                      : '🎟 כרטיס חינמי'}
+                  </span>
+                </div>
+              )}
+
+              <button
+                type="button"
+                onClick={handleReserve}
+                disabled={paying || !modalName || !modalPhone}
                 style={{
                   width: '100%',
-                  padding: 12,
+                  height: 52,
                   borderRadius: 12,
-                  border: '1px solid var(--glass-border)',
-                  background: 'var(--v2-dark-3)',
-                  color: '#fff',
-                }}
-                options={[1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
-                  .filter((n) => n <= ticketAvailable(modalTicket))
-                  .map((n) => ({ value: n, label: String(n) }))}
-              />
-            </div>
-            {event?.city_code && (
-              <div style={{ marginBottom: 12, fontSize: 14 }}>
-                {residentCity.trim().toLowerCase()
-                === (event.city_name || event.city_code || '').toLowerCase() ? (
-                  <span style={{ color: 'var(--v2-primary)', fontWeight: 600 }}>
-                    מחיר תושב: ₪
-                    {Number(event.resident_only_price ?? modalTicket.price).toFixed(0)} ✅
-                  </span>
-                ) : (
-                  <span style={{ color: 'var(--v2-gray-400)' }}>
-                    מחיר רגיל: ₪
-                    {Number(event.non_resident_price ?? modalTicket.price).toFixed(0)}
-                  </span>
-                )}
-              </div>
-            )}
-            <div style={{ marginBottom: 20 }}>
-              <div
-                style={{
+                  border: 'none',
+                  background:
+                    paying || !modalName || !modalPhone ? 'rgba(255,255,255,0.1)' : '#00C37A',
+                  color:
+                    paying || !modalName || !modalPhone ? 'rgba(255,255,255,0.3)' : '#000',
+                  fontWeight: 800,
+                  fontSize: 17,
+                  cursor:
+                    paying || !modalName || !modalPhone ? 'not-allowed' : 'pointer',
                   display: 'flex',
-                  justifyContent: 'space-between',
-                  color: 'var(--v2-gray-400)',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 8,
                 }}
               >
-                <span>סה״כ</span>
-                <span style={{ fontWeight: 700, color: '#fff' }}>
-                  ₪
-                  {(() => {
-                    const isRes = event?.city_code
-                      && residentCity.trim().toLowerCase()
-                        === (event.city_name || event.city_code || '').toLowerCase()
-                    const unitPrice = event?.city_code
-                      ? isRes
-                        ? (event.resident_only_price ?? modalTicket.price)
-                        : (event.non_resident_price ?? modalTicket.price)
-                      : modalTicket.price
-                    return (
-                      Number(unitPrice) * modalQty
-                      + Number(modalTicket.service_fee || 0) * modalQty
-                    ).toFixed(0)
-                  })()}
-                </span>
-              </div>
+                {paying ? (
+                  <div
+                    style={{
+                      width: 20,
+                      height: 20,
+                      borderRadius: '50%',
+                      border: '3px solid rgba(0,0,0,0.3)',
+                      borderTopColor: '#000',
+                      animation: 'spin 0.8s linear infinite',
+                    }}
+                  />
+                ) : modalTicket.price === 0 ? (
+                  modalTicket.approval_required ? 'שלח בקשת הרשמה' : 'אשר הרשמה חינמית'
+                ) : (
+                  `שלם ₪${(modalTicket.price * modalQty).toLocaleString()}`
+                )}
+              </button>
             </div>
-            <button
-              type="button"
-              onClick={handleReserve}
-              disabled={paying}
-              style={{
-                width: '100%',
-                padding: 16,
-                borderRadius: 'var(--radius-full)',
-                background: primaryColor,
-                color: 'var(--v2-dark)',
-                fontWeight: 700,
-                border: 'none',
-                cursor: paying ? 'wait' : 'pointer',
-              }}
-            >
-              {paying ? 'מעבד...' : 'לתשלום'}
-            </button>
           </div>
         </div>
       )}
