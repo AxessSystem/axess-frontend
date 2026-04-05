@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import {
   Calendar, MapPin, ChevronLeft, ExternalLink, Download, Edit,
-  CheckCircle, Clock, XCircle, DollarSign, Users, QrCode, Eye, Ticket,
+  CheckCircle, Clock, XCircle, MessageCircle, DollarSign, Users, QrCode, Eye, Ticket,
   Upload, Plus, X, Settings, Share2, Copy, Trash2, RotateCcw, Pencil, Calculator,
 } from 'lucide-react'
 import toast from 'react-hot-toast'
@@ -663,6 +663,7 @@ export default function EventDetailPage() {
   const [orders, setOrders] = useState([])
   const [ordersTab, setOrdersTab] = useState('approved')
   const [eventPromoters, setEventPromoters] = useState([])
+  const [cancelConfirm, setCancelConfirm] = useState(null)
   const [loading, setLoading] = useState(true)
   const [interests, setInterests] = useState([])
   const [webviewAnalyticsRows, setWebviewAnalyticsRows] = useState([])
@@ -867,6 +868,23 @@ export default function EventDetailPage() {
     }
     const intl = raw.startsWith('972') ? raw : (raw.startsWith('0') ? `972${raw.slice(1)}` : `972${raw}`)
     window.open(`https://wa.me/${intl}`, '_blank', 'noopener,noreferrer')
+  }
+
+  const handleResendQR = async (order) => {
+    try {
+      if (!businessId) return
+      const r = await fetch(`${API_BASE}/api/validators?business_id=${encodeURIComponent(businessId)}`, { headers: authHeaders() })
+      if (!r.ok) throw new Error()
+      const d = await r.json()
+      const row = (d.validators || []).find((v) => String(v.id) === String(order.id))
+      if (row?.slug) {
+        const url = `https://axess.pro/v/${row.slug}`
+        await navigator.clipboard.writeText(url)
+        toast.success('קישור הכרטיס הועתק')
+        return
+      }
+    } catch { /* ignore */ }
+    toast.error('לא נמצא קישור כרטיס')
   }
 
   if (loading) return <div style={{ padding: 32, textAlign: 'center' }}>טוען...</div>
@@ -1298,49 +1316,55 @@ export default function EventDetailPage() {
             )}
 
             {ordersTab === 'promoters' && (
-              <div>
-                {eventPromoters.length === 0 ? (
-                  <p style={{ textAlign: 'center', color: 'var(--v2-gray-400)', padding: 32 }}>אין יחצ"נים לאירוע זה</p>
-                ) : eventPromoters.map((p) => {
-                  const refCode = p.seller_code || p.promo_code || ''
-                  const displayName = p.promoter_name || p.name || '—'
-                  const displayRole = p.role || p.commission_type || ''
-                  const commission = p.total_commission != null ? p.total_commission : p.commission_earned
-                  return (
-                    <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', borderBottom: '1px solid var(--glass-border)' }}>
-                      <div style={{
-                        width: 36, height: 36, borderRadius: '50%', background: 'rgba(245,158,11,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#F59E0B', fontWeight: 700, fontSize: 14,
-                      }}
-                      >
-                        {(displayName || '?')[0]}
-                      </div>
-                      <div style={{ flex: 1 }}>
-                        <p style={{ margin: 0, fontWeight: 700, fontSize: 14 }}>{displayName}</p>
-                        <p style={{ margin: '2px 0 0', fontSize: 12, color: 'var(--v2-gray-400)' }}>
-                          {displayRole}
-                          {displayRole ? ' · ' : ''}
-                          {p.tickets_sold || 0}
-                          {' '}
-                          כרטיסים · עמלה: ₪
-                          {commission || 0}
-                        </p>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const url = `https://axess.pro/e/${event?.slug}?ref=${refCode}`
-                          navigator.clipboard.writeText(url)
-                          toast.success('לינק הועתק!')
-                        }}
-                        style={{
-                          padding: '6px 12px', borderRadius: 6, border: '1px solid var(--glass-border)', background: 'transparent', color: '#00C37A', fontSize: 12, cursor: 'pointer',
-                        }}
-                      >
-                        📋 לינק
-                      </button>
-                    </div>
-                  )
-                })}
+              <div style={{ border: '1px solid var(--glass-border)', borderRadius: 10, overflow: 'hidden' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                  <thead>
+                    <tr>
+                      {['שם', 'תפקיד', 'כרטיסים', 'שולחנות', 'עמלה', 'לינק'].map((h) => (
+                        <th
+                          key={h}
+                          style={{
+                            padding: '10px 12px', textAlign: 'right', fontSize: 12, fontWeight: 600, color: 'var(--v2-gray-400)', background: 'var(--card)', borderBottom: '1px solid var(--glass-border)', whiteSpace: 'nowrap',
+                          }}
+                        >
+                          {h}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {eventPromoters.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} style={{ padding: 32, textAlign: 'center', color: 'var(--v2-gray-400)', fontSize: 13 }}>
+                          אין יחצ"נים משוייכים לאירוע זה
+                        </td>
+                      </tr>
+                    ) : eventPromoters.map((p) => (
+                      <tr key={p.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                        <td style={{ padding: '10px 12px', fontSize: 13, fontWeight: 600 }}>{p.promoter_name || p.name}</td>
+                        <td style={{ padding: '10px 12px', fontSize: 12, color: 'var(--v2-gray-400)' }}>{p.promoter_role || p.role || '—'}</td>
+                        <td style={{ padding: '10px 12px', fontSize: 13, textAlign: 'center' }}>{p.tickets_sold || 0}</td>
+                        <td style={{ padding: '10px 12px', fontSize: 13, textAlign: 'center' }}>{p.tables_sold || 0}</td>
+                        <td style={{ padding: '10px 12px', fontSize: 13, color: '#F59E0B', fontWeight: 700 }}>
+                          {p.total_commission ? `₪${p.total_commission}` : '—'}
+                        </td>
+                        <td style={{ padding: '10px 12px' }}>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const url = `https://axess.pro/e/${event?.slug}?ref=${p.promo_code || p.seller_code}`
+                              navigator.clipboard.writeText(url)
+                              toast.success('לינק הועתק!')
+                            }}
+                            style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid var(--glass-border)', background: 'transparent', color: '#00C37A', fontSize: 11, cursor: 'pointer' }}
+                          >
+                            📋 לינק
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             )}
 
@@ -1348,11 +1372,10 @@ export default function EventDetailPage() {
             <div style={{
               overflowX: 'auto',
               WebkitOverflowScrolling: 'touch',
-              marginLeft: isMobile ? -16 : 0,
-              marginRight: isMobile ? -16 : 0,
+              width: '100%',
+              maxWidth: '100vw',
             }}
             >
-            <div style={{ border: '1px solid var(--glass-border)', borderRadius: 10, overflow: 'hidden' }}>
               <table style={{ width: '100%', minWidth: 1400, borderCollapse: 'collapse' }}>
                 <thead>
                   <tr>
@@ -1382,37 +1405,53 @@ export default function EventDetailPage() {
                         padding: '8px 12px', position: 'sticky', right: 0, background: 'var(--card)', zIndex: 1, whiteSpace: 'nowrap',
                       }}
                       >
-                        <div style={{ display: 'flex', gap: 4 }}>
+                        <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                           {order.approval_status === 'pending_approval' && (
                             <button
                               type="button"
+                              title="אשר כרטיס"
                               onClick={() => handleApproveOrder(order.id)}
                               style={{
-                                padding: '4px 8px', borderRadius: 6, border: 'none', background: 'rgba(0,195,122,0.2)', color: '#00C37A', fontSize: 11, cursor: 'pointer', fontWeight: 700,
+                                width: 30, height: 30, borderRadius: 6, border: 'none', background: 'rgba(0,195,122,0.15)', color: '#00C37A', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
                               }}
                             >
-                              ✅ אשר
+                              <CheckCircle size={15} />
                             </button>
                           )}
                           {order.status !== 'cancelled' && (
                             <button
                               type="button"
-                              onClick={() => handleCancelOrder(order.id)}
+                              title="בטל כרטיס"
+                              onClick={() => setCancelConfirm({
+                                orderId: order.id,
+                                name: `${order.first_name || ''} ${order.last_name || ''}`.trim() || order.phone,
+                              })}
                               style={{
-                                padding: '4px 8px', borderRadius: 6, border: 'none', background: 'rgba(239,68,68,0.15)', color: '#EF4444', fontSize: 11, cursor: 'pointer',
+                                width: 30, height: 30, borderRadius: 6, border: 'none', background: 'rgba(239,68,68,0.1)', color: '#EF4444', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
                               }}
                             >
-                              ❌ בטל
+                              <XCircle size={15} />
                             </button>
                           )}
                           <button
                             type="button"
+                            title="שלח הודעה"
                             onClick={() => handleSendMessage(order)}
                             style={{
-                              padding: '4px 8px', borderRadius: 6, border: '1px solid var(--glass-border)', background: 'transparent', color: 'var(--text)', fontSize: 11, cursor: 'pointer',
+                              width: 30, height: 30, borderRadius: 6, border: '1px solid var(--glass-border)', background: 'transparent', color: 'var(--text)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
                             }}
                           >
-                            💬
+                            <MessageCircle size={15} />
+                          </button>
+                          <button
+                            type="button"
+                            title="שלח QR מחדש"
+                            onClick={() => handleResendQR(order)}
+                            style={{
+                              width: 30, height: 30, borderRadius: 6, border: '1px solid var(--glass-border)', background: 'transparent', color: 'var(--text)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            }}
+                          >
+                            <QrCode size={15} />
                           </button>
                         </div>
                       </td>
@@ -1555,7 +1594,6 @@ export default function EventDetailPage() {
                   )}
                 </tbody>
               </table>
-            </div>
             </div>
             )}
           </div>
@@ -3466,6 +3504,51 @@ export default function EventDetailPage() {
             >
               קשר Webview
             </button>
+          </div>
+        )}
+
+        {cancelConfirm && (
+          <div style={{
+            position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20,
+          }}
+          >
+            <div style={{
+              background: '#1a1d2e', borderRadius: 14, padding: 24, maxWidth: 360, width: '100%', border: '1px solid rgba(255,255,255,0.1)', textAlign: 'center',
+            }}
+            >
+              <p style={{ fontSize: 20, margin: '0 0 8px' }}>⚠️</p>
+              <p style={{ fontSize: 16, fontWeight: 700, margin: '0 0 8px' }}>ביטול כרטיס</p>
+              <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.7)', margin: '0 0 20px' }}>
+                הינך עומד לבטל כרטיס של
+                <br />
+                <strong style={{ color: '#fff' }}>{cancelConfirm.name}</strong>
+                <br />
+                האם לבטל בכל זאת?
+              </p>
+              <div style={{ display: 'flex', gap: 10 }}>
+                <button
+                  type="button"
+                  onClick={() => setCancelConfirm(null)}
+                  style={{
+                    flex: 1, height: 42, borderRadius: 8, border: '1px solid rgba(255,255,255,0.2)', background: 'transparent', color: '#fff', fontWeight: 600, cursor: 'pointer',
+                  }}
+                >
+                  חזור
+                </button>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    await handleCancelOrder(cancelConfirm.orderId)
+                    setCancelConfirm(null)
+                  }}
+                  style={{
+                    flex: 1, height: 42, borderRadius: 8, border: 'none', background: '#EF4444', color: '#fff', fontWeight: 700, cursor: 'pointer',
+                  }}
+                >
+                  בטל כרטיס
+                </button>
+              </div>
+            </div>
           </div>
         )}
 
