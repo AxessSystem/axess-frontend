@@ -878,9 +878,22 @@ export default function EventPage() {
   const primaryColor = dc.primary_color || 'var(--v2-primary)'
   const coverSrc = event.cover_image_url || event.image_url
   const regFieldTypes = (event?.registration_fields || []).map((f) => f.type)
-  const hasPhoneField = regFieldTypes.includes('phone')
-  const hasIdField = regFieldTypes.includes('id') || regFieldTypes.includes('identification')
-  const hasNameField = regFieldTypes.includes('name') || regFieldTypes.includes('full_name')
+  const regFieldIds = (event?.registration_fields || []).map((f) => f.id)
+
+  const hasPhoneField =
+    regFieldTypes.includes('phone')
+    || regFieldTypes.includes('tel')
+    || regFieldIds.includes('phone')
+  const hasIdField =
+    regFieldTypes.includes('id')
+    || regFieldTypes.includes('identification')
+    || regFieldIds.includes('id_number')
+  const hasNameField =
+    regFieldTypes.includes('name')
+    || regFieldTypes.includes('full_name')
+    || regFieldIds.includes('first_name')
+    || regFieldIds.includes('last_name')
+    || regFieldIds.includes('name')
   const selectTicket = (tt) => {
     const available = ticketAvailable(tt)
     const maxQ = Math.max(
@@ -1631,7 +1644,7 @@ export default function EventPage() {
                     {field.required ? ' *' : ''}
                   </label>
 
-                  {field.type === 'phone' && (
+                  {(field.type === 'tel' || field.type === 'phone' || field.id === 'phone') && (
                     <input
                       value={modalPhone}
                       onChange={(e) => setModalPhone(e.target.value)}
@@ -1652,7 +1665,30 @@ export default function EventPage() {
                     />
                   )}
 
-                  {(field.type === 'id' || field.type === 'identification') && (
+                  {(field.type === 'email' || field.id === 'email') && (
+                    <input
+                      value={customFields[field.id] || ''}
+                      onChange={(e) =>
+                        setCustomFields((f) => ({ ...f, [field.id]: e.target.value }))}
+                      placeholder="your@email.com"
+                      type="email"
+                      style={{
+                        width: '100%',
+                        height: 46,
+                        borderRadius: 10,
+                        border: '1px solid rgba(255,255,255,0.15)',
+                        background: 'rgba(255,255,255,0.08)',
+                        color: '#fff',
+                        padding: '0 14px',
+                        fontSize: 15,
+                        boxSizing: 'border-box',
+                      }}
+                    />
+                  )}
+
+                  {(field.type === 'id'
+                    || field.type === 'identification'
+                    || field.id === 'id_number') && (
                     <input
                       value={idNumber}
                       onChange={(e) => setIdNumber(e.target.value.replace(/\D/g, ''))}
@@ -1675,11 +1711,15 @@ export default function EventPage() {
                     />
                   )}
 
-                  {(field.type === 'name' || field.type === 'full_name') && (
+                  {(field.type === 'name'
+                    || field.type === 'full_name'
+                    || field.id === 'first_name'
+                    || field.id === 'last_name'
+                    || field.id === 'name') && (
                     <input
                       value={modalName}
                       onChange={(e) => setModalName(e.target.value)}
-                      placeholder="שם פרטי ושם משפחה"
+                      placeholder={field.id === 'last_name' ? 'שם משפחה' : 'שם פרטי'}
                       style={{
                         width: '100%',
                         height: 46,
@@ -1694,48 +1734,44 @@ export default function EventPage() {
                     />
                   )}
 
-                  {field.type === 'text' && (
-                    <input
-                      value={customFields[field.id] || ''}
-                      onChange={(e) =>
-                        setCustomFields((f) => ({ ...f, [field.id]: e.target.value }))}
-                      placeholder={field.placeholder || ''}
-                      style={{
-                        width: '100%',
-                        height: 46,
-                        borderRadius: 10,
-                        border: '1px solid rgba(255,255,255,0.15)',
-                        background: 'rgba(255,255,255,0.08)',
-                        color: '#fff',
-                        padding: '0 14px',
-                        fontSize: 15,
-                        boxSizing: 'border-box',
-                      }}
-                    />
+                  {(field.type === 'gender'
+                    || (field.id === 'gender' && field.type !== 'select')) && (
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      {[
+                        { v: 'male', l: 'זכר' },
+                        { v: 'female', l: 'נקבה' },
+                        { v: 'other', l: 'אחר' },
+                      ].map((opt) => (
+                        <button
+                          key={opt.v}
+                          type="button"
+                          onClick={() =>
+                            setCustomFields((f) => ({ ...f, [field.id]: opt.v }))}
+                          style={{
+                            flex: 1,
+                            height: 44,
+                            borderRadius: 10,
+                            cursor: 'pointer',
+                            border: `2px solid ${customFields[field.id] === opt.v ? '#00C37A' : 'rgba(255,255,255,0.15)'}`,
+                            background:
+                              customFields[field.id] === opt.v
+                                ? 'rgba(0,195,122,0.1)'
+                                : 'rgba(255,255,255,0.05)',
+                            color:
+                              customFields[field.id] === opt.v
+                                ? '#00C37A'
+                                : 'rgba(255,255,255,0.7)',
+                            fontWeight: 600,
+                            fontSize: 14,
+                          }}
+                        >
+                          {opt.l}
+                        </button>
+                      ))}
+                    </div>
                   )}
 
-                  {field.type === 'number' && (
-                    <input
-                      value={customFields[field.id] ?? ''}
-                      onChange={(e) =>
-                        setCustomFields((f) => ({ ...f, [field.id]: e.target.value }))}
-                      type="number"
-                      placeholder={field.placeholder || ''}
-                      style={{
-                        width: '100%',
-                        height: 46,
-                        borderRadius: 10,
-                        border: '1px solid rgba(255,255,255,0.15)',
-                        background: 'rgba(255,255,255,0.08)',
-                        color: '#fff',
-                        padding: '0 14px',
-                        fontSize: 15,
-                        boxSizing: 'border-box',
-                      }}
-                    />
-                  )}
-
-                  {field.type === 'select' && (
+                  {field.type === 'select' && field.id !== 'gender' && (
                     <div style={{ position: 'relative' }}>
                       <select
                         value={customFields[field.id] || ''}
@@ -1775,40 +1811,33 @@ export default function EventPage() {
                     </div>
                   )}
 
-                  {field.type === 'gender' && (
+                  {field.type === 'select' && field.id === 'gender' && (
                     <div style={{ display: 'flex', gap: 8 }}>
-                      {[
-                        { v: 'male', l: 'זכר' },
-                        { v: 'female', l: 'נקבה' },
-                        { v: 'other', l: 'אחר' },
-                      ].map((opt) => (
+                      {(field.options || ['זכר', 'נקבה', 'אחר']).map((opt) => (
                         <button
-                          key={opt.v}
+                          key={opt}
                           type="button"
                           onClick={() =>
-                            setCustomFields((f) => ({ ...f, [field.id]: opt.v }))}
+                            setCustomFields((f) => ({ ...f, [field.id]: opt }))}
                           style={{
                             flex: 1,
                             height: 44,
                             borderRadius: 10,
                             cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            fontSize: 14,
-                            fontWeight: 600,
-                            border: `2px solid ${customFields[field.id] === opt.v ? '#00C37A' : 'rgba(255,255,255,0.15)'}`,
+                            border: `2px solid ${customFields[field.id] === opt ? '#00C37A' : 'rgba(255,255,255,0.15)'}`,
                             background:
-                              customFields[field.id] === opt.v
+                              customFields[field.id] === opt
                                 ? 'rgba(0,195,122,0.1)'
                                 : 'rgba(255,255,255,0.05)',
                             color:
-                              customFields[field.id] === opt.v
+                              customFields[field.id] === opt
                                 ? '#00C37A'
                                 : 'rgba(255,255,255,0.7)',
+                            fontWeight: 600,
+                            fontSize: 14,
                           }}
                         >
-                          {opt.l}
+                          {opt}
                         </button>
                       ))}
                     </div>
@@ -1831,6 +1860,51 @@ export default function EventPage() {
                         fontSize: 15,
                         boxSizing: 'border-box',
                         colorScheme: 'dark',
+                      }}
+                    />
+                  )}
+
+                  {field.type === 'text'
+                    && field.id !== 'id_number'
+                    && field.id !== 'first_name'
+                    && field.id !== 'last_name'
+                    && field.id !== 'name' && (
+                    <input
+                      value={customFields[field.id] || ''}
+                      onChange={(e) =>
+                        setCustomFields((f) => ({ ...f, [field.id]: e.target.value }))}
+                      placeholder={field.placeholder || ''}
+                      style={{
+                        width: '100%',
+                        height: 46,
+                        borderRadius: 10,
+                        border: '1px solid rgba(255,255,255,0.15)',
+                        background: 'rgba(255,255,255,0.08)',
+                        color: '#fff',
+                        padding: '0 14px',
+                        fontSize: 15,
+                        boxSizing: 'border-box',
+                      }}
+                    />
+                  )}
+
+                  {field.type === 'number' && (
+                    <input
+                      value={customFields[field.id] ?? ''}
+                      onChange={(e) =>
+                        setCustomFields((f) => ({ ...f, [field.id]: e.target.value }))}
+                      type="number"
+                      placeholder={field.placeholder || ''}
+                      style={{
+                        width: '100%',
+                        height: 46,
+                        borderRadius: 10,
+                        border: '1px solid rgba(255,255,255,0.15)',
+                        background: 'rgba(255,255,255,0.08)',
+                        color: '#fff',
+                        padding: '0 14px',
+                        fontSize: 15,
+                        boxSizing: 'border-box',
                       }}
                     />
                   )}
