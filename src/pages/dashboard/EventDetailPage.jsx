@@ -1320,7 +1320,7 @@ export default function EventDetailPage() {
                 <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                   <thead>
                     <tr>
-                      {['שם', 'תפקיד', 'כרטיסים', 'שולחנות', 'עמלה', 'לינק'].map((h) => (
+                      {['פעולות', 'שם', 'תפקיד', 'כרטיסים', 'שולחנות', 'עמלה', 'תאריך עסקה', 'לינק'].map((h) => (
                         <th
                           key={h}
                           style={{
@@ -1335,18 +1335,49 @@ export default function EventDetailPage() {
                   <tbody>
                     {eventPromoters.length === 0 ? (
                       <tr>
-                        <td colSpan={6} style={{ padding: 32, textAlign: 'center', color: 'var(--v2-gray-400)', fontSize: 13 }}>
+                        <td colSpan={8} style={{ padding: 32, textAlign: 'center', color: 'var(--v2-gray-400)', fontSize: 13 }}>
                           אין יחצ"נים משוייכים לאירוע זה
                         </td>
                       </tr>
                     ) : eventPromoters.map((p) => (
                       <tr key={p.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                        <td style={{ padding: '8px 12px' }}>
+                          <div style={{ display: 'flex', gap: 6 }}>
+                            <button
+                              type="button"
+                              title="שלח הודעה"
+                              onClick={() => {
+                                const msg = `שלום ${p.promoter_name || p.name}!`;
+                                window.open(`https://wa.me/${p.phone}?text=${encodeURIComponent(msg)}`, '_blank');
+                              }}
+                              style={{ width: 28, height: 28, borderRadius: 6, border: 'none', background: 'rgba(34,197,94,0.1)', color: '#22C55E', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                            >
+                              <MessageCircle size={13} />
+                            </button>
+                            <button
+                              type="button"
+                              title="הסר מאירוע"
+                              onClick={() => {
+                                if (!window.confirm(`להסיר את ${p.promoter_name || p.name} מהאירוע?`)) return;
+                                fetch(`${API_BASE}/api/admin/events/${id}/promoters/${p.id}`, {
+                                  method: 'DELETE', headers: authHeaders()
+                                }).then(() => setEventPromoters(prev => prev.filter(ep => ep.id !== p.id)));
+                              }}
+                              style={{ width: 28, height: 28, borderRadius: 6, border: 'none', background: 'rgba(239,68,68,0.1)', color: '#EF4444', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                            >
+                              <XCircle size={13} />
+                            </button>
+                          </div>
+                        </td>
                         <td style={{ padding: '10px 12px', fontSize: 13, fontWeight: 600 }}>{p.promoter_name || p.name}</td>
                         <td style={{ padding: '10px 12px', fontSize: 12, color: 'var(--v2-gray-400)' }}>{p.promoter_role || p.role || '—'}</td>
                         <td style={{ padding: '10px 12px', fontSize: 13, textAlign: 'center' }}>{p.tickets_sold || 0}</td>
                         <td style={{ padding: '10px 12px', fontSize: 13, textAlign: 'center' }}>{p.tables_sold || 0}</td>
                         <td style={{ padding: '10px 12px', fontSize: 13, color: '#F59E0B', fontWeight: 700 }}>
                           {p.total_commission ? `₪${p.total_commission}` : '—'}
+                        </td>
+                        <td style={{ padding: '10px 12px', fontSize: 11, color: 'var(--v2-gray-400)', whiteSpace: 'nowrap' }}>
+                          {p.created_at ? new Date(p.created_at).toLocaleDateString('he-IL') : '—'}
                         </td>
                         <td style={{ padding: '10px 12px' }}>
                           <button
