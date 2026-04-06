@@ -376,6 +376,35 @@ export default function RichTextEditor({ value, onChange, placeholder, authHeade
           ))}
         </div>
       </div>
+
+      {/* משתנים דינמיים */}
+      <div style={{ borderTop: '1px solid var(--glass-border)', padding: '8px 10px' }}>
+        <span style={{ fontSize: 11, color: 'var(--v2-gray-400)', display: 'block', marginBottom: 6 }}>משתנים דינמיים:</span>
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+          {[
+            { label: '📅 תאריך', tag: '{{event_date}}' },
+            { label: '🕐 שעה', tag: '{{event_time}}' },
+            { label: '📍 מקום', tag: '{{venue_name}}' },
+            { label: '🎟️ מחיר', tag: '{{ticket_price}}' },
+            { label: '🎪 שם אירוע', tag: '{{event_name}}' },
+            { label: '👤 שם לקוח', tag: '{{customer_name}}' },
+          ].map((v) => (
+            <button
+              key={v.tag}
+              type="button"
+              onClick={() => editor.chain().focus().insertContent(v.tag).run()}
+              style={{
+                fontSize: 11, padding: '3px 8px', borderRadius: 10,
+                border: '1px solid rgba(245,158,11,0.3)',
+                background: 'rgba(245,158,11,0.08)',
+                color: '#F59E0B', cursor: 'pointer',
+              }}
+            >
+              {v.label}
+            </button>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }

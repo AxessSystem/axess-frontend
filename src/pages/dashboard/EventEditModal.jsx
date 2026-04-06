@@ -691,15 +691,37 @@ export default function EventEditModal({ event, onClose, onSave: _onSaveIgnored,
                 placeholder="תאר את האירוע..."
                 authHeaders={authHeaders}
               />
-              <button
-                type="button"
-                onClick={saveBasic}
-                style={{
-                  width: '100%', height: 46, borderRadius: 10, border: 'none', background: '#00C37A', color: '#000', fontWeight: 700, fontSize: 15, cursor: 'pointer', marginTop: 16,
-                }}
-              >
-                שמור תיאור
-              </button>
+              <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
+                <button
+                  type="button"
+                  onClick={saveBasic}
+                  style={{
+                    flex: 2, height: 46, borderRadius: 10, border: 'none', background: '#00C37A', color: '#000', fontWeight: 700, fontSize: 15, cursor: 'pointer',
+                  }}
+                >
+                  שמור תיאור
+                </button>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    await fetch(`${API_BASE}/api/admin/business/${businessId}/templates`, {
+                      method: 'POST',
+                      headers: authHeaders(),
+                      body: JSON.stringify({
+                        template_type: 'description',
+                        source_event_id: event?.id,
+                        template_data: { description: form.description },
+                      }),
+                    })
+                    toast.success('התיאור נשמר כתבנית!')
+                  }}
+                  style={{
+                    flex: 1, height: 46, borderRadius: 10, border: '1px solid var(--glass-border)', background: 'var(--glass)', color: 'var(--text)', fontWeight: 600, fontSize: 13, cursor: 'pointer',
+                  }}
+                >
+                  💾 שמור כתבנית
+                </button>
+              </div>
             </div>
           )}
 

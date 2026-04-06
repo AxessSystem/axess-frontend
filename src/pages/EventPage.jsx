@@ -45,6 +45,23 @@ const DEFAULT_FAQ = [
   },
 ]
 
+const replaceDynamicVars = (html, event) => {
+  if (!html) return ''
+  const formatDate = (d) => (d ? new Date(d).toLocaleDateString('he-IL', { day: 'numeric', month: 'long', year: 'numeric' }) : '')
+  const formatTime = (d) => (d ? new Date(d).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' }) : '')
+  const minPrice = event.ticket_types?.length > 0
+    ? `₪${Math.min(...event.ticket_types.map((t) => t.price || 0)).toLocaleString()}`
+    : ''
+
+  return html
+    .replace(/{{event_date}}/g, formatDate(event.date || event.doors_open))
+    .replace(/{{event_time}}/g, formatTime(event.date || event.doors_open))
+    .replace(/{{venue_name}}/g, event.venue_name || event.location || '')
+    .replace(/{{ticket_price}}/g, minPrice)
+    .replace(/{{event_name}}/g, event.title || '')
+    .replace(/{{customer_name}}/g, '')
+}
+
 function VenueSection({ event }) {
   if (!event.venue_name && !event.location) return null
 
@@ -1192,7 +1209,9 @@ export default function EventPage() {
             <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 12 }}>על האירוע</h2>
             <div
               className="event-description"
-              dangerouslySetInnerHTML={{ __html: event.description || event.rich_description || '' }}
+              dangerouslySetInnerHTML={{
+                __html: replaceDynamicVars(event.description || event.rich_description || '', event),
+              }}
               style={{ direction: 'rtl', lineHeight: 1.7, fontSize: 15 }}
             />
           </div>
