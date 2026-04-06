@@ -1,190 +1,192 @@
-import { useRef, useEffect, useState } from 'react'
-import CustomSelect from '@/components/ui/CustomSelect'
+import { useEditor, EditorContent } from '@tiptap/react';
+import StarterKit from '@tiptap/starter-kit';
+import Underline from '@tiptap/extension-underline';
+import TextAlign from '@tiptap/extension-text-align';
+import { TextStyle } from '@tiptap/extension-text-style';
+import Link from '@tiptap/extension-link';
+import { useEffect } from 'react';
+import {
+  Bold, Italic, Underline as UnderlineIcon,
+  AlignLeft, AlignCenter, AlignRight,
+  List, ListOrdered, Link as LinkIcon,
+  Heading1, Heading2, Undo, Redo
+} from 'lucide-react';
 
-const ROW1_BTNS = [
-  { cmd: 'bold', label: 'B' },
-  { cmd: 'italic', label: 'I' },
-  { cmd: 'underline', label: 'U' },
-  { cmd: 'formatBlock', value: 'h1', label: 'H1' },
-  { cmd: 'formatBlock', value: 'h2', label: 'H2' },
-]
-
-const COLORS = [
-  { color: '#ffffff', label: 'לבן' },
-  { color: '#facc15', label: 'צהוב' },
-  { color: '#22c55e', label: 'ירוק' },
-  { color: '#ec4899', label: 'ורוד' },
-]
-
-const FONT_SIZES = [
-  { value: 1, px: 14, label: 'קטן' },
-  { value: 2, px: 16, label: 'רגיל' },
-  { value: 3, px: 20, label: 'גדול' },
-  { value: 4, px: 28, label: 'כותרת' },
-]
-
-export default function RichTextEditor({ value = '', onChange, placeholder = 'תאר את האירוע...', minHeight = 200 }) {
-  const ref = useRef(null)
-  const [previewMode, setPreviewMode] = useState(false)
-  const [fontSizeUi, setFontSizeUi] = useState(2)
+export default function RichTextEditor({ value, onChange, placeholder }) {
+  const editor = useEditor({
+    extensions: [
+      StarterKit,
+      Underline,
+      TextStyle,
+      TextAlign.configure({ types: ['heading', 'paragraph'] }),
+      Link.configure({ openOnClick: false }),
+    ],
+    content: value || '',
+    immediatelyRender: false,
+    onUpdate: ({ editor: ed }) => {
+      onChange(ed.getHTML());
+    },
+    editorProps: {
+      attributes: {
+        style: 'min-height: 180px; padding: 12px; outline: none; direction: rtl; text-align: right;',
+      },
+    },
+  });
 
   useEffect(() => {
-    if (ref.current && value) {
-      ref.current.innerHTML = value
-    }
-  }, [])
+    if (!editor) return;
+    const next = value || '';
+    if (editor.getHTML() === next) return;
+    editor.commands.setContent(next, { emitUpdate: false });
+  }, [editor, value]);
 
-  useEffect(() => {
-    if (ref.current && !previewMode && value !== ref.current.innerHTML) {
-      ref.current.innerHTML = value
-    }
-  }, [previewMode])
+  if (!editor) return null;
 
-  const handleInput = () => {
-    onChange?.(ref.current?.innerHTML || '')
-  }
+  const ToolbarBtn = ({ onClick, active, children, title }) => (
+    <button
+      type="button"
+      onClick={(e) => { e.preventDefault(); onClick(); }}
+      title={title}
+      style={{
+        width: 32, height: 32, borderRadius: 6, border: 'none',
+        background: active ? 'rgba(0,195,122,0.2)' : 'transparent',
+        color: active ? '#00C37A' : 'rgba(255,255,255,0.7)',
+        cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+        transition: 'all 0.15s',
+      }}
+      onMouseEnter={(e) => { if (!active) e.currentTarget.style.background = 'rgba(255,255,255,0.08)'; }}
+      onMouseLeave={(e) => { if (!active) e.currentTarget.style.background = 'transparent'; }}
+    >
+      {children}
+    </button>
+  );
 
-  const runCmd = (cmd, val, prompt) => {
-    document.execCommand('styleWithCSS', false, true)
-    if (cmd === 'createLink' && prompt) {
-      const url = window.prompt('הזן קישור:')
-      if (url) document.execCommand(cmd, false, url)
-    } else if (cmd === 'formatBlock') {
-      document.execCommand(cmd, false, val)
-    } else if (cmd === 'foreColor') {
-      document.execCommand('foreColor', false, val)
-    } else if (cmd === 'fontSize') {
-      document.execCommand('fontSize', false, val)
-    } else {
-      document.execCommand(cmd, false, null)
-    }
-    ref.current?.focus()
-    handleInput()
-  }
-
-  const insertHr = () => {
-    document.execCommand('insertHTML', false, '<hr>')
-    ref.current?.focus()
-    handleInput()
-  }
+  const Divider = () => (
+    <div style={{ width: 1, height: 20, background: 'rgba(255,255,255,0.1)', margin: '0 2px' }} />
+  );
 
   return (
-    <div dir="rtl" style={{ border: '1px solid var(--glass-border)', borderRadius: 'var(--radius-md)', overflow: 'hidden', background: 'var(--v2-dark-3)' }}>
-      <div style={{ padding: 8, borderBottom: '1px solid var(--glass-border)', background: 'var(--v2-dark-2)' }}>
-        {/* שורה 1 */}
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 8 }}>
-          {ROW1_BTNS.map((b, i) => (
-            <button
-              key={i}
-              type="button"
-              onClick={() => runCmd(b.cmd, b.value, b.prompt)}
-              style={{
-                padding: '6px 10px',
-                background: 'var(--v2-dark-3)',
-                border: '1px solid var(--glass-border)',
-                borderRadius: 6,
-                color: '#fff',
-                cursor: 'pointer',
-                fontSize: 14,
-              }}
-            >
-              {b.label}
-            </button>
-          ))}
-        </div>
-        {/* שורה 2 */}
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
-          {/* צבע טקסט */}
-          <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-            {COLORS.map((c, i) => (
-              <button
-                key={i}
-                type="button"
-                onClick={() => runCmd('foreColor', c.color)}
-                title={c.label}
-                style={{
-                  width: 20,
-                  height: 20,
-                  borderRadius: '50%',
-                  background: c.color,
-                  border: c.color === '#ffffff' ? '1px solid var(--glass-border)' : 'none',
-                  cursor: 'pointer',
-                }}
-              />
-            ))}
-          </span>
-          <span style={{ width: 1, height: 20, background: 'var(--glass-border)' }} />
-          {/* יישור */}
-          <span style={{ display: 'flex', gap: 2 }}>
-            <button type="button" onClick={() => runCmd('justifyLeft')} style={{ padding: 6, background: 'var(--v2-dark-3)', border: '1px solid var(--glass-border)', borderRadius: 6, color: '#fff', cursor: 'pointer' }} title="שמאל">⬅</button>
-            <button type="button" onClick={() => runCmd('justifyCenter')} style={{ padding: 6, background: 'var(--v2-dark-3)', border: '1px solid var(--glass-border)', borderRadius: 6, color: '#fff', cursor: 'pointer' }} title="מרכז">↔</button>
-            <button type="button" onClick={() => runCmd('justifyRight')} style={{ padding: 6, background: 'var(--v2-dark-3)', border: '1px solid var(--glass-border)', borderRadius: 6, color: '#fff', cursor: 'pointer' }} title="ימין">➡</button>
-          </span>
-          <span style={{ width: 1, height: 20, background: 'var(--glass-border)' }} />
-          {/* רשימות */}
-          <button type="button" onClick={() => runCmd('insertUnorderedList')} style={{ padding: '6px 10px', background: 'var(--v2-dark-3)', border: '1px solid var(--glass-border)', borderRadius: 6, color: '#fff', cursor: 'pointer' }}>• רשימה</button>
-          <button type="button" onClick={() => runCmd('insertOrderedList')} style={{ padding: '6px 10px', background: 'var(--v2-dark-3)', border: '1px solid var(--glass-border)', borderRadius: 6, color: '#fff', cursor: 'pointer' }}>1. ממוספרת</button>
-          <span style={{ width: 1, height: 20, background: 'var(--glass-border)' }} />
-          <button type="button" onClick={insertHr} style={{ padding: '6px 10px', background: 'var(--v2-dark-3)', border: '1px solid var(--glass-border)', borderRadius: 6, color: '#fff', cursor: 'pointer' }}>—</button>
-          <button type="button" onClick={() => runCmd('createLink', null, true)} style={{ padding: '6px 10px', background: 'var(--v2-dark-3)', border: '1px solid var(--glass-border)', borderRadius: 6, color: '#fff', cursor: 'pointer' }}>🔗</button>
-          <span style={{ flex: 1 }} />
-          {/* גודל גופן */}
-          <CustomSelect
-            value={fontSizeUi}
-            onChange={val => {
-              const v = Number(val)
-              setFontSizeUi(v)
-              runCmd('fontSize', v)
-            }}
-            style={{ padding: 6, background: 'var(--v2-dark-3)', border: '1px solid var(--glass-border)', borderRadius: 6, color: '#fff', fontSize: 13, width: 'auto' }}
-            options={FONT_SIZES.map((f) => ({ value: f.value, label: `${f.label} (${f.px}px)` }))}
-          />
-          {/* עריכה / תצוגה מקדימה */}
-          <span style={{ display: 'flex', gap: 4 }}>
-            <button type="button" onClick={() => setPreviewMode(false)} style={{ padding: '6px 10px', background: previewMode ? 'transparent' : 'var(--v2-primary)', border: '1px solid var(--glass-border)', borderRadius: 6, color: previewMode ? 'var(--v2-gray-400)' : 'var(--v2-dark)', cursor: 'pointer', fontWeight: 600 }}>✏️ עריכה</button>
-            <button type="button" onClick={() => setPreviewMode(true)} style={{ padding: '6px 10px', background: previewMode ? 'var(--v2-primary)' : 'transparent', border: '1px solid var(--glass-border)', borderRadius: 6, color: previewMode ? 'var(--v2-dark)' : 'var(--v2-gray-400)', cursor: 'pointer', fontWeight: 600 }}>👁️ תצוגה מקדימה</button>
-          </span>
-        </div>
+    <div style={{
+      position: 'relative',
+      border: '1px solid var(--glass-border)', borderRadius: 10,
+      overflow: 'hidden', background: 'var(--card)',
+    }}>
+      <div style={{
+        display: 'flex', flexWrap: 'wrap', gap: 2, padding: '6px 8px',
+        borderBottom: '1px solid var(--glass-border)',
+        background: 'var(--glass)',
+      }}>
+        <ToolbarBtn onClick={() => editor.chain().focus().undo().run()} title="בטל">
+          <Undo size={15} />
+        </ToolbarBtn>
+        <ToolbarBtn onClick={() => editor.chain().focus().redo().run()} title="חזור">
+          <Redo size={15} />
+        </ToolbarBtn>
+        <Divider />
+
+        <ToolbarBtn
+          onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
+          active={editor.isActive('heading', { level: 1 })}
+          title="כותרת 1"
+        >
+          <Heading1 size={15} />
+        </ToolbarBtn>
+        <ToolbarBtn
+          onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
+          active={editor.isActive('heading', { level: 2 })}
+          title="כותרת 2"
+        >
+          <Heading2 size={15} />
+        </ToolbarBtn>
+        <Divider />
+
+        <ToolbarBtn
+          onClick={() => editor.chain().focus().toggleBold().run()}
+          active={editor.isActive('bold')}
+          title="מודגש"
+        >
+          <Bold size={15} />
+        </ToolbarBtn>
+        <ToolbarBtn
+          onClick={() => editor.chain().focus().toggleItalic().run()}
+          active={editor.isActive('italic')}
+          title="נטוי"
+        >
+          <Italic size={15} />
+        </ToolbarBtn>
+        <ToolbarBtn
+          onClick={() => editor.chain().focus().toggleUnderline().run()}
+          active={editor.isActive('underline')}
+          title="קו תחתון"
+        >
+          <UnderlineIcon size={15} />
+        </ToolbarBtn>
+        <Divider />
+
+        <ToolbarBtn
+          onClick={() => editor.chain().focus().setTextAlign('right').run()}
+          active={editor.isActive({ textAlign: 'right' })}
+          title="יישור לימין"
+        >
+          <AlignRight size={15} />
+        </ToolbarBtn>
+        <ToolbarBtn
+          onClick={() => editor.chain().focus().setTextAlign('center').run()}
+          active={editor.isActive({ textAlign: 'center' })}
+          title="מרכז"
+        >
+          <AlignCenter size={15} />
+        </ToolbarBtn>
+        <ToolbarBtn
+          onClick={() => editor.chain().focus().setTextAlign('left').run()}
+          active={editor.isActive({ textAlign: 'left' })}
+          title="יישור לשמאל"
+        >
+          <AlignLeft size={15} />
+        </ToolbarBtn>
+        <Divider />
+
+        <ToolbarBtn
+          onClick={() => editor.chain().focus().toggleBulletList().run()}
+          active={editor.isActive('bulletList')}
+          title="רשימה"
+        >
+          <List size={15} />
+        </ToolbarBtn>
+        <ToolbarBtn
+          onClick={() => editor.chain().focus().toggleOrderedList().run()}
+          active={editor.isActive('orderedList')}
+          title="רשימה ממוספרת"
+        >
+          <ListOrdered size={15} />
+        </ToolbarBtn>
+        <Divider />
+
+        <ToolbarBtn
+          onClick={() => {
+            const url = window.prompt('הכנס URL:');
+            if (url) editor.chain().focus().setLink({ href: url }).run();
+          }}
+          active={editor.isActive('link')}
+          title="הוסף קישור"
+        >
+          <LinkIcon size={15} />
+        </ToolbarBtn>
       </div>
-      {previewMode ? (
-        <div
-          dir="rtl"
-          style={{
-            background: 'var(--v2-dark-3)',
-            border: '1px solid var(--glass-border)',
-            borderRadius: 'var(--radius-md)',
-            padding: 16,
-            minHeight: minHeight,
-            color: '#fff',
-            textAlign: 'right',
-            overflow: 'auto',
+
+      <div style={{ direction: 'rtl', position: 'relative' }}>
+        <EditorContent editor={editor} />
+        {!editor.getText().trim() && placeholder && (
+          <div style={{
+            position: 'absolute', top: 12, right: 12,
+            color: 'rgba(255,255,255,0.3)', fontSize: 14,
+            pointerEvents: 'none',
           }}
-          dangerouslySetInnerHTML={{ __html: value || '<span style="color: var(--v2-gray-400)">אין תוכן</span>' }}
-        />
-      ) : (
-        <div
-          ref={ref}
-          contentEditable
-          dir="rtl"
-          onInput={handleInput}
-          data-placeholder={placeholder}
-          style={{
-            background: 'var(--v2-dark-3)',
-            border: 'none',
-            padding: 16,
-            minHeight: minHeight,
-            color: '#fff',
-            fontSize: 15,
-            lineHeight: 1.6,
-            outline: 'none',
-            textAlign: 'right',
-          }}
-        />
-      )}
-      <style>{`
-        [contenteditable]:empty:before { content: attr(data-placeholder); color: var(--v2-gray-400); }
-        [contenteditable] { font-family: inherit; }
-      `}</style>
+          >
+            {placeholder}
+          </div>
+        )}
+      </div>
     </div>
-  )
+  );
 }

@@ -7,6 +7,7 @@ import {
 import CustomSelect from '@/components/ui/CustomSelect'
 import TemplatesTab from './TemplatesTab'
 import DateTimePicker from '@/components/ui/DateTimePicker'
+import RichTextEditor from '@/components/ui/RichTextEditor'
 
 const API_BASE = import.meta.env.VITE_API_URL || 'https://api.axess.pro'
 const FRONTEND_URL = import.meta.env.VITE_FRONTEND_URL || window.location.origin
@@ -586,21 +587,10 @@ export default function EventEditModal({ event, onClose, onSave, authHeaders, bu
                 <label style={{ fontSize: 12, color: 'var(--v2-gray-400)', display: 'block', marginBottom: 4 }}>
                   תיאור קצר
                 </label>
-                <textarea
+                <RichTextEditor
                   value={form.description}
-                  onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
-                  rows={3}
-                  style={{
-                    width: '100%',
-                    borderRadius: 8,
-                    border: '1px solid var(--glass-border)',
-                    background: 'var(--glass)',
-                    color: 'var(--text)',
-                    padding: '10px 12px',
-                    fontSize: 14,
-                    resize: 'vertical',
-                    boxSizing: 'border-box',
-                  }}
+                  onChange={(v) => setForm((f) => ({ ...f, description: v }))}
+                  placeholder="תאר את האירוע..."
                 />
               </div>
 

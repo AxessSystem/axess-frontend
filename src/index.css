@@ -722,3 +722,18 @@
     }
   }
 }
+
+/* TipTap Editor */
+.ProseMirror {
+  direction: rtl;
+  text-align: right;
+  color: var(--text);
+  font-size: 14px;
+  line-height: 1.6;
+}
+.ProseMirror p { margin: 0 0 8px; }
+.ProseMirror h1 { font-size: 22px; font-weight: 800; margin: 0 0 10px; }
+.ProseMirror h2 { font-size: 18px; font-weight: 700; margin: 0 0 8px; }
+.ProseMirror ul, .ProseMirror ol { padding-right: 20px; margin: 0 0 8px; }
+.ProseMirror a { color: #00C37A; text-decoration: underline; }
+.ProseMirror:focus { outline: none; }
