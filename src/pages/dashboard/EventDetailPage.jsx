@@ -1267,7 +1267,7 @@ export default function EventDetailPage() {
                 <table style={{ width: '100%', minWidth: 800, borderCollapse: 'collapse' }}>
                   <thead>
                     <tr>
-                      {['פעולות', 'מקור', 'שם', 'טלפון', 'מייל', 'שלב נטישה', 'UTM', 'תאריך'].map((h) => (
+                      {['פעולות', 'מקור', 'שם פרטי', 'שם משפחה', 'טלפון', 'מייל', 'שלב נטישה', 'UTM', 'תאריך'].map((h) => (
                         <th key={h} style={{ padding: '10px 12px', textAlign: 'right', fontSize: 12, fontWeight: 600, color: 'var(--v2-gray-400)', background: 'var(--card)', borderBottom: '1px solid var(--glass-border)', whiteSpace: 'nowrap' }}>
                           {h}
                         </th>
@@ -1277,7 +1277,7 @@ export default function EventDetailPage() {
                   <tbody>
                     {interests.length === 0 ? (
                       <tr>
-                        <td colSpan={8} style={{ padding: 32, textAlign: 'center', color: 'var(--v2-gray-400)', fontSize: 13 }}>
+                        <td colSpan={9} style={{ padding: 32, textAlign: 'center', color: 'var(--v2-gray-400)', fontSize: 13 }}>
                           אין מתעניינים עדיין
                         </td>
                       </tr>
@@ -1341,9 +1341,11 @@ export default function EventDetailPage() {
                         </td>
 
                         <td style={{ padding: '8px 12px', fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap' }}>
-                          {interest.first_name || interest.last_name
-                            ? `${interest.first_name || ''} ${interest.last_name || ''}`.trim()
-                            : '—'}
+                          {interest.first_name || '—'}
+                        </td>
+
+                        <td style={{ padding: '8px 12px', fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap' }}>
+                          {interest.last_name || '—'}
                         </td>
 
                         <td style={{ padding: '8px 12px', fontSize: 13, whiteSpace: 'nowrap', direction: 'ltr' }}>

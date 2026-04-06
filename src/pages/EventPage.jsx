@@ -773,14 +773,21 @@ export default function EventPage() {
     }).catch(() => {})
   }, [slug, promoRef])
 
-  const trackField = useCallback(async (fieldData) => {
-    if (!slug) return
+  const trackField = useCallback(() => {
+    if (!slug || !modalPhone) return
     fetch(`${API_BASE}/e/${slug}/track`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ event: 'field_filled', ...fieldData }),
+      body: JSON.stringify({
+        event: 'טופס חלקי',
+        phone: modalPhone,
+        first_name: modalFirstName,
+        last_name: modalLastName,
+        email: modalEmail,
+        step: 'personal_details',
+      }),
     }).catch(() => {})
-  }, [slug])
+  }, [slug, modalPhone, modalFirstName, modalLastName, modalEmail])
 
   const validateFields = useCallback(() => {
     const errors = {}
@@ -1621,15 +1628,7 @@ export default function EventPage() {
                     setFieldErrors((f) => ({ ...f, phone: '' }))
                   }}
                   onBlur={() => {
-                    if (modalPhone) {
-                      trackField({
-                        phone: modalPhone,
-                        first_name: modalFirstName,
-                        last_name: modalLastName,
-                        email: modalEmail,
-                        step: 'personal_details',
-                      })
-                    }
+                    if (modalPhone) trackField()
                   }}
                   placeholder="טלפון נייד * (05X-XXXXXXX)"
                   type="tel"
