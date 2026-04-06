@@ -5,9 +5,7 @@ import {
   LayoutGrid,
 } from 'lucide-react'
 import CustomSelect from '@/components/ui/CustomSelect'
-import TemplatesTab from './TemplatesTab'
 import DateTimePicker from '@/components/ui/DateTimePicker'
-import RichTextEditor from '@/components/ui/RichTextEditor'
 
 const API_BASE = import.meta.env.VITE_API_URL || 'https://api.axess.pro'
 const FRONTEND_URL = import.meta.env.VITE_FRONTEND_URL || window.location.origin
@@ -52,17 +50,17 @@ function waMeDigits(phone) {
 
 const EDIT_TABS = [
   { id: 'basic', label: 'פרטים' },
-  { id: 'description', label: '📝 תיאור' },
   { id: 'tickets', label: 'כרטיסים' },
   { id: 'tables', label: 'שולחנות' },
   { id: 'fields', label: 'שדות הרשמה' },
   { id: 'promoters', label: 'יחצ"נים' },
   { id: 'staff', label: 'צוות' },
-  { id: 'templates', label: '⭐ התבניות שלי' },
   { id: 'venue', label: 'מקום' },
   { id: 'organizer', label: 'מארגן' },
   { id: 'faq', label: 'שאלות נפוצות' },
   { id: 'webview', label: 'Webview' },
+  { id: 'design', label: 'עיצוב' },
+  { id: 'summary', label: 'סיכום' },
 ]
 
 function parseContactInfo(raw) {
@@ -130,6 +128,7 @@ export default function EventEditModal({ event, onClose, onSave: _onSaveIgnored,
     faq: initialFaq(event?.faq),
     min_age: event?.min_age ?? 0,
     approval_mode: event?.approval_mode || 'none',
+    display_config: { ...displayConfig0 },
   })
   const [saving, setSaving] = useState(false)
   const [imageUploading, setImageUploading] = useState(false)
@@ -191,6 +190,7 @@ export default function EventEditModal({ event, onClose, onSave: _onSaveIgnored,
       },
       display_config: {
         ...(event?.display_config || {}),
+        ...(form.display_config || {}),
         venue_image: cleanStr(form.venue_image),
       },
       faq: form.faq || [],
@@ -680,51 +680,6 @@ export default function EventEditModal({ event, onClose, onSave: _onSaveIgnored,
             </div>
           )}
 
-          {activeTab === 'description' && (
-            <div>
-              <p style={{ margin: '0 0 12px', fontSize: 13, color: 'var(--v2-gray-400)' }}>
-                תיאור האירוע יוצג בדף הציבורי
-              </p>
-              <RichTextEditor
-                value={form.description}
-                onChange={(v) => setForm((f) => ({ ...f, description: v }))}
-                placeholder="תאר את האירוע..."
-                authHeaders={authHeaders}
-              />
-              <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
-                <button
-                  type="button"
-                  onClick={saveBasic}
-                  style={{
-                    flex: 2, height: 46, borderRadius: 10, border: 'none', background: '#00C37A', color: '#000', fontWeight: 700, fontSize: 15, cursor: 'pointer',
-                  }}
-                >
-                  שמור תיאור
-                </button>
-                <button
-                  type="button"
-                  onClick={async () => {
-                    await fetch(`${API_BASE}/api/admin/business/${businessId}/templates`, {
-                      method: 'POST',
-                      headers: authHeaders(),
-                      body: JSON.stringify({
-                        template_type: 'description',
-                        source_event_id: event?.id,
-                        template_data: { description: form.description },
-                      }),
-                    })
-                    toast.success('התיאור נשמר כתבנית!')
-                  }}
-                  style={{
-                    flex: 1, height: 46, borderRadius: 10, border: '1px solid var(--glass-border)', background: 'var(--glass)', color: 'var(--text)', fontWeight: 600, fontSize: 13, cursor: 'pointer',
-                  }}
-                >
-                  💾 שמור כתבנית
-                </button>
-              </div>
-            </div>
-          )}
-
           {activeTab === 'tickets' && <TicketsTab eventId={event?.id} authHeaders={authHeaders} />}
 
           {activeTab === 'tables' && (
@@ -765,14 +720,6 @@ export default function EventEditModal({ event, onClose, onSave: _onSaveIgnored,
               </div>
               <ScanStationsTab eventId={event?.id} authHeaders={authHeaders} eventSlug={event?.slug} />
             </div>
-          )}
-
-          {activeTab === 'templates' && (
-            <TemplatesTab
-              eventId={event?.id}
-              businessId={businessId}
-              authHeaders={authHeaders}
-            />
           )}
 
           {activeTab === 'venue' && (
@@ -1096,7 +1043,15 @@ export default function EventEditModal({ event, onClose, onSave: _onSaveIgnored,
             <FAQEditTab event={event} form={form} setForm={setForm} authHeaders={authHeaders} />
           )}
 
-          {activeTab === 'webview' && <WebviewTab event={event} authHeaders={authHeaders} businessId={businessId} />}
+          {activeTab === 'webview' && (
+            <WebviewTab event={event} authHeaders={authHeaders} businessId={businessId} />
+          )}
+
+          {activeTab === 'design' && (
+            <DesignTab form={form} setForm={setForm} event={event} authHeaders={authHeaders} onSave={saveBasic} />
+          )}
+
+          {activeTab === 'summary' && <SummaryTab event={event} form={form} />}
         </div>
       </div>
     </div>
@@ -2293,74 +2248,297 @@ function PromotersTab({ eventId, authHeaders }) {
   )
 }
 
-function WebviewTab({ event, authHeaders: _authHeaders, businessId: _businessId }) {
-  const webviewUrl = `https://axess.pro/w/${event?.slug}`
+function DesignTab({ form, setForm, event, authHeaders: _authHeaders, onSave }) {
+  const AXESS_DEFAULTS = {
+    primary_color: '#00C37A',
+    background_color: '#0a1628',
+    card_color: '#1a1d2e',
+    text_color: '#ffffff',
+    button_style: 'rounded',
+  }
+
+  const [design, setDesign] = useState({
+    ...AXESS_DEFAULTS,
+    ...(event?.display_config || {}),
+  })
+
+  const updateDesign = (key, val) => {
+    setDesign((d) => ({ ...d, [key]: val }))
+    setForm((f) => ({ ...f, display_config: { ...(f.display_config || {}), [key]: val } }))
+  }
+
+  const resetToDefaults = () => {
+    setDesign(AXESS_DEFAULTS)
+    setForm((f) => ({ ...f, display_config: AXESS_DEFAULTS }))
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+      <div style={{
+        borderRadius: 10, overflow: 'hidden', border: '1px solid var(--glass-border)',
+        background: design.background_color,
+      }}
+      >
+        <div style={{ height: 60, background: design.primary_color, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <span style={{ color: '#000', fontWeight: 800, fontSize: 14 }}>{event?.title || 'שם האירוע'}</span>
+        </div>
+        <div style={{ padding: 12 }}>
+          <div style={{ height: 8, borderRadius: 4, background: design.primary_color, width: '60%', marginBottom: 8 }} />
+          <div style={{ height: 6, borderRadius: 3, background: 'rgba(255,255,255,0.2)', width: '80%', marginBottom: 6 }} />
+          <div style={{ height: 6, borderRadius: 3, background: 'rgba(255,255,255,0.2)', width: '70%', marginBottom: 12 }} />
+          <div style={{
+            height: 32, borderRadius: design.button_style === 'pill' ? 16 : design.button_style === 'square' ? 0 : 8,
+            background: design.primary_color, display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}
+          >
+            <span style={{ color: '#000', fontWeight: 700, fontSize: 12 }}>רכוש כרטיס</span>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <h4 style={{ margin: '0 0 12px', fontSize: 14, fontWeight: 700 }}>צבעים</h4>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          {[
+            { key: 'primary_color', label: 'צבע ראשי (כפתורים)' },
+            { key: 'background_color', label: 'רקע' },
+            { key: 'card_color', label: 'צבע כרטיסים' },
+            { key: 'text_color', label: 'צבע טקסט' },
+          ].map(({ key, label }) => (
+            <div key={key}>
+              <label style={{ fontSize: 11, color: 'var(--v2-gray-400)', display: 'block', marginBottom: 4 }}>{label}</label>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <input
+                  type="color"
+                  value={design[key] || AXESS_DEFAULTS[key]}
+                  onChange={(e) => updateDesign(key, e.target.value)}
+                  style={{ width: 40, height: 36, borderRadius: 6, border: 'none', cursor: 'pointer', padding: 2 }}
+                />
+                <input
+                  value={design[key] || ''}
+                  onChange={(e) => updateDesign(key, e.target.value)}
+                  style={{ flex: 1, height: 36, borderRadius: 6, border: '1px solid var(--glass-border)', background: 'var(--glass)', color: 'var(--text)', padding: '0 8px', fontSize: 12 }}
+                />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div>
+        <h4 style={{ margin: '0 0 12px', fontSize: 14, fontWeight: 700 }}>סגנון כפתורים</h4>
+        <div style={{ display: 'flex', gap: 10 }}>
+          {[
+            { value: 'rounded', label: 'מעוגל', radius: 8 },
+            { value: 'pill', label: 'עגול', radius: 50 },
+            { value: 'square', label: 'ישר', radius: 0 },
+          ].map((style) => (
+            <button
+              key={style.value}
+              type="button"
+              onClick={() => updateDesign('button_style', style.value)}
+              style={{
+                flex: 1, height: 40, borderRadius: style.radius,
+                border: design.button_style === style.value ? `2px solid ${design.primary_color}` : '1px solid var(--glass-border)',
+                background: design.button_style === style.value ? `${design.primary_color}22` : 'var(--glass)',
+                color: design.button_style === style.value ? design.primary_color : 'var(--text)',
+                cursor: 'pointer', fontSize: 13, fontWeight: 600,
+              }}
+            >
+              {style.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div style={{ display: 'flex', gap: 10 }}>
+        <button type="button" onClick={resetToDefaults} style={{
+          flex: 1, height: 40, borderRadius: 8, border: '1px solid var(--glass-border)',
+          background: 'transparent', color: 'var(--v2-gray-400)', cursor: 'pointer', fontSize: 13,
+        }}
+        >
+          איפוס לברירת מחדל AXESS
+        </button>
+        <button type="button" onClick={onSave} style={{
+          flex: 2, height: 40, borderRadius: 8, border: 'none',
+          background: '#00C37A', color: '#000', fontWeight: 700, cursor: 'pointer', fontSize: 14,
+        }}
+        >
+          שמור עיצוב
+        </button>
+      </div>
+    </div>
+  )
+}
+
+function SummaryTab({ event, form }) {
+  const [previewMode, setPreviewMode] = useState('mobile')
+  const eventUrl = `https://axess.pro/e/${event?.slug}`
 
   return (
     <div>
-      <div
-        style={{
-          background: 'rgba(0,195,122,0.08)',
-          border: '1px solid rgba(0,195,122,0.2)',
-          borderRadius: 10,
-          padding: 16,
-          marginBottom: 16,
-        }}
-      >
-        <p style={{ margin: '0 0 6px', fontSize: 14, fontWeight: 700 }}>Webview של האירוע</p>
-        <p style={{ margin: '0 0 12px', fontSize: 13, color: 'var(--v2-gray-400)' }}>
-          דף נחיתה עם רכישת כרטיסים, תפריט וצ&apos;אט עם המארגן
-        </p>
-        <div style={{ display: 'flex', gap: 8 }}>
-          <input
-            value={webviewUrl}
-            readOnly
-            style={{
-              flex: 1,
-              height: 36,
-              borderRadius: 6,
-              border: '1px solid var(--glass-border)',
-              background: 'var(--glass)',
-              color: '#00C37A',
-              padding: '0 10px',
-              fontSize: 12,
-            }}
-          />
+      <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+        {[
+          { value: 'mobile', label: '📱 מובייל' },
+          { value: 'desktop', label: '🖥️ דסקטופ' },
+          { value: 'whatsapp', label: '💬 WhatsApp' },
+        ].map((mode) => (
           <button
+            key={mode.value}
             type="button"
-            onClick={() => navigator.clipboard.writeText(webviewUrl)}
+            onClick={() => setPreviewMode(mode.value)}
             style={{
-              padding: '0 12px',
-              borderRadius: 6,
-              border: 'none',
-              background: '#00C37A',
-              color: '#000',
-              fontWeight: 600,
-              cursor: 'pointer',
-              fontSize: 12,
+              flex: 1, height: 36, borderRadius: 8, border: 'none', cursor: 'pointer',
+              background: previewMode === mode.value ? 'rgba(0,195,122,0.15)' : 'var(--glass)',
+              color: previewMode === mode.value ? '#00C37A' : 'var(--text)',
+              fontWeight: previewMode === mode.value ? 700 : 400, fontSize: 13,
+              borderBottom: previewMode === mode.value ? '2px solid #00C37A' : '2px solid transparent',
             }}
           >
-            העתק
+            {mode.label}
           </button>
+        ))}
+      </div>
+
+      {previewMode === 'mobile' && (
+        <div style={{ display: 'flex', justifyContent: 'center' }}>
+          <div style={{ width: 320, border: '8px solid #222', borderRadius: 36, overflow: 'hidden', boxShadow: '0 20px 60px rgba(0,0,0,0.5)' }}>
+            <div style={{ height: 20, background: '#222', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <div style={{ width: 60, height: 4, borderRadius: 2, background: '#444' }} />
+            </div>
+            <iframe
+              src={eventUrl}
+              style={{ width: '100%', height: 500, border: 'none', display: 'block' }}
+              title="תצוגה מקדימה מובייל"
+            />
+          </div>
+        </div>
+      )}
+
+      {previewMode === 'desktop' && (
+        <div style={{ border: '1px solid var(--glass-border)', borderRadius: 8, overflow: 'hidden' }}>
+          <div style={{ height: 28, background: '#222', display: 'flex', alignItems: 'center', gap: 6, padding: '0 10px' }}>
+            <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#EF4444' }} />
+            <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#F59E0B' }} />
+            <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#22C55E' }} />
+            <div style={{ flex: 1, height: 16, borderRadius: 4, background: '#333', margin: '0 10px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <span style={{ fontSize: 9, color: '#888' }}>{eventUrl}</span>
+            </div>
+          </div>
+          <iframe
+            src={eventUrl}
+            style={{ width: '100%', height: 500, border: 'none', display: 'block' }}
+            title="תצוגה מקדימה דסקטופ"
+          />
+        </div>
+      )}
+
+      {previewMode === 'whatsapp' && (
+        <div style={{ background: '#0a1628', borderRadius: 12, padding: 16, border: '1px solid var(--glass-border)' }}>
+          <p style={{ margin: '0 0 12px', fontSize: 12, color: 'var(--v2-gray-400)', textAlign: 'center' }}>
+            כך ייראה הלינק בשיתוף WhatsApp
+          </p>
+          <div style={{ background: '#1e2d1e', borderRadius: 8, overflow: 'hidden', border: '1px solid rgba(37,211,102,0.3)', maxWidth: 280, margin: '0 auto' }}>
+            {(form.cover_image_url || event?.cover_image_url) && (
+              <img
+                src={form.cover_image_url || event?.cover_image_url}
+                style={{ width: '100%', height: 140, objectFit: 'cover' }}
+                alt="preview"
+              />
+            )}
+            <div style={{ padding: 10 }}>
+              <p style={{ margin: '0 0 4px', fontWeight: 700, fontSize: 13, color: '#fff' }}>
+                {form.title || event?.title}
+              </p>
+              <p style={{ margin: '0 0 6px', fontSize: 11, color: 'rgba(255,255,255,0.6)', lineHeight: 1.4 }}>
+                {form.description || event?.description || ''}
+              </p>
+              <p style={{ margin: 0, fontSize: 10, color: 'rgba(37,211,102,0.8)' }}>axess.pro</p>
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
+            <button type="button" onClick={() => window.open(`https://wa.me/?text=${encodeURIComponent(`${form.title || event?.title}\n${eventUrl}`)}`, '_blank')}
+              style={{ flex: 1, height: 38, borderRadius: 8, border: 'none', background: '#25D366', color: '#000', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}
+            >
+              שתף בWhatsApp
+            </button>
+            <button type="button" onClick={() => navigator.clipboard.writeText(eventUrl)}
+              style={{ flex: 1, height: 38, borderRadius: 8, border: '1px solid var(--glass-border)', background: 'transparent', color: 'var(--text)', fontSize: 13, cursor: 'pointer' }}
+            >
+              העתק לינק
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function WebviewTab({ event, authHeaders, businessId: _businessId }) {
+  const webviewUrl = `https://axess.pro/w/${event?.slug}`
+  const [webviewEnabled, setWebviewEnabled] = useState(event?.display_config?.webview_enabled || false)
+
+  const toggleWebview = async () => {
+    const newVal = !webviewEnabled
+    setWebviewEnabled(newVal)
+    await fetch(`${API_BASE}/api/admin/events/${event.id}`, {
+      method: 'PATCH', headers: authHeaders(),
+      body: JSON.stringify({ display_config: { ...(event.display_config || {}), webview_enabled: newVal } }),
+    })
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: 16, background: 'var(--glass)', borderRadius: 10, border: '1px solid var(--glass-border)' }}>
+        <div>
+          <p style={{ margin: 0, fontWeight: 700, fontSize: 14 }}>Webview פעיל</p>
+          <p style={{ margin: '2px 0 0', fontSize: 12, color: 'var(--v2-gray-400)' }}>
+            דף נחיתה מוכן לשיווק בWhatsApp
+          </p>
+        </div>
+        <div onClick={toggleWebview} style={{
+          width: 48, height: 26, borderRadius: 13, cursor: 'pointer', position: 'relative',
+          background: webviewEnabled ? '#00C37A' : 'rgba(255,255,255,0.1)',
+          transition: 'background 0.2s',
+        }}
+        >
+          <div style={{
+            position: 'absolute', top: 3, width: 20, height: 20, borderRadius: '50%', background: '#fff',
+            transition: 'left 0.2s', left: webviewEnabled ? 25 : 3,
+          }}
+          />
         </div>
       </div>
-      <a
-        href={`/dashboard/webview?event=${event?.slug}`}
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 8,
-          padding: '12px 16px',
-          borderRadius: 10,
-          background: 'var(--glass)',
-          border: '1px solid var(--glass-border)',
-          color: 'var(--text)',
-          textDecoration: 'none',
-          fontSize: 14,
-        }}
-      >
-        <Globe size={16} color="#00C37A" /> ערוך Webview של האירוע
-      </a>
+
+      {webviewEnabled && (
+        <>
+          <div style={{ background: 'rgba(0,195,122,0.08)', border: '1px solid rgba(0,195,122,0.2)', borderRadius: 10, padding: 14 }}>
+            <p style={{ margin: '0 0 8px', fontSize: 13, fontWeight: 700 }}>לינק Webview:</p>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <input value={webviewUrl} readOnly style={{ flex: 1, height: 36, borderRadius: 6, border: '1px solid var(--glass-border)', background: 'var(--glass)', color: '#00C37A', padding: '0 10px', fontSize: 12 }} />
+              <button type="button" onClick={() => navigator.clipboard.writeText(webviewUrl)}
+                style={{ padding: '0 12px', borderRadius: 6, border: 'none', background: '#00C37A', color: '#000', fontWeight: 600, cursor: 'pointer', fontSize: 12 }}
+              >
+                העתק
+              </button>
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button type="button" onClick={() => window.open(webviewUrl, '_blank')}
+              style={{ flex: 1, height: 40, borderRadius: 8, border: '1px solid var(--glass-border)', background: 'var(--glass)', color: 'var(--text)', cursor: 'pointer', fontSize: 13, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
+            >
+              <Globe size={14} /> פתח Webview
+            </button>
+            <button type="button" onClick={() => window.open(`https://wa.me/?text=${encodeURIComponent(webviewUrl)}`, '_blank')}
+              style={{ flex: 1, height: 40, borderRadius: 8, border: 'none', background: '#25D366', color: '#000', fontWeight: 700, cursor: 'pointer', fontSize: 13 }}
+            >
+              שתף בWA
+            </button>
+          </div>
+        </>
+      )}
     </div>
   )
 }
