@@ -126,6 +126,8 @@ export default function EventEditModal({ event, onClose, onSave, authHeaders, bu
     organizer_email: contactInfo0.email || '',
     organizer_avatar: contactInfo0.avatar || '',
     faq: initialFaq(event?.faq),
+    min_age: event?.min_age ?? 0,
+    approval_mode: event?.approval_mode || 'none',
   })
   const [saving, setSaving] = useState(false)
   const [imageUploading, setImageUploading] = useState(false)
@@ -177,6 +179,9 @@ export default function EventEditModal({ event, onClose, onSave, authHeaders, bu
       cover_image_url: cleanStr(form.cover_image_url),
       age_restriction: cleanStr(form.age_restriction),
       dress_code: cleanStr(form.dress_code),
+      min_age: Number(form.min_age) || 0,
+      approval_mode: form.approval_mode || 'none',
+      approval_required: form.approval_mode !== 'none',
       contact_info: {
         name: cleanStr(form.organizer_name),
         whatsapp: cleanStr(form.organizer_whatsapp),
@@ -417,6 +422,121 @@ export default function EventEditModal({ event, onClose, onSave, authHeaders, bu
                     boxSizing: 'border-box',
                   }}
                 />
+              </div>
+
+              <div style={{ marginBottom: 12 }}>
+                <label
+                  style={{ fontSize: 12, color: 'var(--v2-gray-400)', display: 'block', marginBottom: 6 }}
+                >
+                  הגבלת גיל מינימלית
+                </label>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  {[0, 18, 21, 25].map((age) => (
+                    <div
+                      key={age}
+                      role="presentation"
+                      onClick={() => setForm((f) => ({ ...f, min_age: age }))}
+                      style={{
+                        flex: 1,
+                        height: 36,
+                        borderRadius: 8,
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        border: `1px solid ${form.min_age === age ? '#00C37A' : 'var(--glass-border)'}`,
+                        background: form.min_age === age ? 'rgba(0,195,122,0.15)' : 'var(--glass)',
+                        color: form.min_age === age ? '#00C37A' : 'var(--text)',
+                        fontSize: 13,
+                        fontWeight: form.min_age === age ? 700 : 400,
+                      }}
+                    >
+                      {age === 0 ? 'ללא' : `${age}+`}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div
+                style={{
+                  background: 'var(--glass)',
+                  borderRadius: 10,
+                  padding: 14,
+                  border: '1px solid var(--glass-border)',
+                  marginBottom: 12,
+                }}
+              >
+                <p style={{ margin: '0 0 12px', fontSize: 14, fontWeight: 700 }}>
+                  הגדרות אישור מארגן
+                </p>
+
+                {[
+                  {
+                    value: 'none',
+                    label: 'ללא אישור',
+                    sub: 'כל רכישה מאושרת אוטומטית',
+                  },
+                  {
+                    value: 'all',
+                    label: 'אישור לכל הכרטיסים',
+                    sub: 'כל סוגי הכרטיסים והקהל דורשים אישורך',
+                  },
+                  {
+                    value: 'new_only',
+                    label: 'אישור לקהל חדש בלבד',
+                    sub: 'קהל שרכש ממך באירועי עבר — מאושר אוטומטית',
+                  },
+                  {
+                    value: 'tables_only',
+                    label: 'אישור לשולחנות בלבד',
+                    sub: 'כרטיסי כניסה מאושרים אוטומטית, שולחנות דורשים אישור',
+                  },
+                ].map((opt) => (
+                  <div
+                    key={opt.value}
+                    role="presentation"
+                    onClick={() => setForm((f) => ({ ...f, approval_mode: opt.value }))}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 12,
+                      padding: '10px 12px',
+                      borderRadius: 8,
+                      marginBottom: 6,
+                      cursor: 'pointer',
+                      border: `1px solid ${form.approval_mode === opt.value ? '#00C37A' : 'rgba(255,255,255,0.06)'}`,
+                      background:
+                        form.approval_mode === opt.value ? 'rgba(0,195,122,0.08)' : 'transparent',
+                      transition: 'all 0.15s',
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: 18,
+                        height: 18,
+                        borderRadius: '50%',
+                        flexShrink: 0,
+                        border: `2px solid ${form.approval_mode === opt.value ? '#00C37A' : 'rgba(255,255,255,0.3)'}`,
+                        background: form.approval_mode === opt.value ? '#00C37A' : 'transparent',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      {form.approval_mode === opt.value && (
+                        <div
+                          style={{ width: 6, height: 6, borderRadius: '50%', background: '#000' }}
+                        />
+                      )}
+                    </div>
+                    <div>
+                      <p style={{ margin: 0, fontSize: 13, fontWeight: 600 }}>{opt.label}</p>
+                      <p style={{ margin: '2px 0 0', fontSize: 11, color: 'var(--v2-gray-400)' }}>
+                        {opt.sub}
+                      </p>
+                    </div>
+                  </div>
+                ))}
               </div>
 
               <div>

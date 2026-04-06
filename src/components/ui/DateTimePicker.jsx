@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { ChevronDown } from 'lucide-react'
 
 const MONTHS_HE = ['ינואר', 'פברואר', 'מרץ', 'אפריל', 'מאי', 'יוני', 'יולי', 'אוגוסט', 'ספטמבר', 'אוקטובר', 'נובמבר', 'דצמבר']
 const DAYS_HE = ['א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ש']
@@ -14,6 +15,7 @@ export default function DateTimePicker({
   dateOnly = false,
 }) {
   const [open, setOpen] = useState(false)
+  const [showYearPicker, setShowYearPicker] = useState(false)
   const [mode, setMode] = useState('date') // 'date' | 'time'
   const d = value ? new Date(value) : null
   const [viewMonth, setViewMonth] = useState(() => {
@@ -62,7 +64,10 @@ export default function DateTimePicker({
     <div style={{ position: 'relative' }}>
       <button
         type="button"
-        onClick={() => setOpen(!open)}
+        onClick={() => {
+          setShowYearPicker(false)
+          setOpen(!open)
+        }}
         style={{
           width: '100%',
           padding: 12,
@@ -98,15 +103,79 @@ export default function DateTimePicker({
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
                 <button
                   type="button"
-                  onClick={() => setViewMonth(m => new Date(m.getFullYear(), m.getMonth() - 1))}
+                  onClick={() => {
+                    setShowYearPicker(false)
+                    setViewMonth((m) => new Date(m.getFullYear(), m.getMonth() - 1))
+                  }}
                   style={{ padding: '4px 12px', background: 'var(--v2-dark-3)', border: '1px solid var(--glass-border)', borderRadius: 8, color: '#fff', cursor: 'pointer' }}
                 >
                   ←
                 </button>
-                <span style={{ fontWeight: 600 }}>{MONTHS_HE[month]} {year}</span>
+                <div style={{ position: 'relative', flex: 1, display: 'flex', justifyContent: 'center' }}>
+                  <div
+                    role="presentation"
+                    onClick={() => setShowYearPicker((p) => !p)}
+                    style={{
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 4,
+                      fontWeight: 700,
+                    }}
+                  >
+                    {MONTHS_HE[month]} {year}
+                    <ChevronDown size={14} />
+                  </div>
+                  {showYearPicker && (
+                    <div
+                      role="listbox"
+                      style={{
+                        position: 'absolute',
+                        top: 40,
+                        left: 0,
+                        right: 0,
+                        zIndex: 10,
+                        background: '#1a1d2e',
+                        border: '1px solid rgba(255,255,255,0.12)',
+                        borderRadius: 10,
+                        maxHeight: 200,
+                        overflowY: 'auto',
+                        scrollbarWidth: 'thin',
+                        scrollbarColor: 'rgba(0,195,122,0.3) transparent',
+                      }}
+                    >
+                      {Array.from({ length: 100 }, (_, i) => new Date().getFullYear() - i).map((y) => (
+                        <div
+                          key={y}
+                          role="option"
+                          onClick={() => {
+                            setViewMonth((vm) => {
+                              const nd = new Date(vm)
+                              nd.setFullYear(y)
+                              return nd
+                            })
+                            setShowYearPicker(false)
+                          }}
+                          style={{
+                            padding: '8px 16px',
+                            cursor: 'pointer',
+                            fontSize: 14,
+                            background: y === year ? 'rgba(0,195,122,0.15)' : 'transparent',
+                            color: y === year ? '#00C37A' : 'var(--text)',
+                          }}
+                        >
+                          {y}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
                 <button
                   type="button"
-                  onClick={() => setViewMonth(m => new Date(m.getFullYear(), m.getMonth() + 1))}
+                  onClick={() => {
+                    setShowYearPicker(false)
+                    setViewMonth((m) => new Date(m.getFullYear(), m.getMonth() + 1))
+                  }}
                   style={{ padding: '4px 12px', background: 'var(--v2-dark-3)', border: '1px solid var(--glass-border)', borderRadius: 8, color: '#fff', cursor: 'pointer' }}
                 >
                   →
