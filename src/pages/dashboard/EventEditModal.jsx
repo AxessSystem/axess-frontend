@@ -6,6 +6,7 @@ import {
 } from 'lucide-react'
 import CustomSelect from '@/components/ui/CustomSelect'
 import DateTimePicker from '@/components/ui/DateTimePicker'
+import RichTextEditor from '@/components/ui/RichTextEditor'
 
 const API_BASE = import.meta.env.VITE_API_URL || 'https://api.axess.pro'
 const FRONTEND_URL = import.meta.env.VITE_FRONTEND_URL || window.location.origin
@@ -50,6 +51,7 @@ function waMeDigits(phone) {
 
 const EDIT_TABS = [
   { id: 'basic', label: 'פרטים' },
+  { id: 'description', label: '📝 תיאור' },
   { id: 'tickets', label: 'כרטיסים' },
   { id: 'tables', label: 'שולחנות' },
   { id: 'fields', label: 'שדות הרשמה' },
@@ -677,6 +679,51 @@ export default function EventEditModal({ event, onClose, onSave: _onSaveIgnored,
               >
                 {saving ? 'שומר...' : 'שמור שינויים'}
               </button>
+            </div>
+          )}
+
+          {activeTab === 'description' && (
+            <div>
+              <p style={{ margin: '0 0 12px', fontSize: 13, color: 'var(--v2-gray-400)' }}>
+                תיאור האירוע יוצג בדף הציבורי
+              </p>
+              <RichTextEditor
+                value={form.description}
+                onChange={(v) => setForm((f) => ({ ...f, description: v }))}
+                placeholder="תאר את האירוע..."
+                authHeaders={authHeaders}
+              />
+              <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
+                <button
+                  type="button"
+                  onClick={saveBasic}
+                  style={{
+                    flex: 2, height: 46, borderRadius: 10, border: 'none', background: '#00C37A', color: '#000', fontWeight: 700, fontSize: 15, cursor: 'pointer',
+                  }}
+                >
+                  שמור תיאור
+                </button>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    await fetch(`${API_BASE}/api/admin/business/${businessId}/templates`, {
+                      method: 'POST',
+                      headers: authHeaders(),
+                      body: JSON.stringify({
+                        template_type: 'description',
+                        source_event_id: event?.id,
+                        template_data: { description: form.description },
+                      }),
+                    })
+                    toast.success('התיאור נשמר כתבנית!')
+                  }}
+                  style={{
+                    flex: 1, height: 46, borderRadius: 10, border: '1px solid var(--glass-border)', background: 'var(--glass)', color: 'var(--text)', fontWeight: 600, fontSize: 13, cursor: 'pointer',
+                  }}
+                >
+                  💾 שמור כתבנית
+                </button>
+              </div>
             </div>
           )}
 
