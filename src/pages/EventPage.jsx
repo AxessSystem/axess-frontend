@@ -773,6 +773,15 @@ export default function EventPage() {
     }).catch(() => {})
   }, [slug, promoRef])
 
+  const trackField = useCallback(async (fieldData) => {
+    if (!slug) return
+    fetch(`${API_BASE}/e/${slug}/track`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ event: 'field_filled', ...fieldData }),
+    }).catch(() => {})
+  }, [slug])
+
   const validateFields = useCallback(() => {
     const errors = {}
 
@@ -1557,6 +1566,14 @@ export default function EventPage() {
                     setModalFirstName(e.target.value)
                     setFieldErrors((f) => ({ ...f, first_name: '' }))
                   }}
+                  onBlur={() => {
+                    if (modalFirstName) {
+                      trackField({
+                        first_name: modalFirstName,
+                        step: 'personal_details',
+                      })
+                    }
+                  }}
                   placeholder="שם פרטי *"
                   style={{
                     width: '100%',
@@ -1611,6 +1628,16 @@ export default function EventPage() {
                     setModalPhone(e.target.value)
                     setFieldErrors((f) => ({ ...f, phone: '' }))
                   }}
+                  onBlur={() => {
+                    if (modalPhone) {
+                      trackField({
+                        phone: modalPhone,
+                        first_name: modalFirstName,
+                        last_name: modalLastName,
+                        step: 'personal_details',
+                      })
+                    }
+                  }}
                   placeholder="טלפון נייד * (05X-XXXXXXX)"
                   type="tel"
                   style={{
@@ -1636,6 +1663,15 @@ export default function EventPage() {
                   onChange={(e) => {
                     setModalEmail(e.target.value)
                     setFieldErrors((f) => ({ ...f, email: '' }))
+                  }}
+                  onBlur={() => {
+                    if (modalEmail) {
+                      trackField({
+                        email: modalEmail,
+                        phone: modalPhone,
+                        step: 'personal_details',
+                      })
+                    }
                   }}
                   placeholder="מייל *"
                   type="email"
