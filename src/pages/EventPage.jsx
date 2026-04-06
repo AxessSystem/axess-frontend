@@ -15,9 +15,20 @@ import {
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import SeatingModal from '../components/SeatingModal'
+import DateTimePicker from '../components/ui/DateTimePicker'
 import { TableBookingModalContent } from './EventPageTableModal'
 
 const API_BASE = import.meta.env.VITE_API_URL || 'https://api.axess.pro'
+
+const MODAL_SYSTEM_REG_IDS = new Set([
+  'first_name',
+  'last_name',
+  'phone',
+  'email',
+  'id_number',
+  'birth_date',
+  'gender',
+])
 
 const DEFAULT_FAQ = [
   {
@@ -632,9 +643,14 @@ export default function EventPage() {
   const [modalTicket, setModalTicket] = useState(null)
   const [modalQty, setModalQty] = useState(1)
   const [modalPaymentMode, setModalPaymentMode] = useState('full')
-  const [modalName, setModalName] = useState('')
+  const [modalFirstName, setModalFirstName] = useState('')
+  const [modalLastName, setModalLastName] = useState('')
   const [modalPhone, setModalPhone] = useState('')
-  const [idNumber, setIdNumber] = useState('')
+  const [modalEmail, setModalEmail] = useState('')
+  const [modalIdNumber, setModalIdNumber] = useState('')
+  const [modalBirthDate, setModalBirthDate] = useState(null)
+  const [modalGender, setModalGender] = useState('')
+  const [fieldErrors, setFieldErrors] = useState({})
   const [residentCity, setResidentCity] = useState('')
   const [customFields, setCustomFields] = useState({})
   const [paying, setPaying] = useState(false)
@@ -757,18 +773,60 @@ export default function EventPage() {
     }).catch(() => {})
   }, [slug, promoRef])
 
+  const validateFields = useCallback(() => {
+    const errors = {}
+
+    if (!modalFirstName.trim()) errors.first_name = 'שם פרטי חובה'
+    if (!modalLastName.trim()) errors.last_name = 'שם משפחה חובה'
+
+    const phoneClean = modalPhone.replace(/\D/g, '')
+    if (!phoneClean || phoneClean.length < 9) errors.phone = 'טלפון לא תקין'
+
+    if (!modalEmail.trim()) errors.email = 'מייל חובה'
+    if (modalEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(modalEmail)) {
+      errors.email = 'מייל לא תקין'
+    }
+
+    const idDigits = modalIdNumber.replace(/\D/g, '')
+    if (event?.requires_id && idDigits.length !== 9) {
+      errors.id_number = 'נדרשת תעודת זהות בת 9 ספרות'
+    } else if (modalIdNumber && idDigits.length !== 9) {
+      errors.id_number = 'ת.ז חייבת להכיל 9 ספרות'
+    }
+
+    if (!modalBirthDate) errors.birth_date = 'נדרש תאריך לידה'
+
+    setFieldErrors(errors)
+    return Object.keys(errors).length === 0
+  }, [
+    modalFirstName,
+    modalLastName,
+    modalPhone,
+    modalEmail,
+    modalIdNumber,
+    modalBirthDate,
+    event,
+  ])
+
   const handleReserve = async () => {
-    if (!modalTicket || !modalName.trim() || !modalPhone.trim()) {
-      toast.error('מלא שם וטלפון')
-      return
-    }
-    if (event?.requires_id && idNumber.replace(/\D/g, '').length !== 9) {
-      toast.error('נא להזין תעודת זהות תקינה (9 ספרות)')
-      return
-    }
+    if (!modalTicket) return
+    if (!validateFields()) return
+
     const regFields = event?.registration_fields || []
+    const idDigits = modalIdNumber.replace(/\D/g, '')
+    const mergedCustom = {
+      ...customFields,
+      first_name: modalFirstName,
+      last_name: modalLastName,
+      email: modalEmail,
+      birth_date: modalBirthDate || '',
+      gender: modalGender,
+      customer_name: `${modalFirstName} ${modalLastName}`.trim(),
+      phone: modalPhone,
+      ...(idDigits.length === 9 ? { id_number: idDigits } : {}),
+    }
     for (const f of regFields) {
-      if (f.required && !customFields[f.id]) {
+      if (f.required && (mergedCustom[f.id] === undefined || mergedCustom[f.id] === '')) {
         toast.error(`נא למלא: ${f.label}`)
         return
       }
@@ -778,12 +836,20 @@ export default function EventPage() {
       const payload = {
         ticket_type_id: modalTicket.id,
         quantity: modalQty,
-        buyer_name: modalName.trim(),
+        buyer_name: `${modalFirstName} ${modalLastName}`.trim(),
         buyer_phone: modalPhone.trim(),
+        buyer_email: modalEmail.trim() || undefined,
+        customer_name: `${modalFirstName} ${modalLastName}`.trim(),
+        first_name: modalFirstName,
+        last_name: modalLastName,
+        phone: modalPhone,
+        email: modalEmail,
+        ...(idDigits.length === 9 ? { id_number: idDigits } : {}),
+        birth_date: modalBirthDate,
+        gender: modalGender,
         ...(ref ? { ref } : {}),
-        ...(event?.requires_id && idNumber ? { id_number: idNumber.replace(/\D/g, '') } : {}),
         ...(event?.city_code && residentCity ? { resident_city: residentCity.trim() } : {}),
-        ...(Object.keys(customFields).length ? { custom_fields: customFields } : {}),
+        custom_fields: mergedCustom,
       }
       const res = await fetch(`${API_BASE}/e/${slug}/reserve`, {
         method: 'POST',
@@ -877,23 +943,6 @@ export default function EventPage() {
   const dc = event.display_config || {}
   const primaryColor = dc.primary_color || 'var(--v2-primary)'
   const coverSrc = event.cover_image_url || event.image_url
-  const regFieldTypes = (event?.registration_fields || []).map((f) => f.type)
-  const regFieldIds = (event?.registration_fields || []).map((f) => f.id)
-
-  const hasPhoneField =
-    regFieldTypes.includes('phone')
-    || regFieldTypes.includes('tel')
-    || regFieldIds.includes('phone')
-  const hasIdField =
-    regFieldTypes.includes('id')
-    || regFieldTypes.includes('identification')
-    || regFieldIds.includes('id_number')
-  const hasNameField =
-    regFieldTypes.includes('name')
-    || regFieldTypes.includes('full_name')
-    || regFieldIds.includes('first_name')
-    || regFieldIds.includes('last_name')
-    || regFieldIds.includes('name')
   const selectTicket = (tt) => {
     const available = ticketAvailable(tt)
     const maxQ = Math.max(
@@ -905,7 +954,14 @@ export default function EventPage() {
     setModalTicket(tt)
     setSuccess(false)
     setPendingApproval(false)
-    setIdNumber('')
+    setModalFirstName('')
+    setModalLastName('')
+    setModalPhone('')
+    setModalEmail('')
+    setModalIdNumber('')
+    setModalBirthDate(null)
+    setModalGender('')
+    setFieldErrors({})
     setResidentCity('')
     setCustomFields({})
     if (tt.ticket_category === 'table' && !tt.metadata?.seating_map_id) {
@@ -1494,107 +1550,193 @@ export default function EventPage() {
             )}
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              {!hasNameField && (
-                <div>
-                  <label
-                    style={{
-                      fontSize: 12,
-                      color: 'rgba(255,255,255,0.5)',
-                      display: 'block',
-                      marginBottom: 4,
-                    }}
-                  >
-                    שם מלא *
-                  </label>
-                  <input
-                    value={modalName}
-                    onChange={(e) => setModalName(e.target.value)}
-                    placeholder="שם פרטי ושם משפחה"
-                    style={{
-                      width: '100%',
-                      height: 46,
-                      borderRadius: 10,
-                      border: `1px solid ${!modalName ? 'rgba(255,255,255,0.15)' : 'rgba(0,195,122,0.4)'}`,
-                      background: 'rgba(255,255,255,0.08)',
-                      color: '#fff',
-                      padding: '0 14px',
-                      fontSize: 15,
-                      boxSizing: 'border-box',
-                    }}
-                  />
-                </div>
-              )}
+              <div>
+                <input
+                  value={modalFirstName}
+                  onChange={(e) => {
+                    setModalFirstName(e.target.value)
+                    setFieldErrors((f) => ({ ...f, first_name: '' }))
+                  }}
+                  placeholder="שם פרטי *"
+                  style={{
+                    width: '100%',
+                    height: 48,
+                    borderRadius: 10,
+                    fontSize: 15,
+                    border: `1px solid ${fieldErrors.first_name ? '#EF4444' : 'rgba(255,255,255,0.15)'}`,
+                    background: 'rgba(255,255,255,0.08)',
+                    color: '#fff',
+                    padding: '0 14px',
+                    boxSizing: 'border-box',
+                  }}
+                />
+                {fieldErrors.first_name && (
+                  <p style={{ margin: '4px 0 0', fontSize: 11, color: '#EF4444' }}>
+                    {fieldErrors.first_name}
+                  </p>
+                )}
+              </div>
 
-              {!hasPhoneField && (
-                <div>
-                  <label
-                    style={{
-                      fontSize: 12,
-                      color: 'rgba(255,255,255,0.5)',
-                      display: 'block',
-                      marginBottom: 4,
-                    }}
-                  >
-                    טלפון * (לקבלת כרטיס בWA)
-                  </label>
-                  <input
-                    value={modalPhone}
-                    onChange={(e) => setModalPhone(e.target.value)}
-                    placeholder="05XXXXXXXX"
-                    type="tel"
-                    dir="ltr"
-                    style={{
-                      width: '100%',
-                      height: 46,
-                      borderRadius: 10,
-                      border: `1px solid ${!modalPhone ? 'rgba(255,255,255,0.15)' : 'rgba(0,195,122,0.4)'}`,
-                      background: 'rgba(255,255,255,0.08)',
-                      color: '#fff',
-                      padding: '0 14px',
-                      fontSize: 15,
-                      boxSizing: 'border-box',
-                    }}
-                  />
-                </div>
-              )}
+              <div>
+                <input
+                  value={modalLastName}
+                  onChange={(e) => {
+                    setModalLastName(e.target.value)
+                    setFieldErrors((f) => ({ ...f, last_name: '' }))
+                  }}
+                  placeholder="שם משפחה *"
+                  style={{
+                    width: '100%',
+                    height: 48,
+                    borderRadius: 10,
+                    fontSize: 15,
+                    border: `1px solid ${fieldErrors.last_name ? '#EF4444' : 'rgba(255,255,255,0.15)'}`,
+                    background: 'rgba(255,255,255,0.08)',
+                    color: '#fff',
+                    padding: '0 14px',
+                    boxSizing: 'border-box',
+                  }}
+                />
+                {fieldErrors.last_name && (
+                  <p style={{ margin: '4px 0 0', fontSize: 11, color: '#EF4444' }}>
+                    {fieldErrors.last_name}
+                  </p>
+                )}
+              </div>
 
-              {event?.requires_id && !hasIdField && (
-                <div>
-                  <label
+              <div>
+                <input
+                  value={modalPhone}
+                  onChange={(e) => {
+                    setModalPhone(e.target.value)
+                    setFieldErrors((f) => ({ ...f, phone: '' }))
+                  }}
+                  placeholder="טלפון נייד * (05X-XXXXXXX)"
+                  type="tel"
+                  style={{
+                    width: '100%',
+                    height: 48,
+                    borderRadius: 10,
+                    fontSize: 15,
+                    border: `1px solid ${fieldErrors.phone ? '#EF4444' : 'rgba(255,255,255,0.15)'}`,
+                    background: 'rgba(255,255,255,0.08)',
+                    color: '#fff',
+                    padding: '0 14px',
+                    boxSizing: 'border-box',
+                  }}
+                />
+                {fieldErrors.phone && (
+                  <p style={{ margin: '4px 0 0', fontSize: 11, color: '#EF4444' }}>{fieldErrors.phone}</p>
+                )}
+              </div>
+
+              <div>
+                <input
+                  value={modalEmail}
+                  onChange={(e) => {
+                    setModalEmail(e.target.value)
+                    setFieldErrors((f) => ({ ...f, email: '' }))
+                  }}
+                  placeholder="מייל *"
+                  type="email"
+                  style={{
+                    width: '100%',
+                    height: 48,
+                    borderRadius: 10,
+                    fontSize: 15,
+                    border: `1px solid ${fieldErrors.email ? '#EF4444' : 'rgba(255,255,255,0.15)'}`,
+                    background: 'rgba(255,255,255,0.08)',
+                    color: '#fff',
+                    padding: '0 14px',
+                    boxSizing: 'border-box',
+                  }}
+                />
+                {fieldErrors.email && (
+                  <p style={{ margin: '4px 0 0', fontSize: 11, color: '#EF4444' }}>{fieldErrors.email}</p>
+                )}
+              </div>
+
+              <div>
+                <input
+                  value={modalIdNumber}
+                  onChange={(e) => {
+                    setModalIdNumber(e.target.value)
+                    setFieldErrors((f) => ({ ...f, id_number: '' }))
+                  }}
+                  placeholder="תעודת זהות *"
+                  type="number"
+                  style={{
+                    width: '100%',
+                    height: 48,
+                    borderRadius: 10,
+                    fontSize: 15,
+                    border: `1px solid ${fieldErrors.id_number ? '#EF4444' : 'rgba(255,255,255,0.15)'}`,
+                    background: 'rgba(255,255,255,0.08)',
+                    color: '#fff',
+                    padding: '0 14px',
+                    boxSizing: 'border-box',
+                  }}
+                />
+                {fieldErrors.id_number && (
+                  <p style={{ margin: '4px 0 0', fontSize: 11, color: '#EF4444' }}>
+                    {fieldErrors.id_number}
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <label
+                  style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', display: 'block', marginBottom: 4 }}
+                >
+                  תאריך לידה *
+                </label>
+                <DateTimePicker
+                  value={modalBirthDate}
+                  onChange={(v) => {
+                    setModalBirthDate(v)
+                    setFieldErrors((f) => ({ ...f, birth_date: '' }))
+                  }}
+                  placeholder="בחר תאריך לידה"
+                  dateOnly
+                />
+                {fieldErrors.birth_date && (
+                  <p style={{ margin: '4px 0 0', fontSize: 11, color: '#EF4444' }}>
+                    {fieldErrors.birth_date}
+                  </p>
+                )}
+              </div>
+
+              <div style={{ display: 'flex', gap: 8 }}>
+                {[
+                  { value: 'male', label: 'זכר' },
+                  { value: 'female', label: 'נקבה' },
+                  { value: 'other', label: 'אחר' },
+                ].map((opt) => (
+                  <div
+                    key={opt.value}
+                    role="presentation"
+                    onClick={() => setModalGender(opt.value)}
                     style={{
-                      fontSize: 12,
-                      color: 'rgba(255,255,255,0.5)',
-                      display: 'block',
-                      marginBottom: 4,
+                      flex: 1,
+                      height: 44,
+                      borderRadius: 8,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      border: `1px solid ${modalGender === opt.value ? '#00C37A' : 'rgba(255,255,255,0.15)'}`,
+                      background:
+                        modalGender === opt.value ? 'rgba(0,195,122,0.15)' : 'rgba(255,255,255,0.05)',
+                      color: modalGender === opt.value ? '#00C37A' : 'rgba(255,255,255,0.7)',
+                      fontSize: 14,
+                      fontWeight: modalGender === opt.value ? 700 : 400,
+                      transition: 'all 0.15s',
                     }}
                   >
-                    תעודת זהות *{' '}
-                    <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.3)' }}>
-                      (לאימות גיל 18+)
-                    </span>
-                  </label>
-                  <input
-                    value={idNumber}
-                    onChange={(e) => setIdNumber(e.target.value.replace(/\D/g, ''))}
-                    placeholder="000000000"
-                    type="text"
-                    inputMode="numeric"
-                    maxLength={9}
-                    dir="ltr"
-                    style={{
-                      width: '100%',
-                      height: 46,
-                      borderRadius: 10,
-                      border: '1px solid rgba(255,255,255,0.15)',
-                      background: 'rgba(255,255,255,0.08)',
-                      color: '#fff',
-                      padding: '0 14px',
-                      fontSize: 15,
-                      boxSizing: 'border-box',
-                    }}
-                  />
-                </div>
-              )}
+                    {opt.label}
+                  </div>
+                ))}
+              </div>
 
               {event?.city_code && (
                 <div>
@@ -1630,7 +1772,9 @@ export default function EventPage() {
                 </div>
               )}
 
-              {(event?.registration_fields || []).map((field) => (
+              {(event?.registration_fields || [])
+                .filter((f) => !MODAL_SYSTEM_REG_IDS.has(f.id))
+                .map((field) => (
                 <div key={field.id}>
                   <label
                     style={{
@@ -1646,8 +1790,9 @@ export default function EventPage() {
 
                   {(field.type === 'tel' || field.type === 'phone' || field.id === 'phone') && (
                     <input
-                      value={modalPhone}
-                      onChange={(e) => setModalPhone(e.target.value)}
+                      value={customFields[field.id] || ''}
+                      onChange={(e) =>
+                        setCustomFields((f) => ({ ...f, [field.id]: e.target.value }))}
                       placeholder="05XXXXXXXX"
                       type="tel"
                       dir="ltr"
@@ -1690,8 +1835,12 @@ export default function EventPage() {
                     || field.type === 'identification'
                     || field.id === 'id_number') && (
                     <input
-                      value={idNumber}
-                      onChange={(e) => setIdNumber(e.target.value.replace(/\D/g, ''))}
+                      value={customFields[field.id] || ''}
+                      onChange={(e) =>
+                        setCustomFields((f) => ({
+                          ...f,
+                          [field.id]: e.target.value.replace(/\D/g, ''),
+                        }))}
                       placeholder="000000000"
                       type="text"
                       inputMode="numeric"
@@ -1717,8 +1866,9 @@ export default function EventPage() {
                     || field.id === 'last_name'
                     || field.id === 'name') && (
                     <input
-                      value={modalName}
-                      onChange={(e) => setModalName(e.target.value)}
+                      value={customFields[field.id] || ''}
+                      onChange={(e) =>
+                        setCustomFields((f) => ({ ...f, [field.id]: e.target.value }))}
                       placeholder={field.id === 'last_name' ? 'שם משפחה' : 'שם פרטי'}
                       style={{
                         width: '100%',
@@ -2081,20 +2231,17 @@ export default function EventPage() {
               <button
                 type="button"
                 onClick={handleReserve}
-                disabled={paying || !modalName || !modalPhone}
+                disabled={paying}
                 style={{
                   width: '100%',
                   height: 52,
                   borderRadius: 12,
                   border: 'none',
-                  background:
-                    paying || !modalName || !modalPhone ? 'rgba(255,255,255,0.1)' : '#00C37A',
-                  color:
-                    paying || !modalName || !modalPhone ? 'rgba(255,255,255,0.3)' : '#000',
+                  background: paying ? 'rgba(255,255,255,0.1)' : '#00C37A',
+                  color: paying ? 'rgba(255,255,255,0.3)' : '#000',
                   fontWeight: 800,
                   fontSize: 17,
-                  cursor:
-                    paying || !modalName || !modalPhone ? 'not-allowed' : 'pointer',
+                  cursor: paying ? 'not-allowed' : 'pointer',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',

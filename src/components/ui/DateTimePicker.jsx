@@ -7,7 +7,12 @@ function pad(n) { return String(n).padStart(2, '0') }
 const HOURS = Array.from({ length: 24 }, (_, i) => pad(i))
 const MINS = ['00', '30']
 
-export default function DateTimePicker({ value, onChange, placeholder = 'בחר תאריך ושעה' }) {
+export default function DateTimePicker({
+  value,
+  onChange,
+  placeholder = 'בחר תאריך ושעה',
+  dateOnly = false,
+}) {
   const [open, setOpen] = useState(false)
   const [mode, setMode] = useState('date') // 'date' | 'time'
   const d = value ? new Date(value) : null
@@ -29,6 +34,12 @@ export default function DateTimePicker({ value, onChange, placeholder = 'בחר 
   const handleDatePick = (day) => {
     const newDate = new Date(year, month, day)
     setSelDate(newDate)
+    if (dateOnly) {
+      const dt = new Date(newDate.getFullYear(), newDate.getMonth(), newDate.getDate(), 0, 0, 0, 0)
+      onChange(dt.toISOString())
+      setOpen(false)
+      return
+    }
     setMode('time')
   }
 
@@ -41,6 +52,9 @@ export default function DateTimePicker({ value, onChange, placeholder = 'בחר 
 
   const displayVal = value ? (() => {
     const x = new Date(value)
+    if (dateOnly) {
+      return `${x.getDate()}/${x.getMonth() + 1}/${x.getFullYear()}`
+    }
     return `${x.getDate()}/${x.getMonth() + 1}/${x.getFullYear()} ${pad(x.getHours())}:${pad(x.getMinutes())}`
   })() : ''
 
@@ -123,9 +137,11 @@ export default function DateTimePicker({ value, onChange, placeholder = 'בחר 
                   )
                 })}
               </div>
-              <button type="button" onClick={() => setMode('time')} style={{ width: '100%', padding: 10, background: 'var(--v2-primary)', color: 'var(--v2-dark)', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 600 }}>
-                בחר שעה
-              </button>
+              {!dateOnly && (
+                <button type="button" onClick={() => setMode('time')} style={{ width: '100%', padding: 10, background: 'var(--v2-primary)', color: 'var(--v2-dark)', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 600 }}>
+                  בחר שעה
+                </button>
+              )}
             </>
           ) : (
             <>
