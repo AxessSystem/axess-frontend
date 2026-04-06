@@ -303,6 +303,79 @@ export default function RichTextEditor({ value, onChange, placeholder, authHeade
           </button>
         ))}
       </div>
+
+      {/* בלוקים חכמים */}
+      <div style={{ borderTop: '1px solid var(--glass-border)', padding: '8px 10px' }}>
+        <span style={{ fontSize: 11, color: 'var(--v2-gray-400)', display: 'block', marginBottom: 6 }}>הוסף בלוק:</span>
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+          {[
+            {
+              label: '📅 פרטי אירוע',
+              content: '<p><strong>📅 תאריך:</strong> </p><p><strong>🕐 שעה:</strong> </p><p><strong>📍 מיקום:</strong> <a href="">ניווט למקום</a></p>',
+            },
+            {
+              label: '🎧 ליין-אפ',
+              content: '<h2>🎧 ליין-אפ</h2><p>🎤 </p><p>🎤 </p><p>🎤 </p>',
+            },
+            {
+              label: '🎟️ כרטיסים',
+              content: '<h2>🎟️ כרטיסים</h2><p><strong>כניסה רגילה:</strong> ₪</p><p><strong>VIP:</strong> ₪</p><p><strong>שולחן:</strong> ₪</p>',
+            },
+            {
+              label: '📍 הגעה',
+              content: '<h2>📍 איך מגיעים</h2><p><strong>כתובת:</strong> </p><p><strong>תחבורה ציבורית:</strong> </p><p><strong>חניה:</strong> </p>',
+            },
+            {
+              label: '⚠️ הנחיות',
+              content: '<h2>⚠️ הנחיות חשובות</h2><p>✅ גיל מינימלי: 18+</p><p>✅ קוד לבוש: </p><p>✅ אין כניסה עם: </p>',
+            },
+            {
+              label: '🎤 על האמן',
+              content: '<h2>🎤 על האמן</h2><p></p>',
+            },
+          ].map((block) => (
+            <button
+              key={block.label}
+              type="button"
+              onClick={() => editor.chain().focus().insertContent(block.content).run()}
+              style={{
+                fontSize: 11, padding: '4px 10px', borderRadius: 12,
+                border: '1px solid rgba(0,195,122,0.3)',
+                background: 'rgba(0,195,122,0.08)',
+                color: '#00C37A', cursor: 'pointer',
+              }}
+            >
+              {block.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* CTA כפתורים */}
+      <div style={{ borderTop: '1px solid var(--glass-border)', padding: '8px 10px' }}>
+        <span style={{ fontSize: 11, color: 'var(--v2-gray-400)', display: 'block', marginBottom: 6 }}>הוסף כפתור CTA:</span>
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+          {[
+            { label: '🎟️ קנה כרטיס', html: '<p><a href="#tickets" style="display:inline-block;background:#00C37A;color:#000;padding:10px 24px;border-radius:8px;font-weight:700;text-decoration:none;">🎟️ קנה כרטיס עכשיו</a></p>' },
+            { label: '📅 שריין מקום', html: '<p><a href="#register" style="display:inline-block;background:#3B82F6;color:#fff;padding:10px 24px;border-radius:8px;font-weight:700;text-decoration:none;">📅 שריין מקום</a></p>' },
+            { label: '💬 WhatsApp', html: '<p><a href="https://wa.me/" style="display:inline-block;background:#25D366;color:#fff;padding:10px 24px;border-radius:8px;font-weight:700;text-decoration:none;">💬 הצטרף לקבוצת WhatsApp</a></p>' },
+          ].map((cta) => (
+            <button
+              key={cta.label}
+              type="button"
+              onClick={() => editor.chain().focus().insertContent(cta.html).run()}
+              style={{
+                fontSize: 11, padding: '4px 10px', borderRadius: 12,
+                border: '1px solid rgba(59,130,246,0.3)',
+                background: 'rgba(59,130,246,0.08)',
+                color: '#3B82F6', cursor: 'pointer',
+              }}
+            >
+              {cta.label}
+            </button>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }
