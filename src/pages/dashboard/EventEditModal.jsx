@@ -92,7 +92,7 @@ function initialFaq(raw) {
   return []
 }
 
-export default function EventEditModal({ event, onClose, onSave, authHeaders, businessId }) {
+export default function EventEditModal({ event, onClose, onSave: _onSaveIgnored, authHeaders, businessId }) {
   const contactInfo0 = parseContactInfo(event?.contact_info)
   const displayConfig0 = (() => {
     const raw = event?.display_config
@@ -118,7 +118,6 @@ export default function EventEditModal({ event, onClose, onSave, authHeaders, bu
     venue_address: event?.venue_address || '',
     venue_maps_url: event?.venue_maps_url || '',
     description: event?.description || '',
-    short_description: displayConfig0.short_description || '',
     image_url: event?.image_url || '',
     cover_image_url: event?.cover_image_url || '',
     age_restriction: event?.age_restriction || '',
@@ -134,7 +133,6 @@ export default function EventEditModal({ event, onClose, onSave, authHeaders, bu
   })
   const [saving, setSaving] = useState(false)
   const [imageUploading, setImageUploading] = useState(false)
-  const [successMsg, setSuccessMsg] = useState('')
 
   useEffect(() => {
     const style = document.createElement('style')
@@ -194,7 +192,6 @@ export default function EventEditModal({ event, onClose, onSave, authHeaders, bu
       display_config: {
         ...(event?.display_config || {}),
         venue_image: cleanStr(form.venue_image),
-        short_description: cleanStr(form.short_description),
       },
       faq: form.faq || [],
     }
@@ -208,9 +205,7 @@ export default function EventEditModal({ event, onClose, onSave, authHeaders, bu
     setSaving(false)
 
     if (res.ok) {
-      setSuccessMsg('נשמר!')
-      setTimeout(() => setSuccessMsg(''), 2000)
-      onSave?.()
+      toast.success('השינויים נשמרו!')
     } else {
       const err = await res.json().catch(() => ({}))
       console.error('[save] error:', err)
@@ -587,32 +582,6 @@ export default function EventEditModal({ event, onClose, onSave, authHeaders, bu
               </div>
 
               <div>
-                <label style={{ fontSize: 12, color: 'var(--v2-gray-400)', display: 'block', marginBottom: 4 }}>
-                  תיאור קצר
-                </label>
-                <textarea
-                  value={form.short_description}
-                  onChange={(e) => setForm((f) => ({ ...f, short_description: e.target.value }))}
-                  placeholder="משפט או שניים על האירוע..."
-                  rows={4}
-                  style={{
-                    width: '100%',
-                    minHeight: 88,
-                    borderRadius: 8,
-                    border: '1px solid var(--glass-border)',
-                    background: 'var(--glass)',
-                    color: 'var(--text)',
-                    padding: '10px 12px',
-                    fontSize: 14,
-                    boxSizing: 'border-box',
-                    resize: 'vertical',
-                    direction: 'rtl',
-                    fontFamily: 'inherit',
-                  }}
-                />
-              </div>
-
-              <div>
                 <label style={{ fontSize: 12, color: 'var(--v2-gray-400)', display: 'block', marginBottom: 8 }}>
                   תמונת כרטיס (Banner)
                 </label>
@@ -706,7 +675,7 @@ export default function EventEditModal({ event, onClose, onSave, authHeaders, bu
                   marginTop: 8,
                 }}
               >
-                {saving ? 'שומר...' : successMsg || 'שמור שינויים'}
+                {saving ? 'שומר...' : 'שמור שינויים'}
               </button>
             </div>
           )}

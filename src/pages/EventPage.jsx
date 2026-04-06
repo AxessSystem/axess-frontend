@@ -1177,11 +1177,22 @@ export default function EventPage() {
           </div>
         )}
 
-        {event.description && (
+        {(event.description || event.rich_description) && (
           <div style={{ marginTop: 32 }}>
+            <style>{`
+  .event-description h1 { font-size: 22px; font-weight: 800; margin: 0 0 12px; }
+  .event-description h2 { font-size: 18px; font-weight: 700; margin: 0 0 10px; }
+  .event-description strong { font-weight: 700; }
+  .event-description p { margin: 0 0 8px; line-height: 1.7; }
+  .event-description ul { padding-right: 20px; margin: 0 0 8px; }
+  .event-description ol { padding-right: 20px; margin: 0 0 8px; }
+  .event-description a { color: #00C37A; }
+  .event-description hr { border-color: rgba(255,255,255,0.1); margin: 12px 0; }
+`}</style>
             <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 12 }}>על האירוע</h2>
             <div
-              dangerouslySetInnerHTML={{ __html: event.description || '' }}
+              className="event-description"
+              dangerouslySetInnerHTML={{ __html: event.description || event.rich_description || '' }}
               style={{ direction: 'rtl', lineHeight: 1.7, fontSize: 15 }}
             />
           </div>

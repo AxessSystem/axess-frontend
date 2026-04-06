@@ -285,6 +285,7 @@ export default function RichTextEditor({ value, onChange, placeholder, authHeade
       <div style={{ borderTop: '1px solid var(--glass-border)', padding: '8px 10px', display: 'flex', gap: 6, flexWrap: 'wrap' }}>
         <span style={{ fontSize: 11, color: 'var(--v2-gray-400)', alignSelf: 'center', marginLeft: 4 }}>תבנית:</span>
         {[
+          { label: '✏️ ללא תבנית', content: '' },
           { label: '🎉 מסיבה', content: '<h2>🎉 פרטי האירוע</h2><p><strong>📅 תאריך:</strong> </p><p><strong>🕐 שעה:</strong> </p><p><strong>📍 מיקום:</strong> </p><hr/><h2>🎧 ליין-אפ</h2><p></p><hr/><h2>🎟️ כרטיסים</h2><p></p><hr/><h2>⚠️ הנחיות</h2><p>גיל מינימלי: 18+</p>' },
           { label: '🎤 הופעה', content: '<h2>🎤 על האמן</h2><p></p><hr/><h2>📅 פרטי ההופעה</h2><p><strong>תאריך:</strong> </p><p><strong>שעה:</strong> </p><p><strong>מיקום:</strong> </p><hr/><h2>🎟️ כרטיסים</h2><p></p>' },
           { label: '🏢 עסקי', content: '<h2>אודות האירוע</h2><p></p><hr/><h2>📋 סדר יום</h2><p></p><hr/><h2>📍 מיקום ופרטים</h2><p></p><hr/><h2>🎟️ הרשמה</h2><p></p>' },
