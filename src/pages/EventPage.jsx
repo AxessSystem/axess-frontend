@@ -45,27 +45,6 @@ const DEFAULT_FAQ = [
   },
 ]
 
-function renderDescription(html) {
-  if (!html) return null
-  const s = typeof html === 'string' ? html : String(html)
-  const youtubeRegex =
-    /(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/g
-  const withEmbed = s.replace(
-    youtubeRegex,
-    (_match, videoId) =>
-      `
-    <div style="position:relative;padding-bottom:56.25%;height:0;margin:16px 0">
-      <iframe 
-        src="https://www.youtube.com/embed/${videoId}" 
-        style="position:absolute;top:0;left:0;width:100%;height:100%;border-radius:8px;border:none"
-        allowfullscreen
-      ></iframe>
-    </div>
-  `,
-  )
-  return <div dangerouslySetInnerHTML={{ __html: withEmbed }} />
-}
-
 function VenueSection({ event }) {
   if (!event.venue_name && !event.location) return null
 
@@ -1198,12 +1177,13 @@ export default function EventPage() {
           </div>
         )}
 
-        {(event.rich_description || event.description) && (
+        {event.description && (
           <div style={{ marginTop: 32 }}>
             <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 12 }}>על האירוע</h2>
-            <div style={{ fontSize: 15, lineHeight: 1.7, color: 'rgba(255,255,255,0.8)' }}>
-              {renderDescription(event.rich_description || event.description)}
-            </div>
+            <div
+              dangerouslySetInnerHTML={{ __html: event.description || '' }}
+              style={{ direction: 'rtl', lineHeight: 1.7, fontSize: 15 }}
+            />
           </div>
         )}
 

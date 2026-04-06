@@ -52,6 +52,7 @@ function waMeDigits(phone) {
 
 const EDIT_TABS = [
   { id: 'basic', label: 'פרטים' },
+  { id: 'description', label: '📝 תיאור' },
   { id: 'tickets', label: 'כרטיסים' },
   { id: 'tables', label: 'שולחנות' },
   { id: 'fields', label: 'שדות הרשמה' },
@@ -117,6 +118,7 @@ export default function EventEditModal({ event, onClose, onSave, authHeaders, bu
     venue_address: event?.venue_address || '',
     venue_maps_url: event?.venue_maps_url || '',
     description: event?.description || '',
+    short_description: displayConfig0.short_description || '',
     image_url: event?.image_url || '',
     cover_image_url: event?.cover_image_url || '',
     age_restriction: event?.age_restriction || '',
@@ -192,6 +194,7 @@ export default function EventEditModal({ event, onClose, onSave, authHeaders, bu
       display_config: {
         ...(event?.display_config || {}),
         venue_image: cleanStr(form.venue_image),
+        short_description: cleanStr(form.short_description),
       },
       faq: form.faq || [],
     }
@@ -587,10 +590,25 @@ export default function EventEditModal({ event, onClose, onSave, authHeaders, bu
                 <label style={{ fontSize: 12, color: 'var(--v2-gray-400)', display: 'block', marginBottom: 4 }}>
                   תיאור קצר
                 </label>
-                <RichTextEditor
-                  value={form.description}
-                  onChange={(v) => setForm((f) => ({ ...f, description: v }))}
-                  placeholder="תאר את האירוע..."
+                <textarea
+                  value={form.short_description}
+                  onChange={(e) => setForm((f) => ({ ...f, short_description: e.target.value }))}
+                  placeholder="משפט או שניים על האירוע..."
+                  rows={4}
+                  style={{
+                    width: '100%',
+                    minHeight: 88,
+                    borderRadius: 8,
+                    border: '1px solid var(--glass-border)',
+                    background: 'var(--glass)',
+                    color: 'var(--text)',
+                    padding: '10px 12px',
+                    fontSize: 14,
+                    boxSizing: 'border-box',
+                    resize: 'vertical',
+                    direction: 'rtl',
+                    fontFamily: 'inherit',
+                  }}
                 />
               </div>
 
@@ -689,6 +707,29 @@ export default function EventEditModal({ event, onClose, onSave, authHeaders, bu
                 }}
               >
                 {saving ? 'שומר...' : successMsg || 'שמור שינויים'}
+              </button>
+            </div>
+          )}
+
+          {activeTab === 'description' && (
+            <div>
+              <p style={{ margin: '0 0 12px', fontSize: 13, color: 'var(--v2-gray-400)' }}>
+                תיאור האירוע יוצג בדף הציבורי
+              </p>
+              <RichTextEditor
+                value={form.description}
+                onChange={(v) => setForm((f) => ({ ...f, description: v }))}
+                placeholder="תאר את האירוע..."
+                authHeaders={authHeaders}
+              />
+              <button
+                type="button"
+                onClick={saveBasic}
+                style={{
+                  width: '100%', height: 46, borderRadius: 10, border: 'none', background: '#00C37A', color: '#000', fontWeight: 700, fontSize: 15, cursor: 'pointer', marginTop: 16,
+                }}
+              >
+                שמור תיאור
               </button>
             </div>
           )}
