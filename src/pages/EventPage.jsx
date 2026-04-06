@@ -1566,14 +1566,6 @@ export default function EventPage() {
                     setModalFirstName(e.target.value)
                     setFieldErrors((f) => ({ ...f, first_name: '' }))
                   }}
-                  onBlur={() => {
-                    if (modalFirstName) {
-                      trackField({
-                        first_name: modalFirstName,
-                        step: 'personal_details',
-                      })
-                    }
-                  }}
                   placeholder="שם פרטי *"
                   style={{
                     width: '100%',
@@ -1634,6 +1626,7 @@ export default function EventPage() {
                         phone: modalPhone,
                         first_name: modalFirstName,
                         last_name: modalLastName,
+                        email: modalEmail,
                         step: 'personal_details',
                       })
                     }
@@ -1663,15 +1656,6 @@ export default function EventPage() {
                   onChange={(e) => {
                     setModalEmail(e.target.value)
                     setFieldErrors((f) => ({ ...f, email: '' }))
-                  }}
-                  onBlur={() => {
-                    if (modalEmail) {
-                      trackField({
-                        email: modalEmail,
-                        phone: modalPhone,
-                        step: 'personal_details',
-                      })
-                    }
                   }}
                   placeholder="מייל *"
                   type="email"
