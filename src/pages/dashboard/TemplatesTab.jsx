@@ -102,18 +102,22 @@ export default function TemplatesTab({ eventId, businessId, authHeaders }) {
     }
   }
 
-  const saveTemplate = async (type) => {
-    setSaving(type)
+  const saveTemplate = async (templateType) => {
+    if (!window.confirm('פעולה זו תחליף את התבנית הנוכחית בנתוני האירוע הנבחר. להמשיך?')) return
+    setSaving(templateType)
     try {
       const res = await fetch(`${API_BASE}/api/admin/business/${businessId}/templates`, {
         method: 'POST',
         headers: authHeaders(),
-        body: JSON.stringify({ template_type: type, source_event_id: eventId }),
+        body: JSON.stringify({ template_type: templateType, source_event_id: eventId }),
       })
       const data = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(data.error || data.message || 'שגיאה')
-      toast.success('תבנית נשמרה!')
-      loadTemplates()
+      setTemplates((prev) => ({
+        ...prev,
+        [templateType]: data.template,
+      }))
+      toast.success('תבנית יובאה מהאירוע!')
     } catch (e) {
       toast.error(e.message || 'שגיאה בשמירה')
     } finally {
@@ -215,7 +219,7 @@ export default function TemplatesTab({ eventId, businessId, authHeaders }) {
                   disabled={saving === t.id}
                   style={{ padding: '6px 12px', borderRadius: 6, border: 'none', background: 'rgba(0,195,122,0.15)', color: '#00C37A', fontWeight: 600, fontSize: 12, cursor: 'pointer' }}
                 >
-                  {saving === t.id ? '...' : <><Save size={12} style={{ marginLeft: 4 }} /> שמור</>}
+                  {saving === t.id ? '...' : <><Save size={12} style={{ marginLeft: 4 }} /> ייבא מאירוע</>}
                 </button>
                 {isExpanded ? <ChevronUp size={16} color="var(--v2-gray-400)" /> : <ChevronDown size={16} color="var(--v2-gray-400)" />}
               </div>
