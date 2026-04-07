@@ -285,10 +285,10 @@ export default function TemplatesTab({ eventId, businessId, authHeaders }) {
     <div>
       {confirmSave && (
         <ConfirmModal
-          title="החלפת תבנית"
-          message={`פעולה זו תחליף את כל נתוני התבנית הנוכחית בנתונים מהאירוע הנבחר.<br/><strong style="color:var(--text)">שינויים שערכת ידנית יאבדו.</strong><br/>האם להמשיך?`}
-          confirmText="כן, החלף תבנית"
-          confirmColor="#ef4444"
+          title="עדכון תבנית עסק"
+          message="שינויים אלו <strong>יחולו על כל האירועים העתידיים</strong> שלך כברירת מחדל.<br/>אירועים קיימים לא יושפעו."
+          confirmText="עדכן תבנית"
+          confirmColor="#00C37A"
           onConfirm={async () => {
             const { templateType } = confirmSave
             setConfirmSave(null)
@@ -414,12 +414,36 @@ export default function TemplatesTab({ eventId, businessId, authHeaders }) {
               <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                 <button
                   type="button"
-                  title="שמור את נתוני האירוע הנוכחי כתבנית קבועה לעסק"
-                  onClick={(e) => { e.stopPropagation(); saveTemplate(t.id) }}
-                  disabled={saving === t.id}
-                  style={{ padding: '6px 12px', borderRadius: 6, border: 'none', background: 'rgba(0,195,122,0.15)', color: '#00C37A', fontWeight: 600, fontSize: 12, cursor: 'pointer' }}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    handleTemplateUpdate(t.id, templateData)
+                  }}
+                  style={{
+                    height: 36, padding: '0 14px', borderRadius: 8,
+                    border: '1px solid var(--glass-border)',
+                    background: 'transparent', color: 'var(--text)',
+                    fontSize: 13, cursor: 'pointer',
+                  }}
                 >
-                  {saving === t.id ? '...' : <><Save size={12} style={{ marginLeft: 4 }} /> שמור</>}
+                  שמור לאירוע זה
+                </button>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setConfirmSave({ templateType: t.id })
+                  }}
+                  disabled={saving === t.id}
+                  style={{
+                    height: 36, padding: '0 14px', borderRadius: 8,
+                    border: 'none', background: '#00C37A',
+                    color: '#000', fontWeight: 700,
+                    fontSize: 13, cursor: saving === t.id ? 'wait' : 'pointer',
+                    display: 'flex', alignItems: 'center', gap: 6,
+                  }}
+                >
+                  <Save size={13} />
+                  עדכן תבנית עסק
                 </button>
                 {isExpanded ? <ChevronUp size={16} color="var(--v2-gray-400)" /> : <ChevronDown size={16} color="var(--v2-gray-400)" />}
               </div>
@@ -1016,6 +1040,29 @@ function MenuTemplate({ data, onUpdate, eventId, businessId, authHeaders, reques
                   style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--v2-gray-400)', marginLeft: 4, padding: 4 }}
                 >
                   <Pencil size={13} />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    const duplicate = {
+                      ...item,
+                      name: `${item.name} (עותק)`,
+                    }
+                    const newMenu = [...menu, duplicate]
+                    setMenu(newMenu)
+                    onUpdate({ menu: newMenu })
+                    toast.success('פריט שוכפל!')
+                  }}
+                  title="שכפל פריט"
+                  style={{
+                    background: 'transparent', border: 'none',
+                    color: 'var(--v2-gray-400)', cursor: 'pointer',
+                    padding: 4, borderRadius: 6,
+                    display: 'flex', alignItems: 'center',
+                  }}
+                >
+                  <Copy size={14} />
                 </button>
 
                 <button
