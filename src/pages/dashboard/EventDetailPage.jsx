@@ -1109,6 +1109,7 @@ export default function EventDetailPage() {
           { id: 'channels', label: 'ערוצי מכירה' },
           { id: 'webview', label: 'Webview' },
           { id: 'checkin', label: 'צ\'ק אין' },
+          { id: 'menu', label: 'תפריט וסקיצה' },
         ].map((tab) => (
           <button
             key={tab.id}
@@ -3696,6 +3697,25 @@ export default function EventDetailPage() {
                 transition: 'width 0.5s ease',
               }}
               />
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'menu' && (
+          <div style={{ padding: '24px 0' }}>
+            {/* תפריטים */}
+            <div style={{ background: 'var(--glass)', border: '1px solid var(--glass-border)', borderRadius: 16, padding: 24, marginBottom: 20 }}>
+              <h3 style={{ margin: '0 0 16px', fontSize: 16, fontWeight: 700 }}>תפריטים מקושרים</h3>
+              <p style={{ color: 'var(--v2-gray-400)', fontSize: 13, margin: 0 }}>
+                ניהול תפריטים וסקיצות עבור האירוע הזה יתווסף בקרוב.
+              </p>
+            </div>
+            {/* סקיצות */}
+            <div style={{ background: 'var(--glass)', border: '1px solid var(--glass-border)', borderRadius: 16, padding: 24 }}>
+              <h3 style={{ margin: '0 0 16px', fontSize: 16, fontWeight: 700 }}>סקיצות מקום</h3>
+              <p style={{ color: 'var(--v2-gray-400)', fontSize: 13, margin: 0 }}>
+                ניהול סקיצות עבור האירוע הזה יתווסף בקרוב.
+              </p>
             </div>
           </div>
         )}
