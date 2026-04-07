@@ -49,6 +49,7 @@ export default function TemplatesTab({ eventId, businessId, authHeaders }) {
   const [activeTemplate, setActiveTemplate] = useState(null)
   const [templateData, setTemplateData] = useState({})
   const [confirmAction, setConfirmAction] = useState(null)
+  const [confirmSave, setConfirmSave] = useState(null) // { templateType }
   const [eventSlug, setEventSlug] = useState('')
 
   const requestConfirm = useCallback((message, onConfirm) => {
@@ -102,8 +103,11 @@ export default function TemplatesTab({ eventId, businessId, authHeaders }) {
     }
   }
 
-  const saveTemplate = async (templateType) => {
-    if (!window.confirm('פעולה זו תחליף את התבנית הנוכחית בנתוני האירוע הנבחר. להמשיך?')) return
+  const saveTemplate = (templateType) => {
+    setConfirmSave({ templateType })
+  }
+
+  const doSaveTemplate = async (templateType) => {
     setSaving(templateType)
     try {
       const res = await fetch(`${API_BASE}/api/admin/business/${businessId}/templates`, {
@@ -162,6 +166,70 @@ export default function TemplatesTab({ eventId, businessId, authHeaders }) {
 
   return (
     <div>
+      {confirmSave && (
+        <div
+          style={{
+            position: 'fixed', inset: 0, zIndex: 9999,
+            background: 'rgba(0,0,0,0.6)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}
+        >
+          <div
+            style={{
+              background: 'var(--card)', borderRadius: 16,
+              padding: 28, maxWidth: 380, width: '90%',
+              border: '1px solid var(--glass-border)',
+              textAlign: 'center',
+            }}
+          >
+            <div style={{ fontSize: 36, marginBottom: 12 }}>⚠️</div>
+            <h3 style={{ margin: '0 0 8px', fontSize: 18, fontWeight: 700 }}>
+              החלפת תבנית
+            </h3>
+            <p style={{
+              color: 'var(--v2-gray-400)', fontSize: 14,
+              lineHeight: 1.6, margin: '0 0 24px',
+            }}
+            >
+              פעולה זו תחליף את כל נתוני התבנית הנוכחית בנתונים מהאירוע הנבחר.
+              <br />
+              <strong style={{ color: 'var(--text)' }}>שינויים שערכת ידנית יאבדו.</strong>
+              <br />
+              האם להמשיך?
+            </p>
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
+              <button
+                type="button"
+                onClick={() => setConfirmSave(null)}
+                style={{
+                  flex: 1, height: 44, borderRadius: 10,
+                  border: '1px solid var(--glass-border)',
+                  background: 'transparent', color: 'var(--text)',
+                  fontSize: 15, cursor: 'pointer',
+                }}
+              >
+                ביטול
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  const { templateType } = confirmSave
+                  setConfirmSave(null)
+                  await doSaveTemplate(templateType)
+                }}
+                style={{
+                  flex: 1, height: 44, borderRadius: 10,
+                  border: 'none', background: '#ef4444',
+                  color: '#fff', fontSize: 15,
+                  fontWeight: 700, cursor: 'pointer',
+                }}
+              >
+                כן, החלף תבנית
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {confirmAction && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
           <div style={{ background: '#1a1d2e', borderRadius: 14, padding: 24, maxWidth: 360, width: '100%', border: '1px solid rgba(255,255,255,0.1)', textAlign: 'center' }}>
@@ -215,11 +283,12 @@ export default function TemplatesTab({ eventId, businessId, authHeaders }) {
               <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                 <button
                   type="button"
+                  title="שמור את נתוני האירוע הנוכחי כתבנית קבועה לעסק"
                   onClick={(e) => { e.stopPropagation(); saveTemplate(t.id) }}
                   disabled={saving === t.id}
                   style={{ padding: '6px 12px', borderRadius: 6, border: 'none', background: 'rgba(0,195,122,0.15)', color: '#00C37A', fontWeight: 600, fontSize: 12, cursor: 'pointer' }}
                 >
-                  {saving === t.id ? '...' : <><Save size={12} style={{ marginLeft: 4 }} /> ייבא מאירוע</>}
+                  {saving === t.id ? '...' : <><Save size={12} style={{ marginLeft: 4 }} /> שמור</>}
                 </button>
                 {isExpanded ? <ChevronUp size={16} color="var(--v2-gray-400)" /> : <ChevronDown size={16} color="var(--v2-gray-400)" />}
               </div>
