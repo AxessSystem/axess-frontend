@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Users, UtensilsCrossed, LayoutGrid, Megaphone, Store, Receipt, Save, ChevronDown, ChevronUp, Trash2, Search, Plus, X } from 'lucide-react'
+import { Users, UtensilsCrossed, LayoutGrid, Megaphone, Store, Receipt, Save, ChevronDown, ChevronUp, Pencil, Trash2, Search, Plus, X } from 'lucide-react'
 import toast from 'react-hot-toast'
 import CustomSelect from '@/components/ui/CustomSelect'
 
@@ -581,6 +581,13 @@ function MenuTemplate({ data, onUpdate, eventId, businessId, authHeaders, reques
     return () => { cancelled = true }
   }, [eventId, businessId, data?.menu])
 
+  const deleteItem = async (itemId) => {
+    const newMenu = menu.filter(item => item.id !== itemId)
+    setMenu(newMenu)
+    await onUpdate({ menu: newMenu })
+    toast.success('פריט נמחק')
+  }
+
   return (
     <div>
       <div style={{ position: 'relative', marginBottom: 12 }}>
@@ -627,33 +634,26 @@ function MenuTemplate({ data, onUpdate, eventId, businessId, authHeaders, reques
                   </p>
                 </div>
 
-                {editingItem === `${cat}_${i}` ? (
-                  <input
-                    defaultValue={item.price}
-                    autoFocus
-                    onBlur={(e) => {
-                      const updated = menu.map((m) => (m === item ? { ...m, price: parseFloat(e.target.value) || m.price } : m))
-                      setMenu(updated)
-                      onUpdate({ menu: updated })
-                      setEditingItem(null)
-                    }}
-                    onKeyDown={(e) => e.key === 'Enter' && e.target.blur()}
-                    style={{ width: 80, height: 32, borderRadius: 6, border: '1px solid #00C37A', background: 'var(--glass)', color: '#00C37A', padding: '0 8px', fontSize: 14, textAlign: 'center', fontWeight: 700 }}
-                  />
-                ) : (
-                  <span onClick={() => setEditingItem(`${cat}_${i}`)} style={{ fontSize: 16, fontWeight: 800, color: '#00C37A', cursor: 'text', minWidth: 70, textAlign: 'left' }}>
-                    ₪
-                    {(Number(item.price) || 0).toLocaleString()}
-                  </span>
-                )}
+                <span style={{ fontSize: 16, fontWeight: 800, color: '#00C37A', minWidth: 70, textAlign: 'left' }}>
+                  ₪
+                  {(Number(item.price) || 0).toLocaleString()}
+                </span>
 
                 <button
                   type="button"
-                  onClick={() => {
-                    const updated = menu.filter((m) => m !== item)
-                    setMenu(updated)
-                    onUpdate({ menu: updated })
-                  }}
+                  onClick={() => setEditingItem({
+                    index: menu.indexOf(item),
+                    ...item,
+                    included_extras: Array.isArray(item.included_extras) ? item.included_extras.length : (Number(item.included_extras) || 0),
+                  })}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--v2-gray-400)', marginLeft: 4, padding: 4 }}
+                >
+                  <Pencil size={13} />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => void deleteItem(item.id)}
                   style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#EF4444', padding: 4 }}
                 >
                   <Trash2 size={14} />
@@ -808,6 +808,52 @@ function MenuTemplate({ data, onUpdate, eventId, businessId, authHeaders, reques
           📋 העתק לינק תפריט
         </button>
       </div>
+
+      {editingItem && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ background: 'var(--card)', borderRadius: 16, padding: 24, maxWidth: 400, width: '100%', border: '1px solid var(--glass-border)' }}>
+            <h4 style={{ margin: '0 0 16px' }}>עריכת מוצר</h4>
+            {[
+              { field: 'name', label: 'שם מוצר', type: 'text' },
+              { field: 'category', label: 'קטגוריה', type: 'text' },
+              { field: 'price', label: 'מחיר ₪', type: 'number' },
+              { field: 'free_entries', label: 'כניסות חינם', type: 'number' },
+              { field: 'included_extras', label: 'תוספות כלולות', type: 'number' },
+              { field: 'extras_detail', label: 'פירוט תוספות', type: 'text' },
+              { field: 'description', label: 'תיאור', type: 'text' },
+            ].map(({ field, label, type }) => (
+              <div key={field} style={{ marginBottom: 10 }}>
+                <label style={{ fontSize: 12, color: 'var(--v2-gray-400)', display: 'block', marginBottom: 4 }}>{label}</label>
+                <input
+                  type={type}
+                  value={editingItem[field] || ''}
+                  onChange={e => setEditingItem(prev => ({ ...prev, [field]: type === 'number' ? parseInt(e.target.value) || 0 : e.target.value }))}
+                  style={{ width: '100%', height: 36, borderRadius: 8, border: '1px solid var(--glass-border)', background: 'var(--glass)', color: 'var(--text)', padding: '0 10px', fontSize: 14, boxSizing: 'border-box' }}
+                />
+              </div>
+            ))}
+            <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
+              <button
+                type="button"
+                onClick={async () => {
+                  const { index, ...fields } = editingItem
+                  const newMenu = menu.map((it, i) => (i === index ? { ...it, ...fields } : it))
+                  setMenu(newMenu)
+                  await onUpdate({ menu: newMenu })
+                  setEditingItem(null)
+                  toast.success('מוצר עודכן בהצלחה')
+                }}
+                style={{ flex: 1, height: 40, borderRadius: 8, border: 'none', background: '#00C37A', color: '#000', fontWeight: 700, cursor: 'pointer' }}
+              >
+                שמור שינויים
+              </button>
+              <button type="button" onClick={() => setEditingItem(null)} style={{ height: 40, padding: '0 16px', borderRadius: 8, border: '1px solid var(--glass-border)', background: 'none', color: 'var(--text)', cursor: 'pointer' }}>
+                ביטול
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
