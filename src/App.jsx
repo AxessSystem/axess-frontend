@@ -50,6 +50,7 @@ const Audiences      = lazy(() => import('@/pages/dashboard/Audiences'))
 const Reports        = lazy(() => import('@/pages/dashboard/Reports'))
 const ValidatorsPage = lazy(() => import('@/pages/dashboard/Validators'))
 const EventsPage     = lazy(() => import('@/pages/dashboard/Events'))
+const EventEditorPage = lazy(() => import('@/pages/dashboard/EventEditorPage'))
 const EventDetailPage = lazy(() => import('@/pages/dashboard/EventDetailPage'))
 const PromotersPage  = lazy(() => import('@/pages/dashboard/Promoters'))
 const Staff          = lazy(() => import('@/pages/dashboard/Staff'))
@@ -227,8 +228,10 @@ export default function App() {
               <Route index element={<Overview />} />
               <Route path="new-campaign" element={<NewCampaign />} />
               <Route path="audiences" element={<Audiences />} />
-              <Route path="events" element={<EventsPage />} />
+              <Route path="events/new" element={<EventEditorPage />} />
+              <Route path="events/:id/edit" element={<EventEditorPage />} />
               <Route path="events/:id" element={<EventDetailPage />} />
+              <Route path="events" element={<EventsPage />} />
               <Route path="promoters" element={<PromotersPage />} />
               <Route path="reports" element={<Reports />} />
               <Route path="validators" element={<ValidatorsPage />} />

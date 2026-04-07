@@ -146,8 +146,10 @@ export default function EventEditModal({
   businessId,
   mode = 'edit',
   onEventCreated,
+  presentation = 'modal',
 }) {
   const isCreateMode = mode === 'create'
+  const isPage = presentation === 'page'
   const [fetchedEvent, setFetchedEvent] = useState(null)
   const effectiveEvent = isCreateMode ? null : (eventProp || fetchedEvent)
   const [activeTab, setActiveTab] = useState('basic')
@@ -155,7 +157,7 @@ export default function EventEditModal({
   const [saving, setSaving] = useState(false)
   const [imageUploading, setImageUploading] = useState(false)
 
-  const visibleTabs = isCreateMode ? EDIT_TABS.filter((t) => CREATE_TAB_IDS.includes(t.id)) : EDIT_TABS
+  const visibleTabs = (isCreateMode && !isPage) ? EDIT_TABS.filter((t) => CREATE_TAB_IDS.includes(t.id)) : EDIT_TABS
 
   useEffect(() => {
     if (!isOpen || isCreateMode) {
@@ -242,7 +244,7 @@ export default function EventEditModal({
       if (newEvent?.id) {
         toast.success(`אירוע נוצר!${newEvent.event_number != null ? ` #${newEvent.event_number}` : ''}`)
         onEventCreated?.(newEvent)
-        onClose?.()
+        if (!isPage || !isCreateMode) onClose?.()
       } else {
         toast.error('שגיאה ביצירת אירוע')
       }
@@ -344,35 +346,37 @@ export default function EventEditModal({
 
   const eventUrl = `https://axess.pro/e/${effectiveEvent?.slug}`
 
-  if (!isOpen) return null
+  if (presentation === 'modal' && !isOpen) return null
 
-  return (
-    <div
-      style={{
-        position: 'fixed',
-        inset: 0,
-        background: 'rgba(0,0,0,0.7)',
-        zIndex: 1000,
+  const panelStyle = isPage
+    ? {
+        background: 'var(--card, #1a1d2e)',
+        borderRadius: 16,
+        width: '100%',
+        maxWidth: 920,
+        minHeight: 'min(92vh, calc(100vh - 100px))',
         display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: 16,
-      }}
-    >
-      <div
-        style={{
-          background: 'var(--card, #1a1d2e)',
-          borderRadius: 16,
-          width: '100%',
-          maxWidth: 680,
-          height: '90vh',
-          display: 'flex',
-          flexDirection: 'column',
-          border: '1px solid var(--glass-border)',
-          position: 'relative',
-          overflow: 'hidden',
-        }}
-      >
+        flexDirection: 'column',
+        border: '1px solid var(--glass-border)',
+        position: 'relative',
+        overflow: 'hidden',
+        margin: '0 auto',
+      }
+    : {
+        background: 'var(--card, #1a1d2e)',
+        borderRadius: 16,
+        width: '100%',
+        maxWidth: 680,
+        height: '90vh',
+        display: 'flex',
+        flexDirection: 'column',
+        border: '1px solid var(--glass-border)',
+        position: 'relative',
+        overflow: 'hidden',
+      }
+
+  const inner = (
+    <div style={panelStyle}>
         <div
           style={{
             display: 'flex',
@@ -1324,7 +1328,25 @@ export default function EventEditModal({
 
           {activeTab === 'summary' && <SummaryTab event={effectiveEvent} form={form} />}
         </div>
-      </div>
+    </div>
+  )
+
+  return isPage ? (
+    <div dir="rtl" style={{ width: '100%', padding: 'var(--space-3)', boxSizing: 'border-box' }}>{inner}</div>
+  ) : (
+    <div
+      style={{
+        position: 'fixed',
+        inset: 0,
+        background: 'rgba(0,0,0,0.7)',
+        zIndex: 1000,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 16,
+      }}
+    >
+      {inner}
     </div>
   )
 }

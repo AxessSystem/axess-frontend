@@ -22,9 +22,9 @@ const NAV_SHORTCUTS = {
     { label: 'ייצוא קהל', action: (navigate) => navigate('/dashboard/audiences?export=1') },
   ],
   '/dashboard/events': [
-    { label: 'צור אירוע', action: (navigate) => navigate('/dashboard/events?create=event') },
-    { label: 'צור תיאטרון', action: (navigate) => navigate('/dashboard/events?create=theater') },
-    { label: 'צור שולחנות', action: (navigate) => navigate('/dashboard/events?create=tables') },
+    { label: 'צור אירוע', action: (navigate) => navigate('/dashboard/events/new') },
+    { label: 'צור תיאטרון', action: (navigate) => navigate('/dashboard/events/new') },
+    { label: 'צור שולחנות', action: (navigate) => navigate('/dashboard/events/new') },
   ],
   '/dashboard/promoters': [
     { label: 'הוסף יחצ"ן', action: (navigate) => navigate('/dashboard/promoters?add=true') },

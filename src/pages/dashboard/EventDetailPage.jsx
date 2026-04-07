@@ -11,7 +11,6 @@ import CustomSelect from '@/components/ui/CustomSelect'
 import SeatingBuilder from '@/components/SeatingBuilder'
 import Tooltip from '@/components/ui/Tooltip'
 import EventTables from './EventTables'
-import EventEditModal from './EventEditModal'
 import TemplatesTab from './TemplatesTab'
 import { exportToExcel, exportEventReport, exportAudienceToExcel } from '@/utils/exportExcel'
 
@@ -839,7 +838,6 @@ export default function EventDetailPage() {
   const [layouts, setLayouts] = useState([])
   const [menuBuilderOpen, setMenuBuilderOpen] = useState(false)
   const [layoutBuilderOpen, setLayoutBuilderOpen] = useState(false)
-  const [showEditModal, setShowEditModal] = useState(false)
   const [menuSketchForm, setMenuSketchForm] = useState({ linked_menu_ids: [], linked_layout_ids: [] })
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768)
   useEffect(() => {
@@ -1178,7 +1176,7 @@ export default function EventDetailPage() {
           </button>
           <button
             type="button"
-            onClick={() => setShowEditModal(true)}
+            onClick={() => navigate(`/dashboard/events/${id}/edit`)}
             style={{
               padding: '8px 14px', borderRadius: 8, border: 'none',
               background: '#00C37A', color: '#000',
@@ -3995,18 +3993,6 @@ export default function EventDetailPage() {
               .then((r) => (r.ok ? r.json() : []))
               .then(setLayouts)
           }}
-        />
-      )}
-      {showEditModal && (
-        <EventEditModal
-          isOpen={showEditModal}
-          onClose={() => setShowEditModal(false)}
-          eventId={id}
-          mode="edit"
-          onSave={() => loadData()}
-          onEventCreated={() => loadData()}
-          authHeaders={authHeaders}
-          businessId={businessId}
         />
       )}
       </div>
