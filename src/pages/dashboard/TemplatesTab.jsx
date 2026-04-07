@@ -121,26 +121,19 @@ export default function TemplatesTab({ eventId, businessId, authHeaders }) {
     }
   }
 
-  const updateTemplateData = async (type, newData) => {
-    try {
-      const res = await fetch(`${API_BASE}/api/admin/business/${businessId}/templates/${type}`, {
-        method: 'PATCH',
-        headers: authHeaders(),
-        body: JSON.stringify({ template_data: newData }),
-      })
-      const data = await res.json().catch(() => ({}))
-      if (!res.ok) throw new Error(data.error || data.message || 'שגיאה')
-      loadTemplates()
-    } catch (e) {
-      toast.error(e.message || 'שגיאה בעדכון')
-    }
-  }
+  const handleTemplateUpdate = async (type, newData) => {
+    // עדכן state מקומי:
+    setTemplates((prev) => {
+      const cur = prev[type]
+      if (!cur) return prev
+      return { ...prev, [type]: { ...cur, template_data: newData } }
+    })
 
-  const handleTemplateUpdate = (type, newData) => {
-    setTemplateData((prev) => {
-      const next = { ...prev, ...newData }
-      updateTemplateData(type, next)
-      return next
+    // שמור בDB וחכה לתשובה:
+    await fetch(`${API_BASE}/api/admin/business/${businessId}/templates/${type}`, {
+      method: 'PATCH',
+      headers: authHeaders(),
+      body: JSON.stringify({ template_data: newData }),
     })
   }
 
@@ -581,8 +574,8 @@ function MenuTemplate({ data, onUpdate, eventId, businessId, authHeaders, reques
     return () => { cancelled = true }
   }, [eventId, businessId, data?.menu])
 
-  const deleteItem = async (itemId) => {
-    const newMenu = menu.filter(item => item.id !== itemId)
+  const deleteItem = async (index) => {
+    const newMenu = menu.filter((_, i) => i !== index)
     setMenu(newMenu)
     await onUpdate({ menu: newMenu })
     toast.success('פריט נמחק')
@@ -653,7 +646,7 @@ function MenuTemplate({ data, onUpdate, eventId, businessId, authHeaders, reques
 
                 <button
                   type="button"
-                  onClick={() => void deleteItem(item.id)}
+                  onClick={() => deleteItem(menu.indexOf(item))}
                   style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#EF4444', padding: 4 }}
                 >
                   <Trash2 size={14} />
