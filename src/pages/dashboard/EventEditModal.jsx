@@ -1850,153 +1850,171 @@ function TicketsTab({ eventId, authHeaders }) {
               </div>
             </div>
 
-            <div
-              style={{
-                background: 'rgba(0,195,122,0.05)',
-                borderRadius: 8,
-                padding: 10,
-                border: '1px solid rgba(0,195,122,0.15)',
-              }}
-            >
-              <p style={{ margin: '0 0 8px', fontSize: 12, fontWeight: 700 }}>כלל כניסות חינם</p>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                <div>
-                  <label
-                    style={{
-                      fontSize: 10,
-                      color: 'var(--v2-gray-400)',
-                      display: 'block',
-                      marginBottom: 3,
-                    }}
-                  >
-                    אנשים חינם (בקבוק מעל ₪X)
-                  </label>
-                  <input
-                    value={newTableTicket.free_people_premium}
-                    onChange={(e) =>
-                      setNewTableTicket((f) => ({
-                        ...f,
-                        free_people_premium: parseInt(e.target.value, 10) || 0,
-                      }))
-                    }
-                    type="number"
-                    min="0"
-                    style={{
-                      width: '100%',
-                      height: 34,
-                      borderRadius: 6,
-                      border: '1px solid var(--glass-border)',
-                      background: 'var(--card)',
-                      color: 'var(--text)',
-                      padding: '0 8px',
-                      fontSize: 13,
-                      boxSizing: 'border-box',
-                    }}
-                  />
-                </div>
-                <div>
-                  <label
-                    style={{
-                      fontSize: 10,
-                      color: 'var(--v2-gray-400)',
-                      display: 'block',
-                      marginBottom: 3,
-                    }}
-                  >
-                    אנשים חינם (מתחת לסף)
-                  </label>
-                  <input
-                    value={newTableTicket.free_people_standard}
-                    onChange={(e) =>
-                      setNewTableTicket((f) => ({
-                        ...f,
-                        free_people_standard: parseInt(e.target.value, 10) || 0,
-                      }))
-                    }
-                    type="number"
-                    min="0"
-                    style={{
-                      width: '100%',
-                      height: 34,
-                      borderRadius: 6,
-                      border: '1px solid var(--glass-border)',
-                      background: 'var(--card)',
-                      color: 'var(--text)',
-                      padding: '0 8px',
-                      fontSize: 13,
-                      boxSizing: 'border-box',
-                    }}
-                  />
-                </div>
-                <div>
-                  <label
-                    style={{
-                      fontSize: 10,
-                      color: 'var(--v2-gray-400)',
-                      display: 'block',
-                      marginBottom: 3,
-                    }}
-                  >
-                    סף מחיר ₪
-                  </label>
-                  <input
-                    value={newTableTicket.price_threshold}
-                    onChange={(e) =>
-                      setNewTableTicket((f) => ({
-                        ...f,
-                        price_threshold: parseInt(e.target.value, 10) || 1000,
-                      }))
-                    }
-                    type="number"
-                    style={{
-                      width: '100%',
-                      height: 34,
-                      borderRadius: 6,
-                      border: '1px solid var(--glass-border)',
-                      background: 'var(--card)',
-                      color: 'var(--text)',
-                      padding: '0 8px',
-                      fontSize: 13,
-                      boxSizing: 'border-box',
-                    }}
-                  />
-                </div>
-                <div>
-                  <label
-                    style={{
-                      fontSize: 10,
-                      color: 'var(--v2-gray-400)',
-                      display: 'block',
-                      marginBottom: 3,
-                    }}
-                  >
-                    תוספות לבקבוק
-                  </label>
-                  <input
-                    value={newTableTicket.extras_per_bottle}
-                    onChange={(e) =>
-                      setNewTableTicket((f) => ({
-                        ...f,
-                        extras_per_bottle: parseInt(e.target.value, 10) || 1,
-                      }))
-                    }
-                    type="number"
-                    min="0"
-                    style={{
-                      width: '100%',
-                      height: 34,
-                      borderRadius: 6,
-                      border: '1px solid var(--glass-border)',
-                      background: 'var(--card)',
-                      color: 'var(--text)',
-                      padding: '0 8px',
-                      fontSize: 13,
-                      boxSizing: 'border-box',
-                    }}
-                  />
+            {newTableTicket.table_type === 'smart' && (
+              <div
+                style={{
+                  padding: '12px 16px', borderRadius: 10,
+                  background: 'rgba(0,195,122,0.08)',
+                  border: '1px solid rgba(0,195,122,0.2)',
+                  fontSize: 13, color: 'var(--v2-gray-400)',
+                  lineHeight: 1.6,
+                }}
+              >
+                <span style={{ color: '#00C37A', fontWeight: 700 }}>שולחן חכם — </span>
+                כלל הכניסות החינמיות והתוספות נקבעים אוטומטית לפי תפריט העסק.
+                הלקוח יבחר משקאות ויראה את הכלל המתאים לכל פריט.
+              </div>
+            )}
+
+            {newTableTicket.table_type === 'specific' && (
+              <div
+                style={{
+                  background: 'rgba(0,195,122,0.05)',
+                  borderRadius: 8,
+                  padding: 10,
+                  border: '1px solid rgba(0,195,122,0.15)',
+                }}
+              >
+                <p style={{ margin: '0 0 8px', fontSize: 12, fontWeight: 700 }}>כלל כניסות חינם</p>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                  <div>
+                    <label
+                      style={{
+                        fontSize: 10,
+                        color: 'var(--v2-gray-400)',
+                        display: 'block',
+                        marginBottom: 3,
+                      }}
+                    >
+                      אנשים חינם (בקבוק מעל ₪X)
+                    </label>
+                    <input
+                      value={newTableTicket.free_people_premium}
+                      onChange={(e) =>
+                        setNewTableTicket((f) => ({
+                          ...f,
+                          free_people_premium: parseInt(e.target.value, 10) || 0,
+                        }))
+                      }
+                      type="number"
+                      min="0"
+                      style={{
+                        width: '100%',
+                        height: 34,
+                        borderRadius: 6,
+                        border: '1px solid var(--glass-border)',
+                        background: 'var(--card)',
+                        color: 'var(--text)',
+                        padding: '0 8px',
+                        fontSize: 13,
+                        boxSizing: 'border-box',
+                      }}
+                    />
+                  </div>
+                  <div>
+                    <label
+                      style={{
+                        fontSize: 10,
+                        color: 'var(--v2-gray-400)',
+                        display: 'block',
+                        marginBottom: 3,
+                      }}
+                    >
+                      אנשים חינם (מתחת לסף)
+                    </label>
+                    <input
+                      value={newTableTicket.free_people_standard}
+                      onChange={(e) =>
+                        setNewTableTicket((f) => ({
+                          ...f,
+                          free_people_standard: parseInt(e.target.value, 10) || 0,
+                        }))
+                      }
+                      type="number"
+                      min="0"
+                      style={{
+                        width: '100%',
+                        height: 34,
+                        borderRadius: 6,
+                        border: '1px solid var(--glass-border)',
+                        background: 'var(--card)',
+                        color: 'var(--text)',
+                        padding: '0 8px',
+                        fontSize: 13,
+                        boxSizing: 'border-box',
+                      }}
+                    />
+                  </div>
+                  <div>
+                    <label
+                      style={{
+                        fontSize: 10,
+                        color: 'var(--v2-gray-400)',
+                        display: 'block',
+                        marginBottom: 3,
+                      }}
+                    >
+                      סף מחיר ₪
+                    </label>
+                    <input
+                      value={newTableTicket.price_threshold}
+                      onChange={(e) =>
+                        setNewTableTicket((f) => ({
+                          ...f,
+                          price_threshold: parseInt(e.target.value, 10) || 1000,
+                        }))
+                      }
+                      type="number"
+                      style={{
+                        width: '100%',
+                        height: 34,
+                        borderRadius: 6,
+                        border: '1px solid var(--glass-border)',
+                        background: 'var(--card)',
+                        color: 'var(--text)',
+                        padding: '0 8px',
+                        fontSize: 13,
+                        boxSizing: 'border-box',
+                      }}
+                    />
+                  </div>
+                  <div>
+                    <label
+                      style={{
+                        fontSize: 10,
+                        color: 'var(--v2-gray-400)',
+                        display: 'block',
+                        marginBottom: 3,
+                      }}
+                    >
+                      תוספות לבקבוק
+                    </label>
+                    <input
+                      value={newTableTicket.extras_per_bottle}
+                      onChange={(e) =>
+                        setNewTableTicket((f) => ({
+                          ...f,
+                          extras_per_bottle: parseInt(e.target.value, 10) || 1,
+                        }))
+                      }
+                      type="number"
+                      min="0"
+                      style={{
+                        width: '100%',
+                        height: 34,
+                        borderRadius: 6,
+                        border: '1px solid var(--glass-border)',
+                        background: 'var(--card)',
+                        color: 'var(--text)',
+                        padding: '0 8px',
+                        fontSize: 13,
+                        boxSizing: 'border-box',
+                      }}
+                    />
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
               <div>

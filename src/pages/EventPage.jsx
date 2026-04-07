@@ -677,16 +677,25 @@ export default function EventPage() {
     split_count: 1,
   })
 
-  const calcTablePrice = useCallback(() => {
-    const drinks = Object.values(tableForm.selected_drinks || {})
+  const calcTablePrice = useCallback((ticket, form) => {
+    const freeRule = ticket?.metadata?.free_rule || {}
+    const freePeople = freeRule.people ?? 3
+    const freePeopleBelow = freeRule.below_threshold_people ?? 2
+    const priceThreshold = freeRule.price_threshold ?? 1000
+    const extrasPerBottle = freeRule.per_liter ?? 1
+    const drinks = Object.values(form.selected_drinks || {})
     const totalBottles = drinks.reduce((s, d) => s + (d.quantity || 0), 0)
     const drinksTotal = drinks.reduce((s, d) => s + parseFloat(d.price || 0) * (d.quantity || 0), 0)
-    const avgPrice = totalBottles > 0 ? drinksTotal / totalBottles : 0
-    const freePeoplePerBottle = avgPrice > 1000 ? 3 : 2
-    const totalFreePeople = freePeoplePerBottle * totalBottles
-    const extraPeople = Math.max(0, tableForm.guest_count - totalFreePeople)
-    const extraTicketsCost = extraPeople * (tableForm.extra_ticket_price || 0)
-    const maxExtras = totalBottles
+    let totalFreePeople = 0
+    for (const d of drinks) {
+      const q = d.quantity || 0
+      const p = parseFloat(d.price || 0)
+      const perBottle = p >= priceThreshold ? freePeople : freePeopleBelow
+      totalFreePeople += perBottle * q
+    }
+    const extraPeople = Math.max(0, form.guest_count - totalFreePeople)
+    const extraTicketsCost = extraPeople * (form.extra_ticket_price || 0)
+    const maxExtras = Math.max(0, Math.round(totalBottles * extrasPerBottle))
     return {
       drinksTotal,
       totalBottles,
@@ -696,7 +705,7 @@ export default function EventPage() {
       maxExtras,
       total: drinksTotal + extraTicketsCost,
     }
-  }, [tableForm])
+  }, [])
 
   useEffect(() => {
     if (!slug) return
@@ -908,7 +917,7 @@ export default function EventPage() {
     }
   }
 
-  const { extraPeople, extraTicketsCost, total, totalFreePeople, maxExtras, totalBottles, drinksTotal } = calcTablePrice()
+  const { extraPeople, extraTicketsCost, total, totalFreePeople, maxExtras, totalBottles, drinksTotal } = calcTablePrice(modalTicket, tableForm)
 
   if (loading) {
     return (

@@ -40,6 +40,10 @@ export function TableBookingModalContent({
   trackStep,
 }) {
   const [drinkSearch, setDrinkSearch] = useState('')
+  const isSmartTable = modalTicket?.metadata?.table_type === 'smart'
+  const freeRule = modalTicket?.metadata?.free_rule || {}
+  const freePeopleRule = freeRule.people ?? 3
+  const priceThresholdRule = freeRule.price_threshold ?? 1000
 
   const backTo = (nextStep) => {
     trackStep?.(tableStep)
@@ -218,9 +222,10 @@ export function TableBookingModalContent({
 
       {tableStep === 1 && (
         <div>
-          <h4 style={{ margin: '0 0 12px', fontSize: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
-            <Wine size={18} color="#00C37A" /> בחר משקאות
-          </h4>
+          <h3 style={{ margin: '0 0 12px', fontSize: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Wine size={18} color="#00C37A" />
+            {isSmartTable ? 'בחר משקאות לשולחן' : 'בחר חבילת שולחן'}
+          </h3>
 
           <div style={{ position: 'relative', marginBottom: 14 }}>
             <input
@@ -454,6 +459,9 @@ export function TableBookingModalContent({
           <h4 style={{ margin: '0 0 8px', fontSize: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
             <ShoppingBag size={18} color="#00C37A" /> סיכום משקאות
           </h4>
+          <p style={{ margin: '0 0 12px', fontSize: 13, color: 'rgba(255,255,255,0.65)' }}>
+            {`${freePeopleRule} אנשים חינם לכל בקבוק מעל ₪${priceThresholdRule}`}
+          </p>
           <div style={{ background: 'rgba(0,195,122,0.08)', borderRadius: 10, padding: 14, marginBottom: 20 }}>
             {Object.values(tableForm.selected_drinks || {}).map((d) => (
               <p key={d.id} style={{ margin: '4px 0', fontSize: 14 }}>
