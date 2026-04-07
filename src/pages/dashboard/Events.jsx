@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useRequirePermission } from '@/hooks/useRequirePermission'
 import { useAuth } from '@/contexts/AuthContext'
 import {
@@ -8,13 +8,10 @@ import {
   Clock, CheckCircle, XCircle, Eye, Share2,
   Megaphone, QrCode, ChevronLeft,
   Key, Copy, Copy as CopyIcon, Trash2, ExternalLink,
-  Check, X, Save, Mail, Sparkles, User,
+  X, Mail, Sparkles, User,
 } from 'lucide-react'
 import toast from 'react-hot-toast'
-import SeatingBuilder from '../../components/SeatingBuilder'
 import Tooltip from '../../components/ui/Tooltip'
-import DateTimePicker from '../../components/ui/DateTimePicker'
-import RichTextEditor from '../../components/ui/RichTextEditor'
 import CustomSelect from '@/components/ui/CustomSelect'
 import EventEditModal from './EventEditModal'
 
@@ -34,68 +31,6 @@ const MODAL_CLOSE_X = {
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
-}
-
-function MenuBuilderModal({ businessId, onClose }) {
-  const [name, setName] = useState('')
-  const [categories, setCategories] = useState([{ name: '', items: [] }])
-  const [saving, setSaving] = useState(false)
-  const addCategory = () => setCategories(c => [...c, { name: '', items: [] }])
-  const addItem = (ci) => setCategories(c => c.map((cat, i) => i === ci ? { ...cat, items: [...cat.items, { name: '', price: 0, description: '', image_url: '' }] } : cat))
-  const updateCat = (ci, fn, v) => setCategories(c => c.map((cat, i) => i === ci ? { ...cat, [fn]: v } : cat))
-  const updateItem = (ci, ii, fn, v) => setCategories(c => c.map((cat, i) => i === ci ? { ...cat, items: cat.items.map((it, j) => j === ii ? { ...it, [fn]: v } : it) } : cat))
-
-  const handleSave = async (asDraft = true) => {
-    if (!name.trim()) return
-    setSaving(true)
-    try {
-      const items = categories.flatMap(c => c.items.filter(i => i.name).map(i => ({ name: i.name, price: i.price, description: i.description, category: c.name || null })))
-      const res = await fetch(`${API_BASE}/api/admin/menus`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ business_id: businessId, name: name.trim(), items }),
-      })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'שגיאה')
-      toast.success('התפריט נשמר')
-      onClose()
-    } catch (e) {
-      toast.error(e.message || 'שגיאה')
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={onClose}>
-      <div style={{ position: 'relative', zIndex: 301, background: 'var(--v2-dark-2)', borderRadius: 'var(--radius-lg)', padding: 32, maxWidth: 500, width: '90%', maxHeight: '90vh', overflowY: 'auto' }} onClick={e => e.stopPropagation()} dir="rtl">
-        <button type="button" onClick={onClose} style={MODAL_CLOSE_X} aria-label="סגור">
-          <X size={20} />
-        </button>
-        <h3 style={{ marginBottom: 20 }}>צור תפריט חדש</h3>
-        <input value={name} onChange={e => setName(e.target.value)} placeholder="שם התפריט" style={{ width: '100%', padding: 12, marginBottom: 20, borderRadius: 12, border: '1px solid var(--glass-border)', background: 'var(--v2-dark-3)', color: '#fff' }} />
-        {categories.map((cat, ci) => (
-          <div key={ci} style={{ marginBottom: 20, padding: 16, background: 'var(--v2-dark-3)', borderRadius: 12 }}>
-            <input value={cat.name} onChange={e => updateCat(ci, 'name', e.target.value)} placeholder="שם קטגוריה" style={{ width: '100%', padding: 10, marginBottom: 12, borderRadius: 8, border: '1px solid var(--glass-border)', background: 'var(--v2-dark-2)', color: '#fff' }} />
-            {cat.items.map((it, ii) => (
-              <div key={ii} style={{ display: 'flex', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
-                <input value={it.name} onChange={e => updateItem(ci, ii, 'name', e.target.value)} placeholder="שם פריט" style={{ flex: 1, minWidth: 100, padding: 8, borderRadius: 8, border: '1px solid var(--glass-border)', background: 'var(--v2-dark-2)', color: '#fff' }} />
-                <input type="number" value={it.price} onChange={e => updateItem(ci, ii, 'price', parseFloat(e.target.value) || 0)} placeholder="מחיר" style={{ width: 80, padding: 8, borderRadius: 8, border: '1px solid var(--glass-border)', background: 'var(--v2-dark-2)', color: '#fff' }} />
-                <input value={it.description} onChange={e => updateItem(ci, ii, 'description', e.target.value)} placeholder="תיאור" style={{ width: '100%', padding: 8, borderRadius: 8, border: '1px solid var(--glass-border)', background: 'var(--v2-dark-2)', color: '#fff' }} />
-              </div>
-            ))}
-            <button onClick={() => addItem(ci)} style={{ padding: '8px 16px', background: 'transparent', border: '1px dashed var(--glass-border)', borderRadius: 8, color: 'var(--v2-gray-400)', cursor: 'pointer', fontSize: 13 }}>הוסף פריט</button>
-          </div>
-        ))}
-        <button onClick={addCategory} style={{ marginBottom: 20, padding: '10px 16px', background: 'var(--v2-dark-3)', border: '1px solid var(--glass-border)', borderRadius: 8, color: '#fff', cursor: 'pointer' }}>הוסף קטגוריה</button>
-        <div style={{ display: 'flex', gap: 12 }}>
-          <button onClick={() => handleSave(true)} disabled={saving || !name.trim()} style={{ flex: 1, padding: 14, borderRadius: 'var(--radius-full)', background: 'var(--v2-dark-3)', border: '1px solid var(--glass-border)', color: '#fff', cursor: saving ? 'wait' : 'pointer' }}>שמור כטיוטה</button>
-          <button onClick={() => handleSave(false)} disabled={saving || !name.trim()} style={{ flex: 1, padding: 14, borderRadius: 'var(--radius-full)', background: 'var(--v2-primary)', color: 'var(--v2-dark)', fontWeight: 700, border: 'none', cursor: saving ? 'wait' : 'pointer' }}>פרסם</button>
-          <button onClick={onClose} style={{ padding: 14, borderRadius: 'var(--radius-full)', border: '1px solid var(--glass-border)', color: 'var(--v2-gray-400)', cursor: 'pointer', background: 'transparent' }}>ביטול</button>
-        </div>
-      </div>
-    </div>
-  )
 }
 
 const FLOOR_STATUS_COLORS = { arrived: '#22c55e', confirmed: '#2563EB', pending: '#eab308', no_show: '#ef4444', available: '#64748b', reserved: '#64748b' }
@@ -729,99 +664,14 @@ function EventDetailDrawer({ event, businessId, onClose, onEdit, onRefresh, init
   )
 }
 
-function LayoutBuilderModal({ businessId, onClose }) {
-  const [name, setName] = useState('')
-  const [config, setConfig] = useState(null)
-
-  const handleSave = (cfg) => {
-    if (!name.trim()) { toast.error('הזן שם לסקיצה'); return }
-    fetch(`${API_BASE}/api/admin/layouts`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ business_id: businessId, name: name.trim(), template_type: cfg.template_type || 'theater', config: cfg }),
-    })
-      .then(r => r.json())
-      .then(data => {
-        if (data.error) throw new Error(data.error)
-        toast.success('הסקיצה נשמרה')
-        onClose()
-      })
-      .catch(e => toast.error(e.message || 'שגיאה'))
-  }
-
-  return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={onClose}>
-      <div style={{ position: 'relative', zIndex: 301, background: 'var(--v2-dark-2)', borderRadius: 'var(--radius-lg)', padding: 32, maxWidth: 600, width: '90%', maxHeight: '90vh', overflowY: 'auto' }} onClick={e => e.stopPropagation()} dir="rtl">
-        <button type="button" onClick={onClose} style={MODAL_CLOSE_X} aria-label="סגור">
-          <X size={20} />
-        </button>
-        <h3 style={{ marginBottom: 16 }}>צור סקיצה חדשה</h3>
-        <input value={name} onChange={e => setName(e.target.value)} placeholder="שם הסקיצה (למשל: תצורת שולחנות VIP)" style={{ width: '100%', padding: 12, marginBottom: 20, borderRadius: 12, border: '1px solid var(--glass-border)', background: 'var(--v2-dark-3)', color: '#fff' }} />
-        <SeatingBuilder eventId={null} initialConfig={config} onSave={(cfg) => handleSave(cfg)} onCancel={onClose} />
-      </div>
-    </div>
-  )
-}
-
-const defaultForm = () => ({
-  title: '',
-  doors_open: null,
-  event_end: null,
-  venue_name: '',
-  venue_address: '',
-  venue_maps_url: '',
-  rich_description: '',
-  age_restriction: 0,
-  dress_code: '',
-  cover_image_url: '',
-  gallery_urls: [],
-  ticket_types: [{ name: 'כניסה', price: 0, quantity_total: null }],
-  show_remaining: false,
-  allow_waitlist: false,
-  linked_menu_ids: [],
-  linked_layout_ids: [],
-  seating: null,
-  primary_color: 'var(--v2-primary)',
-  approval_required: false,
-  approval_instagram: '',
-  requires_id: false,
-  resident_only_price: null,
-  non_resident_price: null,
-  city_code: '',
-  city_name: '',
-  branding: {
-    logo_url: '',
-    primary_color: '#00C37A',
-    secondary_color: '#64748b',
-    bg_color: '#0a0a0a',
-    font_style: 'modern',
-  },
-})
-
-const BRANDING_PRESETS = [
-  '#00C37A', '#2563EB', '#A855F7', '#E85D04', '#EC4899', '#64748b',
-]
-const FONT_STYLES = [
-  { id: 'modern', label: 'מודרני' },
-  { id: 'classic', label: 'קלאסי' },
-  { id: 'minimal', label: 'מינימל' },
-]
-
 export default function Events() {
   const navigate = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
   const eventsAllowed = useRequirePermission('can_view_events')
   const [events, setEvents] = useState([])
   const [loading, setLoading] = useState(true)
-  const [wizardOpen, setWizardOpen] = useState(false)
-  const [wizardTemplate, setWizardTemplate] = useState('regular')
+  const [showCreateModal, setShowCreateModal] = useState(false)
   const [activeTab, setActiveTab] = useState('הכל')
-  const [step, setStep] = useState(1)
-  const [form, setForm] = useState(defaultForm())
-  const [menus, setMenus] = useState([])
-  const [layouts, setLayouts] = useState([])
-  const [menuBuilderOpen, setMenuBuilderOpen] = useState(false)
-  const [layoutBuilderOpen, setLayoutBuilderOpen] = useState(false)
-  const [publishSuccessEvent, setPublishSuccessEvent] = useState(null)
   const [deleteConfirm, setDeleteConfirm] = useState(null)
   const { session, businessId } = useAuth()
   const authHeaders = useCallback(() => ({
@@ -847,30 +697,7 @@ export default function Events() {
   const [staffTokens, setStaffTokens] = useState([])
   const [newTokenLabel, setNewTokenLabel] = useState('')
   const [newTokenResult, setNewTokenResult] = useState(null)
-  const [draftSaved, setDraftSaved] = useState(false)
-  const [drafts, setDrafts] = useState([])
-  const [closeWizardModalOpen, setCloseWizardModalOpen] = useState(false)
-  const [draftDeleteConfirm, setDraftDeleteConfirm] = useState(null)
   const [editModalEvent, setEditModalEvent] = useState(null)
-
-  const saveDraft = () => {
-    const draftsArr = JSON.parse(localStorage.getItem('axess_event_drafts') || '[]')
-    const draftId = form.draftId || Date.now()
-    const existing = draftsArr.findIndex(d => d.draftId === draftId)
-    const draft = {
-      ...form,
-      draftId,
-      savedAt: new Date().toISOString(),
-      status: 'draft'
-    }
-    if (existing >= 0) draftsArr[existing] = draft
-    else draftsArr.unshift(draft)
-    localStorage.setItem('axess_event_drafts', JSON.stringify(draftsArr.slice(0, 10)))
-    if (!form.draftId) setForm(f => ({ ...f, draftId }))
-    setDraftSaved(true)
-    setTimeout(() => setDraftSaved(false), 2000)
-    setDrafts(JSON.parse(localStorage.getItem('axess_event_drafts') || '[]'))
-  }
 
   useEffect(() => {
     if (!businessId) return
@@ -878,44 +705,14 @@ export default function Events() {
   }, [businessId, loadEvents])
 
   useEffect(() => {
-    if (!businessId) return;
-    Promise.all([
-      fetch(`${API_BASE}/api/admin/menus?business_id=${businessId}`, { headers: authHeaders() })
-        .then(r => r.ok ? r.json() : []),
-      fetch(`${API_BASE}/api/admin/layouts?business_id=${businessId}`, { headers: authHeaders() })
-        .then(r => r.ok ? r.json() : []),
-    ]).then(([m, l]) => { setMenus(m); setLayouts(l) }).catch(() => {});
-  }, [businessId, authHeaders]); // ← הוסף authHeaders לdependencies
-
-  useEffect(() => {
-    const saved = JSON.parse(localStorage.getItem('axess_event_drafts') || '[]')
-    setDrafts(saved)
-  }, [])
-
-  useEffect(() => {
-    if (!form.title) return
-    const timer = setTimeout(() => { saveDraft() }, 2000)
-    return () => clearTimeout(timer)
-  }, [form])
-
-  const openWizard = (template = 'regular') => {
-    setWizardTemplate(template)
-    setForm(defaultForm())
-    if (template === 'theater') setForm(f => ({ ...f, seating: { enabled: true, template_type: 'theater' } }))
-    if (template === 'tables') setForm(f => ({ ...f, seating: { enabled: true, template_type: 'club' } }))
-    setStep(1)
-    setCloseWizardModalOpen(false)
-    setWizardOpen(true)
-  }
-
-  const requestCloseWizard = () => setCloseWizardModalOpen(true)
-  const doCloseWizard = () => {
-    saveDraft()
-    setWizardOpen(false)
-    setCloseWizardModalOpen(false)
-    setForm(defaultForm())
-    setStep(1)
-  }
+    const c = searchParams.get('create')
+    if (c === 'event' || c === 'theater' || c === 'tables') {
+      setShowCreateModal(true)
+      const next = new URLSearchParams(searchParams)
+      next.delete('create')
+      setSearchParams(next, { replace: true })
+    }
+  }, [searchParams, setSearchParams])
 
   const filteredEvents = events.filter(e => {
     // הצג את כל האירועים של העסק — לא לסנן לפי portal_visible
@@ -980,109 +777,6 @@ export default function Events() {
     setDetailEventTab('stats')
   }
 
-  const addTicketType = () => {
-    setForm(f => ({ ...f, ticket_types: [...f.ticket_types, { name: '', price: 0, quantity_total: null }] }))
-  }
-  const updateTicketType = (i, field, val) => {
-    setForm(f => ({
-      ...f,
-      ticket_types: f.ticket_types.map((t, j) => j === i ? { ...t, [field]: val } : t),
-    }))
-  }
-
-  const buildEventPayload = () => ({
-    business_id: businessId,
-    title: form.title,
-    date: form.doors_open || form.event_end || null,
-    doors_open: form.doors_open || null,
-    event_end: form.event_end || null,
-    venue_name: form.venue_name || null,
-    venue_address: form.venue_address || null,
-    venue_maps_url: form.venue_maps_url || null,
-    location: form.venue_address || form.venue_name,
-    location_url: form.venue_maps_url,
-    rich_description: form.rich_description || null,
-    age_restriction: form.age_restriction ?? 0,
-    dress_code: form.dress_code || null,
-    cover_image_url: form.cover_image_url || null,
-    image_url: form.cover_image_url || form.image_url,
-    gallery_urls: form.gallery_urls || [],
-    display_config: {
-      primary_color: form.primary_color,
-      show_remaining: form.show_remaining,
-      allow_waitlist: form.allow_waitlist,
-    },
-    settings: { show_remaining: form.show_remaining, auto_waitlist: form.allow_waitlist },
-    approval_required: form.approval_required || false,
-    approval_instagram: form.approval_instagram || null,
-    requires_id: form.requires_id || false,
-    resident_only_price: form.resident_only_price ?? null,
-    non_resident_price: form.non_resident_price ?? null,
-    city_code: form.city_code || null,
-    city_name: form.city_name || null,
-    ticket_types: form.ticket_types.filter(t => t.name),
-    branding: form.branding || {},
-  })
-
-  const handleCreate = async (asDraft = true, seatingConfig) => {
-    const seating = seatingConfig ?? form.seating
-    try {
-      const body = buildEventPayload()
-      const res = await fetch(`${API_BASE}/api/admin/events`, {
-        method: 'POST',
-        headers: authHeaders(),
-        body: JSON.stringify(body),
-      })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'שגיאה')
-      if (seating?.enabled && data.id && seating.seats?.length > 0) {
-        const seatRes = await fetch(`${API_BASE}/api/admin/events/${data.id}/seating`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ template_type: seating.template_type, seats: seating.seats, zones: seating.zones || [] }),
-        })
-        if (!seatRes.ok) toast.error('מפת ישיבה לא נשמרה')
-      }
-      if (form.linked_menu_ids?.length) {
-        for (const mid of form.linked_menu_ids) {
-          await fetch(`${API_BASE}/api/admin/events/${data.id}/menus`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ menu_id: mid }),
-          })
-        }
-      }
-      if (form.linked_layout_ids?.length) {
-        for (const lid of form.linked_layout_ids) {
-          await fetch(`${API_BASE}/api/admin/events/${data.id}/layouts`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ venue_layout_id: lid }),
-          })
-        }
-      }
-      if (!asDraft) {
-        const pubRes = await fetch(`${API_BASE}/api/admin/events/${data.id}/publish`, { method: 'POST' })
-        if (pubRes.ok) {
-          setPublishSuccessEvent({ ...data, slug: (await pubRes.json()).slug || data.slug })
-          setWizardOpen(false)
-          setStep(1)
-        }
-      }
-      setEvents(prev => [data, ...prev])
-      setWizardOpen(false)
-      setForm(defaultForm())
-      setStep(1)
-      toast.success(asDraft ? 'האירוע נשמר כטיוטה' : 'האירוע פורסם!')
-    } catch (err) {
-      toast.error(err.message || 'שגיאה')
-    }
-  }
-
-  const handlePublish = async () => {
-    await handleCreate(false)
-  }
-
   const handleDuplicate = async (ev) => {
     try {
       const res = await fetch(`${API_BASE}/api/admin/events/${ev.id}/duplicate`, { method: 'POST' })
@@ -1142,8 +836,6 @@ export default function Events() {
     navigator.clipboard?.writeText(str).then(() => toast.success('הועתק')).catch(() => toast.error('העתקה נכשלה'))
   }
 
-  const wizardSteps = ['פרטים בסיסיים', 'מיקום', 'תיאור', 'תמונות', 'כרטיסים', 'תפריט וסקיצה', 'עיצוב', 'סיכום']
-
   if (!eventsAllowed) return null
 
   return (
@@ -1180,7 +872,7 @@ export default function Events() {
         </div>
         <button
           type="button"
-          onClick={() => openWizard('regular')}
+          onClick={() => setShowCreateModal(true)}
           style={{
             padding: '10px 20px',
             borderRadius: 10,
@@ -1198,31 +890,6 @@ export default function Events() {
           <Plus size={18} /> צור אירוע
         </button>
       </div>
-
-      {/* טיוטות שמורות */}
-      {drafts.length > 0 && (
-        <div style={{ marginBottom: 24 }}>
-          <h3 style={{ fontSize: 16, fontWeight: 600, marginBottom: 12 }}>טיוטות שמורות ({drafts.length})</h3>
-          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-            {drafts.map(d => {
-              const savedAt = d.savedAt ? new Date(d.savedAt).getTime() : 0
-              const mins = Math.floor((Date.now() - savedAt) / 60000)
-              const hours = Math.floor(mins / 60)
-              const timeStr = hours > 0 ? `לפני ${hours} שעות` : mins > 0 ? `לפני ${mins} דקות` : 'עכשיו'
-              return (
-                <div key={d.draftId} style={{ background: 'var(--v2-dark-3)', border: '1px solid var(--glass-border)', borderRadius: 'var(--radius-md)', padding: 12, minWidth: 200 }}>
-                  <div style={{ fontWeight: 600, marginBottom: 4 }}>{d.title || 'ללא שם'}</div>
-                  <div style={{ fontSize: 12, color: 'var(--v2-gray-400)', marginBottom: 8 }}>נשמר: {timeStr}</div>
-                  <div style={{ display: 'flex', gap: 8 }}>
-                    <button type="button" onClick={() => { setForm(d); setStep(1); setWizardOpen(true); setCloseWizardModalOpen(false) }} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 12px', background: 'var(--v2-primary)', color: 'var(--v2-dark)', border: 'none', borderRadius: 8, cursor: 'pointer', fontSize: 13 }}><Edit size={14} color="var(--v2-dark)" /> ערוך</button>
-                    <button type="button" onClick={() => setDraftDeleteConfirm(d)} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 12px', background: 'var(--v2-dark-2)', border: '1px solid var(--glass-border)', color: 'var(--v2-gray-400)', borderRadius: 8, cursor: 'pointer', fontSize: 13 }}><Trash2 size={14} color="#00C37A" /> מחק</button>
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        </div>
-      )}
 
       {loading ? (
         <div style={{ color: 'var(--v2-gray-400)' }}>טוען...</div>
@@ -1249,7 +916,7 @@ export default function Events() {
           </div>
           <button
             type="button"
-            onClick={() => openWizard()}
+            onClick={() => setShowCreateModal(true)}
             style={{
               padding: '12px 24px',
               borderRadius: 'var(--radius-full)',
@@ -1538,431 +1205,17 @@ export default function Events() {
         </div>
       )}
 
-      {/* Wizard Modal — 7 steps */}
-      {wizardOpen && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 199 }} onClick={requestCloseWizard}>
-          <div style={{ position: 'fixed', inset: 0, zIndex: 200, display: 'flex', flexDirection: 'column', background: 'var(--v2-dark)', overflow: 'hidden' }} onClick={e => e.stopPropagation()}>
-            <button type="button" onClick={requestCloseWizard} style={MODAL_CLOSE_X} aria-label="סגור">
-              <X size={20} />
-            </button>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 16px 0', marginBottom: 8 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                <h2 style={{ fontSize: 20, fontWeight: 700, margin: 0 }}>צור אירוע חדש</h2>
-                {draftSaved && (
-                  <span style={{ fontSize: 12, color: 'var(--v2-primary)', display: 'flex', alignItems: 'center', gap: 4 }}>
-                    <Check size={12} /> נשמר אוטומטית
-                  </span>
-                )}
-              </div>
-            </div>
-            <div style={{ display: 'flex', gap: 8, marginBottom: 24, flexWrap: 'wrap', fontSize: 12, padding: '0 16px' }}>
-              {wizardSteps.map((s, i) => (
-                <span key={i} style={{ padding: '4px 8px', borderRadius: 8, background: step === i + 1 ? 'var(--v2-primary)' : 'var(--v2-dark-3)', color: step === i + 1 ? 'var(--v2-dark)' : 'var(--v2-gray-400)' }}>{i + 1}. {s}</span>
-              ))}
-            </div>
-
-            {/* Content area — scrollable */}
-            <div style={{ flex: 1, overflowY: 'auto', padding: '24px 16px', paddingBottom: '100px' }}>
-            {/* Step 1 — פרטים בסיסיים */}
-            {step === 1 && (
-              <>
-                <div style={{ marginBottom: 16 }}>
-                  <label style={{ display: 'block', marginBottom: 6, color: 'var(--v2-gray-400)' }}>שם האירוע *</label>
-                  <input value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} placeholder="מסיבת ריקודים" style={{ width: '100%', padding: 12, borderRadius: 12, border: '1px solid var(--glass-border)', background: 'var(--v2-dark-3)', color: '#fff' }} />
-                </div>
-                <div style={{ marginBottom: 16 }}>
-                  <label style={{ display: 'block', marginBottom: 6, color: 'var(--v2-gray-400)' }}>פתיחת דלתות <Tooltip text="פתיחת דלתות היא השעה שהקהל יכול להיכנס. סיום האירוע הוא השעה שבה נסגרות הדלתות." /></label>
-                  <DateTimePicker value={form.doors_open} onChange={v => setForm(f => ({ ...f, doors_open: v }))} placeholder="בחר תאריך ושעה" />
-                </div>
-                <div style={{ marginBottom: 24 }}>
-                  <label style={{ display: 'block', marginBottom: 6, color: 'var(--v2-gray-400)' }}>סיום אירוע</label>
-                  <DateTimePicker value={form.event_end} onChange={v => setForm(f => ({ ...f, event_end: v }))} placeholder="בחר תאריך ושעה" />
-                </div>
-                <div style={{ marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <input type="checkbox" id="approvalReq" checked={form.approval_required} onChange={e => setForm(f => ({ ...f, approval_required: e.target.checked }))} />
-                  <label htmlFor="approvalReq" style={{ color: 'var(--v2-gray-400)', cursor: 'pointer' }}>דרוש אישור ידני להרשמה</label>
-                  <Tooltip text="לאחר כל הרשמה תקבל SMS עם לינק לאישור ידני. הלקוח יקבל כרטיס רק לאחר אישורך." />
-                </div>
-                {form.approval_required && (
-                  <div style={{ marginBottom: 24 }}>
-                    <label style={{ display: 'block', marginBottom: 6, color: 'var(--v2-gray-400)' }}>לינק Instagram לאישור (אופציונלי)</label>
-                    <input value={form.approval_instagram} onChange={e => setForm(f => ({ ...f, approval_instagram: e.target.value }))} placeholder="https://instagram.com/[username]" style={{ width: '100%', padding: 12, borderRadius: 12, border: '1px solid var(--glass-border)', background: 'var(--v2-dark-3)', color: '#fff' }} />
-                  </div>
-                )}
-              </>
-            )}
-
-            {/* Step 2 — מיקום */}
-            {step === 2 && (
-              <>
-                <div style={{ marginBottom: 16 }}>
-                  <label style={{ display: 'block', marginBottom: 6, color: 'var(--v2-gray-400)' }}>שם המקום <Tooltip text="הכתובת תוצג בכרטיס הלקוח עם כפתור ניווט" /></label>
-                  <input value={form.venue_name} onChange={e => setForm(f => ({ ...f, venue_name: e.target.value }))} placeholder="אולם האירועים, תל אביב" style={{ width: '100%', padding: 12, borderRadius: 12, border: '1px solid var(--glass-border)', background: 'var(--v2-dark-3)', color: '#fff' }} />
-                </div>
-                <div style={{ marginBottom: 16 }}>
-                  <label style={{ display: 'block', marginBottom: 6, color: 'var(--v2-gray-400)' }}>כתובת מלאה</label>
-                  <input value={form.venue_address} onChange={e => setForm(f => ({ ...f, venue_address: e.target.value }))} placeholder="רחוב הרצל 1, תל אביב" style={{ width: '100%', padding: 12, borderRadius: 12, border: '1px solid var(--glass-border)', background: 'var(--v2-dark-3)', color: '#fff' }} />
-                </div>
-                <div style={{ marginBottom: 24 }}>
-                  <label style={{ display: 'block', marginBottom: 6, color: 'var(--v2-gray-400)' }}>לינק Google Maps</label>
-                  <input value={form.venue_maps_url} onChange={e => setForm(f => ({ ...f, venue_maps_url: e.target.value }))} placeholder="https://maps.google.com/..." style={{ width: '100%', padding: 12, borderRadius: 12, border: '1px solid var(--glass-border)', background: 'var(--v2-dark-3)', color: '#fff' }} />
-                </div>
-              </>
-            )}
-
-            {/* Step 3 — תיאור */}
-            {step === 3 && (
-              <>
-                <div style={{ marginBottom: 16 }}>
-                  <label style={{ display: 'block', marginBottom: 6, color: 'var(--v2-gray-400)' }}>תיאור האירוע <Tooltip text="תיאור עשיר יוצג בדף האירוע הציבורי" /></label>
-                  <RichTextEditor value={form.rich_description} onChange={v => setForm(f => ({ ...f, rich_description: v }))} placeholder="תאר את האירוע — מה מצפה לקהל..." minHeight={200} />
-                </div>
-                <div style={{ marginBottom: 16 }}>
-                  <label style={{ display: 'block', marginBottom: 6, color: 'var(--v2-gray-400)' }}>גיל מינימום</label>
-                  <CustomSelect
-                    value={form.age_restriction}
-                    onChange={(val) => setForm(f => ({ ...f, age_restriction: parseInt(val, 10) }))}
-                    style={{ width: '100%', padding: 12, borderRadius: 12, border: '1px solid var(--glass-border)', background: 'var(--v2-dark-3)', color: '#fff' }}
-                    options={[
-                      { value: 0, label: 'ללא הגבלה' },
-                      { value: 18, label: '18+' },
-                      { value: 21, label: '21+' },
-                    ]}
-                  />
-                </div>
-                <div style={{ marginBottom: 24 }}>
-                  <label style={{ display: 'block', marginBottom: 6, color: 'var(--v2-gray-400)' }}>קוד לבוש (אופציונלי)</label>
-                  <input value={form.dress_code} onChange={e => setForm(f => ({ ...f, dress_code: e.target.value }))} placeholder="חגיגי / קז׳ואל" style={{ width: '100%', padding: 12, borderRadius: 12, border: '1px solid var(--glass-border)', background: 'var(--v2-dark-3)', color: '#fff' }} />
-                </div>
-              </>
-            )}
-
-            {/* Step 4 — תמונות */}
-            {step === 4 && (
-              <>
-                <div style={{ marginBottom: 16 }}>
-                  <label style={{ display: 'block', marginBottom: 6, color: 'var(--v2-gray-400)' }}>תמונת שער <Tooltip text="תמונת השער מוצגת בראש דף האירוע ובתצוגה המקדימה" /></label>
-                  <input type="url" value={form.cover_image_url} onChange={e => setForm(f => ({ ...f, cover_image_url: e.target.value }))} placeholder="הדבק URL לתמונה (או העלה מאוחר יותר)" style={{ width: '100%', padding: 12, borderRadius: 12, border: '1px solid var(--glass-border)', background: 'var(--v2-dark-3)', color: '#fff' }} />
-                  {form.cover_image_url && <img src={form.cover_image_url} alt="" style={{ marginTop: 8, maxWidth: '100%', maxHeight: 160, objectFit: 'cover', borderRadius: 8 }} onError={e => { e.target.style.display = 'none' }} />}
-                </div>
-                <div style={{ marginBottom: 24 }}>
-                  <label style={{ display: 'block', marginBottom: 6, color: 'var(--v2-gray-400)' }}>גלריה (עד 6 תמונות) <Tooltip text="תמונות נוספות בדף האירוע" /></label>
-                  <p style={{ fontSize: 13, color: 'var(--v2-gray-400)', marginBottom: 8 }}>הוסף קישורי תמונות מופרדים בפסיק</p>
-                  <input value={(form.gallery_urls || []).join(', ')} onChange={e => setForm(f => ({ ...f, gallery_urls: e.target.value.split(',').map(s => s.trim()).filter(Boolean).slice(0, 6) }))} placeholder="https://... , https://..." style={{ width: '100%', padding: 12, borderRadius: 12, border: '1px solid var(--glass-border)', background: 'var(--v2-dark-3)', color: '#fff' }} />
-                </div>
-              </>
-            )}
-
-            {/* Step 5 — כרטיסים */}
-            {step === 5 && (
-              <>
-                {form.ticket_types.map((tt, i) => (
-                  <div key={i} style={{ marginBottom: 16, padding: 16, background: 'var(--v2-dark-3)', borderRadius: 12 }}>
-                    <input value={tt.name} onChange={e => updateTicketType(i, 'name', e.target.value)} placeholder="שם סוג (למשל: VIP)" style={{ width: '100%', padding: 10, marginBottom: 8, borderRadius: 8, border: '1px solid var(--glass-border)', background: 'var(--v2-dark-2)', color: '#fff' }} />
-                    <input type="number" value={tt.price} onChange={e => updateTicketType(i, 'price', parseFloat(e.target.value) || 0)} placeholder="מחיר ₪" style={{ width: '100%', padding: 10, borderRadius: 8, border: '1px solid var(--glass-border)', background: 'var(--v2-dark-2)', color: '#fff' }} />
-                    <input type="number" value={tt.quantity_total ?? ''} onChange={e => updateTicketType(i, 'quantity_total', e.target.value ? parseInt(e.target.value, 10) : null)} placeholder="כמות (ריק = ללא הגבלה)" style={{ width: '100%', padding: 10, marginTop: 8, borderRadius: 8, border: '1px solid var(--glass-border)', background: 'var(--v2-dark-2)', color: '#fff' }} />
-                  </div>
-                ))}
-                <button onClick={addTicketType} style={{ marginBottom: 16, padding: 10, background: 'transparent', border: '1px dashed var(--glass-border)', borderRadius: 12, color: 'var(--v2-gray-400)', cursor: 'pointer', width: '100%' }}>+ הוסף סוג כרטיס</button>
-                <div style={{ marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <input type="checkbox" id="showRem" checked={form.show_remaining} onChange={e => setForm(f => ({ ...f, show_remaining: e.target.checked }))} />
-                  <label htmlFor="showRem" style={{ color: 'var(--v2-gray-400)', cursor: 'pointer' }}>הצג כמות נותרת לציבור</label>
-                  <Tooltip text="לקוחות יראו 'נותרו X כרטיסים' — יוצר urgency" />
-                </div>
-                <div style={{ marginBottom: 24, display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <input type="checkbox" id="allowWait" checked={form.allow_waitlist} onChange={e => setForm(f => ({ ...f, allow_waitlist: e.target.checked }))} />
-                  <label htmlFor="allowWait" style={{ color: 'var(--v2-gray-400)', cursor: 'pointer' }}>אפשר רשימת המתנה</label>
-                </div>
-                <div style={{ marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <input type="checkbox" id="reqId" checked={form.requires_id} onChange={e => setForm(f => ({ ...f, requires_id: e.target.checked }))} />
-                  <label htmlFor="reqId" style={{ color: 'var(--v2-gray-400)', cursor: 'pointer' }}>חובת תעודת זהות (18+)</label>
-                  <Tooltip text="נדרשת תעודת זהות בעת ההרשמה" />
-                </div>
-                {form.requires_id && (
-                  <div style={{ marginBottom: 16, padding: 12, background: 'var(--v2-dark-2)', borderRadius: 8, fontSize: 13, color: 'var(--v2-gray-400)' }}>לקוחות יידרשו להזין תעודת זהות בעת ההרשמה</div>
-                )}
-                <div style={{ marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <input type="checkbox" id="residentPricing" checked={!!(form.city_code || form.city_name || form.resident_pricing_enabled)} onChange={e => { if (!e.target.checked) setForm(f => ({ ...f, resident_pricing_enabled: false, city_code: '', city_name: '', resident_only_price: null, non_resident_price: null })); else setForm(f => ({ ...f, resident_pricing_enabled: true })) }} />
-                  <label htmlFor="residentPricing" style={{ color: 'var(--v2-gray-400)', cursor: 'pointer' }}>מחיר שונה לתושב עיר</label>
-                  <Tooltip text="הלקוח יוכנס שם עירו ויקבל מחיר מותאם אוטומטית" />
-                </div>
-                {(form.resident_pricing_enabled || form.city_code || form.city_name || form.resident_only_price != null || form.non_resident_price != null) && (
-                  <div style={{ marginBottom: 24, padding: 16, background: 'var(--v2-dark-3)', borderRadius: 12 }}>
-                    <div style={{ marginBottom: 12 }}>
-                      <label style={{ display: 'block', marginBottom: 4, color: 'var(--v2-gray-400)' }}>קוד עיר / שם עיר</label>
-                      <input value={form.city_code || form.city_name || ''} onChange={e => { const v = e.target.value; setForm(f => ({ ...f, city_code: v, city_name: v })) }} placeholder="תל אביב" style={{ width: '100%', padding: 10, borderRadius: 8, border: '1px solid var(--glass-border)', background: 'var(--v2-dark-2)', color: '#fff' }} />
-                    </div>
-                    <div style={{ marginBottom: 12 }}>
-                      <label style={{ display: 'block', marginBottom: 4, color: 'var(--v2-gray-400)' }}>מחיר לתושב ₪</label>
-                      <input type="number" value={form.resident_only_price ?? ''} onChange={e => setForm(f => ({ ...f, resident_only_price: e.target.value ? parseFloat(e.target.value) : null }))} placeholder="0" style={{ width: '100%', padding: 10, borderRadius: 8, border: '1px solid var(--glass-border)', background: 'var(--v2-dark-2)', color: '#fff' }} />
-                    </div>
-                    <div>
-                      <label style={{ display: 'block', marginBottom: 4, color: 'var(--v2-gray-400)' }}>מחיר לתושב חוץ ₪</label>
-                      <input type="number" value={form.non_resident_price ?? ''} onChange={e => setForm(f => ({ ...f, non_resident_price: e.target.value ? parseFloat(e.target.value) : null }))} placeholder="0" style={{ width: '100%', padding: 10, borderRadius: 8, border: '1px solid var(--glass-border)', background: 'var(--v2-dark-2)', color: '#fff' }} />
-                    </div>
-                  </div>
-                )}
-              </>
-            )}
-
-            {/* Step 6 — תפריט וסקיצה */}
-            {step === 6 && (
-              <>
-                <div style={{ marginBottom: 16 }}>
-                  <label style={{ display: 'block', marginBottom: 6, color: 'var(--v2-gray-400)' }}>תפריטים <Tooltip text="תפריט מקושר לאירוע יוצג ב-Validator של הלקוח" /></label>
-                  <CustomSelect
-                    value=""
-                    onChange={(val) => { if (val) setForm(f => ({ ...f, linked_menu_ids: [...new Set([...(f.linked_menu_ids || []), String(val)])] })) }}
-                    placeholder="הוסף תפריט לקישור"
-                    style={{ width: '100%', padding: 12, borderRadius: 12, border: '1px solid var(--glass-border)', background: 'var(--v2-dark-3)', color: '#fff' }}
-                    options={(() => {
-                      const avail = menus.filter(m => !(form.linked_menu_ids || []).map(String).includes(String(m.id)))
-                      let placeholderLabel = 'בחר תפריט להוספה'
-                      if (!menus.length) placeholderLabel = 'אין תפריטים — צור תפריט חדש'
-                      else if (!avail.length) placeholderLabel = 'כל התפריטים כבר קשורים'
-                      return [{ value: '', label: placeholderLabel }, ...avail.map(m => ({ value: m.id, label: m.name }))]
-                    })()}
-                  />
-                  {(form.linked_menu_ids || []).length > 0 && (
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 10 }}>
-                      {(form.linked_menu_ids || []).map(id => {
-                        const m = menus.find(x => String(x.id) === String(id))
-                        return (
-                          <span key={id} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 10px', background: 'var(--v2-dark-2)', borderRadius: 8, fontSize: 13, border: '1px solid var(--glass-border)' }}>
-                            {m?.name || id}
-                            <button type="button" onClick={() => setForm(f => ({ ...f, linked_menu_ids: (f.linked_menu_ids || []).filter(x => String(x) !== String(id)) }))} style={{ background: 'none', border: 'none', color: 'var(--v2-gray-400)', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center' }} aria-label="הסר תפריט"><X size={14} /></button>
-                          </span>
-                        )
-                      })}
-                    </div>
-                  )}
-                  <button type="button" onClick={() => setMenuBuilderOpen(true)} style={{ marginTop: 8, padding: '8px 16px', background: 'var(--v2-dark-3)', border: '1px solid var(--glass-border)', borderRadius: 8, color: '#fff', cursor: 'pointer' }}>צור תפריט חדש</button>
-                </div>
-                <div style={{ marginBottom: 24 }}>
-                  <label style={{ display: 'block', marginBottom: 6, color: 'var(--v2-gray-400)' }}>סקיצות <Tooltip text="סקיצה שמורה ניתנת לשימוש חוזר באירועים עתידיים" /></label>
-                  <CustomSelect
-                    value=""
-                    onChange={(val) => { if (val) setForm(f => ({ ...f, linked_layout_ids: [...new Set([...(f.linked_layout_ids || []), String(val)])] })) }}
-                    placeholder="הוסף סקיצה לקישור"
-                    style={{ width: '100%', padding: 12, borderRadius: 12, border: '1px solid var(--glass-border)', background: 'var(--v2-dark-3)', color: '#fff' }}
-                    options={(() => {
-                      const avail = layouts.filter(l => !(form.linked_layout_ids || []).map(String).includes(String(l.id)))
-                      let placeholderLabel = 'בחר סקיצה להוספה'
-                      if (!layouts.length) placeholderLabel = 'אין סקיצות — צור סקיצה חדשה'
-                      else if (!avail.length) placeholderLabel = 'כל הסקיצות כבר קשורות'
-                      return [{ value: '', label: placeholderLabel }, ...avail.map(l => ({ value: l.id, label: l.name }))]
-                    })()}
-                  />
-                  {(form.linked_layout_ids || []).length > 0 && (
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 10 }}>
-                      {(form.linked_layout_ids || []).map(id => {
-                        const l = layouts.find(x => String(x.id) === String(id))
-                        return (
-                          <span key={id} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 10px', background: 'var(--v2-dark-2)', borderRadius: 8, fontSize: 13, border: '1px solid var(--glass-border)' }}>
-                            {l?.name || id}
-                            <button type="button" onClick={() => setForm(f => ({ ...f, linked_layout_ids: (f.linked_layout_ids || []).filter(x => String(x) !== String(id)) }))} style={{ background: 'none', border: 'none', color: 'var(--v2-gray-400)', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center' }} aria-label="הסר סקיצה"><X size={14} /></button>
-                          </span>
-                        )
-                      })}
-                    </div>
-                  )}
-                  <button type="button" onClick={() => setLayoutBuilderOpen(true)} style={{ marginTop: 8, padding: '8px 16px', background: 'var(--v2-dark-3)', border: '1px solid var(--glass-border)', borderRadius: 8, color: '#fff', cursor: 'pointer' }}>צור סקיצה חדשה</button>
-                </div>
-              </>
-            )}
-
-            {/* Step 7 — עיצוב */}
-            {step === 7 && (
-              <>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, alignItems: 'start' }}>
-                  <div>
-                    <div style={{ marginBottom: 16 }}>
-                      <label style={{ display: 'block', marginBottom: 6, color: 'var(--v2-gray-400)' }}>לוגו (URL)</label>
-                      <input type="url" value={form.branding?.logo_url || ''} onChange={e => setForm(f => ({ ...f, branding: { ...f.branding, logo_url: e.target.value } }))} placeholder="https://..." style={{ width: '100%', padding: 12, borderRadius: 12, border: '1px solid var(--glass-border)', background: 'var(--v2-dark-3)', color: '#fff' }} />
-                    </div>
-                    <div style={{ marginBottom: 16 }}>
-                      <label style={{ display: 'block', marginBottom: 6, color: 'var(--v2-gray-400)' }}>צבע ראשי</label>
-                      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
-                        {BRANDING_PRESETS.map(c => (
-                          <button key={c} onClick={() => setForm(f => ({ ...f, branding: { ...f.branding, primary_color: c } }))} style={{ width: 36, height: 36, borderRadius: 8, background: c, border: form.branding?.primary_color === c ? '3px solid #fff' : 'none', cursor: 'pointer' }} />
-                        ))}
-                        <input type="color" value={form.branding?.primary_color || '#00C37A'} onChange={e => setForm(f => ({ ...f, branding: { ...f.branding, primary_color: e.target.value } }))} style={{ width: 36, height: 36, padding: 0, border: 'none', cursor: 'pointer', background: 'transparent' }} title="בחר צבע" />
-                      </div>
-                    </div>
-                    <div style={{ marginBottom: 16 }}>
-                      <label style={{ display: 'block', marginBottom: 6, color: 'var(--v2-gray-400)' }}>צבע משני</label>
-                      <input type="color" value={form.branding?.secondary_color || '#64748b'} onChange={e => setForm(f => ({ ...f, branding: { ...f.branding, secondary_color: e.target.value } }))} style={{ width: 48, height: 36, padding: 0, border: 'none', cursor: 'pointer', background: 'transparent' }} />
-                    </div>
-                    <div style={{ marginBottom: 16 }}>
-                      <label style={{ display: 'block', marginBottom: 6, color: 'var(--v2-gray-400)' }}>רקע</label>
-                      <input type="color" value={form.branding?.bg_color || '#0a0a0a'} onChange={e => setForm(f => ({ ...f, branding: { ...f.branding, bg_color: e.target.value } }))} style={{ width: 48, height: 36, padding: 0, border: 'none', cursor: 'pointer', background: 'transparent' }} />
-                    </div>
-                    <div style={{ marginBottom: 24 }}>
-                      <label style={{ display: 'block', marginBottom: 8, color: 'var(--v2-gray-400)' }}>סגנון פונט</label>
-                      <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-                        {FONT_STYLES.map(fs => (
-                          <button key={fs.id} onClick={() => setForm(f => ({ ...f, branding: { ...f.branding, font_style: fs.id } }))} style={{ padding: '12px 20px', borderRadius: 12, background: form.branding?.font_style === fs.id ? 'var(--v2-primary)' : 'var(--v2-dark-3)', color: form.branding?.font_style === fs.id ? 'var(--v2-dark)' : '#fff', border: '1px solid var(--glass-border)', cursor: 'pointer', fontWeight: 600 }}>{fs.label}</button>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                  <div style={{ padding: 20, background: form.branding?.bg_color || '#0a0a0a', borderRadius: 16, border: '1px solid var(--glass-border)', minHeight: 200 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
-                      {form.branding?.logo_url && <img src={form.branding.logo_url} alt="" style={{ height: 40, width: 'auto', objectFit: 'contain' }} onError={e => { e.target.style.display = 'none' }} />}
-                      <span style={{ fontSize: 18, fontWeight: 700, color: form.branding?.primary_color || '#00C37A' }}>{form.title || 'שם האירוע'}</span>
-                    </div>
-                    <div style={{ fontSize: 14, color: form.branding?.secondary_color || '#64748b', marginBottom: 12 }}>{form.venue_name || 'מיקום'}</div>
-                    <div style={{ padding: 12, background: 'rgba(255,255,255,0.08)', borderRadius: 12, color: form.branding?.primary_color || '#00C37A', fontWeight: 600 }}>תצוגה מקדימה — דף הזמנה</div>
-                  </div>
-                </div>
-              </>
-            )}
-
-            {/* Step 8 — סיכום ופרסום */}
-            {step === 8 && (
-              <>
-                <div style={{ marginBottom: 24, padding: 20, background: 'var(--v2-dark-3)', borderRadius: 12, border: '1px solid var(--glass-border)' }}>
-                  <h3 style={{ marginBottom: 12 }}>תצוגה מקדימה</h3>
-                  <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 8 }}>{form.title || 'שם האירוע'}</div>
-                  {(form.doors_open || form.event_end) && <div style={{ color: 'var(--v2-gray-400)', fontSize: 14, marginBottom: 8 }}>{new Date(form.doors_open || form.event_end).toLocaleDateString('he-IL', { dateStyle: 'medium', timeStyle: 'short' })}</div>}
-                  {form.venue_name && <div style={{ color: 'var(--v2-gray-400)', fontSize: 14 }}>{form.venue_name}</div>}
-                  {form.cover_image_url && <img src={form.cover_image_url} alt="" style={{ marginTop: 12, width: '100%', maxHeight: 120, objectFit: 'cover', borderRadius: 8 }} />}
-                </div>
-              </>
-            )}
-            </div>
-
-            {/* Buttons area — fixed */}
-            <div style={{ 
-              position: 'fixed', 
-              bottom: 0, 
-              left: 0,
-              right: 0,
-              background: 'var(--v2-dark)', 
-              borderTop: '1px solid var(--glass-border)', 
-              padding: '16px',
-              paddingBottom: 'calc(16px + env(safe-area-inset-bottom))',
-              display: 'flex', 
-              gap: '12px', 
-              zIndex: 110
-            }}>
-            {step === 1 && (
-              <button onClick={() => setStep(2)} disabled={!form.title} style={{ flex: 1, padding: 14, borderRadius: 'var(--radius-full)', background: form.title ? 'var(--v2-primary)' : 'var(--v2-gray-600)', color: 'var(--v2-dark)', fontWeight: 700, border: 'none', cursor: form.title ? 'pointer' : 'not-allowed' }}>המשך</button>
-            )}
-            {step === 2 && (
-              <>
-                <button onClick={() => setStep(1)} style={{ flex: 1, padding: 14, borderRadius: 'var(--radius-full)', background: 'var(--glass-bg)', border: '1px solid var(--glass-border)', color: '#fff', fontWeight: 600, cursor: 'pointer' }}>חזור</button>
-                <button onClick={() => setStep(3)} style={{ flex: 1, padding: 14, borderRadius: 'var(--radius-full)', background: 'var(--v2-primary)', color: 'var(--v2-dark)', fontWeight: 700, border: 'none', cursor: 'pointer' }}>המשך</button>
-              </>
-            )}
-            {step === 3 && (
-              <>
-                <button onClick={() => setStep(2)} style={{ flex: 1, padding: 14, borderRadius: 'var(--radius-full)', background: 'var(--glass-bg)', border: '1px solid var(--glass-border)', color: '#fff', fontWeight: 600, cursor: 'pointer' }}>חזור</button>
-                <button onClick={() => setStep(4)} style={{ flex: 1, padding: 14, borderRadius: 'var(--radius-full)', background: 'var(--v2-primary)', color: 'var(--v2-dark)', fontWeight: 700, border: 'none', cursor: 'pointer' }}>המשך</button>
-              </>
-            )}
-            {step === 4 && (
-              <>
-                <button onClick={() => setStep(3)} style={{ flex: 1, padding: 14, borderRadius: 'var(--radius-full)', background: 'var(--glass-bg)', border: '1px solid var(--glass-border)', color: '#fff', fontWeight: 600, cursor: 'pointer' }}>חזור</button>
-                <button onClick={() => setStep(5)} style={{ flex: 1, padding: 14, borderRadius: 'var(--radius-full)', background: 'var(--v2-primary)', color: 'var(--v2-dark)', fontWeight: 700, border: 'none', cursor: 'pointer' }}>המשך</button>
-              </>
-            )}
-            {step === 5 && (
-              <>
-                <button onClick={() => setStep(4)} style={{ flex: 1, padding: 14, borderRadius: 'var(--radius-full)', background: 'var(--glass-bg)', border: '1px solid var(--glass-border)', color: '#fff', fontWeight: 600, cursor: 'pointer' }}>חזור</button>
-                <button onClick={() => setStep(6)} style={{ flex: 1, padding: 14, borderRadius: 'var(--radius-full)', background: 'var(--v2-primary)', color: 'var(--v2-dark)', fontWeight: 700, border: 'none', cursor: 'pointer' }}>המשך</button>
-              </>
-            )}
-            {step === 6 && (
-              <>
-                <button onClick={() => setStep(5)} style={{ flex: 1, padding: 14, borderRadius: 'var(--radius-full)', background: 'var(--glass-bg)', border: '1px solid var(--glass-border)', color: '#fff', fontWeight: 600, cursor: 'pointer' }}>חזור</button>
-                <button onClick={() => setStep(7)} style={{ flex: 1, padding: 14, borderRadius: 'var(--radius-full)', background: 'var(--v2-primary)', color: 'var(--v2-dark)', fontWeight: 700, border: 'none', cursor: 'pointer' }}>המשך</button>
-              </>
-            )}
-            {step === 7 && (
-              <>
-                <button onClick={() => setStep(6)} style={{ flex: 1, padding: 14, borderRadius: 'var(--radius-full)', background: 'var(--glass-bg)', border: '1px solid var(--glass-border)', color: '#fff', fontWeight: 600, cursor: 'pointer' }}>חזור</button>
-                <button onClick={() => setStep(8)} style={{ flex: 1, padding: 14, borderRadius: 'var(--radius-full)', background: 'var(--v2-primary)', color: 'var(--v2-dark)', fontWeight: 700, border: 'none', cursor: 'pointer' }}>המשך</button>
-              </>
-            )}
-            {step === 8 && (
-              <>
-                <button onClick={() => setStep(7)} style={{ flex: 1, padding: 14, borderRadius: 'var(--radius-full)', background: 'var(--glass-bg)', border: '1px solid var(--glass-border)', color: '#fff', fontWeight: 600, cursor: 'pointer' }}>חזור</button>
-                <button onClick={() => handleCreate(true)} style={{ flex: 1, padding: 14, borderRadius: 'var(--radius-full)', background: 'var(--v2-dark-3)', border: '1px solid var(--glass-border)', color: '#fff', fontWeight: 600, cursor: 'pointer' }}>שמור כטיוטה</button>
-                <button onClick={() => handlePublish()} style={{ flex: 1, padding: 14, borderRadius: 'var(--radius-full)', background: 'var(--v2-primary)', color: 'var(--v2-dark)', fontWeight: 700, border: 'none', cursor: 'pointer' }}>פרסם עכשיו</button>
-              </>
-            )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Close wizard confirmation modal */}
-      {closeWizardModalOpen && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 250 }} onClick={e => e.target === e.currentTarget && setCloseWizardModalOpen(false)}>
-          <div style={{ position: 'relative', background: 'var(--v2-dark-2)', borderRadius: 'var(--radius-lg)', padding: 32, maxWidth: 360, textAlign: 'center' }} onClick={e => e.stopPropagation()} dir="rtl">
-            <button type="button" onClick={() => setCloseWizardModalOpen(false)} style={MODAL_CLOSE_X} aria-label="סגור">
-              <X size={20} />
-            </button>
-            <div style={{ marginBottom: 12, display: 'flex', justifyContent: 'center' }}><Save size={40} color="#00C37A" /></div>
-            <h3 style={{ marginBottom: 8 }}>האירוע נשמר כטיוטה</h3>
-            <p style={{ color: 'var(--v2-gray-400)', fontSize: 14, marginBottom: 20 }}>תמצא אותו בקטע הטיוטות</p>
-            <button onClick={doCloseWizard} style={{ padding: '12px 24px', background: 'var(--v2-primary)', color: 'var(--v2-dark)', border: 'none', borderRadius: 'var(--radius-full)', fontWeight: 700, cursor: 'pointer' }}>סגור</button>
-          </div>
-        </div>
-      )}
-
-      {/* Draft delete confirm */}
-      {draftDeleteConfirm && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 60 }} onClick={() => setDraftDeleteConfirm(null)}>
-          <div style={{ position: 'relative', background: 'var(--v2-dark-2)', borderRadius: 'var(--radius-lg)', padding: 32, maxWidth: 360 }} onClick={e => e.stopPropagation()} dir="rtl">
-            <button type="button" onClick={() => setDraftDeleteConfirm(null)} style={MODAL_CLOSE_X} aria-label="סגור">
-              <X size={20} />
-            </button>
-            <h3 style={{ marginBottom: 12 }}>למחוק טיוטה זו?</h3>
-            <div style={{ display: 'flex', gap: 12 }}>
-              <button onClick={() => setDraftDeleteConfirm(null)} style={{ flex: 1, padding: 14, background: 'var(--v2-dark-3)', border: '1px solid var(--glass-border)', borderRadius: 12, color: '#fff', cursor: 'pointer' }}>ביטול</button>
-              <button onClick={() => {
-                const updated = drafts.filter(d => d.draftId !== draftDeleteConfirm.draftId)
-                localStorage.setItem('axess_event_drafts', JSON.stringify(updated))
-                setDrafts(updated)
-                setDraftDeleteConfirm(null)
-              }} style={{ flex: 1, padding: 14, background: '#ef4444', border: 'none', borderRadius: 12, color: '#fff', cursor: 'pointer', fontWeight: 600 }}>מחק</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* MenuBuilder Modal */}
-      {menuBuilderOpen && (
-        <MenuBuilderModal businessId={businessId} onClose={() => { setMenuBuilderOpen(false); fetch(`${API_BASE}/api/admin/menus?business_id=${businessId}`).then(r => r.ok ? r.json() : []).then(setMenus) }} />
-      )}
-
-      {/* Layout/SeatingBuilder Modal */}
-      {layoutBuilderOpen && (
-        <LayoutBuilderModal businessId={businessId} onClose={() => { setLayoutBuilderOpen(false); fetch(`${API_BASE}/api/admin/layouts?business_id=${businessId}`).then(r => r.ok ? r.json() : []).then(setLayouts) }} />
-      )}
-
-      {/* Publish success modal */}
-      {publishSuccessEvent && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 60 }} onClick={() => setPublishSuccessEvent(null)}>
-          <div style={{ position: 'relative', background: 'var(--v2-dark-2)', borderRadius: 'var(--radius-lg)', padding: 32, maxWidth: 420, textAlign: 'center' }} onClick={e => e.stopPropagation()}>
-            <button type="button" onClick={() => setPublishSuccessEvent(null)} style={MODAL_CLOSE_X} aria-label="סגור">
-              <X size={20} />
-            </button>
-            <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'center' }}><Sparkles size={48} color="#00C37A" /></div>
-            <h2 style={{ fontSize: 22, fontWeight: 700, marginBottom: 12 }}>האירוע פורסם!</h2>
-            <div style={{ color: 'var(--v2-gray-400)', marginBottom: 16, fontSize: 14 }}>קישור לשיתוף:</div>
-            <div style={{ padding: 12, background: 'var(--v2-dark-3)', borderRadius: 8, marginBottom: 16, wordBreak: 'break-all', fontSize: 14 }}>axess.me/e/{publishSuccessEvent.slug}</div>
-            <div style={{ display: 'flex', gap: 12, justifyContent: 'center', marginBottom: 16, flexWrap: 'wrap' }}>
-              <a href={`https://wa.me/?text=${encodeURIComponent(`${FRONTEND_URL}/e/${publishSuccessEvent.slug}`)}`} target="_blank" rel="noopener noreferrer" style={{ padding: '10px 20px', background: '#25D366', color: '#fff', borderRadius: 'var(--radius-full)', textDecoration: 'none', fontWeight: 600 }}>WhatsApp</a>
-              <button onClick={() => { copyToClipboard(`${FRONTEND_URL}/e/${publishSuccessEvent.slug}`) }} style={{ padding: '10px 20px', background: 'var(--v2-primary)', color: 'var(--v2-dark)', borderRadius: 'var(--radius-full)', border: 'none', cursor: 'pointer', fontWeight: 600 }}>Copy link</button>
-            </div>
-            <Link to="/dashboard/campaigns" style={{ display: 'block', padding: 12, color: 'var(--v2-primary)', textDecoration: 'none', fontWeight: 600 }}>צור קמפיין SMS לאירוע זה →</Link>
-            <button onClick={() => setPublishSuccessEvent(null)} style={{ marginTop: 16, padding: '10px 24px', background: 'transparent', border: '1px solid var(--glass-border)', borderRadius: 12, color: 'var(--v2-gray-400)', cursor: 'pointer' }}>סגור</button>
-          </div>
-        </div>
-      )}
+      <EventEditModal
+        isOpen={showCreateModal}
+        onClose={() => setShowCreateModal(false)}
+        mode="create"
+        onEventCreated={(newEvent) => {
+          setEvents((prev) => [newEvent, ...prev])
+          setShowCreateModal(false)
+        }}
+        authHeaders={authHeaders}
+        businessId={businessId}
+      />
 
       {/* Floor Status Modal */}
       {floorStatusEvent && (

@@ -92,48 +92,102 @@ function initialFaq(raw) {
   return []
 }
 
-export default function EventEditModal({ event, onClose, onSave: _onSaveIgnored, authHeaders, businessId }) {
-  const contactInfo0 = parseContactInfo(event?.contact_info)
-  const displayConfig0 = (() => {
-    const raw = event?.display_config
-    if (raw && typeof raw === 'object') return raw
-    if (typeof raw === 'string') {
-      try {
-        const p = JSON.parse(raw)
-        return typeof p === 'object' && p !== null ? p : {}
-      } catch {
-        return {}
-      }
+const CREATE_TAB_IDS = ['basic', 'tickets', 'tables', 'venue', 'organizer']
+
+function parseDisplayConfig(raw) {
+  if (raw && typeof raw === 'object') return raw
+  if (typeof raw === 'string') {
+    try {
+      const p = JSON.parse(raw)
+      return typeof p === 'object' && p !== null ? p : {}
+    } catch {
+      return {}
     }
-    return {}
-  })()
-  const [activeTab, setActiveTab] = useState('basic')
-  const [form, setForm] = useState({
-    title: event?.title || '',
-    date: event?.date ? new Date(event.date).toISOString() : '',
-    doors_open: event?.doors_open ? new Date(event.doors_open).toISOString() : '',
-    event_end: event?.event_end ? new Date(event.event_end).toISOString() : '',
-    location: event?.location || '',
-    venue_name: event?.venue_name || '',
-    venue_address: event?.venue_address || '',
-    venue_maps_url: event?.venue_maps_url || '',
-    description: event?.description || '',
-    image_url: event?.image_url || '',
-    cover_image_url: event?.cover_image_url || '',
-    age_restriction: event?.age_restriction || '',
-    dress_code: event?.dress_code || '',
+  }
+  return {}
+}
+
+function buildFormStateFromEvent(ev) {
+  const contactInfo0 = parseContactInfo(ev?.contact_info)
+  const displayConfig0 = parseDisplayConfig(ev?.display_config)
+  return {
+    title: ev?.title || '',
+    date: ev?.date ? new Date(ev.date).toISOString() : '',
+    doors_open: ev?.doors_open ? new Date(ev.doors_open).toISOString() : '',
+    event_end: ev?.event_end ? new Date(ev.event_end).toISOString() : '',
+    location: ev?.location || '',
+    venue_name: ev?.venue_name || '',
+    venue_address: ev?.venue_address || '',
+    venue_maps_url: ev?.venue_maps_url || '',
+    description: ev?.description || '',
+    image_url: ev?.image_url || '',
+    cover_image_url: ev?.cover_image_url || '',
+    age_restriction: ev?.age_restriction || '',
+    dress_code: ev?.dress_code || '',
     venue_image: displayConfig0.venue_image || '',
     organizer_name: contactInfo0.name || '',
     organizer_whatsapp: contactInfo0.whatsapp || '',
     organizer_email: contactInfo0.email || '',
     organizer_avatar: contactInfo0.avatar || '',
-    faq: initialFaq(event?.faq),
-    min_age: event?.min_age ?? 0,
-    approval_mode: event?.approval_mode || 'none',
+    faq: initialFaq(ev?.faq),
+    min_age: ev?.min_age ?? 0,
+    approval_mode: ev?.approval_mode || 'none',
     display_config: { ...displayConfig0 },
-  })
+  }
+}
+
+export default function EventEditModal({
+  event: eventProp = null,
+  eventId: eventIdProp = null,
+  isOpen = true,
+  onClose,
+  onSave,
+  authHeaders,
+  businessId,
+  mode = 'edit',
+  onEventCreated,
+}) {
+  const isCreateMode = mode === 'create'
+  const [fetchedEvent, setFetchedEvent] = useState(null)
+  const effectiveEvent = isCreateMode ? null : (eventProp || fetchedEvent)
+  const [activeTab, setActiveTab] = useState('basic')
+  const [form, setForm] = useState(() => buildFormStateFromEvent(null))
   const [saving, setSaving] = useState(false)
   const [imageUploading, setImageUploading] = useState(false)
+
+  const visibleTabs = isCreateMode ? EDIT_TABS.filter((t) => CREATE_TAB_IDS.includes(t.id)) : EDIT_TABS
+
+  useEffect(() => {
+    if (!isOpen || isCreateMode) {
+      setFetchedEvent(null)
+      return
+    }
+    if (eventProp?.id) {
+      setFetchedEvent(null)
+      return
+    }
+    if (!eventIdProp || !authHeaders) return
+    let cancelled = false
+    fetch(`${API_BASE}/api/admin/events/${eventIdProp}`, { headers: authHeaders() })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (!cancelled && d && !d.error) setFetchedEvent(d)
+      })
+      .catch(() => {})
+    return () => { cancelled = true }
+  }, [isOpen, isCreateMode, eventProp?.id, eventIdProp, authHeaders])
+
+  useEffect(() => {
+    if (!isOpen || !isCreateMode) return
+    setActiveTab('basic')
+    setForm(buildFormStateFromEvent(null))
+    setFetchedEvent(null)
+  }, [isOpen, isCreateMode])
+
+  useEffect(() => {
+    if (!isOpen || isCreateMode || !effectiveEvent?.id) return
+    setForm(buildFormStateFromEvent(effectiveEvent))
+  }, [isOpen, isCreateMode, effectiveEvent?.id])
 
   useEffect(() => {
     const style = document.createElement('style')
@@ -160,7 +214,48 @@ export default function EventEditModal({ event, onClose, onSave: _onSaveIgnored,
     }
   }, [])
 
+  const handleCreate = async () => {
+    if (!form.title?.trim()) {
+      toast.error('יש להזין שם אירוע')
+      return
+    }
+    try {
+      const cleanDate = (val) => (val && String(val).trim() !== '') ? val : null
+      const cleanStr = (val) => (val && String(val).trim() !== '') ? String(val).trim() : null
+      const res = await fetch(`${API_BASE}/api/admin/events`, {
+        method: 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify({
+          business_id: businessId,
+          title: form.title.trim(),
+          date: cleanDate(form.date),
+          doors_open: cleanDate(form.date),
+          event_end: cleanDate(form.event_end),
+          location: cleanStr(form.location),
+          description: cleanStr(form.description),
+          status: 'draft',
+        }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data.error || 'fail')
+      const newEvent = data.event || data
+      if (newEvent?.id) {
+        toast.success(`אירוע נוצר!${newEvent.event_number != null ? ` #${newEvent.event_number}` : ''}`)
+        onEventCreated?.(newEvent)
+        onClose?.()
+      } else {
+        toast.error('שגיאה ביצירת אירוע')
+      }
+    } catch {
+      toast.error('שגיאה ביצירת אירוע')
+    }
+  }
+
   const saveBasic = async () => {
+    if (!effectiveEvent?.id) {
+      toast.error('אירוע לא נטען')
+      return
+    }
     setSaving(true)
 
     const cleanDate = (val) => (val && val.trim() !== '') ? val : null
@@ -191,14 +286,14 @@ export default function EventEditModal({ event, onClose, onSave: _onSaveIgnored,
         avatar: cleanStr(form.organizer_avatar),
       },
       display_config: {
-        ...(event?.display_config || {}),
+        ...(effectiveEvent?.display_config || {}),
         ...(form.display_config || {}),
         venue_image: cleanStr(form.venue_image),
       },
       faq: form.faq || [],
     }
 
-    const res = await fetch(`${API_BASE}/api/admin/events/${event.id}`, {
+    const res = await fetch(`${API_BASE}/api/admin/events/${effectiveEvent.id}`, {
       method: 'PATCH',
       headers: authHeaders(),
       body: JSON.stringify(payload),
@@ -208,6 +303,7 @@ export default function EventEditModal({ event, onClose, onSave: _onSaveIgnored,
 
     if (res.ok) {
       toast.success('השינויים נשמרו!')
+      onSave?.()
     } else {
       const err = await res.json().catch(() => ({}))
       console.error('[save] error:', err)
@@ -246,7 +342,9 @@ export default function EventEditModal({ event, onClose, onSave: _onSaveIgnored,
     reader.readAsDataURL(file)
   }
 
-  const eventUrl = `https://axess.pro/e/${event?.slug}`
+  const eventUrl = `https://axess.pro/e/${effectiveEvent?.slug}`
+
+  if (!isOpen) return null
 
   return (
     <div
@@ -289,7 +387,9 @@ export default function EventEditModal({ event, onClose, onSave: _onSaveIgnored,
             zIndex: 10,
           }}
         >
-          <h2 style={{ margin: 0, fontSize: 17, fontWeight: 800 }}>עריכת אירוע — {event?.title}</h2>
+          <h2 style={{ margin: 0, fontSize: 17, fontWeight: 800 }}>
+            {isCreateMode ? 'אירוע חדש' : (form.title || 'עריכת אירוע')}
+          </h2>
           <button
             type="button"
             onClick={onClose}
@@ -309,7 +409,7 @@ export default function EventEditModal({ event, onClose, onSave: _onSaveIgnored,
             scrollbarWidth: 'none',
           }}
         >
-          {EDIT_TABS.map((tab) => (
+          {visibleTabs.map((tab) => (
             <button
               key={tab.id}
               type="button"
@@ -333,6 +433,7 @@ export default function EventEditModal({ event, onClose, onSave: _onSaveIgnored,
         </div>
 
         <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', padding: '20px' }}>
+          {!isCreateMode && effectiveEvent?.slug && (
           <div
             style={{
               background: 'rgba(0,195,122,0.08)',
@@ -355,8 +456,114 @@ export default function EventEditModal({ event, onClose, onSave: _onSaveIgnored,
               העתק
             </button>
           </div>
+          )}
 
           {activeTab === 'basic' && (
+            isCreateMode ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <div>
+                <label style={{ fontSize: 12, color: 'var(--v2-gray-400)', display: 'block', marginBottom: 4 }}>
+                  שם האירוע *
+                </label>
+                <input
+                  value={form.title}
+                  onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
+                  style={{
+                    width: '100%',
+                    height: 42,
+                    borderRadius: 8,
+                    border: '1px solid var(--glass-border)',
+                    background: 'var(--glass)',
+                    color: 'var(--text)',
+                    padding: '0 12px',
+                    fontSize: 15,
+                    fontWeight: 600,
+                    boxSizing: 'border-box',
+                  }}
+                />
+              </div>
+              <div>
+                <label style={{ fontSize: 12, color: 'var(--v2-gray-400)', display: 'block', marginBottom: 4 }}>
+                  תאריך התחלה
+                </label>
+                <DateTimePicker
+                  value={form.date}
+                  onChange={(v) => setForm((f) => ({ ...f, date: v, doors_open: v }))}
+                  placeholder="בחר תאריך ושעת התחלה"
+                />
+              </div>
+              <div>
+                <label style={{ fontSize: 12, color: 'var(--v2-gray-400)', display: 'block', marginBottom: 4 }}>
+                  תאריך סיום
+                </label>
+                <DateTimePicker
+                  value={form.event_end}
+                  onChange={(v) => setForm((f) => ({ ...f, event_end: v }))}
+                  placeholder="בחר תאריך סיום"
+                />
+              </div>
+              <div>
+                <label style={{ fontSize: 12, color: 'var(--v2-gray-400)', display: 'block', marginBottom: 4 }}>
+                  מיקום
+                </label>
+                <input
+                  value={form.location}
+                  onChange={(e) => setForm((f) => ({ ...f, location: e.target.value }))}
+                  placeholder="מיקום האירוע"
+                  style={{
+                    width: '100%',
+                    height: 42,
+                    borderRadius: 8,
+                    border: '1px solid var(--glass-border)',
+                    background: 'var(--glass)',
+                    color: 'var(--text)',
+                    padding: '0 12px',
+                    fontSize: 14,
+                    boxSizing: 'border-box',
+                  }}
+                />
+              </div>
+              <div>
+                <label style={{ fontSize: 12, color: 'var(--v2-gray-400)', display: 'block', marginBottom: 4 }}>
+                  תיאור
+                </label>
+                <textarea
+                  value={form.description}
+                  onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
+                  placeholder="תיאור קצר של האירוע"
+                  rows={5}
+                  style={{
+                    width: '100%',
+                    borderRadius: 8,
+                    border: '1px solid var(--glass-border)',
+                    background: 'var(--glass)',
+                    color: 'var(--text)',
+                    padding: 12,
+                    fontSize: 14,
+                    boxSizing: 'border-box',
+                    resize: 'vertical',
+                  }}
+                />
+             </div>
+              <button
+                type="button"
+                onClick={handleCreate}
+                style={{
+                  height: 44,
+                  borderRadius: 8,
+                  border: 'none',
+                  background: '#00C37A',
+                  color: '#000',
+                  fontWeight: 700,
+                  fontSize: 15,
+                  cursor: 'pointer',
+                  marginTop: 8,
+                }}
+              >
+                צור אירוע ←
+              </button>
+            </div>
+            ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
               <div>
                 <label style={{ fontSize: 12, color: 'var(--v2-gray-400)', display: 'block', marginBottom: 4 }}>
@@ -680,6 +887,7 @@ export default function EventEditModal({ event, onClose, onSave: _onSaveIgnored,
                 {saving ? 'שומר...' : 'שמור שינויים'}
               </button>
             </div>
+            )
           )}
 
           {activeTab === 'description' && (
@@ -711,7 +919,7 @@ export default function EventEditModal({ event, onClose, onSave: _onSaveIgnored,
                       headers: authHeaders(),
                       body: JSON.stringify({
                         template_type: 'description',
-                        source_event_id: event?.id,
+                        source_event_id: effectiveEvent?.id,
                         template_data: { description: form.description },
                       }),
                     })
@@ -727,9 +935,17 @@ export default function EventEditModal({ event, onClose, onSave: _onSaveIgnored,
             </div>
           )}
 
-          {activeTab === 'tickets' && <TicketsTab eventId={event?.id} authHeaders={authHeaders} />}
+          {activeTab === 'tickets' && (isCreateMode ? (
+            <div style={{ textAlign: 'center', padding: 32, color: 'var(--v2-gray-400)', fontSize: 14 }}>
+              <p style={{ margin: 0 }}>צור תחילה את האירוע בטאב «פרטים» עם כפתור «צור אירוע».</p>
+            </div>
+          ) : <TicketsTab eventId={effectiveEvent?.id} authHeaders={authHeaders} />)}
 
-          {activeTab === 'tables' && (
+          {activeTab === 'tables' && (isCreateMode ? (
+            <div style={{ textAlign: 'center', padding: 32, color: 'var(--v2-gray-400)', fontSize: 14 }}>
+              <p style={{ margin: 0 }}>צור תחילה את האירוע בטאב «פרטים» עם כפתור «צור אירוע».</p>
+            </div>
+          ) : (
             <div style={{ textAlign: 'center', padding: 32, color: 'var(--v2-gray-400)' }}>
               <p>הגדרות שולחנות זמינות בטאב &quot;שולחנות&quot; בדף האירוע</p>
               <p style={{ marginTop: 8, fontSize: 13 }}>
@@ -752,11 +968,11 @@ export default function EventEditModal({ event, onClose, onSave: _onSaveIgnored,
                 עבור לניהול שולחנות
               </button>
             </div>
-          )}
+          ))}
 
-          {activeTab === 'fields' && <RegistrationFieldsTab event={event} authHeaders={authHeaders} />}
+          {activeTab === 'fields' && <RegistrationFieldsTab event={effectiveEvent} authHeaders={authHeaders} />}
 
-          {activeTab === 'promoters' && <PromotersTab eventId={event?.id} authHeaders={authHeaders} />}
+          {activeTab === 'promoters' && <PromotersTab eventId={effectiveEvent?.id} authHeaders={authHeaders} />}
 
           {activeTab === 'staff' && (
             <div>
@@ -765,11 +981,15 @@ export default function EventEditModal({ event, onClose, onSave: _onSaveIgnored,
                   לניהול מלא של הצוות — עבור לטאב &quot;שולחנות&quot; → כפתור &quot;צוות&quot;
                 </p>
               </div>
-              <ScanStationsTab eventId={event?.id} authHeaders={authHeaders} eventSlug={event?.slug} />
+              <ScanStationsTab eventId={effectiveEvent?.id} authHeaders={authHeaders} eventSlug={effectiveEvent?.slug} />
             </div>
           )}
 
-          {activeTab === 'venue' && (
+          {activeTab === 'venue' && (isCreateMode ? (
+            <div style={{ textAlign: 'center', padding: 32, color: 'var(--v2-gray-400)', fontSize: 14 }}>
+              <p style={{ margin: 0 }}>צור תחילה את האירוע בטאב «פרטים» עם כפתור «צור אירוע».</p>
+            </div>
+          ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
                 <div style={{ position: 'relative' }}>
@@ -902,7 +1122,7 @@ export default function EventEditModal({ event, onClose, onSave: _onSaveIgnored,
                     <button
                       type="button"
                       onClick={() => {
-                        const shareUrl = `https://axess.pro/e/${event?.slug}#venue`
+                        const shareUrl = `https://axess.pro/e/${effectiveEvent?.slug}#venue`
                         navigator.clipboard.writeText(shareUrl)
                       }}
                       style={{
@@ -943,9 +1163,13 @@ export default function EventEditModal({ event, onClose, onSave: _onSaveIgnored,
                 שמור
               </button>
             </div>
-          )}
+          ))}
 
-          {activeTab === 'organizer' && (
+          {activeTab === 'organizer' && (isCreateMode ? (
+            <div style={{ textAlign: 'center', padding: 32, color: 'var(--v2-gray-400)', fontSize: 14 }}>
+              <p style={{ margin: 0 }}>צור תחילה את האירוע בטאב «פרטים» עם כפתור «צור אירוע».</p>
+            </div>
+          ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
                 <div style={{ position: 'relative' }}>
@@ -1084,21 +1308,21 @@ export default function EventEditModal({ event, onClose, onSave: _onSaveIgnored,
                 שמור
               </button>
             </div>
-          )}
+          ))}
 
           {activeTab === 'faq' && (
-            <FAQEditTab event={event} form={form} setForm={setForm} authHeaders={authHeaders} />
+            <FAQEditTab event={effectiveEvent} form={form} setForm={setForm} authHeaders={authHeaders} />
           )}
 
           {activeTab === 'webview' && (
-            <WebviewTab event={event} authHeaders={authHeaders} businessId={businessId} />
+            <WebviewTab event={effectiveEvent} authHeaders={authHeaders} businessId={businessId} />
           )}
 
           {activeTab === 'design' && (
-            <DesignTab form={form} setForm={setForm} event={event} authHeaders={authHeaders} onSave={saveBasic} />
+            <DesignTab form={form} setForm={setForm} event={effectiveEvent} authHeaders={authHeaders} onSave={saveBasic} />
           )}
 
-          {activeTab === 'summary' && <SummaryTab event={event} form={form} />}
+          {activeTab === 'summary' && <SummaryTab event={effectiveEvent} form={form} />}
         </div>
       </div>
     </div>
