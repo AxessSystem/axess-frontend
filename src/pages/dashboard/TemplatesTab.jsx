@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from 'react'
-import { Users, UtensilsCrossed, LayoutGrid, Megaphone, Store, Receipt, Save, ChevronDown, ChevronUp, Pencil, Trash2, Search, Plus, X } from 'lucide-react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
+import { Users, UtensilsCrossed, LayoutGrid, Megaphone, Store, Receipt, Save, ChevronDown, ChevronUp, Pencil, Trash2, Search, Plus, X, Copy } from 'lucide-react'
 import toast from 'react-hot-toast'
 import CustomSelect from '@/components/ui/CustomSelect'
 
@@ -41,19 +41,84 @@ const ICONS = {
   receipt: <Receipt size={20} color="#00C37A" />,
 }
 
+const SELECT_MENU_STYLE = { background: '#1e2130', maxHeight: 240, overflowY: 'auto' }
+
+const ConfirmModal = ({ title, message, confirmText, confirmColor = '#ef4444', onConfirm, onCancel }) => (
+  <div style={{
+    position: 'fixed', inset: 0, zIndex: 9999,
+    background: 'rgba(0,0,0,0.6)',
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    padding: 20,
+  }}
+  >
+    <div style={{
+      background: 'var(--card)', borderRadius: 16,
+      padding: 28, maxWidth: 380, width: '100%',
+      border: '1px solid var(--glass-border)', textAlign: 'center',
+    }}
+    >
+      <div style={{ fontSize: 36, marginBottom: 12 }}>⚠️</div>
+      <h3 style={{ margin: '0 0 8px', fontSize: 18, fontWeight: 700 }}>{title}</h3>
+      <p
+        style={{
+          color: 'var(--v2-gray-400)', fontSize: 14, lineHeight: 1.6, margin: '0 0 24px',
+        }}
+        dangerouslySetInnerHTML={{ __html: message }}
+      />
+      <div style={{ display: 'flex', gap: 10 }}>
+        <button
+          type="button"
+          onClick={onCancel}
+          style={{
+            flex: 1, height: 44, borderRadius: 10,
+            border: '1px solid var(--glass-border)',
+            background: 'transparent', color: 'var(--text)',
+            fontSize: 15, cursor: 'pointer',
+          }}
+        >
+          ביטול
+        </button>
+        <button
+          type="button"
+          onClick={onConfirm}
+          style={{
+            flex: 1, height: 44, borderRadius: 10, border: 'none',
+            background: confirmColor, color: '#fff',
+            fontSize: 15, fontWeight: 700, cursor: 'pointer',
+          }}
+        >
+          {confirmText}
+        </button>
+      </div>
+    </div>
+  </div>
+)
+
+function pickActiveRowId(list, businessId) {
+  if (!list.length) return null
+  const owned = list.filter((x) => String(x.business_id) === String(businessId) && !x.is_system)
+  const def = owned.find((x) => x.is_default) || owned[0]
+  if (def) return def.id
+  return list[0].id
+}
+
 export default function TemplatesTab({ eventId, businessId, authHeaders }) {
-  const [templates, setTemplates] = useState({})
+  const [allTemplates, setAllTemplates] = useState([])
+  const [activeRowIdByType, setActiveRowIdByType] = useState({})
   const [expanded, setExpanded] = useState(null)
   const [saving, setSaving] = useState(null)
   const [loading, setLoading] = useState(true)
-  const [activeTemplate, setActiveTemplate] = useState(null)
   const [templateData, setTemplateData] = useState({})
   const [confirmAction, setConfirmAction] = useState(null)
-  const [confirmSave, setConfirmSave] = useState(null) // { templateType }
+  const [confirmSave, setConfirmSave] = useState(null)
+  const [confirmUpgrade, setConfirmUpgrade] = useState(false)
+  const [upgradeTypeKey, setUpgradeTypeKey] = useState(null)
+  const [duplicateModal, setDuplicateModal] = useState(null)
   const [eventSlug, setEventSlug] = useState('')
 
   const requestConfirm = useCallback((message, onConfirm) => {
     setConfirmAction({
+      title: 'אישור פעולה',
       message,
       onConfirm: async () => {
         try {
@@ -82,25 +147,48 @@ export default function TemplatesTab({ eventId, businessId, authHeaders }) {
     return () => { cancelled = true }
   }, [eventId, businessId, authHeaders])
 
-  useEffect(() => {
-    if (expanded && templates[expanded]) {
-      setActiveTemplate(expanded)
-      setTemplateData(templates[expanded].template_data || {})
+  const templatesByType = useMemo(() => {
+    const m = {}
+    for (const row of allTemplates) {
+      if (!m[row.template_type]) m[row.template_type] = []
+      m[row.template_type].push(row)
     }
-  }, [expanded, templates])
+    return m
+  }, [allTemplates])
+
+  useEffect(() => {
+    if (!expanded) return
+    const rid = activeRowIdByType[expanded]
+    const row = allTemplates.find((x) => x.id === rid)
+    if (row) setTemplateData(row.template_data || {})
+  }, [expanded, activeRowIdByType, allTemplates])
 
   const loadTemplates = async () => {
     try {
       const res = await fetch(`${API_BASE}/api/admin/business/${businessId}/templates`, { headers: authHeaders() })
       const data = await res.json()
-      const byType = {}
-      ;(data.templates || []).forEach((t) => { byType[t.template_type] = t })
-      setTemplates(byType)
+      const list = data.templates || []
+      setAllTemplates(list)
+      const next = {}
+      for (const tt of TEMPLATE_TYPES) {
+        const sub = list.filter((x) => x.template_type === tt.id)
+        if (sub.length) next[tt.id] = pickActiveRowId(sub, businessId)
+      }
+      setActiveRowIdByType(next)
     } catch (e) {
       console.error('loadTemplates error:', e)
     } finally {
       setLoading(false)
     }
+  }
+
+  const rowPatchBody = (typeKey, newData) => {
+    const rid = activeRowIdByType[typeKey]
+    const row = allTemplates.find((x) => x.id === rid)
+    const useTid = row && !row.is_system && String(row.business_id) === String(businessId)
+    const body = { template_data: newData }
+    if (useTid && rid) body.template_id = rid
+    return body
   }
 
   const saveTemplate = (templateType) => {
@@ -110,17 +198,30 @@ export default function TemplatesTab({ eventId, businessId, authHeaders }) {
   const doSaveTemplate = async (templateType) => {
     setSaving(templateType)
     try {
+      const rid = activeRowIdByType[templateType]
+      const row = allTemplates.find((x) => x.id === rid)
+      const useTid = row && !row.is_system && String(row.business_id) === String(businessId)
+      const payload = { template_type: templateType, source_event_id: eventId }
+      if (useTid && rid) payload.template_id = rid
       const res = await fetch(`${API_BASE}/api/admin/business/${businessId}/templates`, {
         method: 'POST',
         headers: authHeaders(),
-        body: JSON.stringify({ template_type: templateType, source_event_id: eventId }),
+        body: JSON.stringify(payload),
       })
       const data = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(data.error || data.message || 'שגיאה')
-      setTemplates((prev) => ({
-        ...prev,
-        [templateType]: data.template,
-      }))
+      const updated = data.template
+      setAllTemplates((prev) => {
+        const i = prev.findIndex((x) => x.id === updated.id)
+        if (i >= 0) {
+          const cp = [...prev]
+          cp[i] = updated
+          return cp
+        }
+        return [...prev, updated]
+      })
+      setActiveRowIdByType((p) => ({ ...p, [templateType]: updated.id }))
+      setTemplateData(updated.template_data || {})
       toast.success('תבנית יובאה מהאירוע!')
     } catch (e) {
       toast.error(e.message || 'שגיאה בשמירה')
@@ -130,36 +231,52 @@ export default function TemplatesTab({ eventId, businessId, authHeaders }) {
   }
 
   const handleTemplateUpdate = async (type, newData) => {
-    // עדכן state מקומי:
-    setTemplates((prev) => {
-      const cur = prev[type]
-      if (!cur) return prev
-      return { ...prev, [type]: { ...cur, template_data: newData } }
-    })
-
-    // שמור בDB וחכה לתשובה:
+    const rid = activeRowIdByType[type]
+    setAllTemplates((prev) => prev.map((row) => (row.id === rid ? { ...row, template_data: newData } : row)))
     await fetch(`${API_BASE}/api/admin/business/${businessId}/templates/${type}`, {
       method: 'PATCH',
       headers: authHeaders(),
-      body: JSON.stringify({ template_data: newData }),
+      body: JSON.stringify(rowPatchBody(type, newData)),
     })
+  }
+
+  const duplicateTemplate = (templateId) => {
+    const row = allTemplates.find((x) => x.id === templateId)
+    const base = row?.template_name || 'תבנית'
+    setDuplicateModal({ templateId, typeKey: row?.template_type, name: `${base} (עותק)` })
+  }
+
+  const upgradeTemplate = async (templateType) => {
+    const res = await fetch(`${API_BASE}/api/admin/business/${businessId}/templates/upgrade`, {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify({ template_type: templateType }),
+    })
+    const data = await res.json().catch(() => ({}))
+    if (!res.ok) throw new Error(data.error || data.message || 'שגיאה')
+    await loadTemplates()
   }
 
   const toggleExpand = (t, existing, isExpanded) => {
     if (isExpanded) {
       setExpanded(null)
-      setActiveTemplate(null)
       setTemplateData({})
       return
     }
     setExpanded(t.id)
     if (existing) {
-      setActiveTemplate(t.id)
       setTemplateData(existing.template_data || {})
     } else {
-      setActiveTemplate(null)
       setTemplateData({})
     }
+  }
+
+  const systemNewerThanBizDefault = (typeKey) => {
+    const systemT = allTemplates.find((x) => x.template_type === typeKey && x.is_system)
+    const bizDefault = allTemplates.find((x) => x.template_type === typeKey
+      && String(x.business_id) === String(businessId) && x.is_default && !x.is_system)
+    if (!systemT || !bizDefault) return false
+    return new Date(systemT.updated_at) > new Date(bizDefault.updated_at)
   }
 
   if (loading) return <div style={{ textAlign: 'center', padding: 32, color: 'var(--v2-gray-400)' }}>טוען...</div>
@@ -167,84 +284,95 @@ export default function TemplatesTab({ eventId, businessId, authHeaders }) {
   return (
     <div>
       {confirmSave && (
-        <div
-          style={{
-            position: 'fixed', inset: 0, zIndex: 9999,
-            background: 'rgba(0,0,0,0.6)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
+        <ConfirmModal
+          title="החלפת תבנית"
+          message={`פעולה זו תחליף את כל נתוני התבנית הנוכחית בנתונים מהאירוע הנבחר.<br/><strong style="color:var(--text)">שינויים שערכת ידנית יאבדו.</strong><br/>האם להמשיך?`}
+          confirmText="כן, החלף תבנית"
+          confirmColor="#ef4444"
+          onConfirm={async () => {
+            const { templateType } = confirmSave
+            setConfirmSave(null)
+            await doSaveTemplate(templateType)
           }}
+          onCancel={() => setConfirmSave(null)}
+        />
+      )}
+      {confirmAction && (
+        <ConfirmModal
+          title={confirmAction.title}
+          message={confirmAction.message}
+          confirmText="אישור"
+          confirmColor="#00C37A"
+          onConfirm={() => { Promise.resolve(confirmAction.onConfirm()).catch(() => {}) }}
+          onCancel={() => setConfirmAction(null)}
+        />
+      )}
+      {confirmUpgrade && upgradeTypeKey && (
+        <ConfirmModal
+          title="שדרוג לתבנית מערכת"
+          message={'פעולה זו תחליף את התבנית הנוכחית בגרסה החדשה של תבנית המערכת.<br/><strong>שינויים שערכת ידנית יאבדו.</strong>'}
+          confirmText="שדרג"
+          confirmColor="#00C37A"
+          onConfirm={async () => {
+            setConfirmUpgrade(false)
+            try {
+              await upgradeTemplate(upgradeTypeKey)
+              toast.success('התבנית שודרגה בהצלחה!')
+            } catch (e) {
+              toast.error(e.message || 'שגיאה')
+            }
+          }}
+          onCancel={() => setConfirmUpgrade(false)}
+        />
+      )}
+      {duplicateModal && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 9999, background: 'rgba(0,0,0,0.6)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20,
+        }}
         >
-          <div
-            style={{
-              background: 'var(--card)', borderRadius: 16,
-              padding: 28, maxWidth: 380, width: '90%',
-              border: '1px solid var(--glass-border)',
-              textAlign: 'center',
-            }}
+          <div style={{
+            background: 'var(--card)', borderRadius: 16, padding: 24, maxWidth: 380, width: '100%',
+            border: '1px solid var(--glass-border)',
+          }}
           >
-            <div style={{ fontSize: 36, marginBottom: 12 }}>⚠️</div>
-            <h3 style={{ margin: '0 0 8px', fontSize: 18, fontWeight: 700 }}>
-              החלפת תבנית
-            </h3>
-            <p style={{
-              color: 'var(--v2-gray-400)', fontSize: 14,
-              lineHeight: 1.6, margin: '0 0 24px',
-            }}
-            >
-              פעולה זו תחליף את כל נתוני התבנית הנוכחית בנתונים מהאירוע הנבחר.
-              <br />
-              <strong style={{ color: 'var(--text)' }}>שינויים שערכת ידנית יאבדו.</strong>
-              <br />
-              האם להמשיך?
-            </p>
-            <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
-              <button
-                type="button"
-                onClick={() => setConfirmSave(null)}
-                style={{
-                  flex: 1, height: 44, borderRadius: 10,
-                  border: '1px solid var(--glass-border)',
-                  background: 'transparent', color: 'var(--text)',
-                  fontSize: 15, cursor: 'pointer',
-                }}
-              >
-                ביטול
-              </button>
+            <h3 style={{ margin: '0 0 12px', fontSize: 17 }}>שם לתבנית המשוכפלת</h3>
+            <input
+              value={duplicateModal.name}
+              onChange={(e) => setDuplicateModal((m) => ({ ...m, name: e.target.value }))}
+              style={{
+                width: '100%', height: 40, borderRadius: 8, marginBottom: 16,
+                border: '1px solid var(--glass-border)', background: 'var(--glass)', color: 'var(--text)', padding: '0 10px', boxSizing: 'border-box',
+              }}
+            />
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button type="button" onClick={() => setDuplicateModal(null)} style={{ flex: 1, height: 44, borderRadius: 10, border: '1px solid var(--glass-border)', background: 'transparent', color: 'var(--text)', cursor: 'pointer' }}>ביטול</button>
               <button
                 type="button"
                 onClick={async () => {
-                  const { templateType } = confirmSave
-                  setConfirmSave(null)
-                  await doSaveTemplate(templateType)
+                  try {
+                    const res = await fetch(`${API_BASE}/api/admin/business/${businessId}/templates/duplicate`, {
+                      method: 'POST',
+                      headers: authHeaders(),
+                      body: JSON.stringify({ template_id: duplicateModal.templateId, new_name: duplicateModal.name.trim() || 'עותק' }),
+                    })
+                    const data = await res.json().catch(() => ({}))
+                    if (!res.ok) throw new Error(data.error || 'שגיאה')
+                    const created = data.template
+                    setAllTemplates((prev) => [...prev, created])
+                    if (duplicateModal.typeKey) {
+                      setActiveRowIdByType((p) => ({ ...p, [duplicateModal.typeKey]: created.id }))
+                      setTemplateData(created.template_data || {})
+                    }
+                    setDuplicateModal(null)
+                    toast.success('תבנית שוכפלה')
+                  } catch (e) {
+                    toast.error(e.message || 'שגיאה')
+                  }
                 }}
-                style={{
-                  flex: 1, height: 44, borderRadius: 10,
-                  border: 'none', background: '#ef4444',
-                  color: '#fff', fontSize: 15,
-                  fontWeight: 700, cursor: 'pointer',
-                }}
+                style={{ flex: 1, height: 44, borderRadius: 10, border: 'none', background: '#00C37A', color: '#000', fontWeight: 700, cursor: 'pointer' }}
               >
-                כן, החלף תבנית
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-      {confirmAction && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
-          <div style={{ background: '#1a1d2e', borderRadius: 14, padding: 24, maxWidth: 360, width: '100%', border: '1px solid rgba(255,255,255,0.1)', textAlign: 'center' }}>
-            <p style={{ fontSize: 16, fontWeight: 700, margin: '0 0 8px' }}>אישור פעולה</p>
-            <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.7)', margin: '0 0 20px' }}>{confirmAction.message}</p>
-            <div style={{ display: 'flex', gap: 10 }}>
-              <button type="button" onClick={() => setConfirmAction(null)} style={{ flex: 1, height: 42, borderRadius: 8, border: '1px solid rgba(255,255,255,0.2)', background: 'transparent', color: '#fff', fontWeight: 600, cursor: 'pointer' }}>
-                ביטול
-              </button>
-              <button
-                type="button"
-                onClick={() => { Promise.resolve(confirmAction.onConfirm()).catch(() => {}) }}
-                style={{ flex: 1, height: 42, borderRadius: 8, border: 'none', background: '#00C37A', color: '#000', fontWeight: 700, cursor: 'pointer' }}
-              >
-                אישור
+                שכפל
               </button>
             </div>
           </div>
@@ -258,10 +386,13 @@ export default function TemplatesTab({ eventId, businessId, authHeaders }) {
       </div>
 
       {TEMPLATE_TYPES.map((t) => {
-        const existing = templates[t.id]
+        const list = templatesByType[t.id] || []
+        const activeTemplateId = activeRowIdByType[t.id] || pickActiveRowId(list, businessId)
+        const existing = list.find((r) => r.id === activeTemplateId) || list[0]
         const isExpanded = expanded === t.id
-        const dataForPanel = activeTemplate === t.id && isExpanded ? templateData : (existing?.template_data || {})
+        const dataForPanel = isExpanded ? templateData : (existing?.template_data || {})
         const alwaysShow = ['staff', 'promoters', 'vendors']
+        const canUpgrade = systemNewerThanBizDefault(t.id)
 
         return (
           <div key={t.id} style={{ marginBottom: 10, borderRadius: 12, border: `1px solid ${isExpanded ? 'rgba(0,195,122,0.3)' : 'var(--glass-border)'}`, overflow: 'hidden', transition: 'all 0.2s' }}>
@@ -297,8 +428,53 @@ export default function TemplatesTab({ eventId, businessId, authHeaders }) {
             {/* תוכן מורחב */}
             {isExpanded && (existing || alwaysShow.includes(t.id)) && (
               <div style={{ padding: '12px 16px', background: 'rgba(0,0,0,0.2)', borderTop: '1px solid var(--glass-border)' }}>
+                {list.length > 0 && (
+                  <div style={{ display: 'flex', gap: 8, marginBottom: 16, alignItems: 'center' }}>
+                    <CustomSelect
+                      value={activeTemplateId || ''}
+                      onChange={(v) => {
+                        setActiveRowIdByType((p) => ({ ...p, [t.id]: v }))
+                        const row = list.find((r) => r.id === v)
+                        if (row) setTemplateData(row.template_data || {})
+                      }}
+                      options={list.map((row) => ({
+                        value: row.id,
+                        label: `${row.template_name || row.template_type}${row.is_default ? ' ★' : ''}`,
+                      }))}
+                      style={{ flex: 1, background: '#1e2130' }}
+                      menuStyle={SELECT_MENU_STYLE}
+                    />
+                    <button
+                      type="button"
+                      title="שכפל תבנית"
+                      onClick={() => activeTemplateId && duplicateTemplate(activeTemplateId)}
+                      disabled={!activeTemplateId}
+                      style={{
+                        height: 36, padding: '0 12px', borderRadius: 8,
+                        border: '1px solid var(--glass-border)', background: 'transparent',
+                        color: 'var(--text)', cursor: activeTemplateId ? 'pointer' : 'not-allowed', fontSize: 13,
+                      }}
+                    >
+                      <Copy size={14} />
+                    </button>
+                    {canUpgrade && (
+                      <button
+                        type="button"
+                        title="שדרג לתבנית מערכת"
+                        onClick={() => { setUpgradeTypeKey(t.id); setConfirmUpgrade(true) }}
+                        style={{
+                          height: 36, padding: '0 12px', borderRadius: 8,
+                          border: '1px solid #00C37A', background: 'rgba(0,195,122,0.1)',
+                          color: '#00C37A', cursor: 'pointer', fontSize: 13,
+                        }}
+                      >
+                        ↑ שדרג
+                      </button>
+                    )}
+                  </div>
+                )}
                 <TemplateContent
-                  key={String(existing?.updated_at ?? t.id)}
+                  key={`${activeTemplateId ?? 'x'}_${String(existing?.updated_at ?? t.id)}`}
                   type={t.id}
                   data={dataForPanel}
                   onUpdate={(newData) => handleTemplateUpdate(t.id, newData)}
@@ -349,6 +525,10 @@ function StaffTemplate({ data, onUpdate, eventId, businessId, authHeaders, reque
   const [sourceEventId, setSourceEventId] = useState(eventId)
   const [showEventPicker, setShowEventPicker] = useState(false)
   const selectedEvent = allEvents.find((ev) => ev.id === sourceEventId)
+  const [memberExtraRoleIdx, setMemberExtraRoleIdx] = useState(null)
+  const [memberExtraRoleText, setMemberExtraRoleText] = useState('')
+  const [newMemberCustomRoleOpen, setNewMemberCustomRoleOpen] = useState(false)
+  const [newMemberCustomRoleDraft, setNewMemberCustomRoleDraft] = useState('')
 
   const ROLES = [
     'בעלים', 'מנהל ערב', 'מנהל שולחנות', 'מנהל בר',
@@ -381,6 +561,78 @@ function StaffTemplate({ data, onUpdate, eventId, businessId, authHeaders, reque
 
   return (
     <div>
+      {memberExtraRoleIdx !== null && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 10001, background: 'rgba(0,0,0,0.55)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20,
+        }}
+        >
+          <div style={{ background: 'var(--card)', borderRadius: 14, padding: 22, width: '100%', maxWidth: 360, border: '1px solid var(--glass-border)' }}>
+            <p style={{ margin: '0 0 10px', fontWeight: 700 }}>הוסף תפקיד לאירוע זה</p>
+            <input
+              value={memberExtraRoleText}
+              onChange={(e) => setMemberExtraRoleText(e.target.value)}
+              placeholder="שם תפקיד"
+              style={{ width: '100%', height: 40, borderRadius: 8, border: '1px solid var(--glass-border)', background: 'var(--glass)', color: 'var(--text)', padding: '0 10px', marginBottom: 14, boxSizing: 'border-box' }}
+            />
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button type="button" onClick={() => { setMemberExtraRoleIdx(null); setMemberExtraRoleText('') }} style={{ flex: 1, height: 40, borderRadius: 8, border: '1px solid var(--glass-border)', background: 'transparent', color: 'var(--text)', cursor: 'pointer' }}>ביטול</button>
+              <button
+                type="button"
+                onClick={() => {
+                  const role = memberExtraRoleText.trim()
+                  if (!role) return
+                  const i = memberExtraRoleIdx
+                  const updated = staff.map((s, idx) => (idx === i ? {
+                    ...s,
+                    roles: [...(Array.isArray(s.roles) ? s.roles : [s.role].filter(Boolean)), role],
+                  } : s))
+                  setStaff(updated)
+                  onUpdate({ staff: updated })
+                  setMemberExtraRoleIdx(null)
+                  setMemberExtraRoleText('')
+                }}
+                style={{ flex: 1, height: 40, borderRadius: 8, border: 'none', background: '#00C37A', color: '#000', fontWeight: 700, cursor: 'pointer' }}
+              >
+                הוסף
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {newMemberCustomRoleOpen && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 10001, background: 'rgba(0,0,0,0.55)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20,
+        }}
+        >
+          <div style={{ background: 'var(--card)', borderRadius: 14, padding: 22, width: '100%', maxWidth: 360, border: '1px solid var(--glass-border)' }}>
+            <p style={{ margin: '0 0 10px', fontWeight: 700 }}>שם תפקיד חדש</p>
+            <input
+              value={newMemberCustomRoleDraft}
+              onChange={(e) => setNewMemberCustomRoleDraft(e.target.value)}
+              style={{ width: '100%', height: 40, borderRadius: 8, border: '1px solid var(--glass-border)', background: 'var(--glass)', color: 'var(--text)', padding: '0 10px', marginBottom: 14, boxSizing: 'border-box' }}
+            />
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button type="button" onClick={() => { setNewMemberCustomRoleOpen(false); setNewMemberCustomRoleDraft('') }} style={{ flex: 1, height: 40, borderRadius: 8, border: '1px solid var(--glass-border)', background: 'transparent', color: 'var(--text)', cursor: 'pointer' }}>ביטול</button>
+              <button
+                type="button"
+                onClick={() => {
+                  const r = newMemberCustomRoleDraft.trim()
+                  if (!r) return
+                  setCustomRoles((prev) => [...prev, r])
+                  setNewMember((f) => ({ ...f, role: r }))
+                  setNewMemberCustomRoleOpen(false)
+                  setNewMemberCustomRoleDraft('')
+                }}
+                style={{ flex: 1, height: 40, borderRadius: 8, border: 'none', background: '#00C37A', color: '#000', fontWeight: 700, cursor: 'pointer' }}
+              >
+                שמור
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       <div style={{ position: 'relative', marginBottom: 12 }}>
         <label style={{ fontSize: 12, color: 'var(--v2-gray-400)', display: 'block', marginBottom: 4 }}>
           טען צוות מאירוע:
@@ -460,14 +712,8 @@ function StaffTemplate({ data, onUpdate, eventId, businessId, authHeaders, reque
               <button
                 type="button"
                 onClick={() => {
-                  const role = window.prompt('הוסף תפקיד לאירוע זה:')
-                  if (!role) return
-                  const updated = staff.map((s, idx) => (idx === i ? {
-                    ...s,
-                    roles: [...(Array.isArray(s.roles) ? s.roles : [s.role].filter(Boolean)), role],
-                  } : s))
-                  setStaff(updated)
-                  onUpdate({ staff: updated })
+                  setMemberExtraRoleText('')
+                  setMemberExtraRoleIdx(i)
                 }}
                 style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#3B82F6', fontSize: 11 }}
               >
@@ -509,21 +755,20 @@ function StaffTemplate({ data, onUpdate, eventId, businessId, authHeaders, reque
             <input value={newMember.phone} onChange={(e) => setNewMember((f) => ({ ...f, phone: e.target.value }))} placeholder="נייד WA *" style={{ height: 36, borderRadius: 6, border: '1px solid var(--glass-border)', background: 'var(--card)', color: 'var(--text)', padding: '0 10px', fontSize: 13 }} />
 
             <div style={{ display: 'flex', gap: 6 }}>
-              <select
+              <CustomSelect
                 value={newMember.role}
-                onChange={(e) => {
-                  if (e.target.value === '__new__') {
-                    const r = window.prompt('שם תפקיד חדש:')
-                    if (r) { setCustomRoles((prev) => [...prev, r]); setNewMember((f) => ({ ...f, role: r })) }
+                onChange={(v) => {
+                  if (v === '__new__') {
+                    setNewMemberCustomRoleDraft('')
+                    setNewMemberCustomRoleOpen(true)
                   } else {
-                    setNewMember((f) => ({ ...f, role: e.target.value }))
+                    setNewMember((f) => ({ ...f, role: v }))
                   }
                 }}
-                style={{ flex: 1, height: 36, borderRadius: 6, border: '1px solid var(--glass-border)', background: 'var(--card)', color: 'var(--text)', padding: '0 8px', fontSize: 13 }}
-              >
-                {allRoles.map((r) => <option key={r} value={r}>{r}</option>)}
-                <option value="__new__">+ תפקיד חדש</option>
-              </select>
+                options={[...allRoles.map((r) => ({ value: r, label: r })), { value: '__new__', label: '+ תפקיד חדש' }]}
+                style={{ flex: 1, background: '#1e2130' }}
+                menuStyle={SELECT_MENU_STYLE}
+              />
             </div>
 
             {(newMember.role === 'סורק/ת' || newMember.role === 'סלקטור/ית') && (
@@ -608,6 +853,9 @@ function MenuTemplate({ data, onUpdate, eventId, businessId, authHeaders, reques
     name: '', category: '', price: '', description: '', unit: 'bottle', free_entries: 3, free_extras: 5, included_extras: [],
   })
   const [customCategories, setCustomCategories] = useState([])
+  const [deleteMenuIdx, setDeleteMenuIdx] = useState(null)
+  const [newCategoryOpen, setNewCategoryOpen] = useState(false)
+  const [newCategoryDraft, setNewCategoryDraft] = useState('')
 
   const categoryOptions = [...PRESET_MENU_CATEGORIES, ...new Set(menu.map((m) => m.category).filter(Boolean)), ...customCategories]
   const filtered = menu.filter((m) => !search
@@ -656,6 +904,53 @@ function MenuTemplate({ data, onUpdate, eventId, businessId, authHeaders, reques
 
   return (
     <div>
+      {deleteMenuIdx !== null && (
+        <ConfirmModal
+          title="מחיקת פריט"
+          message="למחוק פריט זה מהתבנית?"
+          confirmText="מחק"
+          confirmColor="#ef4444"
+          onConfirm={async () => {
+            const i = deleteMenuIdx
+            setDeleteMenuIdx(null)
+            await deleteItem(i)
+          }}
+          onCancel={() => setDeleteMenuIdx(null)}
+        />
+      )}
+      {newCategoryOpen && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 10001, background: 'rgba(0,0,0,0.55)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20,
+        }}
+        >
+          <div style={{ background: 'var(--card)', borderRadius: 14, padding: 22, width: '100%', maxWidth: 360, border: '1px solid var(--glass-border)' }}>
+            <p style={{ margin: '0 0 10px', fontWeight: 700 }}>שם קטגוריה חדשה</p>
+            <input
+              value={newCategoryDraft}
+              onChange={(e) => setNewCategoryDraft(e.target.value)}
+              style={{ width: '100%', height: 40, borderRadius: 8, border: '1px solid var(--glass-border)', background: 'var(--glass)', color: 'var(--text)', padding: '0 10px', marginBottom: 14, boxSizing: 'border-box' }}
+            />
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button type="button" onClick={() => { setNewCategoryOpen(false); setNewCategoryDraft('') }} style={{ flex: 1, height: 40, borderRadius: 8, border: '1px solid var(--glass-border)', background: 'transparent', color: 'var(--text)', cursor: 'pointer' }}>ביטול</button>
+              <button
+                type="button"
+                onClick={() => {
+                  const c = newCategoryDraft.trim()
+                  if (!c) return
+                  setCustomCategories((p) => [...p, c])
+                  setNewItem((f) => ({ ...f, category: c }))
+                  setNewCategoryOpen(false)
+                  setNewCategoryDraft('')
+                }}
+                style={{ flex: 1, height: 40, borderRadius: 8, border: 'none', background: '#00C37A', color: '#000', fontWeight: 700, cursor: 'pointer' }}
+              >
+                שמור
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       <div style={{ position: 'relative', marginBottom: 12 }}>
         <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="חפש מוצר או קטגוריה..." style={{ width: '100%', height: 40, borderRadius: 8, border: '1px solid var(--glass-border)', background: 'var(--glass)', color: 'var(--text)', padding: '0 36px 0 12px', fontSize: 13, boxSizing: 'border-box' }} />
         <Search size={15} style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--v2-gray-400)' }} />
@@ -725,7 +1020,7 @@ function MenuTemplate({ data, onUpdate, eventId, businessId, authHeaders, reques
 
                 <button
                   type="button"
-                  onClick={() => deleteItem(menu.indexOf(item))}
+                  onClick={() => setDeleteMenuIdx(menu.indexOf(item))}
                   style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#EF4444', padding: 4 }}
                 >
                   <Trash2 size={14} />
@@ -746,20 +1041,24 @@ function MenuTemplate({ data, onUpdate, eventId, businessId, authHeaders, reques
             </div>
             <div>
               <label style={{ fontSize: 11, color: 'var(--v2-gray-400)', display: 'block', marginBottom: 3 }}>קטגוריה *</label>
-              <select
-                value={newItem.category}
-                onChange={(e) => {
-                  if (e.target.value === '__new__') {
-                    const c = window.prompt('שם קטגוריה חדשה:')
-                    if (c) { setCustomCategories((p) => [...p, c]); setNewItem((f) => ({ ...f, category: c })) }
-                  } else setNewItem((f) => ({ ...f, category: e.target.value }))
+              <CustomSelect
+                value={newItem.category || ''}
+                placeholder="בחר קטגוריה"
+                onChange={(v) => {
+                  if (v === '__new__') {
+                    setNewCategoryDraft('')
+                    setNewCategoryOpen(true)
+                  } else {
+                    setNewItem((f) => ({ ...f, category: v }))
+                  }
                 }}
-                style={{ width: '100%', height: 36, borderRadius: 6, border: '1px solid var(--glass-border)', background: 'var(--card)', color: 'var(--text)', padding: '0 8px', fontSize: 13 }}
-              >
-                <option value="">בחר קטגוריה</option>
-                {categoryOptions.filter((c, idx, arr) => arr.indexOf(c) === idx).map((c) => <option key={c} value={c}>{c}</option>)}
-                <option value="__new__">+ קטגוריה חדשה</option>
-              </select>
+                options={[
+                  ...categoryOptions.filter((c, idx, arr) => arr.indexOf(c) === idx).map((c) => ({ value: c, label: c })),
+                  { value: '__new__', label: '+ קטגוריה חדשה' },
+                ]}
+                style={{ width: '100%', background: '#1e2130' }}
+                menuStyle={SELECT_MENU_STYLE}
+              />
             </div>
             <div>
               <label style={{ fontSize: 11, color: 'var(--v2-gray-400)', display: 'block', marginBottom: 3 }}>מחיר בש&quot;ח לליטר/בקבוק *</label>
@@ -1219,9 +1518,13 @@ function PromotersTemplate({ data: _data, onUpdate: _onUpdate, businessId, authH
             <input value={newPromoter.email} onChange={(e) => setNewPromoter((f) => ({ ...f, email: e.target.value }))} placeholder="מייל" style={{ height: 36, borderRadius: 6, border: '1px solid var(--glass-border)', background: 'var(--card)', color: 'var(--text)', padding: '0 10px', fontSize: 13 }} />
             <input value={newPromoter.identification_number} onChange={(e) => setNewPromoter((f) => ({ ...f, identification_number: e.target.value }))} placeholder="ת.ז (לחשבונית)" style={{ height: 36, borderRadius: 6, border: '1px solid var(--glass-border)', background: 'var(--card)', color: 'var(--text)', padding: '0 10px', fontSize: 13 }} />
 
-            <select value={newPromoter.role} onChange={(e) => setNewPromoter((f) => ({ ...f, role: e.target.value }))} style={{ height: 36, borderRadius: 6, border: '1px solid var(--glass-border)', background: 'var(--card)', color: 'var(--text)', padding: '0 8px', fontSize: 13 }}>
-              {ROLES.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
-            </select>
+            <CustomSelect
+              value={newPromoter.role}
+              onChange={(v) => setNewPromoter((f) => ({ ...f, role: v }))}
+              options={ROLES.map((r) => ({ value: r.value, label: r.label }))}
+              style={{ height: 36, background: '#1e2130' }}
+              menuStyle={SELECT_MENU_STYLE}
+            />
 
             <div style={{ display: 'flex', gap: 6 }}>
               <input value={newPromoter.seller_code} onChange={(e) => setNewPromoter((f) => ({ ...f, seller_code: e.target.value }))} placeholder="קוד יחצ'ן (ייווצר אוטומטי)" style={{ flex: 1, height: 36, borderRadius: 6, border: '1px solid var(--glass-border)', background: 'var(--card)', color: 'var(--text)', padding: '0 10px', fontSize: 13 }} />
@@ -1235,15 +1538,17 @@ function PromotersTemplate({ data: _data, onUpdate: _onUpdate, businessId, authH
             <div style={{ background: 'rgba(0,195,122,0.05)', borderRadius: 8, padding: 10, border: '1px solid rgba(0,195,122,0.15)' }}>
               <p style={{ margin: '0 0 8px', fontSize: 12, fontWeight: 700 }}>🎫 עמלת כרטיסים</p>
               <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-                <select
+                <CustomSelect
                   value={newPromoter.ticket_commission_type || 'pct'}
-                  onChange={(e) => setNewPromoter((f) => ({ ...f, ticket_commission_type: e.target.value }))}
-                  style={{ flex: 1, minWidth: 140, height: 34, borderRadius: 6, border: '1px solid var(--glass-border)', background: 'var(--card)', color: 'var(--text)', padding: '0 8px', fontSize: 12 }}
-                >
-                  <option value="pct">% מהמכירות</option>
-                  <option value="fixed">₪ קבוע לכרטיס</option>
-                  <option value="fixed_per_n">₪ על כל X כרטיסים</option>
-                </select>
+                  onChange={(v) => setNewPromoter((f) => ({ ...f, ticket_commission_type: v }))}
+                  options={[
+                    { value: 'pct', label: '% מהמכירות' },
+                    { value: 'fixed', label: '₪ קבוע לכרטיס' },
+                    { value: 'fixed_per_n', label: '₪ על כל X כרטיסים' },
+                  ]}
+                  style={{ flex: 1, minWidth: 140, height: 34, background: '#1e2130' }}
+                  menuStyle={SELECT_MENU_STYLE}
+                />
                 <input
                   value={newPromoter.commission_per_ticket}
                   onChange={(e) => setNewPromoter((f) => ({ ...f, commission_per_ticket: parseFloat(e.target.value) || 0 }))}
@@ -1465,6 +1770,8 @@ function VendorsTemplate({ data: _data, onUpdate: _onUpdate, eventId: _eventId, 
                 value={vendorForm.vendor_type}
                 onChange={(v) => setVendorForm((f) => ({ ...f, vendor_type: v }))}
                 options={INVOICE_TYPES}
+                style={{ background: '#1e2130' }}
+                menuStyle={SELECT_MENU_STYLE}
               />
               <CustomSelect
                 value={vendorForm.category}
@@ -1477,6 +1784,8 @@ function VendorsTemplate({ data: _data, onUpdate: _onUpdate, eventId: _eventId, 
                   ...EXPENSE_CATEGORIES,
                   { value: 'custom', label: '+ הוסף קטגוריה חדשה' },
                 ]}
+                style={{ background: '#1e2130' }}
+                menuStyle={SELECT_MENU_STYLE}
               />
               {vendorForm.category === 'custom' && (
                 <input

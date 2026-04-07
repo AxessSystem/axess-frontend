@@ -8,6 +8,7 @@ const CustomSelect = ({
   onChange, 
   placeholder = 'בחר...', 
   style = {},
+  menuStyle = {},
   disabled = false,
   light = false,
   searchable = false,
@@ -133,6 +134,7 @@ const CustomSelect = ({
             maxHeight: searchable ? 280 : 220,
             overflowY: 'auto',
             scrollbarWidth: 'thin',
+            ...menuStyle,
           }}
           onMouseDown={(e) => e.stopPropagation()}
         >
