@@ -606,7 +606,11 @@ function MenuTemplate({ data, onUpdate, eventId, businessId, authHeaders, reques
               )
             </p>
 
-            {items.map((item, i) => (
+            {items.map((item, i) => {
+              const extrasCount = Array.isArray(item.included_extras)
+                ? item.included_extras.length
+                : (Number(item.included_extras) || 0)
+              return (
               <div
                 key={item.id || `${cat}_${i}`}
                 style={{
@@ -623,7 +627,9 @@ function MenuTemplate({ data, onUpdate, eventId, businessId, authHeaders, reques
                   )}
                   <p style={{ margin: '3px 0 0', fontSize: 11, color: 'rgba(0,195,122,0.7)' }}>
                     {item.free_entries > 0 ? `${item.free_entries} כניסות חינם` : 'ללא כניסות חינם'}
-                    {item.included_extras?.length > 0 && ` · ${item.included_extras.length} תוספות כלולות`}
+                    {extrasCount > 0 && (
+                      <span>{` · ${extrasCount} תוספות כלולות`}</span>
+                    )}
                   </p>
                 </div>
 
@@ -652,7 +658,8 @@ function MenuTemplate({ data, onUpdate, eventId, businessId, authHeaders, reques
                   <Trash2 size={14} />
                 </button>
               </div>
-            ))}
+              )
+            })}
           </div>
         ))}
       </div>
@@ -771,14 +778,19 @@ function MenuTemplate({ data, onUpdate, eventId, businessId, authHeaders, reques
           onClick={() => {
             requestConfirm('לייבא תפריט מהתבנית לאירוע זה?', async () => {
               for (const item of menu) {
-                const { id: _id, ...rest } = item
                 await fetch(`${API_BASE}/api/admin/events/${eventId}/table-menu`, {
                   method: 'POST',
                   headers: authHeaders(),
                   body: JSON.stringify({
-                    name: rest.name,
-                    category: rest.category,
-                    price: rest.price,
+                    name: item.name,
+                    category: item.category,
+                    price: item.price,
+                    description: item.description || null,
+                    extras_detail: item.extras_detail || null,
+                    free_entries: item.free_entries || 0,
+                    included_extras: Array.isArray(item.included_extras)
+                      ? item.included_extras.length
+                      : (Number(item.included_extras) || 0),
                   }),
                 }).catch(() => {})
               }
@@ -830,7 +842,13 @@ function MenuTemplate({ data, onUpdate, eventId, businessId, authHeaders, reques
                 type="button"
                 onClick={async () => {
                   const { index, ...fields } = editingItem
-                  const newMenu = menu.map((it, i) => (i === index ? { ...it, ...fields } : it))
+                  const fixedFields = {
+                    ...fields,
+                    included_extras: Array.isArray(fields.included_extras)
+                      ? fields.included_extras
+                      : new Array(Number(fields.included_extras) || 0).fill(''),
+                  }
+                  const newMenu = menu.map((it, i) => (i === index ? { ...it, ...fixedFields } : it))
                   setMenu(newMenu)
                   await onUpdate({ menu: newMenu })
                   setEditingItem(null)
