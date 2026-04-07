@@ -416,7 +416,8 @@ export default function TemplatesTab({ eventId, businessId, authHeaders }) {
                   type="button"
                   onClick={(e) => {
                     e.stopPropagation()
-                    handleTemplateUpdate(t.id, templateData)
+                    const payload = expanded === t.id ? templateData : (existing?.template_data || {})
+                    handleTemplateUpdate(t.id, payload)
                   }}
                   style={{
                     height: 36, padding: '0 14px', borderRadius: 8,
