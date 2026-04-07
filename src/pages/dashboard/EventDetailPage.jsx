@@ -8,6 +8,8 @@ import {
 import toast from 'react-hot-toast'
 import { useAuth } from '@/contexts/AuthContext'
 import CustomSelect from '@/components/ui/CustomSelect'
+import SeatingBuilder from '@/components/SeatingBuilder'
+import Tooltip from '@/components/ui/Tooltip'
 import EventTables from './EventTables'
 import TemplatesTab from './TemplatesTab'
 import { exportToExcel, exportEventReport, exportAudienceToExcel } from '@/utils/exportExcel'
@@ -99,6 +101,117 @@ function formatEventDate(dateVal) {
   } catch {
     return '—'
   }
+}
+
+const MODAL_CLOSE_X = {
+  position: 'absolute',
+  top: 12,
+  left: 12,
+  background: 'none',
+  border: 'none',
+  cursor: 'pointer',
+  color: 'var(--v2-gray-400)',
+  padding: 4,
+  borderRadius: 6,
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+}
+
+function MenuBuilderModal({ businessId, onClose }) {
+  const [name, setName] = useState('')
+  const [categories, setCategories] = useState([{ name: '', items: [] }])
+  const [saving, setSaving] = useState(false)
+  const addCategory = () => setCategories(c => [...c, { name: '', items: [] }])
+  const addItem = (ci) => setCategories(c => c.map((cat, i) => i === ci ? { ...cat, items: [...cat.items, { name: '', price: 0, description: '', image_url: '' }] } : cat))
+  const updateCat = (ci, fn, v) => setCategories(c => c.map((cat, i) => i === ci ? { ...cat, [fn]: v } : cat))
+  const updateItem = (ci, ii, fn, v) => setCategories(c => c.map((cat, i) => i === ci ? { ...cat, items: cat.items.map((it, j) => j === ii ? { ...it, [fn]: v } : it) } : cat))
+
+  const handleSave = async (asDraft = true) => {
+    if (!name.trim()) return
+    setSaving(true)
+    try {
+      const items = categories.flatMap(c => c.items.filter(i => i.name).map(i => ({ name: i.name, price: i.price, description: i.description, category: c.name || null })))
+      const res = await fetch(`${API_BASE}/api/admin/menus`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ business_id: businessId, name: name.trim(), items }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'שגיאה')
+      toast.success('התפריט נשמר')
+      onClose()
+    } catch (e) {
+      toast.error(e.message || 'שגיאה')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={onClose}>
+      <div style={{ position: 'relative', zIndex: 301, background: 'var(--v2-dark-2)', borderRadius: 'var(--radius-lg)', padding: 32, maxWidth: 500, width: '90%', maxHeight: '90vh', overflowY: 'auto' }} onClick={e => e.stopPropagation()} dir="rtl">
+        <button type="button" onClick={onClose} style={MODAL_CLOSE_X} aria-label="סגור">
+          <X size={20} />
+        </button>
+        <h3 style={{ marginBottom: 20 }}>צור תפריט חדש</h3>
+        <input value={name} onChange={e => setName(e.target.value)} placeholder="שם התפריט" style={{ width: '100%', padding: 12, marginBottom: 20, borderRadius: 12, border: '1px solid var(--glass-border)', background: 'var(--v2-dark-3)', color: '#fff' }} />
+        {categories.map((cat, ci) => (
+          <div key={ci} style={{ marginBottom: 20, padding: 16, background: 'var(--v2-dark-3)', borderRadius: 12 }}>
+            <input value={cat.name} onChange={e => updateCat(ci, 'name', e.target.value)} placeholder="שם קטגוריה" style={{ width: '100%', padding: 10, marginBottom: 12, borderRadius: 8, border: '1px solid var(--glass-border)', background: 'var(--v2-dark-2)', color: '#fff' }} />
+            {cat.items.map((it, ii) => (
+              <div key={ii} style={{ display: 'flex', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
+                <input value={it.name} onChange={e => updateItem(ci, ii, 'name', e.target.value)} placeholder="שם פריט" style={{ flex: 1, minWidth: 100, padding: 8, borderRadius: 8, border: '1px solid var(--glass-border)', background: 'var(--v2-dark-2)', color: '#fff' }} />
+                <input type="number" value={it.price} onChange={e => updateItem(ci, ii, 'price', parseFloat(e.target.value) || 0)} placeholder="מחיר" style={{ width: 80, padding: 8, borderRadius: 8, border: '1px solid var(--glass-border)', background: 'var(--v2-dark-2)', color: '#fff' }} />
+                <input value={it.description} onChange={e => updateItem(ci, ii, 'description', e.target.value)} placeholder="תיאור" style={{ width: '100%', padding: 8, borderRadius: 8, border: '1px solid var(--glass-border)', background: 'var(--v2-dark-2)', color: '#fff' }} />
+              </div>
+            ))}
+            <button onClick={() => addItem(ci)} style={{ padding: '8px 16px', background: 'transparent', border: '1px dashed var(--glass-border)', borderRadius: 8, color: 'var(--v2-gray-400)', cursor: 'pointer', fontSize: 13 }}>הוסף פריט</button>
+          </div>
+        ))}
+        <button onClick={addCategory} style={{ marginBottom: 20, padding: '10px 16px', background: 'var(--v2-dark-3)', border: '1px solid var(--glass-border)', borderRadius: 8, color: '#fff', cursor: 'pointer' }}>הוסף קטגוריה</button>
+        <div style={{ display: 'flex', gap: 12 }}>
+          <button onClick={() => handleSave(true)} disabled={saving || !name.trim()} style={{ flex: 1, padding: 14, borderRadius: 'var(--radius-full)', background: 'var(--v2-dark-3)', border: '1px solid var(--glass-border)', color: '#fff', cursor: saving ? 'wait' : 'pointer' }}>שמור כטיוטה</button>
+          <button onClick={() => handleSave(false)} disabled={saving || !name.trim()} style={{ flex: 1, padding: 14, borderRadius: 'var(--radius-full)', background: 'var(--v2-primary)', color: 'var(--v2-dark)', fontWeight: 700, border: 'none', cursor: saving ? 'wait' : 'pointer' }}>פרסם</button>
+          <button onClick={onClose} style={{ padding: 14, borderRadius: 'var(--radius-full)', border: '1px solid var(--glass-border)', color: 'var(--v2-gray-400)', cursor: 'pointer', background: 'transparent' }}>ביטול</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function LayoutBuilderModal({ businessId, onClose }) {
+  const [name, setName] = useState('')
+  const [config, setConfig] = useState(null)
+
+  const handleSave = (cfg) => {
+    if (!name.trim()) { toast.error('הזן שם לסקיצה'); return }
+    fetch(`${API_BASE}/api/admin/layouts`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ business_id: businessId, name: name.trim(), template_type: cfg.template_type || 'theater', config: cfg }),
+    })
+      .then(r => r.json())
+      .then(data => {
+        if (data.error) throw new Error(data.error)
+        toast.success('הסקיצה נשמרה')
+        onClose()
+      })
+      .catch(e => toast.error(e.message || 'שגיאה'))
+  }
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={onClose}>
+      <div style={{ position: 'relative', zIndex: 301, background: 'var(--v2-dark-2)', borderRadius: 'var(--radius-lg)', padding: 32, maxWidth: 600, width: '90%', maxHeight: '90vh', overflowY: 'auto' }} onClick={e => e.stopPropagation()} dir="rtl">
+        <button type="button" onClick={onClose} style={MODAL_CLOSE_X} aria-label="סגור">
+          <X size={20} />
+        </button>
+        <h3 style={{ marginBottom: 16 }}>צור סקיצה חדשה</h3>
+        <input value={name} onChange={e => setName(e.target.value)} placeholder="שם הסקיצה (למשל: תצורת שולחנות VIP)" style={{ width: '100%', padding: 12, marginBottom: 20, borderRadius: 12, border: '1px solid var(--glass-border)', background: 'var(--v2-dark-3)', color: '#fff' }} />
+        <SeatingBuilder eventId={null} initialConfig={config} onSave={(cfg) => handleSave(cfg)} onCancel={onClose} />
+      </div>
+    </div>
+  )
 }
 
 function downloadChannelReport(ordersData, channelName) {
@@ -721,6 +834,11 @@ export default function EventDetailPage() {
     permission: 'view',
     expires_days: 7,
   })
+  const [menus, setMenus] = useState([])
+  const [layouts, setLayouts] = useState([])
+  const [menuBuilderOpen, setMenuBuilderOpen] = useState(false)
+  const [layoutBuilderOpen, setLayoutBuilderOpen] = useState(false)
+  const [menuSketchForm, setMenuSketchForm] = useState({ linked_menu_ids: [], linked_layout_ids: [] })
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768)
   useEffect(() => {
     const handler = () => setIsMobile(window.innerWidth < 768)
@@ -827,6 +945,27 @@ export default function EventDetailPage() {
       })) || []))
       .catch(() => {})
   }, [showShareReport, id])
+
+  useEffect(() => {
+    if (!businessId) return
+    Promise.all([
+      fetch(`${API_BASE}/api/admin/menus?business_id=${businessId}`, { headers: authHeaders() })
+        .then((r) => (r.ok ? r.json() : [])),
+      fetch(`${API_BASE}/api/admin/layouts?business_id=${businessId}`, { headers: authHeaders() })
+        .then((r) => (r.ok ? r.json() : [])),
+    ]).then(([m, l]) => { setMenus(m); setLayouts(l) }).catch(() => {})
+  }, [businessId, authHeaders])
+
+  useEffect(() => {
+    if (!id || !businessId) return
+    fetch(`${API_BASE}/api/admin/events/${id}/links`, { headers: authHeaders() })
+      .then((r) => (r.ok ? r.json() : { linked_menu_ids: [], linked_layout_ids: [] }))
+      .then((d) => setMenuSketchForm({
+        linked_menu_ids: (d.linked_menu_ids || []).map(String),
+        linked_layout_ids: (d.linked_layout_ids || []).map(String),
+      }))
+      .catch(() => {})
+  }, [id, businessId, authHeaders])
 
   const approveOrder = async (orderId) => {
     try {
@@ -3702,23 +3841,160 @@ export default function EventDetailPage() {
         )}
 
         {activeTab === 'menu' && (
-          <div style={{ padding: '24px 0' }}>
-            {/* תפריטים */}
-            <div style={{ background: 'var(--glass)', border: '1px solid var(--glass-border)', borderRadius: 16, padding: 24, marginBottom: 20 }}>
-              <h3 style={{ margin: '0 0 16px', fontSize: 16, fontWeight: 700 }}>תפריטים מקושרים</h3>
-              <p style={{ color: 'var(--v2-gray-400)', fontSize: 13, margin: 0 }}>
-                ניהול תפריטים וסקיצות עבור האירוע הזה יתווסף בקרוב.
-              </p>
+          <>
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ display: 'block', marginBottom: 6, color: 'var(--v2-gray-400)' }}>תפריטים <Tooltip text="תפריט מקושר לאירוע יוצג ב-Validator של הלקוח" /></label>
+              <CustomSelect
+                value=""
+                onChange={async (val) => {
+                  if (!val || !id) return
+                  try {
+                    const r = await fetch(`${API_BASE}/api/admin/events/${id}/menus`, {
+                      method: 'POST',
+                      headers: authHeaders(),
+                      body: JSON.stringify({ menu_id: val }),
+                    })
+                    if (!r.ok) throw new Error()
+                    setMenuSketchForm((f) => ({ ...f, linked_menu_ids: [...new Set([...(f.linked_menu_ids || []), String(val)])] }))
+                    toast.success('התפריט נקשר לאירוע')
+                  } catch {
+                    toast.error('שגיאה בקישור תפריט')
+                  }
+                }}
+                placeholder="הוסף תפריט לקישור"
+                style={{ width: '100%', padding: 12, borderRadius: 12, border: '1px solid var(--glass-border)', background: 'var(--v2-dark-3)', color: '#fff' }}
+                options={(() => {
+                  const avail = menus.filter(m => !(menuSketchForm.linked_menu_ids || []).map(String).includes(String(m.id)))
+                  let placeholderLabel = 'בחר תפריט להוספה'
+                  if (!menus.length) placeholderLabel = 'אין תפריטים — צור תפריט חדש'
+                  else if (!avail.length) placeholderLabel = 'כל התפריטים כבר קשורים'
+                  return [{ value: '', label: placeholderLabel }, ...avail.map(m => ({ value: m.id, label: m.name }))]
+                })()}
+              />
+              {(menuSketchForm.linked_menu_ids || []).length > 0 && (
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 10 }}>
+                  {(menuSketchForm.linked_menu_ids || []).map((menuId) => {
+                    const m = menus.find(x => String(x.id) === String(menuId))
+                    return (
+                      <span key={menuId} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 10px', background: 'var(--v2-dark-2)', borderRadius: 8, fontSize: 13, border: '1px solid var(--glass-border)' }}>
+                        {m?.name || menuId}
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            if (!id) return
+                            try {
+                              const r = await fetch(`${API_BASE}/api/admin/events/${id}/menus/${encodeURIComponent(menuId)}`, {
+                                method: 'DELETE',
+                                headers: authHeaders(),
+                              })
+                              if (!r.ok) throw new Error()
+                              setMenuSketchForm((f) => ({ ...f, linked_menu_ids: (f.linked_menu_ids || []).filter(x => String(x) !== String(menuId)) }))
+                            } catch {
+                              toast.error('שגיאה בהסרת תפריט')
+                            }
+                          }}
+                          style={{ background: 'none', border: 'none', color: 'var(--v2-gray-400)', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center' }}
+                          aria-label="הסר תפריט"
+                        >
+                          <X size={14} />
+                        </button>
+                      </span>
+                    )
+                  })}
+                </div>
+              )}
+              <button type="button" onClick={() => setMenuBuilderOpen(true)} style={{ marginTop: 8, padding: '8px 16px', background: 'var(--v2-dark-3)', border: '1px solid var(--glass-border)', borderRadius: 8, color: '#fff', cursor: 'pointer' }}>צור תפריט חדש</button>
             </div>
-            {/* סקיצות */}
-            <div style={{ background: 'var(--glass)', border: '1px solid var(--glass-border)', borderRadius: 16, padding: 24 }}>
-              <h3 style={{ margin: '0 0 16px', fontSize: 16, fontWeight: 700 }}>סקיצות מקום</h3>
-              <p style={{ color: 'var(--v2-gray-400)', fontSize: 13, margin: 0 }}>
-                ניהול סקיצות עבור האירוע הזה יתווסף בקרוב.
-              </p>
+            <div style={{ marginBottom: 24 }}>
+              <label style={{ display: 'block', marginBottom: 6, color: 'var(--v2-gray-400)' }}>סקיצות <Tooltip text="סקיצה שמורה ניתנת לשימוש חוזר באירועים עתידיים" /></label>
+              <CustomSelect
+                value=""
+                onChange={async (val) => {
+                  if (!val || !id) return
+                  try {
+                    const r = await fetch(`${API_BASE}/api/admin/events/${id}/layouts`, {
+                      method: 'POST',
+                      headers: authHeaders(),
+                      body: JSON.stringify({ venue_layout_id: val }),
+                    })
+                    if (!r.ok) throw new Error()
+                    setMenuSketchForm((f) => ({ ...f, linked_layout_ids: [...new Set([...(f.linked_layout_ids || []), String(val)])] }))
+                    toast.success('הסקיצה נקשרה לאירוע')
+                  } catch {
+                    toast.error('שגיאה בקישור סקיצה')
+                  }
+                }}
+                placeholder="הוסף סקיצה לקישור"
+                style={{ width: '100%', padding: 12, borderRadius: 12, border: '1px solid var(--glass-border)', background: 'var(--v2-dark-3)', color: '#fff' }}
+                options={(() => {
+                  const avail = layouts.filter(l => !(menuSketchForm.linked_layout_ids || []).map(String).includes(String(l.id)))
+                  let placeholderLabel = 'בחר סקיצה להוספה'
+                  if (!layouts.length) placeholderLabel = 'אין סקיצות — צור סקיצה חדשה'
+                  else if (!avail.length) placeholderLabel = 'כל הסקיצות כבר קשורות'
+                  return [{ value: '', label: placeholderLabel }, ...avail.map(l => ({ value: l.id, label: l.name }))]
+                })()}
+              />
+              {(menuSketchForm.linked_layout_ids || []).length > 0 && (
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 10 }}>
+                  {(menuSketchForm.linked_layout_ids || []).map((layoutId) => {
+                    const l = layouts.find(x => String(x.id) === String(layoutId))
+                    return (
+                      <span key={layoutId} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 10px', background: 'var(--v2-dark-2)', borderRadius: 8, fontSize: 13, border: '1px solid var(--glass-border)' }}>
+                        {l?.name || layoutId}
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            if (!id) return
+                            try {
+                              const r = await fetch(`${API_BASE}/api/admin/events/${id}/layouts/${encodeURIComponent(layoutId)}`, {
+                                method: 'DELETE',
+                                headers: authHeaders(),
+                              })
+                              if (!r.ok) throw new Error()
+                              setMenuSketchForm((f) => ({ ...f, linked_layout_ids: (f.linked_layout_ids || []).filter(x => String(x) !== String(layoutId)) }))
+                            } catch {
+                              toast.error('שגיאה בהסרת סקיצה')
+                            }
+                          }}
+                          style={{ background: 'none', border: 'none', color: 'var(--v2-gray-400)', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center' }}
+                          aria-label="הסר סקיצה"
+                        >
+                          <X size={14} />
+                        </button>
+                      </span>
+                    )
+                  })}
+                </div>
+              )}
+              <button type="button" onClick={() => setLayoutBuilderOpen(true)} style={{ marginTop: 8, padding: '8px 16px', background: 'var(--v2-dark-3)', border: '1px solid var(--glass-border)', borderRadius: 8, color: '#fff', cursor: 'pointer' }}>צור סקיצה חדשה</button>
             </div>
-          </div>
+          </>
         )}
+
+      {menuBuilderOpen && (
+        <MenuBuilderModal
+          businessId={businessId}
+          onClose={() => {
+            setMenuBuilderOpen(false)
+            if (!businessId) return
+            fetch(`${API_BASE}/api/admin/menus?business_id=${businessId}`, { headers: authHeaders() })
+              .then((r) => (r.ok ? r.json() : []))
+              .then(setMenus)
+          }}
+        />
+      )}
+      {layoutBuilderOpen && (
+        <LayoutBuilderModal
+          businessId={businessId}
+          onClose={() => {
+            setLayoutBuilderOpen(false)
+            if (!businessId) return
+            fetch(`${API_BASE}/api/admin/layouts?business_id=${businessId}`, { headers: authHeaders() })
+              .then((r) => (r.ok ? r.json() : []))
+              .then(setLayouts)
+          }}
+        />
+      )}
       </div>
     </div>
   )
