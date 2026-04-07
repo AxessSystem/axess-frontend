@@ -411,41 +411,7 @@ export default function TemplatesTab({ eventId, businessId, authHeaders }) {
                   {existing ? `עודכן: ${new Date(existing.updated_at).toLocaleDateString('he-IL')}` : t.desc}
                 </p>
               </div>
-              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    const payload = expanded === t.id ? templateData : (existing?.template_data || {})
-                    handleTemplateUpdate(t.id, payload)
-                  }}
-                  style={{
-                    height: 36, padding: '0 14px', borderRadius: 8,
-                    border: '1px solid var(--glass-border)',
-                    background: 'transparent', color: 'var(--text)',
-                    fontSize: 13, cursor: 'pointer',
-                  }}
-                >
-                  שמור לאירוע זה
-                </button>
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    setConfirmSave({ templateType: t.id })
-                  }}
-                  disabled={saving === t.id}
-                  style={{
-                    height: 36, padding: '0 14px', borderRadius: 8,
-                    border: 'none', background: '#00C37A',
-                    color: '#000', fontWeight: 700,
-                    fontSize: 13, cursor: saving === t.id ? 'wait' : 'pointer',
-                    display: 'flex', alignItems: 'center', gap: 6,
-                  }}
-                >
-                  <Save size={13} />
-                  עדכן תבנית עסק
-                </button>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0 }}>
                 {isExpanded ? <ChevronUp size={16} color="var(--v2-gray-400)" /> : <ChevronDown size={16} color="var(--v2-gray-400)" />}
               </div>
             </div>
@@ -453,8 +419,16 @@ export default function TemplatesTab({ eventId, businessId, authHeaders }) {
             {/* תוכן מורחב */}
             {isExpanded && (existing || alwaysShow.includes(t.id)) && (
               <div style={{ padding: '12px 16px', background: 'rgba(0,0,0,0.2)', borderTop: '1px solid var(--glass-border)' }}>
-                {list.length > 0 && (
-                  <div style={{ display: 'flex', gap: 8, marginBottom: 16, alignItems: 'center' }}>
+                {/* שורת כפתורים — responsive */}
+                <div style={{
+                  display: 'flex',
+                  flexWrap: 'wrap',
+                  gap: 8,
+                  marginBottom: 16,
+                  alignItems: 'center',
+                }}
+                >
+                  {list.length > 0 && (
                     <CustomSelect
                       value={activeTemplateId || ''}
                       onChange={(v) => {
@@ -466,18 +440,23 @@ export default function TemplatesTab({ eventId, businessId, authHeaders }) {
                         value: row.id,
                         label: `${row.template_name || row.template_type}${row.is_default ? ' ★' : ''}`,
                       }))}
-                      style={{ flex: 1, background: '#1e2130' }}
+                      style={{ flex: '1 1 140px', minWidth: 0, background: '#1e2130' }}
                       menuStyle={SELECT_MENU_STYLE}
                     />
+                  )}
+                  <div style={{ display: 'flex', gap: 8, flexShrink: 0, flexWrap: 'wrap' }}>
                     <button
                       type="button"
                       title="שכפל תבנית"
                       onClick={() => activeTemplateId && duplicateTemplate(activeTemplateId)}
                       disabled={!activeTemplateId}
                       style={{
-                        height: 36, padding: '0 12px', borderRadius: 8,
-                        border: '1px solid var(--glass-border)', background: 'transparent',
-                        color: 'var(--text)', cursor: activeTemplateId ? 'pointer' : 'not-allowed', fontSize: 13,
+                        height: 36, width: 36, borderRadius: 8,
+                        border: '1px solid var(--glass-border)',
+                        background: 'transparent', color: 'var(--text)',
+                        cursor: activeTemplateId ? 'pointer' : 'not-allowed',
+                        display: 'flex',
+                        alignItems: 'center', justifyContent: 'center',
                       }}
                     >
                       <Copy size={14} />
@@ -488,16 +467,50 @@ export default function TemplatesTab({ eventId, businessId, authHeaders }) {
                         title="שדרג לתבנית מערכת"
                         onClick={() => { setUpgradeTypeKey(t.id); setConfirmUpgrade(true) }}
                         style={{
-                          height: 36, padding: '0 12px', borderRadius: 8,
-                          border: '1px solid #00C37A', background: 'rgba(0,195,122,0.1)',
-                          color: '#00C37A', cursor: 'pointer', fontSize: 13,
+                          height: 36, padding: '0 10px', borderRadius: 8,
+                          border: '1px solid #00C37A',
+                          background: 'rgba(0,195,122,0.1)',
+                          color: '#00C37A', cursor: 'pointer',
+                          fontSize: 12, fontWeight: 600,
                         }}
                       >
-                        ↑ שדרג
+                        ↑
                       </button>
                     )}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const payload = expanded === t.id ? templateData : (existing?.template_data || {})
+                        handleTemplateUpdate(t.id, payload)
+                      }}
+                      style={{
+                        height: 36, padding: '0 12px', borderRadius: 8,
+                        border: '1px solid var(--glass-border)',
+                        background: 'transparent', color: 'var(--text)',
+                        fontSize: 13, cursor: 'pointer',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      שמור לאירוע
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setConfirmSave({ templateType: t.id })}
+                      disabled={saving === t.id}
+                      style={{
+                        height: 36, padding: '0 12px', borderRadius: 8,
+                        border: 'none', background: '#00C37A',
+                        color: '#000', fontWeight: 700,
+                        fontSize: 13, cursor: saving === t.id ? 'wait' : 'pointer',
+                        whiteSpace: 'nowrap',
+                        display: 'flex', alignItems: 'center', gap: 4,
+                      }}
+                    >
+                      <Save size={13} />
+                      <span>עדכן תבנית</span>
+                    </button>
                   </div>
-                )}
+                </div>
                 <TemplateContent
                   key={`${activeTemplateId ?? 'x'}_${String(existing?.updated_at ?? t.id)}`}
                   type={t.id}
