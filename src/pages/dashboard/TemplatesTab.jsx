@@ -480,9 +480,35 @@ export default function TemplatesTab({ eventId, businessId, authHeaders }) {
                     )}
                     <button
                       type="button"
-                      onClick={() => {
-                        const payload = expanded === t.id ? templateData : (existing?.template_data || {})
-                        handleTemplateUpdate(t.id, payload)
+                      onClick={async () => {
+                        const payload = expanded === t.id
+                          ? templateData
+                          : (existing?.template_data || {})
+
+                        const menuItems = payload.menu || []
+                        if (!menuItems.length) return
+
+                        try {
+                          // עדכן כל פריט ב-event_table_menu של האירוע
+                          await Promise.all(menuItems.map((item) => item.id && fetch(
+                            `${API_BASE}/api/admin/events/${eventId}/table-menu/${item.id}`,
+                            {
+                              method: 'PATCH',
+                              headers: authHeaders(),
+                              body: JSON.stringify({
+                                price: item.price,
+                                name: item.name,
+                                free_entries: item.free_entries,
+                                free_extras: item.free_extras,
+                                free_extras_type: item.free_extras_type,
+                                included_extras: item.included_extras || [],
+                              }),
+                            },
+                          )))
+                          toast.success('התפריט עודכן לאירוע זה בלבד ✓')
+                        } catch (err) {
+                          toast.error('שגיאה בשמירת התפריט לאירוע')
+                        }
                       }}
                       style={{
                         height: 36, padding: '0 12px', borderRadius: 8,
