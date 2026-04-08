@@ -922,15 +922,7 @@ function MenuTemplate({ data, onUpdate, eventId, businessId, authHeaders, reques
           onUpdate({ menu: d.menu })
         }
       })
-      .catch(() => {
-        fetch(`${API_BASE}/api/admin/events/00000000-0000-0000-0000-000000000000/table-menu`, { headers: hdrs })
-          .then((r) => r.json())
-          .then((d) => {
-            if (cancelled || !d.menu?.length) return
-            setMenu((prev) => (prev.length > 0 ? prev : d.menu))
-          })
-          .catch(() => {})
-      })
+      .catch(() => {})
     return () => { cancelled = true }
   }, [eventId, businessId, data?.menu])
 
