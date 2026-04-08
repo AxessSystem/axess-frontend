@@ -292,7 +292,8 @@ export default function TemplatesTab({ eventId, businessId, authHeaders }) {
           onConfirm={async () => {
             const { templateType } = confirmSave
             setConfirmSave(null)
-            await doSaveTemplate(templateType)
+            await handleTemplateUpdate(templateType, templateData)
+            toast.success('תבנית עודכנה בהצלחה!')
           }}
           onCancel={() => setConfirmSave(null)}
         />
