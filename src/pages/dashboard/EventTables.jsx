@@ -2447,7 +2447,15 @@ export default function EventTables({
                                   {
                                     method: 'PATCH',
                                     headers: authHeaders(),
-                                    body: JSON.stringify({ price: parseFloat(editMenuPrice) }),
+                                    body: JSON.stringify({
+                                      price: parseFloat(editMenuPrice),
+                                      name: item.name,
+                                      is_available: item.is_available,
+                                      included_extras: parseMenuIncludedExtras(item.included_extras),
+                                      free_entries: item.free_entries,
+                                      free_extras: item.free_extras,
+                                      free_extras_type: item.free_extras_type,
+                                    }),
                                   },
                                 )
                                 setEditMenuItemId(null)
@@ -2568,6 +2576,46 @@ export default function EventTables({
             <p style={{ margin: '0 0 12px', fontSize: 12, color: 'var(--v2-gray-400)' }}>
               סמן פריטים מקטגוריית &quot;תוספות&quot; בתפריט
             </p>
+            <div style={{ display: 'flex', gap: 10, marginTop: 10 }}>
+              <div>
+                <label style={{ fontSize: 12, color: 'var(--v2-gray-400)' }}>אנשים חינם לבקבוק</label>
+                <input
+                  type="number"
+                  value={editingExtrasFor.free_entries || 0}
+                  onChange={(e) =>
+                    setEditingExtrasFor((f) => ({ ...f, free_entries: Number(e.target.value) }))
+                  }
+                  style={{
+                    width: '100%',
+                    padding: '8px 12px',
+                    borderRadius: 8,
+                    background: 'var(--glass)',
+                    border: '1px solid var(--glass-border)',
+                    color: 'var(--text)',
+                    textAlign: 'center',
+                  }}
+                />
+              </div>
+              <div>
+                <label style={{ fontSize: 12, color: 'var(--v2-gray-400)' }}>תוספות לבקבוק</label>
+                <input
+                  type="number"
+                  value={editingExtrasFor.free_extras || 0}
+                  onChange={(e) =>
+                    setEditingExtrasFor((f) => ({ ...f, free_extras: Number(e.target.value) }))
+                  }
+                  style={{
+                    width: '100%',
+                    padding: '8px 12px',
+                    borderRadius: 8,
+                    background: 'var(--glass)',
+                    border: '1px solid var(--glass-border)',
+                    color: 'var(--text)',
+                    textAlign: 'center',
+                  }}
+                />
+              </div>
+            </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               {uniqueMenuItems
                 .filter((m) => m.category === 'תוספות')
@@ -2634,7 +2682,15 @@ export default function EventTables({
                     {
                       method: 'PATCH',
                       headers: authHeaders(),
-                      body: JSON.stringify({ included_extras: editingExtrasFor.included_extras || [] }),
+                      body: JSON.stringify({
+                        price: editingExtrasFor.price,
+                        name: editingExtrasFor.name,
+                        is_available: editingExtrasFor.is_available,
+                        included_extras: editingExtrasFor.included_extras,
+                        free_entries: editingExtrasFor.free_entries,
+                        free_extras: editingExtrasFor.free_extras,
+                        free_extras_type: editingExtrasFor.free_extras_type,
+                      }),
                     },
                   )
                   setEditingExtrasFor(null)
