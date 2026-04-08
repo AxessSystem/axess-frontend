@@ -2686,7 +2686,7 @@ export default function EventTables({
                         price: editingExtrasFor.price,
                         name: editingExtrasFor.name,
                         is_available: editingExtrasFor.is_available,
-                        included_extras: editingExtrasFor.included_extras,
+                        included_extras: editingExtrasFor.included_extras || [],
                         free_entries: editingExtrasFor.free_entries,
                         free_extras: editingExtrasFor.free_extras,
                         free_extras_type: editingExtrasFor.free_extras_type,
