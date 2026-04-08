@@ -321,7 +321,7 @@ export function TableBookingModalContent({
                           {item.category}
                           {incl.length > 0 && (
                             <span style={{ color: 'rgba(0,195,122,0.6)', marginRight: 6 }}>
-                              · {incl.length} תוספות כלולות
+                              · תוספת לבחירה לכל בקבוק
                             </span>
                           )}
                         </p>
