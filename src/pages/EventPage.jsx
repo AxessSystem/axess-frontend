@@ -682,20 +682,23 @@ export default function EventPage() {
     const freePeople = freeRule.people ?? 3
     const freePeopleBelow = freeRule.below_threshold_people ?? 2
     const priceThreshold = freeRule.price_threshold ?? 1000
-    const extrasPerBottle = freeRule.per_liter ?? 1
     const drinks = Object.values(form.selected_drinks || {})
     const totalBottles = drinks.reduce((s, d) => s + (d.quantity || 0), 0)
     const drinksTotal = drinks.reduce((s, d) => s + parseFloat(d.price || 0) * (d.quantity || 0), 0)
     let totalFreePeople = 0
-    for (const d of drinks) {
-      const q = d.quantity || 0
-      const p = parseFloat(d.price || 0)
-      const perBottle = p >= priceThreshold ? freePeople : freePeopleBelow
-      totalFreePeople += perBottle * q
-    }
+    Object.values(form.selected_drinks || {}).forEach((drink) => {
+      const q = drink.quantity || 0
+      if (q <= 0) return
+      const p = parseFloat(drink.price || 0)
+      const freePerBottle = drink.free_entries ?? (p >= priceThreshold ? freePeople : freePeopleBelow)
+      totalFreePeople += freePerBottle * q
+    })
     const extraPeople = Math.max(0, form.guest_count - totalFreePeople)
     const extraTicketsCost = extraPeople * (form.extra_ticket_price || 0)
-    const maxExtras = Math.max(0, Math.round(totalBottles * extrasPerBottle))
+    const maxExtras = drinks.reduce(
+      (s, d) => s + (Number(d.free_extras) || 0) * (d.quantity || 0),
+      0,
+    )
     return {
       drinksTotal,
       totalBottles,
@@ -1482,9 +1485,12 @@ export default function EventPage() {
               position: 'relative',
               background: '#0a1628',
               borderRadius: '20px 20px 0 0',
-              padding: '20px 16px 40px',
-              maxHeight: '92vh',
-              overflowY: 'auto',
+              padding: 0,
+              height: '85vh',
+              maxHeight: '85vh',
+              overflow: 'hidden',
+              display: 'flex',
+              flexDirection: 'column',
               border: '1px solid rgba(255,255,255,0.1)',
             }}
             onClick={(e) => e.stopPropagation()}

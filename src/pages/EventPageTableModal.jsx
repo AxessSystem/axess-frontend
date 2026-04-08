@@ -2,19 +2,6 @@ import { useState } from 'react'
 import { Wine, ShoppingBag, CreditCard, Check, Users, Search, X } from 'lucide-react'
 import toast from 'react-hot-toast'
 
-function normIncludedExtras(x) {
-  if (Array.isArray(x)) return x
-  if (typeof x === 'string') {
-    try {
-      const p = JSON.parse(x)
-      return Array.isArray(p) ? p : []
-    } catch {
-      return []
-    }
-  }
-  return []
-}
-
 export function TableBookingModalContent({
   modalTicket,
   event,
@@ -41,9 +28,11 @@ export function TableBookingModalContent({
 }) {
   const [drinkSearch, setDrinkSearch] = useState('')
   const isSmartTable = modalTicket?.metadata?.table_type === 'smart'
-  const freeRule = modalTicket?.metadata?.free_rule || {}
-  const freePeopleRule = freeRule.people ?? 3
-  const priceThresholdRule = freeRule.price_threshold ?? 1000
+  const menuItems = (event.table_menu || []).filter((item) => item.category !== 'תוספות')
+  const extrasOptions = (event.table_menu || []).filter((item) => item.category === 'תוספות')
+  const hasExtras = Object.values(tableForm.selected_drinks || {}).some(
+    (d) => (d.free_extras || 0) > 0 && d.quantity > 0,
+  )
 
   const backTo = (nextStep) => {
     trackStep?.(tableStep)
@@ -156,70 +145,96 @@ export function TableBookingModalContent({
   const maxGuests = tableForm.guest_count - 1
 
   return (
-    <>
+    <div
+      style={{
+        height: '85vh',
+        display: 'flex',
+        flexDirection: 'column',
+        minHeight: 0,
+      }}
+    >
       <div
         style={{
-          position: 'relative',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          marginBottom: 16,
+          position: 'sticky',
+          top: 0,
+          zIndex: 10,
+          background: 'var(--card)',
+          padding: '16px 20px',
+          borderBottom: '1px solid var(--glass-border)',
+          flexShrink: 0,
         }}
       >
         <div
           style={{
-            width: 40,
-            height: 4,
-            borderRadius: 2,
-            background: 'rgba(255,255,255,0.2)',
-            margin: '0 auto',
-          }}
-        />
-        <button
-          type="button"
-          onClick={() => {
-            if (!paying) resetAfterClose()
-          }}
-          style={{
-            position: 'absolute',
-            top: 16,
-            left: 16,
-            background: 'rgba(255,255,255,0.1)',
-            border: 'none',
-            borderRadius: '50%',
-            width: 32,
-            height: 32,
-            cursor: paying ? 'not-allowed' : 'pointer',
-            color: '#fff',
-            fontSize: 18,
+            position: 'relative',
             display: 'flex',
+            justifyContent: 'space-between',
             alignItems: 'center',
-            justifyContent: 'center',
+            marginBottom: 16,
           }}
         >
-          <X size={18} />
-        </button>
-      </div>
-      <div style={{ marginBottom: 20 }}>
-        <h3 style={{ margin: '0 0 8px', fontSize: 18, fontWeight: 800 }}>{modalTicket.name}</h3>
-        <div style={{ display: 'flex', gap: 4 }}>
-          {[1, 2, 3, 4, 5, 6, 7].map((s) => (
-            <div
-              key={s}
-              style={{
-                flex: 1,
-                height: 3,
-                borderRadius: 2,
-                background: s <= tableStep ? '#00C37A' : 'rgba(255,255,255,0.1)',
-              }}
-            />
-          ))}
+          <div
+            style={{
+              width: 40,
+              height: 4,
+              borderRadius: 2,
+              background: 'rgba(255,255,255,0.2)',
+              margin: '0 auto',
+            }}
+          />
+          <button
+            type="button"
+            onClick={() => {
+              if (!paying) resetAfterClose()
+            }}
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              background: 'rgba(255,255,255,0.1)',
+              border: 'none',
+              borderRadius: '50%',
+              width: 32,
+              height: 32,
+              cursor: paying ? 'not-allowed' : 'pointer',
+              color: '#fff',
+              fontSize: 18,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <X size={18} />
+          </button>
         </div>
-        <p style={{ margin: '6px 0 0', fontSize: 12, color: 'rgba(255,255,255,0.4)' }}>
-          שלב {tableStep} מתוך 7
-        </p>
+        <div style={{ marginBottom: 0 }}>
+          <h3 style={{ margin: '0 0 8px', fontSize: 18, fontWeight: 800 }}>{modalTicket.name}</h3>
+          <div style={{ display: 'flex', gap: 4 }}>
+            {[1, 2, 3, 4, 5, 6, 7].map((s) => (
+              <div
+                key={s}
+                style={{
+                  flex: 1,
+                  height: 3,
+                  borderRadius: 2,
+                  background: s <= tableStep ? '#00C37A' : 'rgba(255,255,255,0.1)',
+                }}
+              />
+            ))}
+          </div>
+          <p style={{ margin: '6px 0 0', fontSize: 12, color: 'rgba(255,255,255,0.4)' }}>
+            שלב {tableStep} מתוך 7
+          </p>
+        </div>
       </div>
-
+      <div
+        style={{
+          flex: 1,
+          minHeight: 0,
+          overflowY: 'auto',
+          padding: '16px 20px',
+        }}
+      >
       {tableStep === 1 && (
         <div>
           <h3 style={{ margin: '0 0 12px', fontSize: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -256,18 +271,9 @@ export function TableBookingModalContent({
             />
           </div>
 
-          <div
-            style={{
-              maxHeight: 380,
-              overflowY: 'auto',
-              scrollbarWidth: 'thin',
-              scrollbarColor: 'rgba(0,195,122,0.3) transparent',
-            }}
-          >
+          <div>
             {Object.entries(
-              (event.table_menu || [])
-                .filter((m) => m.category !== 'תוספות')
-                .filter(
+              menuItems.filter(
                   (m) =>
                     !drinkSearch
                     || String(m.name || '')
@@ -299,7 +305,14 @@ export function TableBookingModalContent({
                 </p>
                 {items.map((item) => {
                   const qty = tableForm.selected_drinks?.[item.id]?.quantity || 0
-                  const incl = normIncludedExtras(item.included_extras)
+                  const fe = Number(item.free_extras) || 0
+                  const fent = Number(item.free_entries) || 0
+                  const itemSub =
+                    fe > 0
+                      ? `· ${fe} תוספות לבחירה לכל בקבוק`
+                      : fent > 0
+                        ? `· ${fent} כניסות חינם`
+                        : ''
                   return (
                     <div
                       key={item.id}
@@ -319,10 +332,8 @@ export function TableBookingModalContent({
                         <p style={{ margin: 0, fontSize: 14, fontWeight: qty > 0 ? 700 : 400 }}>{item.name}</p>
                         <p style={{ margin: '2px 0 0', fontSize: 11, color: 'rgba(255,255,255,0.4)' }}>
                           {item.category}
-                          {incl.length > 0 && (
-                            <span style={{ color: 'rgba(0,195,122,0.6)', marginRight: 6 }}>
-                              · תוספת לבחירה לכל בקבוק
-                            </span>
+                          {itemSub && (
+                            <span style={{ color: 'rgba(0,195,122,0.6)', marginRight: 6 }}>{itemSub}</span>
                           )}
                         </p>
                       </div>
@@ -386,7 +397,6 @@ export function TableBookingModalContent({
                               drinks[item.id] = {
                                 ...item,
                                 quantity: (drinks[item.id]?.quantity || 0) + 1,
-                                included_extras: normIncludedExtras(item.included_extras),
                               }
                               return { ...f, selected_drinks: drinks }
                             })
@@ -431,26 +441,6 @@ export function TableBookingModalContent({
               </p>
             </div>
           )}
-
-          <button
-            type="button"
-            disabled={!canContinueStep1}
-            onClick={() => setTableStep(2)}
-            style={{
-              width: '100%',
-              height: 50,
-              borderRadius: 12,
-              border: 'none',
-              marginTop: 20,
-              background: canContinueStep1 ? '#00C37A' : 'rgba(255,255,255,0.1)',
-              color: canContinueStep1 ? '#000' : 'rgba(255,255,255,0.3)',
-              fontWeight: 800,
-              fontSize: 16,
-              cursor: canContinueStep1 ? 'pointer' : 'not-allowed',
-            }}
-          >
-            המשך
-          </button>
         </div>
       )}
 
@@ -459,9 +449,6 @@ export function TableBookingModalContent({
           <h4 style={{ margin: '0 0 8px', fontSize: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
             <ShoppingBag size={18} color="#00C37A" /> סיכום משקאות
           </h4>
-          <p style={{ margin: '0 0 12px', fontSize: 13, color: 'rgba(255,255,255,0.65)' }}>
-            {`${freePeopleRule} אנשים חינם לכל בקבוק מעל ₪${priceThresholdRule}`}
-          </p>
           <div style={{ background: 'rgba(0,195,122,0.08)', borderRadius: 10, padding: 14, marginBottom: 20 }}>
             {Object.values(tableForm.selected_drinks || {}).map((d) => (
               <p key={d.id} style={{ margin: '4px 0', fontSize: 14 }}>
@@ -474,42 +461,6 @@ export function TableBookingModalContent({
             <p style={{ margin: '4px 0 0', fontSize: 13, color: 'rgba(255,255,255,0.6)' }}>
               סה&quot;כ שתייה: ₪{drinksTotal.toLocaleString()}
             </p>
-          </div>
-          <div style={{ display: 'flex', gap: 10 }}>
-            <button
-              type="button"
-              onClick={() => backTo(1)}
-              style={{
-                flex: 1,
-                height: 50,
-                borderRadius: 12,
-                border: '1px solid rgba(255,255,255,0.2)',
-                background: 'none',
-                color: '#fff',
-                fontWeight: 600,
-                fontSize: 15,
-                cursor: 'pointer',
-              }}
-            >
-              חזור
-            </button>
-            <button
-              type="button"
-              onClick={() => setTableStep(3)}
-              style={{
-                flex: 2,
-                height: 50,
-                borderRadius: 12,
-                border: 'none',
-                background: '#00C37A',
-                color: '#000',
-                fontWeight: 800,
-                fontSize: 16,
-                cursor: 'pointer',
-              }}
-            >
-              המשך
-            </button>
           </div>
         </div>
       )}
@@ -576,42 +527,6 @@ export function TableBookingModalContent({
               </p>
             </div>
           )}
-          <div style={{ display: 'flex', gap: 10 }}>
-            <button
-              type="button"
-              onClick={() => backTo(2)}
-              style={{
-                flex: 1,
-                height: 50,
-                borderRadius: 12,
-                border: '1px solid rgba(255,255,255,0.2)',
-                background: 'none',
-                color: '#fff',
-                fontWeight: 600,
-                fontSize: 15,
-                cursor: 'pointer',
-              }}
-            >
-              חזור
-            </button>
-            <button
-              type="button"
-              onClick={() => setTableStep(4)}
-              style={{
-                flex: 2,
-                height: 50,
-                borderRadius: 12,
-                border: 'none',
-                background: '#00C37A',
-                color: '#000',
-                fontWeight: 800,
-                fontSize: 16,
-                cursor: 'pointer',
-              }}
-            >
-              המשך
-            </button>
-          </div>
         </div>
       )}
 
@@ -621,107 +536,70 @@ export function TableBookingModalContent({
             <Check size={18} color="#00C37A" /> תוספות לשולחן
           </h4>
 
-          {Object.values(tableForm.selected_drinks || {}).map((drink) =>
-            normIncludedExtras(drink.included_extras).length > 0 ? (
-              <div key={drink.id} style={{ marginBottom: 16 }}>
-                <p
-                  style={{
-                    fontSize: 13,
-                    fontWeight: 700,
-                    color: 'rgba(255,255,255,0.6)',
-                    margin: '0 0 8px',
-                  }}
-                >
-                  {drink.name} ×{drink.quantity} — בחר {drink.quantity} תוספות:
-                </p>
-                {normIncludedExtras(drink.included_extras).map((extra) => {
-                  const current = [...(tableForm.extras_by_drink?.[drink.id] || [])]
-                  const selectedCount = current.filter((e) => e === extra).length
-                  const maxForDrink = drink.quantity
-                  const totalSelected = current.length
-
-                  return (
-                    <div
-                      key={`${drink.id}_${extra}`}
-                      onClick={() => {
-                        if (selectedCount === 0 && totalSelected >= maxForDrink) return
-                        setTableForm((f) => {
-                          const cur = [...(f.extras_by_drink?.[drink.id] || [])]
-                          const idx = cur.indexOf(extra)
-                          if (idx >= 0) cur.splice(idx, 1)
-                          else cur.push(extra)
-                          return { ...f, extras_by_drink: { ...(f.extras_by_drink || {}), [drink.id]: cur } }
-                        })
-                      }}
-                      style={{
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                        padding: '10px 12px',
-                        borderRadius: 10,
-                        marginBottom: 6,
-                        cursor: 'pointer',
-                        border: `1px solid ${selectedCount > 0 ? '#00C37A' : 'rgba(255,255,255,0.1)'}`,
-                        background: selectedCount > 0 ? 'rgba(0,195,122,0.1)' : 'rgba(255,255,255,0.04)',
-                        opacity: selectedCount === 0 && totalSelected >= maxForDrink ? 0.4 : 1,
-                      }}
-                    >
-                      <span style={{ fontSize: 14 }}>{extra}</span>
-                      <span style={{ fontSize: 18 }}>{selectedCount > 0 ? '✅' : '⬜'}</span>
-                    </div>
-                  )
-                })}
-                <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', margin: '4px 0 0' }}>
-                  {(tableForm.extras_by_drink?.[drink.id] || []).length}/{drink.quantity} תוספות נבחרו
-                </p>
-              </div>
-            ) : null,
-          )}
-
-          {Object.values(tableForm.selected_drinks || {}).every(
-            (d) => normIncludedExtras(d.included_extras).length === 0,
-          ) && (
+          {extrasOptions.length === 0 ? (
             <div style={{ textAlign: 'center', padding: 24, color: 'rgba(255,255,255,0.4)' }}>
-              <p>אין תוספות לבקבוקים שנבחרו</p>
+              <p>אין אפשרויות תוספת בתפריט (הוסיפו פריטים לקטגוריית &quot;תוספות&quot;)</p>
             </div>
-          )}
+          ) : (
+            Object.values(tableForm.selected_drinks || {}).map((drink) => {
+              const maxForDrink = (drink.free_extras || 0) * drink.quantity
+              if (maxForDrink <= 0) return null
+              return (
+                <div key={drink.id} style={{ marginBottom: 16 }}>
+                  <p
+                    style={{
+                      fontSize: 13,
+                      fontWeight: 700,
+                      color: 'rgba(255,255,255,0.6)',
+                      margin: '0 0 8px',
+                    }}
+                  >
+                    {drink.name} ×{drink.quantity} — בחר עד {maxForDrink} תוספות:
+                  </p>
+                  {extrasOptions.map((extraItem) => {
+                    const extra = extraItem.name || ''
+                    const current = [...(tableForm.extras_by_drink?.[drink.id] || [])]
+                    const selectedCount = current.filter((e) => e === extra).length
+                    const totalSelected = current.length
 
-          <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
-            <button
-              type="button"
-              onClick={() => backTo(3)}
-              style={{
-                flex: 1,
-                height: 50,
-                borderRadius: 12,
-                border: '1px solid rgba(255,255,255,0.2)',
-                background: 'none',
-                color: '#fff',
-                fontWeight: 600,
-                fontSize: 15,
-                cursor: 'pointer',
-              }}
-            >
-              חזור
-            </button>
-            <button
-              type="button"
-              onClick={() => setTableStep(5)}
-              style={{
-                flex: 2,
-                height: 50,
-                borderRadius: 12,
-                border: 'none',
-                background: '#00C37A',
-                color: '#000',
-                fontWeight: 800,
-                fontSize: 16,
-                cursor: 'pointer',
-              }}
-            >
-              המשך
-            </button>
-          </div>
+                    return (
+                      <div
+                        key={`${drink.id}_${extraItem.id || extra}`}
+                        onClick={() => {
+                          if (selectedCount === 0 && totalSelected >= maxForDrink) return
+                          setTableForm((f) => {
+                            const cur = [...(f.extras_by_drink?.[drink.id] || [])]
+                            const idx = cur.indexOf(extra)
+                            if (idx >= 0) cur.splice(idx, 1)
+                            else cur.push(extra)
+                            return { ...f, extras_by_drink: { ...(f.extras_by_drink || {}), [drink.id]: cur } }
+                          })
+                        }}
+                        style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          padding: '10px 12px',
+                          borderRadius: 10,
+                          marginBottom: 6,
+                          cursor: 'pointer',
+                          border: `1px solid ${selectedCount > 0 ? '#00C37A' : 'rgba(255,255,255,0.1)'}`,
+                          background: selectedCount > 0 ? 'rgba(0,195,122,0.1)' : 'rgba(255,255,255,0.04)',
+                          opacity: selectedCount === 0 && totalSelected >= maxForDrink ? 0.4 : 1,
+                        }}
+                      >
+                        <span style={{ fontSize: 14 }}>{extra}</span>
+                        <span style={{ fontSize: 18 }}>{selectedCount > 0 ? '✅' : '⬜'}</span>
+                      </div>
+                    )
+                  })}
+                  <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', margin: '4px 0 0' }}>
+                    {(tableForm.extras_by_drink?.[drink.id] || []).length}/{maxForDrink} תוספות נבחרו
+                  </p>
+                </div>
+              )
+            })
+          )}
         </div>
       )}
 
@@ -754,43 +632,6 @@ export function TableBookingModalContent({
                 }}
               />
             ))}
-          </div>
-          <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
-            <button
-              type="button"
-              onClick={() => backTo(4)}
-              style={{
-                flex: 1,
-                height: 50,
-                borderRadius: 12,
-                border: '1px solid rgba(255,255,255,0.2)',
-                background: 'none',
-                color: '#fff',
-                fontWeight: 600,
-                fontSize: 15,
-                cursor: 'pointer',
-              }}
-            >
-              חזור
-            </button>
-            <button
-              type="button"
-              disabled={!tableForm.customer_name || !tableForm.customer_phone}
-              onClick={() => setTableStep(6)}
-              style={{
-                flex: 2,
-                height: 50,
-                borderRadius: 12,
-                border: 'none',
-                background: tableForm.customer_name && tableForm.customer_phone ? '#00C37A' : 'rgba(255,255,255,0.1)',
-                color: tableForm.customer_name && tableForm.customer_phone ? '#000' : 'rgba(255,255,255,0.3)',
-                fontWeight: 800,
-                fontSize: 16,
-                cursor: tableForm.customer_name && tableForm.customer_phone ? 'pointer' : 'not-allowed',
-              }}
-            >
-              המשך
-            </button>
           </div>
         </div>
       )}
@@ -876,42 +717,6 @@ export function TableBookingModalContent({
               ? `הגעת למקסימום (${maxGuests} חברים)`
               : '+ הוסף חבר שולחן'}
           </button>
-          <div style={{ display: 'flex', gap: 10 }}>
-            <button
-              type="button"
-              onClick={() => backTo(5)}
-              style={{
-                flex: 1,
-                height: 50,
-                borderRadius: 12,
-                border: '1px solid rgba(255,255,255,0.2)',
-                background: 'none',
-                color: '#fff',
-                fontWeight: 600,
-                fontSize: 15,
-                cursor: 'pointer',
-              }}
-            >
-              חזור
-            </button>
-            <button
-              type="button"
-              onClick={() => setTableStep(7)}
-              style={{
-                flex: 2,
-                height: 50,
-                borderRadius: 12,
-                border: 'none',
-                background: '#00C37A',
-                color: '#000',
-                fontWeight: 800,
-                fontSize: 16,
-                cursor: 'pointer',
-              }}
-            >
-              המשך לתשלום
-            </button>
-          </div>
         </div>
       )}
 
@@ -1098,7 +903,233 @@ export function TableBookingModalContent({
               })()}
             </div>
           )}
-          <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
+        </div>
+      )}
+      </div>
+      <div
+        style={{
+          position: 'sticky',
+          bottom: 0,
+          zIndex: 10,
+          background: 'var(--card)',
+          padding: '16px 20px',
+          borderTop: '1px solid var(--glass-border)',
+          flexShrink: 0,
+        }}
+      >
+        {tableStep === 1 && (
+          <button
+            type="button"
+            disabled={!canContinueStep1}
+            onClick={() => setTableStep(2)}
+            style={{
+              width: '100%',
+              height: 50,
+              borderRadius: 12,
+              border: 'none',
+              background: canContinueStep1 ? '#00C37A' : 'rgba(255,255,255,0.1)',
+              color: canContinueStep1 ? '#000' : 'rgba(255,255,255,0.3)',
+              fontWeight: 800,
+              fontSize: 16,
+              cursor: canContinueStep1 ? 'pointer' : 'not-allowed',
+            }}
+          >
+            המשך
+          </button>
+        )}
+        {tableStep === 2 && (
+          <div style={{ display: 'flex', gap: 10 }}>
+            <button
+              type="button"
+              onClick={() => backTo(1)}
+              style={{
+                flex: 1,
+                height: 50,
+                borderRadius: 12,
+                border: '1px solid rgba(255,255,255,0.2)',
+                background: 'none',
+                color: '#fff',
+                fontWeight: 600,
+                fontSize: 15,
+                cursor: 'pointer',
+              }}
+            >
+              חזור
+            </button>
+            <button
+              type="button"
+              onClick={() => setTableStep(3)}
+              style={{
+                flex: 2,
+                height: 50,
+                borderRadius: 12,
+                border: 'none',
+                background: '#00C37A',
+                color: '#000',
+                fontWeight: 800,
+                fontSize: 16,
+                cursor: 'pointer',
+              }}
+            >
+              המשך
+            </button>
+          </div>
+        )}
+        {tableStep === 3 && (
+          <div style={{ display: 'flex', gap: 10 }}>
+            <button
+              type="button"
+              onClick={() => backTo(2)}
+              style={{
+                flex: 1,
+                height: 50,
+                borderRadius: 12,
+                border: '1px solid rgba(255,255,255,0.2)',
+                background: 'none',
+                color: '#fff',
+                fontWeight: 600,
+                fontSize: 15,
+                cursor: 'pointer',
+              }}
+            >
+              חזור
+            </button>
+            <button
+              type="button"
+              onClick={() => setTableStep(hasExtras ? 4 : 5)}
+              style={{
+                flex: 2,
+                height: 50,
+                borderRadius: 12,
+                border: 'none',
+                background: '#00C37A',
+                color: '#000',
+                fontWeight: 800,
+                fontSize: 16,
+                cursor: 'pointer',
+              }}
+            >
+              המשך
+            </button>
+          </div>
+        )}
+        {tableStep === 4 && (
+          <div style={{ display: 'flex', gap: 10 }}>
+            <button
+              type="button"
+              onClick={() => backTo(3)}
+              style={{
+                flex: 1,
+                height: 50,
+                borderRadius: 12,
+                border: '1px solid rgba(255,255,255,0.2)',
+                background: 'none',
+                color: '#fff',
+                fontWeight: 600,
+                fontSize: 15,
+                cursor: 'pointer',
+              }}
+            >
+              חזור
+            </button>
+            <button
+              type="button"
+              onClick={() => setTableStep(5)}
+              style={{
+                flex: 2,
+                height: 50,
+                borderRadius: 12,
+                border: 'none',
+                background: '#00C37A',
+                color: '#000',
+                fontWeight: 800,
+                fontSize: 16,
+                cursor: 'pointer',
+              }}
+            >
+              המשך
+            </button>
+          </div>
+        )}
+        {tableStep === 5 && (
+          <div style={{ display: 'flex', gap: 10 }}>
+            <button
+              type="button"
+              onClick={() => backTo(hasExtras ? 4 : 3)}
+              style={{
+                flex: 1,
+                height: 50,
+                borderRadius: 12,
+                border: '1px solid rgba(255,255,255,0.2)',
+                background: 'none',
+                color: '#fff',
+                fontWeight: 600,
+                fontSize: 15,
+                cursor: 'pointer',
+              }}
+            >
+              חזור
+            </button>
+            <button
+              type="button"
+              disabled={!tableForm.customer_name || !tableForm.customer_phone}
+              onClick={() => setTableStep(6)}
+              style={{
+                flex: 2,
+                height: 50,
+                borderRadius: 12,
+                border: 'none',
+                background: tableForm.customer_name && tableForm.customer_phone ? '#00C37A' : 'rgba(255,255,255,0.1)',
+                color: tableForm.customer_name && tableForm.customer_phone ? '#000' : 'rgba(255,255,255,0.3)',
+                fontWeight: 800,
+                fontSize: 16,
+                cursor: tableForm.customer_name && tableForm.customer_phone ? 'pointer' : 'not-allowed',
+              }}
+            >
+              המשך
+            </button>
+          </div>
+        )}
+        {tableStep === 6 && (
+          <div style={{ display: 'flex', gap: 10 }}>
+            <button
+              type="button"
+              onClick={() => backTo(5)}
+              style={{
+                flex: 1,
+                height: 50,
+                borderRadius: 12,
+                border: '1px solid rgba(255,255,255,0.2)',
+                background: 'none',
+                color: '#fff',
+                fontWeight: 600,
+                fontSize: 15,
+                cursor: 'pointer',
+              }}
+            >
+              חזור
+            </button>
+            <button
+              type="button"
+              onClick={() => setTableStep(7)}
+              style={{
+                flex: 2,
+                height: 50,
+                borderRadius: 12,
+                border: 'none',
+                background: '#00C37A',
+                color: '#000',
+                fontWeight: 800,
+                fontSize: 16,
+                cursor: 'pointer',
+              }}
+            >
+              המשך לתשלום
+            </button>
+          </div>
+        )}
+        {tableStep === 7 && (
+          <div style={{ display: 'flex', gap: 10 }}>
             <button
               type="button"
               onClick={() => backTo(6)}
@@ -1135,8 +1166,8 @@ export function TableBookingModalContent({
               {paying ? 'מעבד...' : total === 0 ? 'שלח הזמנה' : `שלם ₪${total.toLocaleString()}`}
             </button>
           </div>
-        </div>
-      )}
-    </>
+        )}
+      </div>
+    </div>
   )
 }

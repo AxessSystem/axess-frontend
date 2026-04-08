@@ -1039,9 +1039,7 @@ function MenuTemplate({ data, onUpdate, eventId, businessId, authHeaders, reques
             </p>
 
             {items.map((item, i) => {
-              const extrasCount = Array.isArray(item.included_extras)
-                ? item.included_extras.length
-                : (Number(item.included_extras) || 0)
+              const freeExtrasN = Number(item.free_extras) || 0
               return (
               <div
                 key={item.id || `${cat}_${i}`}
@@ -1059,8 +1057,8 @@ function MenuTemplate({ data, onUpdate, eventId, businessId, authHeaders, reques
                   )}
                   <p style={{ margin: '3px 0 0', fontSize: 11, color: 'rgba(0,195,122,0.7)' }}>
                     {item.free_entries > 0 ? `${item.free_entries} כניסות חינם` : 'ללא כניסות חינם'}
-                    {extrasCount > 0 && (
-                      <span>{` · ${extrasCount} תוספות כלולות`}</span>
+                    {freeExtrasN > 0 && (
+                      <span>{` · ${freeExtrasN} תוספות לבחירה לבקבוק`}</span>
                     )}
                   </p>
                 </div>
@@ -1075,7 +1073,10 @@ function MenuTemplate({ data, onUpdate, eventId, businessId, authHeaders, reques
                   onClick={() => setEditingItem({
                     index: menu.indexOf(item),
                     ...item,
-                    included_extras: Array.isArray(item.included_extras) ? item.included_extras.length : (Number(item.included_extras) || 0),
+                    included_extras: Array.isArray(item.included_extras)
+                      ? item.included_extras
+                      : new Array(Number(item.included_extras) || 0).fill(''),
+                    free_extras: item.free_extras || 0,
                   })}
                   style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--v2-gray-400)', marginLeft: 4, padding: 4 }}
                 >
@@ -1247,6 +1248,7 @@ function MenuTemplate({ data, onUpdate, eventId, businessId, authHeaders, reques
                     description: item.description || null,
                     extras_detail: item.extras_detail || null,
                     free_entries: item.free_entries || 0,
+                    free_extras: item.free_extras || 0,
                     included_extras: Array.isArray(item.included_extras)
                       ? item.included_extras.length
                       : (Number(item.included_extras) || 0),
@@ -1282,8 +1284,7 @@ function MenuTemplate({ data, onUpdate, eventId, businessId, authHeaders, reques
               { field: 'category', label: 'קטגוריה', type: 'text' },
               { field: 'price', label: 'מחיר ₪', type: 'number' },
               { field: 'free_entries', label: 'כניסות חינם', type: 'number' },
-              { field: 'included_extras', label: 'תוספות כלולות', type: 'number' },
-              { field: 'extras_detail', label: 'פירוט תוספות', type: 'text' },
+              { field: 'free_extras', label: 'תוספות לבחירה לבקבוק', type: 'number' },
               { field: 'description', label: 'תיאור', type: 'text' },
             ].map(({ field, label, type }) => (
               <div key={field} style={{ marginBottom: 10 }}>
@@ -1300,12 +1301,10 @@ function MenuTemplate({ data, onUpdate, eventId, businessId, authHeaders, reques
               <button
                 type="button"
                 onClick={async () => {
-                  const { index, ...fields } = editingItem
+                  const { index, included_extras: _skipExtras, ...fields } = editingItem
                   const fixedFields = {
                     ...fields,
-                    included_extras: Array.isArray(fields.included_extras)
-                      ? fields.included_extras
-                      : new Array(Number(fields.included_extras) || 0).fill(''),
+                    included_extras: [],
                   }
                   const newMenu = menu.map((it, i) => (i === index ? { ...it, ...fixedFields } : it))
                   setMenu(newMenu)
