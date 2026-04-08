@@ -489,22 +489,29 @@ export default function TemplatesTab({ eventId, businessId, authHeaders }) {
                         if (!menuItems.length) return
 
                         try {
-                          // עדכן כל פריט ב-event_table_menu של האירוע
-                          await Promise.all(menuItems.map((item) => item.id && fetch(
-                            `${API_BASE}/api/admin/events/${eventId}/table-menu/${item.id}`,
-                            {
-                              method: 'PATCH',
-                              headers: authHeaders(),
-                              body: JSON.stringify({
-                                price: item.price,
-                                name: item.name,
-                                free_entries: item.free_entries,
-                                free_extras: item.free_extras,
-                                free_extras_type: item.free_extras_type,
-                                included_extras: item.included_extras || [],
-                              }),
-                            },
-                          )))
+                          await Promise.all(
+                            menuItems
+                              .filter((item) => item.menu_item_key)
+                              .map((item) =>
+                                fetch(`${API_BASE}/api/admin/events/${eventId}/table-menu/override`, {
+                                  method: 'POST',
+                                  headers: authHeaders(),
+                                  body: JSON.stringify({
+                                    menu_item_key: item.menu_item_key,
+                                    price: item.price,
+                                    name: item.name,
+                                    category: item.category,
+                                    unit: item.unit,
+                                    free_entries: item.free_entries,
+                                    free_extras: item.free_extras,
+                                    free_extras_type: item.free_extras_type,
+                                    included_extras: item.included_extras || [],
+                                    description: item.description,
+                                    is_event_override: true,
+                                  }),
+                                }),
+                              ),
+                          )
                           toast.success('התפריט עודכן לאירוע זה בלבד ✓')
                         } catch (err) {
                           toast.error('שגיאה בשמירת התפריט לאירוע')
