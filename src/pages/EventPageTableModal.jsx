@@ -46,8 +46,26 @@ export function TableBookingModalContent({
     setDrinkSearch('')
   }
 
+  const getExtrasCounts = (raw) => {
+    if (!raw) return {}
+    if (Array.isArray(raw)) {
+      return raw.reduce((acc, name) => {
+        if (!name) return acc
+        acc[name] = (acc[name] || 0) + 1
+        return acc
+      }, {})
+    }
+    if (typeof raw === 'object') return { ...raw }
+    return {}
+  }
+
   const flatExtras = () =>
-    Object.values(tableForm.extras_by_drink || {}).reduce((acc, arr) => acc.concat(arr || []), [])
+    Object.entries(tableForm.extras_by_drink || {}).flatMap(([drinkId, extras]) => {
+      const counts = getExtrasCounts(extras)
+      return Object.entries(counts).flatMap(([name, qty]) =>
+        Array(Math.max(0, Number(qty) || 0)).fill(name),
+      )
+    })
 
   const submitTableReserve = async () => {
     setPaying(true)
@@ -309,7 +327,7 @@ export function TableBookingModalContent({
                   const fent = Number(item.free_entries) || 0
                   const itemSub =
                     fe > 0
-                      ? `· ${fe} תוספות לבחירה לכל בקבוק`
+                      ? `· ${fe} תוספות לבחירה`
                       : fent > 0
                         ? `· ${fent} כניסות חינם`
                         : ''
@@ -336,6 +354,17 @@ export function TableBookingModalContent({
                             <span style={{ color: 'rgba(0,195,122,0.6)', marginRight: 6 }}>{itemSub}</span>
                           )}
                         </p>
+                        {item.description && (
+                          <p
+                            style={{
+                              fontSize: 11,
+                              color: 'var(--v2-gray-400)',
+                              margin: '2px 0 0',
+                            }}
+                          >
+                            {item.description}
+                          </p>
+                        )}
                       </div>
                       <span
                         style={{
@@ -544,6 +573,8 @@ export function TableBookingModalContent({
             Object.values(tableForm.selected_drinks || {}).map((drink) => {
               const maxForDrink = (drink.free_extras || 0) * drink.quantity
               if (maxForDrink <= 0) return null
+              const counts = getExtrasCounts(tableForm.extras_by_drink?.[drink.id])
+              const totalSelected = Object.values(counts).reduce((sum, qty) => sum + (Number(qty) || 0), 0)
               return (
                 <div key={drink.id} style={{ marginBottom: 16 }}>
                   <p
@@ -557,44 +588,98 @@ export function TableBookingModalContent({
                     {drink.name} ×{drink.quantity} — בחר עד {maxForDrink} תוספות:
                   </p>
                   {extrasOptions.map((extraItem) => {
-                    const extra = extraItem.name || ''
-                    const current = [...(tableForm.extras_by_drink?.[drink.id] || [])]
-                    const selectedCount = current.filter((e) => e === extra).length
-                    const totalSelected = current.length
+                    const name = extraItem.name || ''
+                    const qtyForExtra = counts[name] || 0
 
                     return (
                       <div
-                        key={`${drink.id}_${extraItem.id || extra}`}
-                        onClick={() => {
-                          if (selectedCount === 0 && totalSelected >= maxForDrink) return
-                          setTableForm((f) => {
-                            const cur = [...(f.extras_by_drink?.[drink.id] || [])]
-                            const idx = cur.indexOf(extra)
-                            if (idx >= 0) cur.splice(idx, 1)
-                            else cur.push(extra)
-                            return { ...f, extras_by_drink: { ...(f.extras_by_drink || {}), [drink.id]: cur } }
-                          })
-                        }}
+                        key={`${drink.id}_${extraItem.id || name}`}
                         style={{
                           display: 'flex',
-                          justifyContent: 'space-between',
                           alignItems: 'center',
+                          gap: 12,
                           padding: '10px 12px',
                           borderRadius: 10,
                           marginBottom: 6,
-                          cursor: 'pointer',
-                          border: `1px solid ${selectedCount > 0 ? '#00C37A' : 'rgba(255,255,255,0.1)'}`,
-                          background: selectedCount > 0 ? 'rgba(0,195,122,0.1)' : 'rgba(255,255,255,0.04)',
-                          opacity: selectedCount === 0 && totalSelected >= maxForDrink ? 0.4 : 1,
+                          border: '1px solid rgba(255,255,255,0.1)',
+                          background: 'rgba(255,255,255,0.04)',
                         }}
                       >
-                        <span style={{ fontSize: 14 }}>{extra}</span>
-                        <span style={{ fontSize: 18 }}>{selectedCount > 0 ? '✅' : '⬜'}</span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (qtyForExtra <= 0) return
+                            setTableForm((f) => {
+                              const prev = getExtrasCounts(f.extras_by_drink?.[drink.id])
+                              const next = { ...prev }
+                              const nextQty = (next[name] || 0) - 1
+                              if (nextQty <= 0) delete next[name]
+                              else next[name] = nextQty
+                              const eb = { ...(f.extras_by_drink || {}) }
+                              if (Object.keys(next).length === 0) delete eb[drink.id]
+                              else eb[drink.id] = next
+                              return { ...f, extras_by_drink: eb }
+                            })
+                          }}
+                          style={{
+                            width: 32,
+                            height: 32,
+                            borderRadius: 8,
+                            border: '1px solid rgba(239,68,68,0.4)',
+                            background: 'rgba(239,68,68,0.1)',
+                            color: '#EF4444',
+                            fontSize: 18,
+                            cursor: qtyForExtra > 0 ? 'pointer' : 'not-allowed',
+                            opacity: qtyForExtra > 0 ? 1 : 0.4,
+                            lineHeight: 1,
+                          }}
+                        >
+                          −
+                        </button>
+                        <span style={{ fontSize: 15, fontWeight: 700, minWidth: 24, textAlign: 'center' }}>
+                          {qtyForExtra}
+                        </span>
+                        <button
+                          type="button"
+                          disabled={totalSelected >= maxForDrink}
+                          onClick={() => {
+                            setTableForm((f) => {
+                              const prev = getExtrasCounts(f.extras_by_drink?.[drink.id])
+                              const curTotal = Object.values(prev).reduce((s, q) => s + (Number(q) || 0), 0)
+                              if (curTotal >= maxForDrink) return f
+                              return {
+                                ...f,
+                                extras_by_drink: {
+                                  ...(f.extras_by_drink || {}),
+                                  [drink.id]: {
+                                    ...prev,
+                                    [name]: (prev[name] || 0) + 1,
+                                  },
+                                },
+                              }
+                            })
+                          }}
+                          style={{
+                            width: 32,
+                            height: 32,
+                            borderRadius: 8,
+                            border: '1px solid rgba(0,195,122,0.5)',
+                            background: 'rgba(0,195,122,0.1)',
+                            color: '#00C37A',
+                            fontSize: 18,
+                            cursor: totalSelected >= maxForDrink ? 'not-allowed' : 'pointer',
+                            opacity: totalSelected >= maxForDrink ? 0.4 : 1,
+                            lineHeight: 1,
+                          }}
+                        >
+                          +
+                        </button>
+                        <span style={{ fontSize: 14, flex: 1 }}>{name}</span>
                       </div>
                     )
                   })}
                   <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', margin: '4px 0 0' }}>
-                    {(tableForm.extras_by_drink?.[drink.id] || []).length}/{maxForDrink} תוספות נבחרו
+                    {totalSelected} / {maxForDrink} תוספות נבחרו
                   </p>
                 </div>
               )
