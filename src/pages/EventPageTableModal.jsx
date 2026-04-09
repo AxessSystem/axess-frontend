@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Wine, ShoppingBag, Check, Users, Search, X } from 'lucide-react'
 import toast from 'react-hot-toast'
 import PaymentModal from '@/components/PaymentModal'
+import DateTimePicker from '@/components/ui/DateTimePicker'
 
 export function TableBookingModalContent({
   modalTicket,
@@ -254,6 +255,7 @@ export function TableBookingModalContent({
           flex: 1,
           minHeight: 0,
           overflowY: 'auto',
+          overflowX: 'hidden',
           padding: '16px 20px',
         }}
       >
@@ -725,32 +727,92 @@ export function TableBookingModalContent({
             {/* שדות מפיק דינמיים */}
             {(event.registration_fields || [])
               .filter((f) => !['full_name', 'first_name', 'last_name', 'phone', 'email'].includes(f.id))
-              .map((field) => (
-                <input
-                  key={field.id}
-                  type={field.type || 'text'}
-                  placeholder={`${field.label}${field.required ? ' *' : ''}`}
-                  value={tableForm.custom_fields?.[field.id] || ''}
-                  onChange={(e) =>
-                    setTableForm((f) => ({
-                      ...f,
-                      custom_fields: { ...(f.custom_fields || {}), [field.id]: e.target.value },
-                    }))
-                  }
-                  style={{
-                    width: '100%',
-                    padding: '12px 16px',
-                    borderRadius: 10,
-                    background: 'var(--glass)',
-                    border: '1px solid var(--glass-border)',
-                    color: 'var(--text)',
-                    fontSize: 15,
-                    textAlign: 'right',
-                    boxSizing: 'border-box',
-                    marginBottom: 10,
-                  }}
-                />
-              ))}
+              .map((field) =>
+                field.type === 'date' ? (
+                  <div key={field.id} style={{ marginBottom: 10 }}>
+                    <DateTimePicker
+                      value={tableForm.custom_fields?.[field.id] || ''}
+                      onChange={(val) =>
+                        setTableForm((f) => ({
+                          ...f,
+                          custom_fields: { ...(f.custom_fields || {}), [field.id]: val },
+                        }))
+                      }
+                      dateOnly
+                      placeholder={`${field.label}${field.required ? ' *' : ''}`}
+                    />
+                  </div>
+                ) : field.id === 'gender' ? (
+                  <div key={field.id} style={{ marginBottom: 10 }}>
+                    <p
+                      style={{
+                        fontSize: 12,
+                        color: 'var(--v2-gray-400)',
+                        textAlign: 'right',
+                        margin: '0 0 8px',
+                      }}
+                    >
+                      {field.label}
+                      {field.required ? ' *' : ''}
+                    </p>
+                    <div style={{ display: 'flex', gap: 10 }}>
+                      {['זכר', 'נקבה', 'אחר'].map((g) => (
+                        <button
+                          key={g}
+                          type="button"
+                          onClick={() =>
+                            setTableForm((f) => ({
+                              ...f,
+                              custom_fields: { ...(f.custom_fields || {}), gender: g },
+                            }))
+                          }
+                          style={{
+                            flex: 1,
+                            padding: '10px 0',
+                            borderRadius: 10,
+                            border: `2px solid ${tableForm.custom_fields?.gender === g ? '#00C37A' : 'var(--glass-border)'}`,
+                            background:
+                              tableForm.custom_fields?.gender === g
+                                ? 'rgba(0,195,122,0.1)'
+                                : 'var(--glass)',
+                            color: tableForm.custom_fields?.gender === g ? '#00C37A' : 'var(--text)',
+                            fontSize: 14,
+                            cursor: 'pointer',
+                            fontWeight: tableForm.custom_fields?.gender === g ? 700 : 400,
+                          }}
+                        >
+                          {g}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <input
+                    key={field.id}
+                    type={field.type || 'text'}
+                    placeholder={`${field.label}${field.required ? ' *' : ''}`}
+                    value={tableForm.custom_fields?.[field.id] || ''}
+                    onChange={(e) =>
+                      setTableForm((f) => ({
+                        ...f,
+                        custom_fields: { ...(f.custom_fields || {}), [field.id]: e.target.value },
+                      }))
+                    }
+                    style={{
+                      width: '100%',
+                      padding: '12px 16px',
+                      borderRadius: 10,
+                      background: 'var(--glass)',
+                      border: '1px solid var(--glass-border)',
+                      color: 'var(--text)',
+                      fontSize: 15,
+                      textAlign: 'right',
+                      boxSizing: 'border-box',
+                      marginBottom: 10,
+                    }}
+                  />
+                ),
+              )}
           </div>
         </div>
       )}
@@ -824,37 +886,107 @@ export function TableBookingModalContent({
               </div>
               {(event.registration_fields || [])
                 .filter((f) => !['full_name', 'first_name', 'last_name', 'phone', 'email'].includes(f.id))
-                .map((field) => (
-                  <input
-                    key={field.id}
-                    type={field.type || 'text'}
-                    placeholder={`${field.label}${field.required ? ' *' : ''}`}
-                    value={g.custom_fields?.[field.id] || ''}
-                    onChange={(e) => {
-                      const updated = [...tableForm.guests]
-                      updated[gi] = {
-                        ...updated[gi],
-                        custom_fields: {
-                          ...(updated[gi].custom_fields || {}),
-                          [field.id]: e.target.value,
-                        },
-                      }
-                      setTableForm((f) => ({ ...f, guests: updated }))
-                    }}
-                    style={{
-                      width: '100%',
-                      padding: '10px 14px',
-                      borderRadius: 8,
-                      background: 'var(--glass)',
-                      border: '1px solid var(--glass-border)',
-                      color: 'var(--text)',
-                      fontSize: 14,
-                      textAlign: 'right',
-                      boxSizing: 'border-box',
-                      marginTop: 8,
-                    }}
-                  />
-                ))}
+                .map((field) =>
+                  field.type === 'date' ? (
+                    <div key={field.id} style={{ marginTop: 8 }}>
+                      <DateTimePicker
+                        value={g.custom_fields?.[field.id] || ''}
+                        onChange={(val) => {
+                          const updated = [...tableForm.guests]
+                          updated[gi] = {
+                            ...updated[gi],
+                            custom_fields: {
+                              ...(updated[gi].custom_fields || {}),
+                              [field.id]: val,
+                            },
+                          }
+                          setTableForm((f) => ({ ...f, guests: updated }))
+                        }}
+                        dateOnly
+                        placeholder={`${field.label}${field.required ? ' *' : ''}`}
+                      />
+                    </div>
+                  ) : field.id === 'gender' ? (
+                    <div key={field.id} style={{ marginTop: 8 }}>
+                      <p
+                        style={{
+                          fontSize: 12,
+                          color: 'var(--v2-gray-400)',
+                          textAlign: 'right',
+                          margin: '0 0 8px',
+                        }}
+                      >
+                        {field.label}
+                        {field.required ? ' *' : ''}
+                      </p>
+                      <div style={{ display: 'flex', gap: 10 }}>
+                        {['זכר', 'נקבה', 'אחר'].map((btn) => (
+                          <button
+                            key={btn}
+                            type="button"
+                            onClick={() => {
+                              const updated = [...tableForm.guests]
+                              updated[gi] = {
+                                ...updated[gi],
+                                custom_fields: {
+                                  ...(updated[gi].custom_fields || {}),
+                                  gender: btn,
+                                },
+                              }
+                              setTableForm((f) => ({ ...f, guests: updated }))
+                            }}
+                            style={{
+                              flex: 1,
+                              padding: '10px 0',
+                              borderRadius: 10,
+                              border: `2px solid ${g.custom_fields?.gender === btn ? '#00C37A' : 'var(--glass-border)'}`,
+                              background:
+                                g.custom_fields?.gender === btn
+                                  ? 'rgba(0,195,122,0.1)'
+                                  : 'var(--glass)',
+                              color: g.custom_fields?.gender === btn ? '#00C37A' : 'var(--text)',
+                              fontSize: 14,
+                              cursor: 'pointer',
+                              fontWeight: g.custom_fields?.gender === btn ? 700 : 400,
+                            }}
+                          >
+                            {btn}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  ) : (
+                    <input
+                      key={field.id}
+                      type={field.type || 'text'}
+                      placeholder={`${field.label}${field.required ? ' *' : ''}`}
+                      value={g.custom_fields?.[field.id] || ''}
+                      onChange={(e) => {
+                        const updated = [...tableForm.guests]
+                        updated[gi] = {
+                          ...updated[gi],
+                          custom_fields: {
+                            ...(updated[gi].custom_fields || {}),
+                            [field.id]: e.target.value,
+                          },
+                        }
+                        setTableForm((f) => ({ ...f, guests: updated }))
+                      }}
+                      style={{
+                        width: '100%',
+                        padding: '10px 14px',
+                        borderRadius: 8,
+                        background: 'var(--glass)',
+                        border: '1px solid var(--glass-border)',
+                        color: 'var(--text)',
+                        fontSize: 14,
+                        textAlign: 'right',
+                        boxSizing: 'border-box',
+                        marginTop: 8,
+                      }}
+                    />
+                  ),
+                )}
             </div>
           ))}
           <button
@@ -1071,7 +1203,16 @@ export function TableBookingModalContent({
                 || !tableForm.customer_last_name
                 || !tableForm.customer_phone
               }
-              onClick={() => setTableStep(6)}
+              onClick={() => {
+                const missingFields = (event.registration_fields || [])
+                  .filter((f) => !['full_name', 'first_name', 'last_name', 'phone', 'email'].includes(f.id))
+                  .filter((f) => f.required && !tableForm.custom_fields?.[f.id]?.toString().trim())
+                if (missingFields.length > 0) {
+                  toast.error(`נא למלא: ${missingFields.map((f) => f.label).join(', ')}`)
+                  return
+                }
+                setTableStep(6)
+              }}
               style={{
                 flex: 2,
                 height: 50,
@@ -1124,7 +1265,28 @@ export function TableBookingModalContent({
             </button>
             <button
               type="button"
-              onClick={() => setTableStep(7)}
+              onClick={() => {
+                const invalidGuests = tableForm.guests.filter((guest) => !guest.name?.trim() || !guest.phone?.trim())
+                if (invalidGuests.length > 0) {
+                  toast.error('נא למלא שם וטלפון לכל חברי השולחן')
+                  return
+                }
+                const requiredFields = (event.registration_fields || []).filter(
+                  (f) =>
+                    f.required
+                    && !['full_name', 'first_name', 'last_name', 'phone', 'email'].includes(f.id),
+                )
+                for (const guest of tableForm.guests) {
+                  const missing = requiredFields.filter(
+                    (f) => !guest.custom_fields?.[f.id]?.toString().trim(),
+                  )
+                  if (missing.length > 0) {
+                    toast.error(`נא למלא לכל חברי השולחן: ${missing.map((f) => f.label).join(', ')}`)
+                    return
+                  }
+                }
+                setTableStep(7)
+              }}
               style={{
                 flex: 2,
                 height: 50,

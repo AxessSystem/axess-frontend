@@ -2212,12 +2212,22 @@ function RegistrationFieldsTab({ event, authHeaders }) {
 
   const saveFields = async () => {
     setSaving(true)
-    await fetch(`${API_BASE}/api/admin/events/${event.id}`, {
-      method: 'PATCH',
-      headers: authHeaders(),
-      body: JSON.stringify({ registration_fields: fields }),
-    })
-    setSaving(false)
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/events/${event.id}`, {
+        method: 'PATCH',
+        headers: authHeaders(),
+        body: JSON.stringify({ registration_fields: fields }),
+      })
+      if (res.ok) {
+        toast.success('שדות ההרשמה נשמרו ✓')
+      } else {
+        toast.error('שגיאה בשמירת השדות')
+      }
+    } catch {
+      toast.error('שגיאה בחיבור לשרת')
+    } finally {
+      setSaving(false)
+    }
   }
 
   return (

@@ -16,7 +16,7 @@ import {
 import toast from 'react-hot-toast'
 import PaymentModal from '@/components/PaymentModal'
 import SeatingModal from '../components/SeatingModal'
-import DateTimePicker from '../components/ui/DateTimePicker'
+import DateTimePicker from '@/components/ui/DateTimePicker'
 import { TableBookingModalContent } from './EventPageTableModal'
 
 const API_BASE = import.meta.env.VITE_API_URL || 'https://api.axess.pro'
@@ -1550,11 +1550,13 @@ export default function EventPage() {
               background: '#0a1628',
               borderTopLeftRadius: 24,
               borderTopRightRadius: 24,
-              padding: '20px 16px 40px',
               width: '100%',
               maxWidth: 480,
+              height: '92vh',
               maxHeight: '92vh',
-              overflowY: 'auto',
+              display: 'flex',
+              flexDirection: 'column',
+              overflow: 'hidden',
               position: 'relative',
               border: '1px solid rgba(255,255,255,0.1)',
             }}
@@ -1562,42 +1564,58 @@ export default function EventPage() {
           >
             <div
               style={{
-                width: 40,
-                height: 4,
-                borderRadius: 2,
-                background: 'rgba(255,255,255,0.2)',
-                margin: '0 auto 16px',
-              }}
-            />
-            <button
-              type="button"
-              onClick={() => setModalTicket(null)}
-              style={{
-                position: 'absolute',
-                top: 16,
-                left: 16,
-                background: 'rgba(255,255,255,0.1)',
-                border: 'none',
-                borderRadius: '50%',
-                width: 32,
-                height: 32,
-                cursor: 'pointer',
-                color: '#fff',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
+                padding: '20px 16px 16px',
+                borderBottom: '1px solid var(--glass-border)',
+                flexShrink: 0,
+                position: 'relative',
               }}
             >
-              <X size={18} />
-            </button>
+              <div
+                style={{
+                  width: 40,
+                  height: 4,
+                  background: 'var(--glass-border)',
+                  borderRadius: 2,
+                  margin: '0 auto 16px',
+                }}
+              />
+              <button
+                type="button"
+                onClick={() => setModalTicket(null)}
+                style={{
+                  position: 'absolute',
+                  top: 16,
+                  left: 16,
+                  background: 'rgba(255,255,255,0.1)',
+                  border: 'none',
+                  borderRadius: '50%',
+                  width: 32,
+                  height: 32,
+                  cursor: 'pointer',
+                  color: '#fff',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <X size={18} />
+              </button>
+              <h3 style={{ fontSize: 18, fontWeight: 800, margin: '0 0 4px' }}>{modalTicket.name}</h3>
+              {modalTicket.description && (
+                <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.5)', margin: 0 }}>
+                  {modalTicket.description}
+                </p>
+              )}
+            </div>
 
-            <h3 style={{ fontSize: 18, fontWeight: 800, margin: '0 0 4px' }}>{modalTicket.name}</h3>
-            {modalTicket.description && (
-              <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.5)', margin: '0 0 20px' }}>
-                {modalTicket.description}
-              </p>
-            )}
-
+            <div
+              style={{
+                flex: 1,
+                overflowY: 'auto',
+                overflowX: 'hidden',
+                padding: '16px 16px 0',
+              }}
+            >
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               <div>
                 <input
@@ -1736,20 +1754,15 @@ export default function EventPage() {
                 )}
               </div>
 
-              <div>
-                <label
-                  style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', display: 'block', marginBottom: 4 }}
-                >
-                  תאריך לידה *
-                </label>
+              <div style={{ marginBottom: 12 }}>
                 <DateTimePicker
-                  value={modalBirthDate}
-                  onChange={(v) => {
-                    setModalBirthDate(v)
+                  value={modalBirthDate || ''}
+                  onChange={(val) => {
+                    setModalBirthDate(val)
                     setFieldErrors((f) => ({ ...f, birth_date: '' }))
                   }}
-                  placeholder="בחר תאריך לידה"
                   dateOnly
+                  placeholder="תאריך לידה *"
                 />
                 {fieldErrors.birth_date && (
                   <p style={{ margin: '4px 0 0', fontSize: 11, color: '#EF4444' }}>
@@ -1758,36 +1771,32 @@ export default function EventPage() {
                 )}
               </div>
 
-              <div style={{ display: 'flex', gap: 8 }}>
-                {[
-                  { value: 'male', label: 'זכר' },
-                  { value: 'female', label: 'נקבה' },
-                  { value: 'other', label: 'אחר' },
-                ].map((opt) => (
-                  <div
-                    key={opt.value}
-                    role="presentation"
-                    onClick={() => setModalGender(opt.value)}
-                    style={{
-                      flex: 1,
-                      height: 44,
-                      borderRadius: 8,
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      border: `1px solid ${modalGender === opt.value ? '#00C37A' : 'rgba(255,255,255,0.15)'}`,
-                      background:
-                        modalGender === opt.value ? 'rgba(0,195,122,0.15)' : 'rgba(255,255,255,0.05)',
-                      color: modalGender === opt.value ? '#00C37A' : 'rgba(255,255,255,0.7)',
-                      fontSize: 14,
-                      fontWeight: modalGender === opt.value ? 700 : 400,
-                      transition: 'all 0.15s',
-                    }}
-                  >
-                    {opt.label}
-                  </div>
-                ))}
+              <div style={{ marginBottom: 12 }}>
+                <p style={{ fontSize: 12, color: 'var(--v2-gray-400)', textAlign: 'right', margin: '0 0 8px' }}>
+                  מין *
+                </p>
+                <div style={{ display: 'flex', gap: 10 }}>
+                  {['זכר', 'נקבה', 'אחר'].map((g) => (
+                    <button
+                      key={g}
+                      type="button"
+                      onClick={() => setModalGender(g)}
+                      style={{
+                        flex: 1,
+                        padding: '10px 0',
+                        borderRadius: 10,
+                        border: `2px solid ${modalGender === g ? '#00C37A' : 'var(--glass-border)'}`,
+                        background: modalGender === g ? 'rgba(0,195,122,0.1)' : 'var(--glass)',
+                        color: modalGender === g ? '#00C37A' : 'var(--text)',
+                        fontSize: 14,
+                        cursor: 'pointer',
+                        fontWeight: modalGender === g ? 700 : 400,
+                      }}
+                    >
+                      {g}
+                    </button>
+                  ))}
+                </div>
               </div>
 
               {event?.city_code && (
@@ -2279,7 +2288,16 @@ export default function EventPage() {
                   </span>
                 </div>
               )}
-
+            </div>
+            </div>
+            <div
+              style={{
+                padding: '12px 16px 32px',
+                borderTop: '1px solid var(--glass-border)',
+                flexShrink: 0,
+                background: '#0a1628',
+              }}
+            >
               <button
                 type="button"
                 onClick={handleReserve}
