@@ -3,6 +3,12 @@ import { Wine, ShoppingBag, Check, Users, Search, X } from 'lucide-react'
 import toast from 'react-hot-toast'
 import PaymentModal from '@/components/PaymentModal'
 import DateTimePicker from '@/components/ui/DateTimePicker'
+import {
+  validateIsraeliPhone,
+  validateEmail,
+  validateBirthDate,
+  validateName,
+} from '@/utils/validation'
 
 export function TableBookingModalContent({
   modalTicket,
@@ -98,7 +104,10 @@ export function TableBookingModalContent({
           extras: ex,
           extras_by_drink: tableForm.extras_by_drink,
           selected_drinks: tableForm.selected_drinks,
-          guests: tableForm.guests,
+          guests: tableForm.guests.map((g) => ({
+            ...g,
+            name: `${g.first_name || ''} ${g.last_name || ''}`.trim(),
+          })),
           payment_mode: tableForm.payment_mode,
           ...(tableForm.custom_fields || {}),
         },
@@ -166,6 +175,13 @@ export function TableBookingModalContent({
   const canContinueStep1 =
     Object.keys(tableForm.selected_drinks || {}).length > 0 && totalBottles > 0
   const maxGuests = tableForm.guest_count - 1
+
+  const updateGuest = (gi, key, value) => {
+    setTableForm((f) => ({
+      ...f,
+      guests: f.guests.map((gg, idx) => (idx === gi ? { ...gg, [key]: value } : gg)),
+    }))
+  }
 
   return (
     <div
@@ -703,7 +719,7 @@ export function TableBookingModalContent({
             {[
               { field: 'customer_first_name', placeholder: 'שם פרטי *', type: 'text', required: true },
               { field: 'customer_last_name', placeholder: 'שם משפחה *', type: 'text', required: true },
-              { field: 'customer_phone', placeholder: 'טלפון * (לקבלת QR בWA)', type: 'tel', required: true },
+              { field: 'customer_phone', placeholder: 'טלפון נייד *', type: 'tel', required: true },
               { field: 'customer_email', placeholder: 'מייל (אופציונלי)', type: 'email' },
               { field: 'customer_instagram', placeholder: 'אינסטגרם (אופציונלי)', type: 'text' },
             ].map((f) => (
@@ -711,6 +727,18 @@ export function TableBookingModalContent({
                 key={f.field}
                 value={tableForm[f.field]}
                 onChange={(e) => setTableForm((prev) => ({ ...prev, [f.field]: e.target.value }))}
+                onKeyDown={
+                  f.field === 'customer_phone'
+                    ? (e) => {
+                        if (
+                          !/[\d\-\+\s\b]/.test(e.key)
+                          && !['Backspace', 'Delete', 'Tab', 'ArrowLeft', 'ArrowRight'].includes(e.key)
+                        ) {
+                          e.preventDefault()
+                        }
+                      }
+                    : undefined
+                }
                 placeholder={f.placeholder}
                 type={f.type}
                 style={{
@@ -726,7 +754,11 @@ export function TableBookingModalContent({
             ))}
             {/* שדות מפיק דינמיים */}
             {(event.registration_fields || [])
-              .filter((f) => !['full_name', 'first_name', 'last_name', 'phone', 'email'].includes(f.id))
+              .filter(
+                (f) =>
+                  !['full_name', 'first_name', 'last_name', 'phone', 'email'].includes(f.id)
+                  && f.id !== 'instagram',
+              )
               .map((field) =>
                 field.type === 'date' ? (
                   <div key={field.id} style={{ marginBottom: 10 }}>
@@ -798,6 +830,25 @@ export function TableBookingModalContent({
                         custom_fields: { ...(f.custom_fields || {}), [field.id]: e.target.value },
                       }))
                     }
+                    onKeyDown={
+                      field.type === 'tel'
+                      || field.type === 'phone'
+                      || field.id === 'phone'
+                      || field.type === 'id'
+                      || field.type === 'identification'
+                      || field.id === 'id_number'
+                        ? (e) => {
+                            if (
+                              !/[\d\-\+\s\b]/.test(e.key)
+                              && !['Backspace', 'Delete', 'Tab', 'ArrowLeft', 'ArrowRight'].includes(
+                                e.key,
+                              )
+                            ) {
+                              e.preventDefault()
+                            }
+                          }
+                        : undefined
+                    }
                     style={{
                       width: '100%',
                       padding: '12px 16px',
@@ -828,42 +879,53 @@ export function TableBookingModalContent({
           {tableForm.guests.map((g, gi) => (
             <div key={gi} style={{ marginBottom: 12 }}>
               <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                <div style={{ flex: 1, display: 'flex', gap: 6 }}>
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    <input
+                      placeholder="שם פרטי *"
+                      value={g.first_name || ''}
+                      onChange={(e) => updateGuest(gi, 'first_name', e.target.value)}
+                      style={{
+                        flex: 1,
+                        height: 40,
+                        borderRadius: 8,
+                        border: '1px solid rgba(255,255,255,0.15)',
+                        background: 'rgba(255,255,255,0.08)',
+                        color: '#fff',
+                        padding: '0 10px',
+                        fontSize: 14,
+                      }}
+                    />
+                    <input
+                      placeholder="שם משפחה *"
+                      value={g.last_name || ''}
+                      onChange={(e) => updateGuest(gi, 'last_name', e.target.value)}
+                      style={{
+                        flex: 1,
+                        height: 40,
+                        borderRadius: 8,
+                        border: '1px solid rgba(255,255,255,0.15)',
+                        background: 'rgba(255,255,255,0.08)',
+                        color: '#fff',
+                        padding: '0 10px',
+                        fontSize: 14,
+                      }}
+                    />
+                  </div>
                   <input
-                    value={g.name}
-                    onChange={(e) =>
-                      setTableForm((f) => ({
-                        ...f,
-                        guests: f.guests.map((gg, idx) =>
-                          idx === gi ? { ...gg, name: e.target.value } : gg,
-                        ),
-                      }))
-                    }
-                    placeholder="שם"
-                    style={{
-                      flex: 1,
-                      height: 40,
-                      borderRadius: 8,
-                      border: '1px solid rgba(255,255,255,0.15)',
-                      background: 'rgba(255,255,255,0.08)',
-                      color: '#fff',
-                      padding: '0 10px',
-                      fontSize: 14,
+                    placeholder="טלפון נייד *"
+                    value={g.phone || ''}
+                    onChange={(e) => updateGuest(gi, 'phone', e.target.value)}
+                    onKeyDown={(e) => {
+                      if (
+                        !/[\d\-\+\s\b]/.test(e.key)
+                        && !['Backspace', 'Delete', 'Tab', 'ArrowLeft', 'ArrowRight'].includes(e.key)
+                      ) {
+                        e.preventDefault()
+                      }
                     }}
-                  />
-                  <input
-                    value={g.phone}
-                    onChange={(e) =>
-                      setTableForm((f) => ({
-                        ...f,
-                        guests: f.guests.map((gg, idx) =>
-                          idx === gi ? { ...gg, phone: e.target.value } : gg,
-                        ),
-                      }))
-                    }
-                    placeholder="טלפון"
                     style={{
-                      flex: 1,
+                      width: '100%',
                       height: 40,
                       borderRadius: 8,
                       border: '1px solid rgba(255,255,255,0.15)',
@@ -871,6 +933,7 @@ export function TableBookingModalContent({
                       color: '#fff',
                       padding: '0 10px',
                       fontSize: 14,
+                      boxSizing: 'border-box',
                     }}
                   />
                 </div>
@@ -885,7 +948,11 @@ export function TableBookingModalContent({
                 </button>
               </div>
               {(event.registration_fields || [])
-                .filter((f) => !['full_name', 'first_name', 'last_name', 'phone', 'email'].includes(f.id))
+                .filter(
+                  (f) =>
+                    !['full_name', 'first_name', 'last_name', 'phone', 'email'].includes(f.id)
+                    && f.id !== 'instagram',
+                )
                 .map((field) =>
                   field.type === 'date' ? (
                     <div key={field.id} style={{ marginTop: 8 }}>
@@ -972,6 +1039,25 @@ export function TableBookingModalContent({
                         }
                         setTableForm((f) => ({ ...f, guests: updated }))
                       }}
+                      onKeyDown={
+                        field.type === 'tel'
+                        || field.type === 'phone'
+                        || field.id === 'phone'
+                        || field.type === 'id'
+                        || field.type === 'identification'
+                        || field.id === 'id_number'
+                          ? (e) => {
+                              if (
+                                !/[\d\-\+\s\b]/.test(e.key)
+                                && !['Backspace', 'Delete', 'Tab', 'ArrowLeft', 'ArrowRight'].includes(
+                                  e.key,
+                                )
+                              ) {
+                                e.preventDefault()
+                              }
+                            }
+                          : undefined
+                      }
                       style={{
                         width: '100%',
                         padding: '10px 14px',
@@ -995,7 +1081,10 @@ export function TableBookingModalContent({
             onClick={() =>
               setTableForm((f) => ({
                 ...f,
-                guests: [...f.guests, { name: '', phone: '', custom_fields: {} }],
+                guests: [
+                  ...f.guests,
+                  { first_name: '', last_name: '', phone: '', custom_fields: {} },
+                ],
               }))
             }
             style={{
@@ -1204,11 +1293,44 @@ export function TableBookingModalContent({
                 || !tableForm.customer_phone
               }
               onClick={() => {
-                const missingFields = (event.registration_fields || [])
-                  .filter((f) => !['full_name', 'first_name', 'last_name', 'phone', 'email'].includes(f.id))
-                  .filter((f) => f.required && !tableForm.custom_fields?.[f.id]?.toString().trim())
-                if (missingFields.length > 0) {
-                  toast.error(`נא למלא: ${missingFields.map((f) => f.label).join(', ')}`)
+                const errors = []
+
+                if (!validateName(tableForm.customer_first_name)) errors.push('שם פרטי לא תקין')
+                if (!validateName(tableForm.customer_last_name)) errors.push('שם משפחה לא תקין')
+                if (!validateIsraeliPhone(tableForm.customer_phone)) {
+                  errors.push('מספר טלפון ישראלי לא תקין')
+                }
+                if (tableForm.customer_email && !validateEmail(tableForm.customer_email)) {
+                  errors.push('כתובת מייל לא תקינה')
+                }
+
+                const missingDynamic = (event.registration_fields || [])
+                  .filter(
+                    (f) =>
+                      f.required
+                && f.id !== 'instagram'
+                && !['full_name', 'first_name', 'last_name', 'phone', 'email'].includes(f.id)
+                && !tableForm.custom_fields?.[f.id]?.toString().trim(),
+                  )
+                if (missingDynamic.length > 0) {
+                  errors.push(`נא למלא: ${missingDynamic.map((f) => f.label).join(', ')}`)
+                }
+
+                const igField = (event.registration_fields || []).find((f) => f.id === 'instagram')
+                if (igField?.required && !tableForm.customer_instagram?.toString().trim()) {
+                  errors.push('נא למלא: אינסטגרם')
+                }
+
+                if (event?.min_age) {
+                  if (!tableForm.custom_fields?.birth_date) {
+                    errors.push('נא להזין תאריך לידה')
+                  } else if (!validateBirthDate(tableForm.custom_fields.birth_date, event.min_age)) {
+                    errors.push(`גיל מינימלי לאירוע זה הוא ${event.min_age}`)
+                  }
+                }
+
+                if (errors.length > 0) {
+                  errors.forEach((e) => toast.error(e))
                   return
                 }
                 setTableStep(6)
@@ -1266,23 +1388,35 @@ export function TableBookingModalContent({
             <button
               type="button"
               onClick={() => {
-                const invalidGuests = tableForm.guests.filter((guest) => !guest.name?.trim() || !guest.phone?.trim())
-                if (invalidGuests.length > 0) {
-                  toast.error('נא למלא שם וטלפון לכל חברי השולחן')
-                  return
-                }
-                const requiredFields = (event.registration_fields || []).filter(
-                  (f) =>
-                    f.required
-                    && !['full_name', 'first_name', 'last_name', 'phone', 'email'].includes(f.id),
-                )
-                for (const guest of tableForm.guests) {
-                  const missing = requiredFields.filter(
-                    (f) => !guest.custom_fields?.[f.id]?.toString().trim(),
+                for (const g of tableForm.guests) {
+                  if (!validateName(g.first_name) || !validateName(g.last_name)) {
+                    toast.error('נא למלא שם פרטי ומשפחה לכל חברי השולחן')
+                    return
+                  }
+                  if (!validateIsraeliPhone(g.phone)) {
+                    toast.error('נא להזין מספר טלפון תקין לכל חברי השולחן')
+                    return
+                  }
+                  const missing = (event.registration_fields || []).filter(
+                    (f) =>
+                      f.required
+                      && f.id !== 'instagram'
+                      && !['full_name', 'first_name', 'last_name', 'phone', 'email'].includes(f.id)
+                      && !g.custom_fields?.[f.id]?.toString().trim(),
                   )
                   if (missing.length > 0) {
                     toast.error(`נא למלא לכל חברי השולחן: ${missing.map((f) => f.label).join(', ')}`)
                     return
+                  }
+                  if (event?.min_age) {
+                    if (!g.custom_fields?.birth_date) {
+                      toast.error('נא להזין תאריך לידה לכל חברי השולחן')
+                      return
+                    }
+                    if (!validateBirthDate(g.custom_fields.birth_date, event.min_age)) {
+                      toast.error(`גיל מינימלי לאירוע זה הוא ${event.min_age}`)
+                      return
+                    }
                   }
                 }
                 setTableStep(7)

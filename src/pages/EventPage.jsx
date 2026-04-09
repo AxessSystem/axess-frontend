@@ -18,6 +18,13 @@ import PaymentModal from '@/components/PaymentModal'
 import SeatingModal from '../components/SeatingModal'
 import DateTimePicker from '@/components/ui/DateTimePicker'
 import { TableBookingModalContent } from './EventPageTableModal'
+import {
+  validateIsraeliPhone,
+  validateIsraeliId,
+  validateEmail,
+  validateBirthDate,
+  validateName,
+} from '@/utils/validation'
 
 const API_BASE = import.meta.env.VITE_API_URL || 'https://api.axess.pro'
 
@@ -716,6 +723,8 @@ export default function EventPage() {
     }
   }, [])
 
+  const instagramField = (event?.registration_fields || []).find((f) => f.id === 'instagram')
+
   useEffect(() => {
     if (!slug) return
     fetch(`${API_BASE}/e/${slug}${ref ? `?ref=${encodeURIComponent(ref)}` : ''}`)
@@ -806,25 +815,35 @@ export default function EventPage() {
   const validateFields = useCallback(() => {
     const errors = {}
 
-    if (!modalFirstName.trim()) errors.first_name = 'שם פרטי חובה'
-    if (!modalLastName.trim()) errors.last_name = 'שם משפחה חובה'
-
-    const phoneClean = modalPhone.replace(/\D/g, '')
-    if (!phoneClean || phoneClean.length < 9) errors.phone = 'טלפון לא תקין'
-
-    if (!modalEmail.trim()) errors.email = 'מייל חובה'
-    if (modalEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(modalEmail)) {
-      errors.email = 'מייל לא תקין'
+    if (!validateName(modalFirstName)) {
+      errors.first_name = 'שם פרטי חייב להכיל לפחות 2 תווים'
     }
 
-    const idDigits = modalIdNumber.replace(/\D/g, '')
-    if (event?.requires_id && idDigits.length !== 9) {
-      errors.id_number = 'נדרשת תעודת זהות בת 9 ספרות'
-    } else if (modalIdNumber && idDigits.length !== 9) {
-      errors.id_number = 'ת.ז חייבת להכיל 9 ספרות'
+    if (!validateName(modalLastName)) {
+      errors.last_name = 'שם משפחה חייב להכיל לפחות 2 תווים'
     }
 
-    if (!modalBirthDate) errors.birth_date = 'נדרש תאריך לידה'
+    if (!validateIsraeliPhone(modalPhone)) {
+      errors.phone = 'מספר טלפון ישראלי לא תקין (דוגמה: 050-1234567)'
+    }
+
+    if (!modalEmail.trim()) {
+      errors.email = 'מייל חובה'
+    } else if (!validateEmail(modalEmail)) {
+      errors.email = 'כתובת מייל לא תקינה'
+    }
+
+    if (event?.requires_id && !validateIsraeliId(modalIdNumber)) {
+      errors.id_number = 'מספר תעודת זהות לא תקין'
+    }
+
+    if (event?.min_age || modalTicket?.requires_birth_date) {
+      if (!modalBirthDate) {
+        errors.birth_date = 'נא להזין תאריך לידה'
+      } else if (event?.min_age && !validateBirthDate(modalBirthDate, event.min_age)) {
+        errors.birth_date = `גיל מינימלי לאירוע זה הוא ${event.min_age}`
+      }
+    }
 
     setFieldErrors(errors)
     return Object.keys(errors).length === 0
@@ -836,6 +855,7 @@ export default function EventPage() {
     modalIdNumber,
     modalBirthDate,
     event,
+    modalTicket,
   ])
 
   const handleReserve = async () => {
@@ -853,7 +873,7 @@ export default function EventPage() {
       gender: modalGender,
       customer_name: `${modalFirstName} ${modalLastName}`.trim(),
       phone: modalPhone,
-      ...(idDigits.length === 9 ? { id_number: idDigits } : {}),
+      ...(validateIsraeliId(modalIdNumber) ? { id_number: idDigits } : {}),
     }
     for (const f of regFields) {
       if (f.required && (mergedCustom[f.id] === undefined || mergedCustom[f.id] === '')) {
@@ -874,7 +894,7 @@ export default function EventPage() {
         last_name: modalLastName,
         phone: modalPhone,
         email: modalEmail,
-        ...(idDigits.length === 9 ? { id_number: idDigits } : {}),
+        ...(validateIsraeliId(modalIdNumber) ? { id_number: idDigits } : {}),
         birth_date: modalBirthDate,
         gender: modalGender,
         ...(ref ? { ref } : {}),
@@ -1681,7 +1701,15 @@ export default function EventPage() {
                   onBlur={() => {
                     if (modalPhone) trackField()
                   }}
-                  placeholder="טלפון נייד * (05X-XXXXXXX)"
+                  onKeyDown={(e) => {
+                    if (
+                      !/[\d\-\+\s\b]/.test(e.key)
+                      && !['Backspace', 'Delete', 'Tab', 'ArrowLeft', 'ArrowRight'].includes(e.key)
+                    ) {
+                      e.preventDefault()
+                    }
+                  }}
+                  placeholder="טלפון נייד *"
                   type="tel"
                   style={{
                     width: '100%',
@@ -1732,6 +1760,14 @@ export default function EventPage() {
                   onChange={(e) => {
                     setModalIdNumber(e.target.value)
                     setFieldErrors((f) => ({ ...f, id_number: '' }))
+                  }}
+                  onKeyDown={(e) => {
+                    if (
+                      !/[\d\-\+\s\b]/.test(e.key)
+                      && !['Backspace', 'Delete', 'Tab', 'ArrowLeft', 'ArrowRight'].includes(e.key)
+                    ) {
+                      e.preventDefault()
+                    }
                   }}
                   placeholder="תעודת זהות *"
                   type="number"
@@ -1833,8 +1869,31 @@ export default function EventPage() {
                 </div>
               )}
 
+              {instagramField && (
+                <div style={{ marginBottom: 12 }}>
+                  <input
+                    value={customFields.instagram || ''}
+                    onChange={(e) =>
+                      setCustomFields((f) => ({ ...f, instagram: e.target.value }))}
+                    placeholder={`אינסטגרם${instagramField?.required ? ' *' : ' (אופציונלי)'}`}
+                    type="text"
+                    style={{
+                      width: '100%',
+                      height: 46,
+                      borderRadius: 10,
+                      border: '1px solid rgba(255,255,255,0.15)',
+                      background: 'rgba(255,255,255,0.08)',
+                      color: '#fff',
+                      padding: '0 14px',
+                      fontSize: 15,
+                      boxSizing: 'border-box',
+                    }}
+                  />
+                </div>
+              )}
+
               {(event?.registration_fields || [])
-                .filter((f) => !MODAL_SYSTEM_REG_IDS.has(f.id))
+                .filter((f) => !MODAL_SYSTEM_REG_IDS.has(f.id) && f.id !== 'instagram')
                 .map((field) => (
                 <div key={field.id}>
                   <label
@@ -1854,6 +1913,14 @@ export default function EventPage() {
                       value={customFields[field.id] || ''}
                       onChange={(e) =>
                         setCustomFields((f) => ({ ...f, [field.id]: e.target.value }))}
+                      onKeyDown={(e) => {
+                        if (
+                          !/[\d\-\+\s\b]/.test(e.key)
+                          && !['Backspace', 'Delete', 'Tab', 'ArrowLeft', 'ArrowRight'].includes(e.key)
+                        ) {
+                          e.preventDefault()
+                        }
+                      }}
                       placeholder="05XXXXXXXX"
                       type="tel"
                       dir="ltr"
@@ -1902,6 +1969,14 @@ export default function EventPage() {
                           ...f,
                           [field.id]: e.target.value.replace(/\D/g, ''),
                         }))}
+                      onKeyDown={(e) => {
+                        if (
+                          !/[\d\-\+\s\b]/.test(e.key)
+                          && !['Backspace', 'Delete', 'Tab', 'ArrowLeft', 'ArrowRight'].includes(e.key)
+                        ) {
+                          e.preventDefault()
+                        }
+                      }}
                       placeholder="000000000"
                       type="text"
                       inputMode="numeric"
