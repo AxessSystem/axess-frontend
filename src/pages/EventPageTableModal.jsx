@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Wine, ShoppingBag, CreditCard, Check, Users, Search, X } from 'lucide-react'
 import toast from 'react-hot-toast'
 
@@ -27,6 +27,9 @@ export function TableBookingModalContent({
   trackStep,
 }) {
   const [drinkSearch, setDrinkSearch] = useState('')
+  const [paymentLoading, setPaymentLoading] = useState(false)
+  const [paymentError, setPaymentError] = useState(null)
+  const [paymentLink, setPaymentLink] = useState(null)
   const isSmartTable = modalTicket?.metadata?.table_type === 'smart'
   const menuItems = (event.table_menu || []).filter((item) => item.category !== 'תוספות')
   const extrasOptions = (event.table_menu || []).filter((item) => item.category === 'תוספות')
@@ -66,6 +69,83 @@ export function TableBookingModalContent({
         Array(Math.max(0, Number(qty) || 0)).fill(name),
       )
     })
+
+  const calcTablePrice = () => ({ total })
+
+  const initHostedFields = () => {
+    if (!window.PayPlus) return
+    const payplus = new window.PayPlus(
+      import.meta.env.VITE_PAYPLUS_PUBLIC_KEY || 'SANDBOX_PUBLIC_KEY',
+    )
+    const elements = payplus.elements()
+
+    elements
+      .create('cardNumber', {
+        style: { base: { color: 'var(--text)', fontSize: '16px' } },
+      })
+      .mount('#payplus-card-number')
+
+    elements
+      .create('cardExpiry', {
+        style: { base: { color: 'var(--text)', fontSize: '16px' } },
+      })
+      .mount('#payplus-card-expiry')
+
+    elements
+      .create('cardCvv', {
+        style: { base: { color: 'var(--text)', fontSize: '16px' } },
+      })
+      .mount('#payplus-card-cvv')
+
+    window._payplusInstance = payplus
+  }
+
+  const loadHostedFields = () => {
+    if (window.PayPlus) {
+      initHostedFields()
+      return
+    }
+    const script = document.createElement('script')
+    script.src = 'https://gateway.payplus.co.il/js/v1/payplus.js'
+    script.onload = initHostedFields
+    document.head.appendChild(script)
+  }
+
+  const createPaymentSession = async () => {
+    setPaymentLoading(true)
+    setPaymentError(null)
+    try {
+      const price = calcTablePrice(modalTicket, tableForm)
+      const res = await fetch(`${API_BASE}/api/payments/create-session`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          order_id: tableForm.order_id,
+          amount: price.total,
+          customer_name: tableForm.full_name,
+          customer_phone: tableForm.phone,
+          customer_email: tableForm.email || '',
+        }),
+      })
+      const data = await res.json()
+      if (data.payment_link) {
+        setPaymentLink(data.payment_link)
+        loadHostedFields()
+      } else {
+        setPaymentError('שגיאה ביצירת תשלום')
+      }
+    } catch (_err) {
+      setPaymentError('שגיאה בחיבור לשרת התשלום')
+    } finally {
+      setPaymentLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    if (tableStep === 7) {
+      createPaymentSession()
+    }
+  }, [tableStep])
 
   const submitTableReserve = async () => {
     setPaying(true)
@@ -806,187 +886,128 @@ export function TableBookingModalContent({
       )}
 
       {tableStep === 7 && (
-        <div>
-          <h4 style={{ margin: '0 0 16px', fontSize: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
-            <CreditCard size={18} color="#00C37A" /> סיכום ותשלום
-          </h4>
-          <div style={{ background: 'rgba(255,255,255,0.05)', borderRadius: 12, padding: 14, marginBottom: 16 }}>
-            {Object.values(tableForm.selected_drinks || {}).map((d) => (
-              <div
-                key={d.id}
-                style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8, fontSize: 14 }}
-              >
-                <span>
-                  🍾 {d.name} ×{d.quantity}
-                </span>
-                <span>₪{(parseFloat(d.price) * d.quantity).toLocaleString()}</span>
-              </div>
-            ))}
-            {extraPeople > 0 && (
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8, fontSize: 14, color: '#F59E0B' }}>
-                <span>🎫 כרטיס נוסף ×{extraPeople}</span>
-                <span>₪{extraTicketsCost.toLocaleString()}</span>
-              </div>
-            )}
-            {flatExtras().length > 0 && (
-              <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.5)', marginBottom: 8 }}>
-                🥤 תוספות: {flatExtras().join(', ')}
-              </div>
-            )}
-            <div
-              style={{
-                borderTop: '1px solid rgba(255,255,255,0.1)',
-                paddingTop: 10,
-                display: 'flex',
-                justifyContent: 'space-between',
-                fontWeight: 800,
-                fontSize: 17,
-              }}
-            >
-              <span>סה&quot;כ</span>
-              <span style={{ color: '#00C37A' }}>₪{total.toLocaleString()}</span>
-            </div>
-          </div>
-          <p style={{ margin: '0 0 10px', fontSize: 14, fontWeight: 600 }}>איך לשלם?</p>
-          {[
-            { value: 'full', label: 'אני משלם על הכולם', sub: `₪${total.toLocaleString()}` },
-            {
-              value: 'split_equal',
-              label: 'נתחלק שווה',
-              sub:
-                tableForm.guests.length > 0
-                  ? `₪${Math.ceil(total / (tableForm.guests.length + 1)).toLocaleString()} לאדם`
-                  : 'הוסף חברים בשלב הקודם',
-            },
-            { value: 'split_custom', label: 'חלוקה מותאמת', sub: 'כל אחד קובע את חלקו' },
-          ].map((opt) => (
-            <div
-              key={opt.value}
-              onClick={() => setTableForm((f) => ({ ...f, payment_mode: opt.value }))}
-              style={{
-                padding: '12px 14px',
-                borderRadius: 10,
-                marginBottom: 8,
-                cursor: 'pointer',
-                border: `2px solid ${tableForm.payment_mode === opt.value ? '#00C37A' : 'rgba(255,255,255,0.1)'}`,
-                background: tableForm.payment_mode === opt.value ? 'rgba(0,195,122,0.1)' : 'rgba(255,255,255,0.05)',
-              }}
-            >
-              <p style={{ margin: 0, fontWeight: 700, fontSize: 15 }}>{opt.label}</p>
-              <p style={{ margin: '2px 0 0', fontSize: 13, color: 'rgba(255,255,255,0.5)' }}>{opt.sub}</p>
-            </div>
-          ))}
-          {tableForm.payment_mode === 'full' && (
-            <div style={{ background: 'rgba(0,195,122,0.08)', borderRadius: 10, padding: 12, marginBottom: 16 }}>
-              <p style={{ margin: 0, fontSize: 13, color: '#00C37A' }}>
-                ✅ אתה משלם ₪{total.toLocaleString()} עבור כל השולחן
-              </p>
-              <p style={{ margin: '4px 0 0', fontSize: 12, color: 'rgba(255,255,255,0.5)' }}>
-                כל חבר יקבל QR אישי בWA לאחר התשלום
-              </p>
-            </div>
+        <div style={{ padding: '0 4px' }}>
+          <h3 style={{ textAlign: 'right', marginBottom: 20, fontSize: 18 }}>תשלום</h3>
+
+          {paymentLoading && (
+            <p style={{ textAlign: 'center', color: 'var(--v2-gray-400)' }}>טוען אפשרויות תשלום...</p>
           )}
-          {tableForm.payment_mode === 'split_equal' && (
-            <div style={{ background: 'rgba(59,130,246,0.08)', borderRadius: 10, padding: 12, marginBottom: 16 }}>
-              <p style={{ margin: '0 0 8px', fontSize: 13, fontWeight: 700 }}>חלוקה שווה:</p>
-              <p style={{ margin: '0 0 4px', fontSize: 13, color: 'rgba(255,255,255,0.7)' }}>
-                אתה משלם: ₪{Math.ceil(total / (tableForm.guests.length + 1)).toLocaleString()}
-              </p>
-              {tableForm.guests.length > 0 ? (
-                <>
-                  <p style={{ margin: '0 0 4px', fontSize: 12, color: 'rgba(255,255,255,0.5)' }}>
-                    {tableForm.guests.length} חברים יקבלו לינק תשלום בWA:
-                  </p>
-                  {tableForm.guests.map((g, i) => (
-                    <p key={i} style={{ margin: '2px 0', fontSize: 12, color: 'rgba(255,255,255,0.5)' }}>
-                      • {g.name || `חבר ${i + 1}`} — ₪
-                      {Math.ceil(total / (tableForm.guests.length + 1)).toLocaleString()}
-                    </p>
-                  ))}
-                </>
-              ) : (
-                <p style={{ margin: 0, fontSize: 12, color: '#F59E0B' }}>
-                  ⚠️ הוסף חברי שולחן בשלב הקודם לחלוקת תשלום
-                </p>
-              )}
-            </div>
-          )}
-          {tableForm.payment_mode === 'split_custom' && (
-            <div style={{ background: 'rgba(139,92,246,0.08)', borderRadius: 10, padding: 12, marginBottom: 16 }}>
-              <p style={{ margin: '0 0 10px', fontSize: 13, fontWeight: 700 }}>הגדר כמה כל אחד משלם:</p>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                <span style={{ flex: 1, fontSize: 13 }}>
-                  אני ({tableForm.customer_name || 'ראש קבוצה'})
-                </span>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                  <span style={{ fontSize: 13 }}>₪</span>
-                  <input
-                    value={tableForm.custom_split_amounts?.['main'] || ''}
-                    onChange={(e) =>
-                      setTableForm((f) => ({
-                        ...f,
-                        custom_split_amounts: { ...(f.custom_split_amounts || {}), main: e.target.value },
-                      }))
-                    }
-                    type="number"
-                    placeholder="0"
+
+          {paymentError && <p style={{ textAlign: 'center', color: '#ff4444' }}>{paymentError}</p>}
+
+          {!paymentLoading && !paymentError && (
+            <>
+              <div style={{ marginBottom: 16 }}>
+                <label
+                  style={{
+                    fontSize: 12,
+                    color: 'var(--v2-gray-400)',
+                    display: 'block',
+                    marginBottom: 6,
+                    textAlign: 'right',
+                  }}
+                >
+                  מספר כרטיס
+                </label>
+                <div
+                  id="payplus-card-number"
+                  style={{
+                    padding: '12px 16px',
+                    borderRadius: 10,
+                    background: 'var(--glass)',
+                    border: '1px solid var(--glass-border)',
+                    minHeight: 46,
+                  }}
+                />
+              </div>
+
+              <div style={{ display: 'flex', gap: 12, marginBottom: 20 }}>
+                <div style={{ flex: 1 }}>
+                  <label
                     style={{
-                      width: 80,
-                      height: 34,
-                      borderRadius: 6,
-                      border: '1px solid rgba(255,255,255,0.2)',
-                      background: 'rgba(255,255,255,0.08)',
-                      color: '#fff',
-                      padding: '0 8px',
-                      fontSize: 13,
+                      fontSize: 12,
+                      color: 'var(--v2-gray-400)',
+                      display: 'block',
+                      marginBottom: 6,
+                      textAlign: 'right',
+                    }}
+                  >
+                    תוקף
+                  </label>
+                  <div
+                    id="payplus-card-expiry"
+                    style={{
+                      padding: '12px 16px',
+                      borderRadius: 10,
+                      background: 'var(--glass)',
+                      border: '1px solid var(--glass-border)',
+                      minHeight: 46,
+                    }}
+                  />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <label
+                    style={{
+                      fontSize: 12,
+                      color: 'var(--v2-gray-400)',
+                      display: 'block',
+                      marginBottom: 6,
+                      textAlign: 'right',
+                    }}
+                  >
+                    CVV
+                  </label>
+                  <div
+                    id="payplus-card-cvv"
+                    style={{
+                      padding: '12px 16px',
+                      borderRadius: 10,
+                      background: 'var(--glass)',
+                      border: '1px solid var(--glass-border)',
+                      minHeight: 46,
                     }}
                   />
                 </div>
               </div>
-              {tableForm.guests.map((g, i) => (
-                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                  <span style={{ flex: 1, fontSize: 13 }}>{g.name || `חבר ${i + 1}`}</span>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                    <span style={{ fontSize: 13 }}>₪</span>
-                    <input
-                      value={tableForm.custom_split_amounts?.[i] || ''}
-                      onChange={(e) =>
-                        setTableForm((f) => ({
-                          ...f,
-                          custom_split_amounts: { ...(f.custom_split_amounts || {}), [i]: e.target.value },
-                        }))
-                      }
-                      type="number"
-                      placeholder="0"
-                      style={{
-                        width: 80,
-                        height: 34,
-                        borderRadius: 6,
-                        border: '1px solid rgba(255,255,255,0.2)',
-                        background: 'rgba(255,255,255,0.08)',
-                        color: '#fff',
-                        padding: '0 8px',
-                        fontSize: 13,
-                      }}
-                    />
-                  </div>
-                </div>
-              ))}
-              {(() => {
-                const amounts = Object.values(tableForm.custom_split_amounts || {})
-                const splitTotal = amounts.reduce((s, a) => s + parseFloat(a || 0), 0)
-                const remaining = total - splitTotal
-                return (
-                  <div style={{ borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: 8, marginTop: 8 }}>
-                    <p style={{ margin: 0, fontSize: 13, color: remaining === 0 ? '#00C37A' : '#F59E0B' }}>
-                      {remaining === 0
-                        ? '✅ סכום מאוזן'
-                        : `נותר לחלק: ₪${remaining.toLocaleString()}`}
-                    </p>
-                  </div>
-                )
-              })()}
-            </div>
+
+              <div style={{ display: 'flex', gap: 10, marginBottom: 20, justifyContent: 'center' }}>
+                {['ביט', '🍎 Apple Pay', 'Google Pay'].map((method) => (
+                  <button
+                    key={method}
+                    style={{
+                      flex: 1,
+                      padding: '10px 0',
+                      borderRadius: 10,
+                      border: '1px solid var(--glass-border)',
+                      background: 'var(--glass)',
+                      color: 'var(--text)',
+                      fontSize: 12,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {method}
+                  </button>
+                ))}
+              </div>
+
+              <div
+                style={{
+                  background: 'rgba(0,195,122,0.05)',
+                  border: '1px solid rgba(0,195,122,0.2)',
+                  borderRadius: 12,
+                  padding: 16,
+                  marginBottom: 8,
+                  textAlign: 'right',
+                }}
+              >
+                <p style={{ margin: 0, fontSize: 15 }}>
+                  סה"כ לתשלום:{' '}
+                  <strong style={{ color: '#00C37A' }}>
+                    ₪{calcTablePrice(modalTicket, tableForm).total?.toLocaleString()}
+                  </strong>
+                </p>
+              </div>
+            </>
           )}
         </div>
       )}
@@ -1214,43 +1235,25 @@ export function TableBookingModalContent({
           </div>
         )}
         {tableStep === 7 && (
-          <div style={{ display: 'flex', gap: 10 }}>
-            <button
-              type="button"
-              onClick={() => backTo(6)}
-              style={{
-                flex: 1,
-                height: 50,
-                borderRadius: 12,
-                border: '1px solid rgba(255,255,255,0.2)',
-                background: 'none',
-                color: '#fff',
-                fontWeight: 600,
-                fontSize: 15,
-                cursor: 'pointer',
-              }}
-            >
-              חזור
-            </button>
-            <button
-              type="button"
-              disabled={paying}
-              onClick={() => submitTableReserve()}
-              style={{
-                flex: 2,
-                height: 50,
-                borderRadius: 12,
-                border: 'none',
-                background: '#00C37A',
-                color: '#000',
-                fontWeight: 800,
-                fontSize: 16,
-                cursor: paying ? 'wait' : 'pointer',
-              }}
-            >
-              {paying ? 'מעבד...' : total === 0 ? 'שלח הזמנה' : `שלם ₪${total.toLocaleString()}`}
-            </button>
-          </div>
+          <button
+            type="button"
+            onClick={async () => {
+              alert('ממתין לחיבור מפתחות PayPlus אמיתיים')
+            }}
+            style={{
+              width: '100%',
+              padding: '14px 0',
+              borderRadius: 12,
+              background: '#00C37A',
+              color: '#000',
+              fontSize: 16,
+              fontWeight: 700,
+              border: 'none',
+              cursor: 'pointer',
+            }}
+          >
+            שלם ₪{calcTablePrice(modalTicket, tableForm).total?.toLocaleString()}
+          </button>
         )}
       </div>
     </div>
