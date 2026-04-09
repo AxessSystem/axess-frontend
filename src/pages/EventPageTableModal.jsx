@@ -79,7 +79,7 @@ export function TableBookingModalContent({
       const payload = {
         ticket_type_id: modalTicket.id,
         quantity: 1,
-        buyer_name: tableForm.customer_name.trim(),
+        buyer_name: `${tableForm.customer_first_name} ${tableForm.customer_last_name}`.trim(),
         buyer_phone: tableForm.customer_phone.trim(),
         buyer_email: tableForm.customer_email.trim() || undefined,
         total_amount: total,
@@ -99,6 +99,7 @@ export function TableBookingModalContent({
           selected_drinks: tableForm.selected_drinks,
           guests: tableForm.guests,
           payment_mode: tableForm.payment_mode,
+          ...(tableForm.custom_fields || {}),
         },
         ...(promoRef ? { ref: promoRef } : {}),
       }
@@ -139,7 +140,7 @@ export function TableBookingModalContent({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           order_id: data.order_id,
-          customer_name: tableForm.customer_name,
+          customer_name: `${tableForm.customer_first_name} ${tableForm.customer_last_name}`.trim(),
           customer_phone: tableForm.customer_phone,
           customer_email: tableForm.customer_email,
         }),
@@ -698,7 +699,8 @@ export function TableBookingModalContent({
           </h4>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {[
-              { field: 'customer_name', placeholder: 'שם מלא *', type: 'text', required: true },
+              { field: 'customer_first_name', placeholder: 'שם פרטי *', type: 'text', required: true },
+              { field: 'customer_last_name', placeholder: 'שם משפחה *', type: 'text', required: true },
               { field: 'customer_phone', placeholder: 'טלפון * (לקבלת QR בWA)', type: 'tel', required: true },
               { field: 'customer_email', placeholder: 'מייל (אופציונלי)', type: 'email' },
               { field: 'customer_instagram', placeholder: 'אינסטגרם (אופציונלי)', type: 'text' },
@@ -720,6 +722,35 @@ export function TableBookingModalContent({
                 }}
               />
             ))}
+            {/* שדות מפיק דינמיים */}
+            {(event.registration_fields || [])
+              .filter((f) => !['full_name', 'first_name', 'last_name', 'phone', 'email'].includes(f.id))
+              .map((field) => (
+                <input
+                  key={field.id}
+                  type={field.type || 'text'}
+                  placeholder={`${field.label}${field.required ? ' *' : ''}`}
+                  value={tableForm.custom_fields?.[field.id] || ''}
+                  onChange={(e) =>
+                    setTableForm((f) => ({
+                      ...f,
+                      custom_fields: { ...(f.custom_fields || {}), [field.id]: e.target.value },
+                    }))
+                  }
+                  style={{
+                    width: '100%',
+                    padding: '12px 16px',
+                    borderRadius: 10,
+                    background: 'var(--glass)',
+                    border: '1px solid var(--glass-border)',
+                    color: 'var(--text)',
+                    fontSize: 15,
+                    textAlign: 'right',
+                    boxSizing: 'border-box',
+                    marginBottom: 10,
+                  }}
+                />
+              ))}
           </div>
         </div>
       )}
@@ -732,63 +763,109 @@ export function TableBookingModalContent({
           <p style={{ margin: '0 0 16px', fontSize: 13, color: 'rgba(255,255,255,0.5)' }}>
             אופציונלי — כל חבר יקבל QR אישי בWA
           </p>
-          {tableForm.guests.map((g, i) => (
-            <div key={i} style={{ display: 'flex', gap: 8, marginBottom: 8, alignItems: 'center' }}>
-              <div style={{ flex: 1, display: 'flex', gap: 6 }}>
-                <input
-                  value={g.name}
-                  onChange={(e) =>
-                    setTableForm((f) => ({
-                      ...f,
-                      guests: f.guests.map((gg, idx) => (idx === i ? { ...gg, name: e.target.value } : gg)),
-                    }))
+          {tableForm.guests.map((g, gi) => (
+            <div key={gi} style={{ marginBottom: 12 }}>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                <div style={{ flex: 1, display: 'flex', gap: 6 }}>
+                  <input
+                    value={g.name}
+                    onChange={(e) =>
+                      setTableForm((f) => ({
+                        ...f,
+                        guests: f.guests.map((gg, idx) =>
+                          idx === gi ? { ...gg, name: e.target.value } : gg,
+                        ),
+                      }))
+                    }
+                    placeholder="שם"
+                    style={{
+                      flex: 1,
+                      height: 40,
+                      borderRadius: 8,
+                      border: '1px solid rgba(255,255,255,0.15)',
+                      background: 'rgba(255,255,255,0.08)',
+                      color: '#fff',
+                      padding: '0 10px',
+                      fontSize: 14,
+                    }}
+                  />
+                  <input
+                    value={g.phone}
+                    onChange={(e) =>
+                      setTableForm((f) => ({
+                        ...f,
+                        guests: f.guests.map((gg, idx) =>
+                          idx === gi ? { ...gg, phone: e.target.value } : gg,
+                        ),
+                      }))
+                    }
+                    placeholder="טלפון"
+                    style={{
+                      flex: 1,
+                      height: 40,
+                      borderRadius: 8,
+                      border: '1px solid rgba(255,255,255,0.15)',
+                      background: 'rgba(255,255,255,0.08)',
+                      color: '#fff',
+                      padding: '0 10px',
+                      fontSize: 14,
+                    }}
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setTableForm((f) => ({ ...f, guests: f.guests.filter((_, idx) => idx !== gi) }))
                   }
-                  placeholder="שם"
-                  style={{
-                    flex: 1,
-                    height: 40,
-                    borderRadius: 8,
-                    border: '1px solid rgba(255,255,255,0.15)',
-                    background: 'rgba(255,255,255,0.08)',
-                    color: '#fff',
-                    padding: '0 10px',
-                    fontSize: 14,
-                  }}
-                />
-                <input
-                  value={g.phone}
-                  onChange={(e) =>
-                    setTableForm((f) => ({
-                      ...f,
-                      guests: f.guests.map((gg, idx) => (idx === i ? { ...gg, phone: e.target.value } : gg)),
-                    }))
-                  }
-                  placeholder="טלפון"
-                  style={{
-                    flex: 1,
-                    height: 40,
-                    borderRadius: 8,
-                    border: '1px solid rgba(255,255,255,0.15)',
-                    background: 'rgba(255,255,255,0.08)',
-                    color: '#fff',
-                    padding: '0 10px',
-                    fontSize: 14,
-                  }}
-                />
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#EF4444', fontSize: 20 }}
+                >
+                  ×
+                </button>
               </div>
-              <button
-                type="button"
-                onClick={() => setTableForm((f) => ({ ...f, guests: f.guests.filter((_, idx) => idx !== i) }))}
-                style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#EF4444', fontSize: 20 }}
-              >
-                ×
-              </button>
+              {(event.registration_fields || [])
+                .filter((f) => !['full_name', 'first_name', 'last_name', 'phone', 'email'].includes(f.id))
+                .map((field) => (
+                  <input
+                    key={field.id}
+                    type={field.type || 'text'}
+                    placeholder={`${field.label}${field.required ? ' *' : ''}`}
+                    value={g.custom_fields?.[field.id] || ''}
+                    onChange={(e) => {
+                      const updated = [...tableForm.guests]
+                      updated[gi] = {
+                        ...updated[gi],
+                        custom_fields: {
+                          ...(updated[gi].custom_fields || {}),
+                          [field.id]: e.target.value,
+                        },
+                      }
+                      setTableForm((f) => ({ ...f, guests: updated }))
+                    }}
+                    style={{
+                      width: '100%',
+                      padding: '10px 14px',
+                      borderRadius: 8,
+                      background: 'var(--glass)',
+                      border: '1px solid var(--glass-border)',
+                      color: 'var(--text)',
+                      fontSize: 14,
+                      textAlign: 'right',
+                      boxSizing: 'border-box',
+                      marginTop: 8,
+                    }}
+                  />
+                ))}
             </div>
           ))}
           <button
             type="button"
             disabled={tableForm.guests.length >= maxGuests}
-            onClick={() => setTableForm((f) => ({ ...f, guests: [...f.guests, { name: '', phone: '' }] }))}
+            onClick={() =>
+              setTableForm((f) => ({
+                ...f,
+                guests: [...f.guests, { name: '', phone: '', custom_fields: {} }],
+              }))
+            }
             style={{
               width: '100%',
               height: 42,
@@ -812,9 +889,9 @@ export function TableBookingModalContent({
         <PaymentModal
           orderId={tableForm.order_id}
           amount={calcTablePrice(modalTicket, tableForm).total}
-          customerName={tableForm.full_name}
-          customerPhone={tableForm.phone}
-          customerEmail={tableForm.email}
+          customerName={`${tableForm.customer_first_name} ${tableForm.customer_last_name}`.trim()}
+          customerPhone={tableForm.customer_phone}
+          customerEmail={tableForm.customer_email}
           onSuccess={() => {
             setTableStep(8)
           }}
@@ -989,18 +1066,37 @@ export function TableBookingModalContent({
             </button>
             <button
               type="button"
-              disabled={!tableForm.customer_name || !tableForm.customer_phone}
+              disabled={
+                !tableForm.customer_first_name
+                || !tableForm.customer_last_name
+                || !tableForm.customer_phone
+              }
               onClick={() => setTableStep(6)}
               style={{
                 flex: 2,
                 height: 50,
                 borderRadius: 12,
                 border: 'none',
-                background: tableForm.customer_name && tableForm.customer_phone ? '#00C37A' : 'rgba(255,255,255,0.1)',
-                color: tableForm.customer_name && tableForm.customer_phone ? '#000' : 'rgba(255,255,255,0.3)',
+                background:
+                  tableForm.customer_first_name
+                  && tableForm.customer_last_name
+                  && tableForm.customer_phone
+                    ? '#00C37A'
+                    : 'rgba(255,255,255,0.1)',
+                color:
+                  tableForm.customer_first_name
+                  && tableForm.customer_last_name
+                  && tableForm.customer_phone
+                    ? '#000'
+                    : 'rgba(255,255,255,0.3)',
                 fontWeight: 800,
                 fontSize: 16,
-                cursor: tableForm.customer_name && tableForm.customer_phone ? 'pointer' : 'not-allowed',
+                cursor:
+                  tableForm.customer_first_name
+                  && tableForm.customer_last_name
+                  && tableForm.customer_phone
+                    ? 'pointer'
+                    : 'not-allowed',
               }}
             >
               המשך
