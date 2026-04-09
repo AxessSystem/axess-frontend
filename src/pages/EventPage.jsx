@@ -17,6 +17,11 @@ import toast from 'react-hot-toast'
 import PaymentModal from '@/components/PaymentModal'
 import SeatingModal from '../components/SeatingModal'
 import DateTimePicker from '@/components/ui/DateTimePicker'
+import FormField from '@/components/ui/FormField'
+import FormPhoneInput from '@/components/ui/FormPhoneInput'
+import FormGenderSelect from '@/components/ui/FormGenderSelect'
+import FormDatePicker from '@/components/ui/FormDatePicker'
+import useFormValidation from '@/hooks/useFormValidation'
 import { TableBookingModalContent } from './EventPageTableModal'
 import {
   validateIsraeliPhone,
@@ -24,6 +29,8 @@ import {
   validateEmail,
   validateBirthDate,
   validateName,
+  getFieldError,
+  validateInstagram,
 } from '@/utils/validation'
 
 const API_BASE = import.meta.env.VITE_API_URL || 'https://api.axess.pro'
@@ -654,7 +661,6 @@ export default function EventPage() {
   const [modalIdNumber, setModalIdNumber] = useState('')
   const [modalBirthDate, setModalBirthDate] = useState(null)
   const [modalGender, setModalGender] = useState('')
-  const [fieldErrors, setFieldErrors] = useState({})
   const [residentCity, setResidentCity] = useState('')
   const [customFields, setCustomFields] = useState({})
   const [paying, setPaying] = useState(false)
@@ -724,6 +730,10 @@ export default function EventPage() {
   }, [])
 
   const instagramField = (event?.registration_fields || []).find((f) => f.id === 'instagram')
+  const emailField = (event?.registration_fields || []).find((f) => f.id === 'email')
+  const emailRequired = emailField?.required ?? true
+
+  const { errors, touched, handleBlur, handleChange, validateAll, isFieldValid, reset } = useFormValidation()
 
   useEffect(() => {
     if (!slug) return
@@ -796,57 +806,61 @@ export default function EventPage() {
     }).catch(() => {})
   }, [slug, promoRef])
 
-  const trackField = useCallback(() => {
-    if (!slug || !modalPhone) return
-    fetch(`${API_BASE}/e/${slug}/track`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        event: 'טופס חלקי',
-        phone: modalPhone,
-        first_name: modalFirstName,
-        last_name: modalLastName,
-        email: modalEmail,
-        step: 'personal_details',
-      }),
-    }).catch(() => {})
-  }, [slug, modalPhone, modalFirstName, modalLastName, modalEmail])
+  const trackField = useCallback(
+    (phoneOverride) => {
+      const phoneVal = phoneOverride ?? modalPhone
+      if (!slug || !phoneVal) return
+      fetch(`${API_BASE}/e/${slug}/track`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          event: 'טופס חלקי',
+          phone: phoneVal,
+          first_name: modalFirstName,
+          last_name: modalLastName,
+          email: modalEmail,
+          step: 'personal_details',
+        }),
+      }).catch(() => {})
+    },
+    [slug, modalPhone, modalFirstName, modalLastName, modalEmail],
+  )
+
+  const isFormValid = () =>
+    validateName(modalFirstName)
+    && validateName(modalLastName)
+    && validateIsraeliPhone(modalPhone || '')
+    && (emailRequired ? modalEmail?.trim() && validateEmail(modalEmail) : !modalEmail || validateEmail(modalEmail))
+    && (!event?.requires_id || validateIsraeliId(modalIdNumber || ''))
+    && (!(event?.min_age || modalTicket?.requires_birth_date)
+      || (modalBirthDate
+        && (!event?.min_age || validateBirthDate(modalBirthDate, event.min_age))))
+    && (!instagramField
+      || !getFieldError('instagram', customFields.instagram, { required: !!instagramField.required }))
 
   const validateFields = useCallback(() => {
-    const errors = {}
-
-    if (!validateName(modalFirstName)) {
-      errors.first_name = 'שם פרטי חייב להכיל לפחות 2 תווים'
+    const birthRequired = !!(event?.min_age || modalTicket?.requires_birth_date)
+    const fields = [
+      { field: 'first_name', value: modalFirstName },
+      { field: 'last_name', value: modalLastName },
+      { field: 'phone', value: modalPhone },
+      { field: 'email', value: modalEmail, required: emailRequired },
+    ]
+    if (event?.requires_id) fields.push({ field: 'id_number', value: modalIdNumber })
+    fields.push({
+      field: 'birth_date',
+      value: modalBirthDate,
+      required: birthRequired,
+      minAge: event?.min_age,
+    })
+    if (instagramField) {
+      fields.push({
+        field: 'instagram',
+        value: customFields.instagram,
+        required: !!instagramField.required,
+      })
     }
-
-    if (!validateName(modalLastName)) {
-      errors.last_name = 'שם משפחה חייב להכיל לפחות 2 תווים'
-    }
-
-    if (!validateIsraeliPhone(modalPhone)) {
-      errors.phone = 'מספר טלפון ישראלי לא תקין (דוגמה: 050-1234567)'
-    }
-
-    if (!modalEmail.trim()) {
-      errors.email = 'מייל חובה'
-    } else if (!validateEmail(modalEmail)) {
-      errors.email = 'כתובת מייל לא תקינה'
-    }
-
-    if (event?.requires_id && !validateIsraeliId(modalIdNumber)) {
-      errors.id_number = 'מספר תעודת זהות לא תקין'
-    }
-
-    if (event?.min_age || modalTicket?.requires_birth_date) {
-      if (!modalBirthDate) {
-        errors.birth_date = 'נא להזין תאריך לידה'
-      } else if (event?.min_age && !validateBirthDate(modalBirthDate, event.min_age)) {
-        errors.birth_date = `גיל מינימלי לאירוע זה הוא ${event.min_age}`
-      }
-    }
-
-    setFieldErrors(errors)
-    return Object.keys(errors).length === 0
+    return validateAll(fields)
   }, [
     modalFirstName,
     modalLastName,
@@ -856,6 +870,10 @@ export default function EventPage() {
     modalBirthDate,
     event,
     modalTicket,
+    emailRequired,
+    validateAll,
+    instagramField,
+    customFields.instagram,
   ])
 
   const handleReserve = async () => {
@@ -863,7 +881,7 @@ export default function EventPage() {
     if (!validateFields()) return
 
     const regFields = event?.registration_fields || []
-    const idDigits = modalIdNumber.replace(/\D/g, '')
+    const idDigits = String(modalIdNumber || '').replace(/\D/g, '').padStart(9, '0')
     const mergedCustom = {
       ...customFields,
       first_name: modalFirstName,
@@ -1011,7 +1029,7 @@ export default function EventPage() {
     setModalIdNumber('')
     setModalBirthDate(null)
     setModalGender('')
-    setFieldErrors({})
+    reset()
     setResidentCity('')
     setCustomFields({})
     if (tt.ticket_category === 'table' && !tt.metadata?.seating_map_id) {
@@ -1636,204 +1654,95 @@ export default function EventPage() {
                 padding: '16px 16px 0',
               }}
             >
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              <div>
-                <input
-                  value={modalFirstName}
-                  onChange={(e) => {
-                    setModalFirstName(e.target.value)
-                    setFieldErrors((f) => ({ ...f, first_name: '' }))
-                  }}
-                  placeholder="שם פרטי *"
-                  style={{
-                    width: '100%',
-                    height: 48,
-                    borderRadius: 10,
-                    fontSize: 15,
-                    border: `1px solid ${fieldErrors.first_name ? '#EF4444' : 'rgba(255,255,255,0.15)'}`,
-                    background: 'rgba(255,255,255,0.08)',
-                    color: '#fff',
-                    padding: '0 14px',
-                    boxSizing: 'border-box',
-                  }}
-                />
-                {fieldErrors.first_name && (
-                  <p style={{ margin: '4px 0 0', fontSize: 11, color: '#EF4444' }}>
-                    {fieldErrors.first_name}
-                  </p>
-                )}
-              </div>
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
+              <FormField
+                value={modalFirstName}
+                onChange={(e) => {
+                  setModalFirstName(e.target.value)
+                  handleChange('first_name', e.target.value)
+                }}
+                onBlur={() => handleBlur('first_name', modalFirstName)}
+                placeholder="שם פרטי *"
+                error={touched.first_name ? errors.first_name : null}
+                isValid={isFieldValid('first_name', modalFirstName)}
+                required
+              />
 
-              <div>
-                <input
-                  value={modalLastName}
-                  onChange={(e) => {
-                    setModalLastName(e.target.value)
-                    setFieldErrors((f) => ({ ...f, last_name: '' }))
-                  }}
-                  placeholder="שם משפחה *"
-                  style={{
-                    width: '100%',
-                    height: 48,
-                    borderRadius: 10,
-                    fontSize: 15,
-                    border: `1px solid ${fieldErrors.last_name ? '#EF4444' : 'rgba(255,255,255,0.15)'}`,
-                    background: 'rgba(255,255,255,0.08)',
-                    color: '#fff',
-                    padding: '0 14px',
-                    boxSizing: 'border-box',
-                  }}
-                />
-                {fieldErrors.last_name && (
-                  <p style={{ margin: '4px 0 0', fontSize: 11, color: '#EF4444' }}>
-                    {fieldErrors.last_name}
-                  </p>
-                )}
-              </div>
+              <FormField
+                value={modalLastName}
+                onChange={(e) => {
+                  setModalLastName(e.target.value)
+                  handleChange('last_name', e.target.value)
+                }}
+                onBlur={() => handleBlur('last_name', modalLastName)}
+                placeholder="שם משפחה *"
+                error={touched.last_name ? errors.last_name : null}
+                isValid={isFieldValid('last_name', modalLastName)}
+                required
+              />
 
-              <div>
-                <input
-                  value={modalPhone}
-                  onChange={(e) => {
-                    setModalPhone(e.target.value)
-                    setFieldErrors((f) => ({ ...f, phone: '' }))
-                  }}
-                  onBlur={() => {
-                    if (modalPhone) trackField()
-                  }}
-                  onKeyDown={(e) => {
-                    if (
-                      !/[\d\-\+\s\b]/.test(e.key)
-                      && !['Backspace', 'Delete', 'Tab', 'ArrowLeft', 'ArrowRight'].includes(e.key)
-                    ) {
-                      e.preventDefault()
-                    }
-                  }}
-                  placeholder="טלפון נייד *"
-                  type="tel"
-                  style={{
-                    width: '100%',
-                    height: 48,
-                    borderRadius: 10,
-                    fontSize: 15,
-                    border: `1px solid ${fieldErrors.phone ? '#EF4444' : 'rgba(255,255,255,0.15)'}`,
-                    background: 'rgba(255,255,255,0.08)',
-                    color: '#fff',
-                    padding: '0 14px',
-                    boxSizing: 'border-box',
-                  }}
-                />
-                {fieldErrors.phone && (
-                  <p style={{ margin: '4px 0 0', fontSize: 11, color: '#EF4444' }}>{fieldErrors.phone}</p>
-                )}
-              </div>
+              <FormPhoneInput
+                value={modalPhone}
+                onChange={(val) => {
+                  setModalPhone(val)
+                  handleChange('phone', val)
+                }}
+                onBlurSideEffect={(phoneVal) => {
+                  if (phoneVal) trackField(phoneVal)
+                }}
+                required
+              />
 
-              <div>
-                <input
-                  value={modalEmail}
-                  onChange={(e) => {
-                    setModalEmail(e.target.value)
-                    setFieldErrors((f) => ({ ...f, email: '' }))
-                  }}
-                  placeholder="מייל *"
-                  type="email"
-                  style={{
-                    width: '100%',
-                    height: 48,
-                    borderRadius: 10,
-                    fontSize: 15,
-                    border: `1px solid ${fieldErrors.email ? '#EF4444' : 'rgba(255,255,255,0.15)'}`,
-                    background: 'rgba(255,255,255,0.08)',
-                    color: '#fff',
-                    padding: '0 14px',
-                    boxSizing: 'border-box',
-                  }}
-                />
-                {fieldErrors.email && (
-                  <p style={{ margin: '4px 0 0', fontSize: 11, color: '#EF4444' }}>{fieldErrors.email}</p>
-                )}
-              </div>
+              <FormField
+                type="email"
+                value={modalEmail}
+                onChange={(e) => {
+                  setModalEmail(e.target.value)
+                  handleChange('email', e.target.value, { required: emailRequired })
+                }}
+                onBlur={() => handleBlur('email', modalEmail, { required: emailRequired })}
+                placeholder={`מייל${emailRequired ? ' *' : ' (אופציונלי)'}`}
+                error={touched.email ? errors.email : null}
+                isValid={isFieldValid('email', modalEmail)}
+              />
 
-              <div>
-                <input
-                  value={modalIdNumber}
-                  onChange={(e) => {
-                    setModalIdNumber(e.target.value)
-                    setFieldErrors((f) => ({ ...f, id_number: '' }))
-                  }}
-                  onKeyDown={(e) => {
-                    if (
-                      !/[\d\-\+\s\b]/.test(e.key)
-                      && !['Backspace', 'Delete', 'Tab', 'ArrowLeft', 'ArrowRight'].includes(e.key)
-                    ) {
-                      e.preventDefault()
-                    }
-                  }}
-                  placeholder="תעודת זהות *"
-                  type="number"
-                  style={{
-                    width: '100%',
-                    height: 48,
-                    borderRadius: 10,
-                    fontSize: 15,
-                    border: `1px solid ${fieldErrors.id_number ? '#EF4444' : 'rgba(255,255,255,0.15)'}`,
-                    background: 'rgba(255,255,255,0.08)',
-                    color: '#fff',
-                    padding: '0 14px',
-                    boxSizing: 'border-box',
-                  }}
-                />
-                {fieldErrors.id_number && (
-                  <p style={{ margin: '4px 0 0', fontSize: 11, color: '#EF4444' }}>
-                    {fieldErrors.id_number}
-                  </p>
-                )}
-              </div>
+              <FormField
+                type="text"
+                inputMode="numeric"
+                value={modalIdNumber}
+                onChange={(e) => {
+                  const v = e.target.value.replace(/\D/g, '').slice(0, 9)
+                  setModalIdNumber(v)
+                  if (event?.requires_id) handleChange('id_number', v)
+                }}
+                onBlur={(e) => {
+                  if (event?.requires_id) handleBlur('id_number', e.target.value)
+                }}
+                placeholder="תעודת זהות *"
+                error={touched.id_number ? errors.id_number : null}
+                isValid={
+                  !!event?.requires_id
+                  && touched.id_number
+                  && !errors.id_number
+                  && validateIsraeliId(modalIdNumber)
+                }
+              />
 
-              <div style={{ marginBottom: 12 }}>
-                <DateTimePicker
-                  value={modalBirthDate || ''}
-                  onChange={(val) => {
-                    setModalBirthDate(val)
-                    setFieldErrors((f) => ({ ...f, birth_date: '' }))
-                  }}
-                  dateOnly
-                  placeholder="תאריך לידה *"
-                />
-                {fieldErrors.birth_date && (
-                  <p style={{ margin: '4px 0 0', fontSize: 11, color: '#EF4444' }}>
-                    {fieldErrors.birth_date}
-                  </p>
-                )}
-              </div>
+              <FormDatePicker
+                value={modalBirthDate || ''}
+                onChange={(val) => {
+                  setModalBirthDate(val)
+                  handleChange('birth_date', val, {
+                    required: !!(event?.min_age || modalTicket?.requires_birth_date),
+                    minAge: event?.min_age,
+                  })
+                }}
+                required={!!(event?.min_age || modalTicket?.requires_birth_date)}
+                minAge={event?.min_age}
+                submitError={errors.birth_date}
+              />
 
-              <div style={{ marginBottom: 12 }}>
-                <p style={{ fontSize: 12, color: 'var(--v2-gray-400)', textAlign: 'right', margin: '0 0 8px' }}>
-                  מין *
-                </p>
-                <div style={{ display: 'flex', gap: 10 }}>
-                  {['זכר', 'נקבה', 'אחר'].map((g) => (
-                    <button
-                      key={g}
-                      type="button"
-                      onClick={() => setModalGender(g)}
-                      style={{
-                        flex: 1,
-                        padding: '10px 0',
-                        borderRadius: 10,
-                        border: `2px solid ${modalGender === g ? '#00C37A' : 'var(--glass-border)'}`,
-                        background: modalGender === g ? 'rgba(0,195,122,0.1)' : 'var(--glass)',
-                        color: modalGender === g ? '#00C37A' : 'var(--text)',
-                        fontSize: 14,
-                        cursor: 'pointer',
-                        fontWeight: modalGender === g ? 700 : 400,
-                      }}
-                    >
-                      {g}
-                    </button>
-                  ))}
-                </div>
-              </div>
+              <FormGenderSelect value={modalGender} onChange={setModalGender} required />
 
               {event?.city_code && (
                 <div>
@@ -1870,26 +1779,21 @@ export default function EventPage() {
               )}
 
               {instagramField && (
-                <div style={{ marginBottom: 12 }}>
-                  <input
-                    value={customFields.instagram || ''}
-                    onChange={(e) =>
-                      setCustomFields((f) => ({ ...f, instagram: e.target.value }))}
-                    placeholder={`אינסטגרם${instagramField?.required ? ' *' : ' (אופציונלי)'}`}
-                    type="text"
-                    style={{
-                      width: '100%',
-                      height: 46,
-                      borderRadius: 10,
-                      border: '1px solid rgba(255,255,255,0.15)',
-                      background: 'rgba(255,255,255,0.08)',
-                      color: '#fff',
-                      padding: '0 14px',
-                      fontSize: 15,
-                      boxSizing: 'border-box',
-                    }}
-                  />
-                </div>
+                <FormField
+                  value={customFields.instagram || ''}
+                  onChange={(e) => {
+                    const v = e.target.value
+                    setCustomFields((f) => ({ ...f, instagram: v }))
+                    handleChange('instagram', v, { required: !!instagramField?.required })
+                  }}
+                  onBlur={(e) =>
+                    handleBlur('instagram', e.target.value, { required: !!instagramField?.required })}
+                  placeholder={`אינסטגרם${instagramField?.required ? ' *' : ' (אופציונלי)'}`}
+                  error={touched.instagram ? errors.instagram : null}
+                  isValid={
+                    touched.instagram && !errors.instagram && validateInstagram(customFields.instagram || '')
+                  }
+                />
               )}
 
               {(event?.registration_fields || [])
@@ -2376,7 +2280,7 @@ export default function EventPage() {
               <button
                 type="button"
                 onClick={handleReserve}
-                disabled={paying}
+                disabled={!isFormValid() || paying}
                 style={{
                   width: '100%',
                   height: 52,
@@ -2386,7 +2290,8 @@ export default function EventPage() {
                   color: paying ? 'rgba(255,255,255,0.3)' : '#000',
                   fontWeight: 800,
                   fontSize: 17,
-                  cursor: paying ? 'not-allowed' : 'pointer',
+                  cursor: !isFormValid() || paying ? 'not-allowed' : 'pointer',
+                  opacity: !isFormValid() ? 0.5 : 1,
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',

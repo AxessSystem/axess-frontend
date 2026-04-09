@@ -3,11 +3,17 @@ import { Wine, ShoppingBag, Check, Users, Search, X } from 'lucide-react'
 import toast from 'react-hot-toast'
 import PaymentModal from '@/components/PaymentModal'
 import DateTimePicker from '@/components/ui/DateTimePicker'
+import FormField from '@/components/ui/FormField'
+import FormPhoneInput from '@/components/ui/FormPhoneInput'
+import FormGenderSelect from '@/components/ui/FormGenderSelect'
+import FormDatePicker from '@/components/ui/FormDatePicker'
+import useFormValidation from '@/hooks/useFormValidation'
 import {
   validateIsraeliPhone,
   validateEmail,
   validateBirthDate,
   validateName,
+  validateInstagram,
 } from '@/utils/validation'
 
 export function TableBookingModalContent({
@@ -175,6 +181,16 @@ export function TableBookingModalContent({
   const canContinueStep1 =
     Object.keys(tableForm.selected_drinks || {}).length > 0 && totalBottles > 0
   const maxGuests = tableForm.guest_count - 1
+  const emailField = (event?.registration_fields || []).find((f) => f.id === 'email')
+  const emailRequired = emailField?.required ?? false
+  const igField = (event?.registration_fields || []).find((f) => f.id === 'instagram')
+
+  const { errors, touched, handleBlur, handleChange, isFieldValid } = useFormValidation()
+
+  const step5Valid =
+    validateName(tableForm.customer_first_name)
+    && validateName(tableForm.customer_last_name)
+    && validateIsraeliPhone(tableForm.customer_phone || '')
 
   const updateGuest = (gi, key, value) => {
     setTableForm((f) => ({
@@ -715,44 +731,71 @@ export function TableBookingModalContent({
           <h4 style={{ margin: '0 0 16px', fontSize: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
             <Users size={18} color="#00C37A" /> פרטים אישיים
           </h4>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {[
-              { field: 'customer_first_name', placeholder: 'שם פרטי *', type: 'text', required: true },
-              { field: 'customer_last_name', placeholder: 'שם משפחה *', type: 'text', required: true },
-              { field: 'customer_phone', placeholder: 'טלפון נייד *', type: 'tel', required: true },
-              { field: 'customer_email', placeholder: 'מייל (אופציונלי)', type: 'email' },
-              { field: 'customer_instagram', placeholder: 'אינסטגרם (אופציונלי)', type: 'text' },
-            ].map((f) => (
-              <input
-                key={f.field}
-                value={tableForm[f.field]}
-                onChange={(e) => setTableForm((prev) => ({ ...prev, [f.field]: e.target.value }))}
-                onKeyDown={
-                  f.field === 'customer_phone'
-                    ? (e) => {
-                        if (
-                          !/[\d\-\+\s\b]/.test(e.key)
-                          && !['Backspace', 'Delete', 'Tab', 'ArrowLeft', 'ArrowRight'].includes(e.key)
-                        ) {
-                          e.preventDefault()
-                        }
-                      }
-                    : undefined
-                }
-                placeholder={f.placeholder}
-                type={f.type}
-                style={{
-                  height: 48,
-                  borderRadius: 10,
-                  border: `1px solid ${f.required && !tableForm[f.field] ? 'rgba(239,68,68,0.5)' : 'rgba(255,255,255,0.15)'}`,
-                  background: 'rgba(255,255,255,0.08)',
-                  color: '#fff',
-                  padding: '0 14px',
-                  fontSize: 15,
-                }}
-              />
-            ))}
-            {/* שדות מפיק דינמיים */}
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+            <FormField
+              value={tableForm.customer_first_name}
+              onChange={(e) => {
+                const v = e.target.value
+                setTableForm((p) => ({ ...p, customer_first_name: v }))
+                handleChange('first_name', v)
+              }}
+              onBlur={() => handleBlur('first_name', tableForm.customer_first_name)}
+              placeholder="שם פרטי *"
+              error={touched.first_name ? errors.first_name : null}
+              isValid={isFieldValid('first_name', tableForm.customer_first_name)}
+              required
+            />
+            <FormField
+              value={tableForm.customer_last_name}
+              onChange={(e) => {
+                const v = e.target.value
+                setTableForm((p) => ({ ...p, customer_last_name: v }))
+                handleChange('last_name', v)
+              }}
+              onBlur={() => handleBlur('last_name', tableForm.customer_last_name)}
+              placeholder="שם משפחה *"
+              error={touched.last_name ? errors.last_name : null}
+              isValid={isFieldValid('last_name', tableForm.customer_last_name)}
+              required
+            />
+            <FormPhoneInput
+              value={tableForm.customer_phone}
+              onChange={(val) => {
+                setTableForm((p) => ({ ...p, customer_phone: val }))
+                handleChange('phone', val)
+              }}
+              required
+            />
+            <FormField
+              type="email"
+              value={tableForm.customer_email}
+              onChange={(e) => {
+                const v = e.target.value
+                setTableForm((p) => ({ ...p, customer_email: v }))
+                handleChange('email', v, { required: emailRequired })
+              }}
+              onBlur={() => handleBlur('email', tableForm.customer_email, { required: emailRequired })}
+              placeholder={`מייל${emailRequired ? ' *' : ' (אופציונלי)'}`}
+              error={touched.email ? errors.email : null}
+              isValid={isFieldValid('email', tableForm.customer_email)}
+            />
+            <FormField
+              value={tableForm.customer_instagram}
+              onChange={(e) => {
+                const v = e.target.value
+                setTableForm((p) => ({ ...p, customer_instagram: v }))
+                handleChange('instagram', v, { required: !!igField?.required })
+              }}
+              onBlur={(e) =>
+                handleBlur('instagram', e.target.value, { required: !!igField?.required })}
+              placeholder={`אינסטגרם${igField?.required ? ' *' : ' (אופציונלי)'}`}
+              error={touched.instagram ? errors.instagram : null}
+              isValid={
+                touched.instagram
+                && !errors.instagram
+                && validateInstagram(tableForm.customer_instagram || '')
+              }
+            />
             {(event.registration_fields || [])
               .filter(
                 (f) =>
@@ -762,61 +805,46 @@ export function TableBookingModalContent({
               .map((field) =>
                 field.type === 'date' ? (
                   <div key={field.id} style={{ marginBottom: 10 }}>
-                    <DateTimePicker
-                      value={tableForm.custom_fields?.[field.id] || ''}
-                      onChange={(val) =>
-                        setTableForm((f) => ({
-                          ...f,
-                          custom_fields: { ...(f.custom_fields || {}), [field.id]: val },
-                        }))
-                      }
-                      dateOnly
-                      placeholder={`${field.label}${field.required ? ' *' : ''}`}
-                    />
+                    {field.id === 'birth_date' ? (
+                      <FormDatePicker
+                        value={tableForm.custom_fields?.[field.id] || ''}
+                        onChange={(val) =>
+                          setTableForm((f) => ({
+                            ...f,
+                            custom_fields: { ...(f.custom_fields || {}), [field.id]: val },
+                          }))
+                        }
+                        required={field.required}
+                        minAge={event?.min_age}
+                        placeholder={`${field.label}${field.required ? ' *' : ''}`}
+                      />
+                    ) : (
+                      <DateTimePicker
+                        value={tableForm.custom_fields?.[field.id] || ''}
+                        onChange={(val) =>
+                          setTableForm((f) => ({
+                            ...f,
+                            custom_fields: { ...(f.custom_fields || {}), [field.id]: val },
+                          }))
+                        }
+                        dateOnly
+                        placeholder={`${field.label}${field.required ? ' *' : ''}`}
+                      />
+                    )}
                   </div>
                 ) : field.id === 'gender' ? (
                   <div key={field.id} style={{ marginBottom: 10 }}>
-                    <p
-                      style={{
-                        fontSize: 12,
-                        color: 'var(--v2-gray-400)',
-                        textAlign: 'right',
-                        margin: '0 0 8px',
-                      }}
-                    >
-                      {field.label}
-                      {field.required ? ' *' : ''}
-                    </p>
-                    <div style={{ display: 'flex', gap: 10 }}>
-                      {['זכר', 'נקבה', 'אחר'].map((g) => (
-                        <button
-                          key={g}
-                          type="button"
-                          onClick={() =>
-                            setTableForm((f) => ({
-                              ...f,
-                              custom_fields: { ...(f.custom_fields || {}), gender: g },
-                            }))
-                          }
-                          style={{
-                            flex: 1,
-                            padding: '10px 0',
-                            borderRadius: 10,
-                            border: `2px solid ${tableForm.custom_fields?.gender === g ? '#00C37A' : 'var(--glass-border)'}`,
-                            background:
-                              tableForm.custom_fields?.gender === g
-                                ? 'rgba(0,195,122,0.1)'
-                                : 'var(--glass)',
-                            color: tableForm.custom_fields?.gender === g ? '#00C37A' : 'var(--text)',
-                            fontSize: 14,
-                            cursor: 'pointer',
-                            fontWeight: tableForm.custom_fields?.gender === g ? 700 : 400,
-                          }}
-                        >
-                          {g}
-                        </button>
-                      ))}
-                    </div>
+                    <FormGenderSelect
+                      value={tableForm.custom_fields?.gender || ''}
+                      onChange={(g) =>
+                        setTableForm((f) => ({
+                          ...f,
+                          custom_fields: { ...(f.custom_fields || {}), gender: g },
+                        }))
+                      }
+                      required={field.required}
+                      label={field.label}
+                    />
                   </div>
                 ) : (
                   <input
@@ -880,61 +908,26 @@ export function TableBookingModalContent({
             <div key={gi} style={{ marginBottom: 12 }}>
               <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                 <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  <div style={{ display: 'flex', gap: 6 }}>
-                    <input
-                      placeholder="שם פרטי *"
-                      value={g.first_name || ''}
-                      onChange={(e) => updateGuest(gi, 'first_name', e.target.value)}
-                      style={{
-                        flex: 1,
-                        height: 40,
-                        borderRadius: 8,
-                        border: '1px solid rgba(255,255,255,0.15)',
-                        background: 'rgba(255,255,255,0.08)',
-                        color: '#fff',
-                        padding: '0 10px',
-                        fontSize: 14,
-                      }}
-                    />
-                    <input
-                      placeholder="שם משפחה *"
-                      value={g.last_name || ''}
-                      onChange={(e) => updateGuest(gi, 'last_name', e.target.value)}
-                      style={{
-                        flex: 1,
-                        height: 40,
-                        borderRadius: 8,
-                        border: '1px solid rgba(255,255,255,0.15)',
-                        background: 'rgba(255,255,255,0.08)',
-                        color: '#fff',
-                        padding: '0 10px',
-                        fontSize: 14,
-                      }}
-                    />
+                  <div style={{ display: 'flex', gap: 6, alignItems: 'flex-start' }}>
+                    <div style={{ flex: 1 }}>
+                      <FormField
+                        placeholder="שם פרטי *"
+                        value={g.first_name || ''}
+                        onChange={(e) => updateGuest(gi, 'first_name', e.target.value)}
+                      />
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <FormField
+                        placeholder="שם משפחה *"
+                        value={g.last_name || ''}
+                        onChange={(e) => updateGuest(gi, 'last_name', e.target.value)}
+                      />
+                    </div>
                   </div>
-                  <input
-                    placeholder="טלפון נייד *"
+                  <FormPhoneInput
                     value={g.phone || ''}
-                    onChange={(e) => updateGuest(gi, 'phone', e.target.value)}
-                    onKeyDown={(e) => {
-                      if (
-                        !/[\d\-\+\s\b]/.test(e.key)
-                        && !['Backspace', 'Delete', 'Tab', 'ArrowLeft', 'ArrowRight'].includes(e.key)
-                      ) {
-                        e.preventDefault()
-                      }
-                    }}
-                    style={{
-                      width: '100%',
-                      height: 40,
-                      borderRadius: 8,
-                      border: '1px solid rgba(255,255,255,0.15)',
-                      background: 'rgba(255,255,255,0.08)',
-                      color: '#fff',
-                      padding: '0 10px',
-                      fontSize: 14,
-                      boxSizing: 'border-box',
-                    }}
+                    onChange={(val) => updateGuest(gi, 'phone', val)}
+                    required
                   />
                 </div>
                 <button
@@ -1287,19 +1280,10 @@ export function TableBookingModalContent({
             </button>
             <button
               type="button"
-              disabled={
-                !tableForm.customer_first_name
-                || !tableForm.customer_last_name
-                || !tableForm.customer_phone
-              }
+              disabled={!step5Valid}
               onClick={() => {
                 const errors = []
 
-                if (!validateName(tableForm.customer_first_name)) errors.push('שם פרטי לא תקין')
-                if (!validateName(tableForm.customer_last_name)) errors.push('שם משפחה לא תקין')
-                if (!validateIsraeliPhone(tableForm.customer_phone)) {
-                  errors.push('מספר טלפון ישראלי לא תקין')
-                }
                 if (tableForm.customer_email && !validateEmail(tableForm.customer_email)) {
                   errors.push('כתובת מייל לא תקינה')
                 }
@@ -1316,9 +1300,16 @@ export function TableBookingModalContent({
                   errors.push(`נא למלא: ${missingDynamic.map((f) => f.label).join(', ')}`)
                 }
 
-                const igField = (event.registration_fields || []).find((f) => f.id === 'instagram')
                 if (igField?.required && !tableForm.customer_instagram?.toString().trim()) {
                   errors.push('נא למלא: אינסטגרם')
+                }
+                if (
+                  tableForm.customer_instagram?.trim()
+                  && !validateInstagram(tableForm.customer_instagram)
+                ) {
+                  errors.push(
+                    'שם משתמש אינסטגרם לא תקין (אותיות, מספרים, נקודה, קו תחתי, עד 30 תווים)',
+                  )
                 }
 
                 if (event?.min_age) {
@@ -1340,26 +1331,12 @@ export function TableBookingModalContent({
                 height: 50,
                 borderRadius: 12,
                 border: 'none',
-                background:
-                  tableForm.customer_first_name
-                  && tableForm.customer_last_name
-                  && tableForm.customer_phone
-                    ? '#00C37A'
-                    : 'rgba(255,255,255,0.1)',
-                color:
-                  tableForm.customer_first_name
-                  && tableForm.customer_last_name
-                  && tableForm.customer_phone
-                    ? '#000'
-                    : 'rgba(255,255,255,0.3)',
+                background: step5Valid ? '#00C37A' : 'rgba(255,255,255,0.1)',
+                color: step5Valid ? '#000' : 'rgba(255,255,255,0.3)',
                 fontWeight: 800,
                 fontSize: 16,
-                cursor:
-                  tableForm.customer_first_name
-                  && tableForm.customer_last_name
-                  && tableForm.customer_phone
-                    ? 'pointer'
-                    : 'not-allowed',
+                cursor: step5Valid ? 'pointer' : 'not-allowed',
+                opacity: step5Valid ? 1 : 0.5,
               }}
             >
               המשך
