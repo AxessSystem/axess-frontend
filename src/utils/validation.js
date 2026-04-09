@@ -1,7 +1,8 @@
 // תעודת זהות — לון עם padding
 export const validateIsraeliId = (id) => {
   const clean = String(id).replace(/\D/g, '').padStart(9, '0')
-  if (clean.length !== 9 || isNaN(clean)) return false
+  if (clean.length !== 9) return false
+  if (/^0+$/.test(clean)) return false // מונע 000000000
   let sum = 0
   for (let i = 0; i < 9; i++) {
     let step = Number(clean[i]) * ((i % 2) + 1)
