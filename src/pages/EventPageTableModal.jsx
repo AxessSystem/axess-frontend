@@ -10,10 +10,12 @@ import FormDatePicker from '@/components/ui/FormDatePicker'
 import useFormValidation from '@/hooks/useFormValidation'
 import {
   validateIsraeliPhone,
+  validateIsraeliId,
   validateEmail,
   validateBirthDate,
   validateName,
   validateInstagram,
+  getFieldError,
 } from '@/utils/validation'
 
 export function TableBookingModalContent({
@@ -184,6 +186,12 @@ export function TableBookingModalContent({
   const emailField = (event?.registration_fields || []).find((f) => f.id === 'email')
   const emailRequired = emailField?.required ?? false
   const igField = (event?.registration_fields || []).find((f) => f.id === 'instagram')
+  const tableIdField = (event?.registration_fields || []).find(
+    (f) => f.id === 'id_number' || f.type === 'id' || f.type === 'identification',
+  )
+  const showTableIdField = !!tableIdField
+
+  const [guestIdTouched, setGuestIdTouched] = useState({})
 
   const { errors, touched, handleBlur, handleChange, isFieldValid } = useFormValidation()
 
@@ -191,11 +199,18 @@ export function TableBookingModalContent({
     validateName(tableForm.customer_first_name)
     && validateName(tableForm.customer_last_name)
     && validateIsraeliPhone(tableForm.customer_phone || '')
+    && (!showTableIdField
+      || !(tableIdField?.required || event?.requires_id)
+      || validateIsraeliId(tableForm.custom_fields?.id_number || ''))
 
   const updateGuest = (gi, key, value) => {
     setTableForm((f) => ({
       ...f,
-      guests: f.guests.map((gg, idx) => (idx === gi ? { ...gg, [key]: value } : gg)),
+      guests: f.guests.map((gg, idx) => {
+        if (idx !== gi) return gg
+        if (key === 'custom_fields') return { ...gg, custom_fields: value }
+        return { ...gg, [key]: value }
+      }),
     }))
   }
 
@@ -796,11 +811,50 @@ export function TableBookingModalContent({
                 && validateInstagram(tableForm.customer_instagram || '')
               }
             />
+            {showTableIdField && (
+              <FormField
+                value={tableForm.custom_fields?.id_number || ''}
+                onChange={(e) => {
+                  const val = e.target.value.replace(/\D/g, '').slice(0, 9)
+                  setTableForm((f) => ({
+                    ...f,
+                    custom_fields: { ...(f.custom_fields || {}), id_number: val },
+                  }))
+                  handleChange('id_number', val)
+                }}
+                onBlur={(e) => {
+                  const v = (e.target.value || '').replace(/\D/g, '')
+                  const required = !!(tableIdField?.required || event?.requires_id)
+                  if (!required && !v) return
+                  handleBlur('id_number', v)
+                }}
+                placeholder="תעודת זהות *"
+                error={touched.id_number ? errors.id_number : null}
+                isValid={
+                  touched.id_number
+                  && !errors.id_number
+                  && validateIsraeliId(tableForm.custom_fields?.id_number || '')
+                }
+                inputMode="numeric"
+                maxLength={9}
+                onKeyDown={(e) => {
+                  if (
+                    !/[\d]/.test(e.key)
+                    && !['Backspace', 'Delete', 'Tab', 'ArrowLeft', 'ArrowRight'].includes(e.key)
+                  ) {
+                    e.preventDefault()
+                  }
+                }}
+              />
+            )}
             {(event.registration_fields || [])
               .filter(
                 (f) =>
                   !['full_name', 'first_name', 'last_name', 'phone', 'email'].includes(f.id)
-                  && f.id !== 'instagram',
+                  && f.id !== 'instagram'
+                  && f.id !== 'id_number'
+                  && f.type !== 'id'
+                  && f.type !== 'identification',
               )
               .map((field) =>
                 field.type === 'date' ? (
@@ -940,11 +994,49 @@ export function TableBookingModalContent({
                   ×
                 </button>
               </div>
+              {showTableIdField && (
+                <FormField
+                  value={g.custom_fields?.id_number || ''}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/\D/g, '').slice(0, 9)
+                    setTableForm((f) => ({
+                      ...f,
+                      guests: f.guests.map((gg, idx) =>
+                        idx === gi
+                          ? { ...gg, custom_fields: { ...(gg.custom_fields || {}), id_number: val } }
+                          : gg,
+                      ),
+                    }))
+                  }}
+                  onBlur={() => setGuestIdTouched((p) => ({ ...p, [gi]: true }))}
+                  placeholder="תעודת זהות *"
+                  isValid={validateIsraeliId(g.custom_fields?.id_number || '')}
+                  error={(() => {
+                    const idv = g.custom_fields?.id_number || ''
+                    if (idv.trim()) return getFieldError('id_number', idv)
+                    if (guestIdTouched[gi] && tableIdField?.required) return getFieldError('id_number', idv)
+                    return null
+                  })()}
+                  inputMode="numeric"
+                  maxLength={9}
+                  onKeyDown={(e) => {
+                    if (
+                      !/[\d]/.test(e.key)
+                      && !['Backspace', 'Delete', 'Tab', 'ArrowLeft', 'ArrowRight'].includes(e.key)
+                    ) {
+                      e.preventDefault()
+                    }
+                  }}
+                />
+              )}
               {(event.registration_fields || [])
                 .filter(
                   (f) =>
                     !['full_name', 'first_name', 'last_name', 'phone', 'email'].includes(f.id)
-                    && f.id !== 'instagram',
+                    && f.id !== 'instagram'
+                    && f.id !== 'id_number'
+                    && f.type !== 'id'
+                    && f.type !== 'identification',
                 )
                 .map((field) =>
                   field.type === 'date' ? (
@@ -1304,6 +1396,13 @@ export function TableBookingModalContent({
                   errors.push('נא למלא: אינסטגרם')
                 }
                 if (
+                  showTableIdField
+                  && tableForm.custom_fields?.id_number?.trim()
+                  && !validateIsraeliId(tableForm.custom_fields.id_number)
+                ) {
+                  errors.push('מספר ת״ז לא תקין')
+                }
+                if (
                   tableForm.customer_instagram?.trim()
                   && !validateInstagram(tableForm.customer_instagram)
                 ) {
@@ -1372,6 +1471,14 @@ export function TableBookingModalContent({
                   }
                   if (!validateIsraeliPhone(g.phone)) {
                     toast.error('נא להזין מספר טלפון תקין לכל חברי השולחן')
+                    return
+                  }
+                  if (
+                    showTableIdField
+                    && g.custom_fields?.id_number?.trim()
+                    && !validateIsraeliId(g.custom_fields.id_number)
+                  ) {
+                    toast.error('מספר ת״ז לא תקין לחלק מחברי השולחן')
                     return
                   }
                   const missing = (event.registration_fields || []).filter(
