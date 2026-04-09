@@ -14,6 +14,7 @@ import {
   DoorOpen,
 } from 'lucide-react'
 import toast from 'react-hot-toast'
+import PaymentModal from '@/components/PaymentModal'
 import SeatingModal from '../components/SeatingModal'
 import DateTimePicker from '../components/ui/DateTimePicker'
 import { TableBookingModalContent } from './EventPageTableModal'
@@ -653,6 +654,9 @@ export default function EventPage() {
   const [success, setSuccess] = useState(false)
   const [pendingApproval, setPendingApproval] = useState(false)
   const [paymentResult, setPaymentResult] = useState(null)
+  const [showPayment, setShowPayment] = useState(false)
+  const [paymentOrderId, setPaymentOrderId] = useState(null)
+  const [paymentAmount, setPaymentAmount] = useState(null)
   const [quantities, setQuantities] = useState({})
   const [showTicketDrawer, setShowTicketDrawer] = useState(false)
   const [tableStep, setTableStep] = useState(1)
@@ -906,10 +910,10 @@ export default function EventPage() {
         setSuccess(true)
         setModalTicket(null)
         toast.success('הכרטיס בדרך!')
-      } else if (data.client_secret) {
-        setSuccess(true)
-        setModalTicket(null)
-        toast.success('התשלום הושלם — הכרטיס בדרך!')
+      } else if (data.client_secret && data.client_secret !== 'free_order') {
+        setShowPayment(true)
+        setPaymentOrderId(data.order_id)
+        setPaymentAmount(data.total_amount)
       } else {
         toast.error('תשלום לא זמין — נסה שוב מאוחר יותר')
       }
@@ -2312,6 +2316,25 @@ export default function EventPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {showPayment && (
+        <PaymentModal
+          orderId={paymentOrderId}
+          amount={paymentAmount}
+          customerName={`${modalFirstName} ${modalLastName}`.trim()}
+          customerPhone={modalPhone}
+          customerEmail={modalEmail}
+          onSuccess={() => {
+            setShowPayment(false)
+            setSuccess(true)
+          }}
+          onError={(err) => {
+            setShowPayment(false)
+            setError('שגיאה בתשלום')
+          }}
+          onClose={() => setShowPayment(false)}
+        />
       )}
 
       {paymentResult && (

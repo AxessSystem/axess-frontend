@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react'
-import { Wine, ShoppingBag, CreditCard, Check, Users, Search, X } from 'lucide-react'
+import { useState } from 'react'
+import { Wine, ShoppingBag, Check, Users, Search, X } from 'lucide-react'
 import toast from 'react-hot-toast'
+import PaymentModal from '@/components/PaymentModal'
 
 export function TableBookingModalContent({
   modalTicket,
@@ -27,9 +28,6 @@ export function TableBookingModalContent({
   trackStep,
 }) {
   const [drinkSearch, setDrinkSearch] = useState('')
-  const [paymentLoading, setPaymentLoading] = useState(false)
-  const [paymentError, setPaymentError] = useState(null)
-  const [paymentLink, setPaymentLink] = useState(null)
   const isSmartTable = modalTicket?.metadata?.table_type === 'smart'
   const menuItems = (event.table_menu || []).filter((item) => item.category !== 'תוספות')
   const extrasOptions = (event.table_menu || []).filter((item) => item.category === 'תוספות')
@@ -71,81 +69,6 @@ export function TableBookingModalContent({
     })
 
   const calcTablePrice = () => ({ total })
-
-  const initHostedFields = () => {
-    if (!window.PayPlus) return
-    const payplus = new window.PayPlus(
-      import.meta.env.VITE_PAYPLUS_PUBLIC_KEY || 'SANDBOX_PUBLIC_KEY',
-    )
-    const elements = payplus.elements()
-
-    elements
-      .create('cardNumber', {
-        style: { base: { color: 'var(--text)', fontSize: '16px' } },
-      })
-      .mount('#payplus-card-number')
-
-    elements
-      .create('cardExpiry', {
-        style: { base: { color: 'var(--text)', fontSize: '16px' } },
-      })
-      .mount('#payplus-card-expiry')
-
-    elements
-      .create('cardCvv', {
-        style: { base: { color: 'var(--text)', fontSize: '16px' } },
-      })
-      .mount('#payplus-card-cvv')
-
-    window._payplusInstance = payplus
-  }
-
-  const loadHostedFields = () => {
-    if (window.PayPlus) {
-      initHostedFields()
-      return
-    }
-    const script = document.createElement('script')
-    script.src = 'https://gateway.payplus.co.il/js/v1/payplus.js'
-    script.onload = initHostedFields
-    document.head.appendChild(script)
-  }
-
-  const createPaymentSession = async () => {
-    setPaymentLoading(true)
-    setPaymentError(null)
-    try {
-      const price = calcTablePrice(modalTicket, tableForm)
-      const res = await fetch(`${API_BASE}/api/payments/create-session`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          order_id: tableForm.order_id,
-          amount: price.total,
-          customer_name: tableForm.full_name,
-          customer_phone: tableForm.phone,
-          customer_email: tableForm.email || '',
-        }),
-      })
-      const data = await res.json()
-      if (data.payment_link) {
-        setPaymentLink(data.payment_link)
-        loadHostedFields()
-      } else {
-        setPaymentError('שגיאה ביצירת תשלום')
-      }
-    } catch (_err) {
-      setPaymentError('שגיאה בחיבור לשרת התשלום')
-    } finally {
-      setPaymentLoading(false)
-    }
-  }
-
-  useEffect(() => {
-    if (tableStep === 7) {
-      createPaymentSession()
-    }
-  }, [tableStep])
 
   const submitTableReserve = async () => {
     setPaying(true)
@@ -886,130 +809,18 @@ export function TableBookingModalContent({
       )}
 
       {tableStep === 7 && (
-        <div style={{ padding: '0 4px' }}>
-          <h3 style={{ textAlign: 'right', marginBottom: 20, fontSize: 18 }}>תשלום</h3>
-
-          {paymentLoading && (
-            <p style={{ textAlign: 'center', color: 'var(--v2-gray-400)' }}>טוען אפשרויות תשלום...</p>
-          )}
-
-          {paymentError && <p style={{ textAlign: 'center', color: '#ff4444' }}>{paymentError}</p>}
-
-          {!paymentLoading && !paymentError && (
-            <>
-              <div style={{ marginBottom: 16 }}>
-                <label
-                  style={{
-                    fontSize: 12,
-                    color: 'var(--v2-gray-400)',
-                    display: 'block',
-                    marginBottom: 6,
-                    textAlign: 'right',
-                  }}
-                >
-                  מספר כרטיס
-                </label>
-                <div
-                  id="payplus-card-number"
-                  style={{
-                    padding: '12px 16px',
-                    borderRadius: 10,
-                    background: 'var(--glass)',
-                    border: '1px solid var(--glass-border)',
-                    minHeight: 46,
-                  }}
-                />
-              </div>
-
-              <div style={{ display: 'flex', gap: 12, marginBottom: 20 }}>
-                <div style={{ flex: 1 }}>
-                  <label
-                    style={{
-                      fontSize: 12,
-                      color: 'var(--v2-gray-400)',
-                      display: 'block',
-                      marginBottom: 6,
-                      textAlign: 'right',
-                    }}
-                  >
-                    תוקף
-                  </label>
-                  <div
-                    id="payplus-card-expiry"
-                    style={{
-                      padding: '12px 16px',
-                      borderRadius: 10,
-                      background: 'var(--glass)',
-                      border: '1px solid var(--glass-border)',
-                      minHeight: 46,
-                    }}
-                  />
-                </div>
-                <div style={{ flex: 1 }}>
-                  <label
-                    style={{
-                      fontSize: 12,
-                      color: 'var(--v2-gray-400)',
-                      display: 'block',
-                      marginBottom: 6,
-                      textAlign: 'right',
-                    }}
-                  >
-                    CVV
-                  </label>
-                  <div
-                    id="payplus-card-cvv"
-                    style={{
-                      padding: '12px 16px',
-                      borderRadius: 10,
-                      background: 'var(--glass)',
-                      border: '1px solid var(--glass-border)',
-                      minHeight: 46,
-                    }}
-                  />
-                </div>
-              </div>
-
-              <div style={{ display: 'flex', gap: 10, marginBottom: 20, justifyContent: 'center' }}>
-                {['ביט', '🍎 Apple Pay', 'Google Pay'].map((method) => (
-                  <button
-                    key={method}
-                    style={{
-                      flex: 1,
-                      padding: '10px 0',
-                      borderRadius: 10,
-                      border: '1px solid var(--glass-border)',
-                      background: 'var(--glass)',
-                      color: 'var(--text)',
-                      fontSize: 12,
-                      cursor: 'pointer',
-                    }}
-                  >
-                    {method}
-                  </button>
-                ))}
-              </div>
-
-              <div
-                style={{
-                  background: 'rgba(0,195,122,0.05)',
-                  border: '1px solid rgba(0,195,122,0.2)',
-                  borderRadius: 12,
-                  padding: 16,
-                  marginBottom: 8,
-                  textAlign: 'right',
-                }}
-              >
-                <p style={{ margin: 0, fontSize: 15 }}>
-                  סה"כ לתשלום:{' '}
-                  <strong style={{ color: '#00C37A' }}>
-                    ₪{calcTablePrice(modalTicket, tableForm).total?.toLocaleString()}
-                  </strong>
-                </p>
-              </div>
-            </>
-          )}
-        </div>
+        <PaymentModal
+          orderId={tableForm.order_id}
+          amount={calcTablePrice(modalTicket, tableForm).total}
+          customerName={tableForm.full_name}
+          customerPhone={tableForm.phone}
+          customerEmail={tableForm.email}
+          onSuccess={() => {
+            setTableStep(8)
+          }}
+          onError={(err) => console.error(err)}
+          onClose={() => setTableStep(6)}
+        />
       )}
       </div>
       <div
@@ -1233,27 +1044,6 @@ export function TableBookingModalContent({
               המשך לתשלום
             </button>
           </div>
-        )}
-        {tableStep === 7 && (
-          <button
-            type="button"
-            onClick={async () => {
-              alert('ממתין לחיבור מפתחות PayPlus אמיתיים')
-            }}
-            style={{
-              width: '100%',
-              padding: '14px 0',
-              borderRadius: 12,
-              background: '#00C37A',
-              color: '#000',
-              fontSize: 16,
-              fontWeight: 700,
-              border: 'none',
-              cursor: 'pointer',
-            }}
-          >
-            שלם ₪{calcTablePrice(modalTicket, tableForm).total?.toLocaleString()}
-          </button>
         )}
       </div>
     </div>
