@@ -42,7 +42,14 @@ app.get('/e/:slug', async (req, res, next) => {
     const event = await fetchEventJson(`${API_BASE}/e/${slug}`);
     if (!event) return next();
 
-    const stripHtml = (html) => (html || '').replace(/<[^>]*>/g, '').trim();
+    const stripHtml = (html) => (html || '')
+      .replace(/<br\s*\/?>/gi, ' ')
+      .replace(/<\/p>/gi, ' ')
+      .replace(/<\/h[1-6]>/gi, ' ')
+      .replace(/<\/div>/gi, ' ')
+      .replace(/<[^>]*>/g, '')
+      .replace(/\s+/g, ' ')
+      .trim();
     const title = event.title || 'AXESS';
     const description = stripHtml(event.description_text || event.description || '').slice(0, 200);
     const image = event.cover_image_url || event.image_url || '';
