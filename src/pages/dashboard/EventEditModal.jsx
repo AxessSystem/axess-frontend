@@ -1385,14 +1385,18 @@ function TicketsTab({ eventId, authHeaders }) {
     if (!eventId) return
     fetch(`${API_BASE}/api/admin/events/${eventId}/ticket-types`, { headers: authHeaders() })
       .then((r) => r.json())
-      .then((d) => setTickets(d.ticket_types || d || []))
+      .then((d) =>
+        setTickets(Array.isArray(d.ticket_types) ? d.ticket_types : Array.isArray(d) ? d : []),
+      )
   }, [eventId, authHeaders])
 
   const loadTickets = () => {
     if (!eventId) return
     fetch(`${API_BASE}/api/admin/events/${eventId}/ticket-types`, { headers: authHeaders() })
       .then((r) => r.json())
-      .then((d) => setTickets(d.ticket_types || d || []))
+      .then((d) =>
+        setTickets(Array.isArray(d.ticket_types) ? d.ticket_types : Array.isArray(d) ? d : []),
+      )
   }
 
   const TICKET_CATEGORIES = [
@@ -2196,16 +2200,18 @@ function TicketsTab({ eventId, authHeaders }) {
 
 function RegistrationFieldsTab({ event, authHeaders }) {
   const [fields, setFields] = useState(
-    event?.registration_fields || [
-      { id: 'first_name', label: 'שם פרטי', type: 'text', required: true, system: true },
-      { id: 'last_name', label: 'שם משפחה', type: 'text', required: true, system: true },
-      { id: 'phone', label: 'טלפון', type: 'tel', required: true, system: true },
-      { id: 'email', label: 'מייל', type: 'email', required: false, system: true },
-      { id: 'id_number', label: 'ת.ז', type: 'text', required: false, system: true },
-      { id: 'gender', label: 'מין', type: 'select', required: false, system: true, options: ['זכר', 'נקבה', 'אחר'] },
-      { id: 'birth_date', label: 'תאריך לידה', type: 'date', required: false, system: true },
-      { id: 'instagram', label: 'אינסטגרם', type: 'text', required: false, system: true, placeholder: '@username' },
-    ],
+    Array.isArray(event?.registration_fields) && event.registration_fields.length > 0
+      ? event.registration_fields
+      : [
+          { id: 'first_name', label: 'שם פרטי', type: 'text', required: true, system: true },
+          { id: 'last_name', label: 'שם משפחה', type: 'text', required: true, system: true },
+          { id: 'phone', label: 'טלפון', type: 'tel', required: true, system: true },
+          { id: 'email', label: 'מייל', type: 'email', required: false, system: true },
+          { id: 'id_number', label: 'ת.ז', type: 'text', required: false, system: true },
+          { id: 'gender', label: 'מין', type: 'select', required: false, system: true, options: ['זכר', 'נקבה', 'אחר'] },
+          { id: 'birth_date', label: 'תאריך לידה', type: 'date', required: false, system: true },
+          { id: 'instagram', label: 'אינסטגרם', type: 'text', required: false, system: true, placeholder: '@username' },
+        ],
   )
   const [newField, setNewField] = useState({ label: '', type: 'text', required: false })
   const [saving, setSaving] = useState(false)
@@ -2379,14 +2385,18 @@ function PromotersTab({ eventId, authHeaders }) {
     if (!eventId) return
     fetch(`${API_BASE}/api/admin/events/${eventId}/promoters`, { headers: authHeaders() })
       .then((r) => r.json())
-      .then((d) => setPromoters(d.promoters || d || []))
+      .then((d) =>
+        setPromoters(Array.isArray(d.promoters) ? d.promoters : Array.isArray(d) ? d : []),
+      )
   }, [eventId, authHeaders])
 
   const loadPromoters = () => {
     if (!eventId) return
     fetch(`${API_BASE}/api/admin/events/${eventId}/promoters`, { headers: authHeaders() })
       .then((r) => r.json())
-      .then((d) => setPromoters(d.promoters || d || []))
+      .then((d) =>
+        setPromoters(Array.isArray(d.promoters) ? d.promoters : Array.isArray(d) ? d : []),
+      )
   }
 
   return (

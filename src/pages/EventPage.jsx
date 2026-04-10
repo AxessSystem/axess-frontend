@@ -750,6 +750,30 @@ export default function EventPage() {
       .finally(() => setLoading(false))
   }, [slug])
 
+  useEffect(() => {
+    if (!event) return
+
+    document.title = event.title || 'AXESS'
+
+    const setMeta = (property, content) => {
+      let el = document.querySelector(`meta[property="${property}"]`)
+      if (!el) {
+        el = document.createElement('meta')
+        el.setAttribute('property', property)
+        document.head.appendChild(el)
+      }
+      el.setAttribute('content', content || '')
+    }
+
+    const stripHtml = (html) => (html || '').replace(/<[^>]*>/g, '').trim()
+
+    setMeta('og:title', event.title)
+    setMeta('og:description', stripHtml(event.description || ''))
+    setMeta('og:image', event.cover_image || event.image_url || '')
+    setMeta('og:url', window.location.href)
+    setMeta('og:type', 'website')
+  }, [event])
+
   const promoRef = ref
 
   useEffect(() => {
