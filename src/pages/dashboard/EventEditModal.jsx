@@ -2782,7 +2782,15 @@ function SummaryTab({ event, form }) {
                 {form.title || event?.title}
               </p>
               <p style={{ margin: '0 0 6px', fontSize: 11, color: 'rgba(255,255,255,0.6)', lineHeight: 1.4 }}>
-                {form.description || event?.description || ''}
+                {(form.description || event?.description || '')
+                  .replace(/<br\s*\/?>/gi, ' ')
+                  .replace(/<\/p>/gi, ' ')
+                  .replace(/<\/h[1-6]>/gi, ' ')
+                  .replace(/<\/div>/gi, ' ')
+                  .replace(/<[^>]*>/g, '')
+                  .replace(/\s+/g, ' ')
+                  .trim()
+                  .slice(0, 150)}
               </p>
               <p style={{ margin: 0, fontSize: 10, color: 'rgba(37,211,102,0.8)' }}>axess.pro</p>
             </div>
