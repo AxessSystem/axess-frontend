@@ -133,6 +133,9 @@ function buildFormStateFromEvent(ev) {
     min_age: ev?.min_age ?? 0,
     approval_mode: ev?.approval_mode || 'none',
     display_config: { ...displayConfig0 },
+    slug: ev?.slug || '',
+    share_messages:
+      ev?.share_messages && typeof ev.share_messages === 'object' ? ev.share_messages : {},
   }
 }
 
@@ -1326,7 +1329,17 @@ export default function EventEditModal({
             <DesignTab form={form} setForm={setForm} event={effectiveEvent} authHeaders={authHeaders} onSave={saveBasic} />
           )}
 
-          {activeTab === 'summary' && <SummaryTab event={effectiveEvent} form={form} />}
+          {activeTab === 'summary' && (
+            <SummaryTab
+              event={effectiveEvent}
+              form={form}
+              authHeaders={authHeaders}
+              onNavigateToCampaigns={(data) => {
+                onClose?.()
+                sessionStorage.setItem('pendingCampaign', JSON.stringify(data))
+              }}
+            />
+          )}
         </div>
     </div>
   )
@@ -2702,9 +2715,49 @@ function DesignTab({ form, setForm, event, authHeaders: _authHeaders, onSave }) 
   )
 }
 
-function SummaryTab({ event, form }) {
+function SummaryTab({ event, form, authHeaders, onNavigateToCampaigns }) {
   const [previewMode, setPreviewMode] = useState('mobile')
-  const eventUrl = `https://axess.pro/e/${event?.slug}`
+  const [shareTab, setShareTab] = useState('default')
+  const [shareMessages, setShareMessages] = useState({
+    default: form.share_messages?.default || '',
+    whatsapp: form.share_messages?.whatsapp || '',
+    sms: form.share_messages?.sms || '',
+    instagram: form.share_messages?.instagram || '',
+  })
+  const [savingShare, setSavingShare] = useState(false)
+
+  useEffect(() => {
+    setShareMessages({
+      default: form.share_messages?.default || '',
+      whatsapp: form.share_messages?.whatsapp || '',
+      sms: form.share_messages?.sms || '',
+      instagram: form.share_messages?.instagram || '',
+    })
+  }, [form.share_messages])
+
+  const eventUrl = `https://axess.pro/e/${form.slug || event?.slug || ''}`
+
+  const saveShareMessages = async () => {
+    if (!event?.id || !authHeaders) return
+    setSavingShare(true)
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/events/${event.id}`, {
+        method: 'PATCH',
+        headers: authHeaders(),
+        body: JSON.stringify({ share_messages: shareMessages }),
+      })
+      if (res.ok) toast.success('הודעות השיתוף נשמרו ✓')
+      else toast.error('שגיאה בשמירה')
+    } catch {
+      toast.error('שגיאה בחיבור לשרת')
+    } finally {
+      setSavingShare(false)
+    }
+  }
+
+  const activeMessage = shareMessages[shareTab] || shareMessages.default || ''
+  const fullMessage = `${activeMessage}\n${eventUrl}`
+  const maxChars = shareTab === 'sms' ? 160 : 500
 
   return (
     <div>
@@ -2810,6 +2863,184 @@ function SummaryTab({ event, form }) {
           </div>
         </div>
       )}
+
+      {/* הודעות שיתוף */}
+      <div style={{
+        marginTop: 24,
+        background: 'var(--glass)',
+        border: '1px solid var(--glass-border)',
+        borderRadius: 16,
+        padding: 20,
+      }}
+      >
+        <h3 style={{ margin: '0 0 16px', fontSize: 15, fontWeight: 700, textAlign: 'right' }}>
+          הודעות שיתוף
+        </h3>
+
+        <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
+          {[
+            { id: 'default', label: 'ברירת מחדל' },
+            { id: 'whatsapp', label: '📱 WhatsApp' },
+            { id: 'sms', label: '💬 SMS' },
+            { id: 'instagram', label: '📸 אינסטגרם' },
+          ].map((t) => (
+            <button
+              key={t.id}
+              type="button"
+              onClick={() => setShareTab(t.id)}
+              style={{
+                padding: '6px 14px', borderRadius: 20, fontSize: 13,
+                border: `1px solid ${shareTab === t.id ? '#00C37A' : 'var(--glass-border)'}`,
+                background: shareTab === t.id ? 'rgba(0,195,122,0.1)' : 'var(--glass)',
+                color: shareTab === t.id ? '#00C37A' : 'var(--text)',
+                cursor: 'pointer', fontWeight: shareTab === t.id ? 700 : 400,
+                WebkitTapHighlightColor: 'transparent',
+              }}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+
+        <div style={{ position: 'relative', marginBottom: 8 }}>
+          <textarea
+            value={shareMessages[shareTab] ?? ''}
+            onChange={(e) => setShareMessages((prev) => ({ ...prev, [shareTab]: e.target.value }))}
+            placeholder={
+              shareTab === 'sms' ? 'הודעת SMS קצרה (עד 160 תווים)...' :
+                shareTab === 'instagram' ? 'טקסט לאינסטגרם עם האשטאגים...' :
+                  'כתוב הודעת שיתוף...'
+            }
+            maxLength={maxChars}
+            rows={4}
+            style={{
+              width: '100%', padding: '12px 16px', borderRadius: 10,
+              background: 'var(--card)', border: '1px solid var(--glass-border)',
+              color: 'var(--text)', fontSize: 14, textAlign: 'right',
+              resize: 'vertical', boxSizing: 'border-box', fontFamily: 'inherit',
+              lineHeight: 1.5,
+            }}
+          />
+          <span style={{
+            position: 'absolute', bottom: 8, left: 12,
+            fontSize: 11, color: (shareMessages[shareTab]?.length || 0) > maxChars * 0.9 ? '#ff4444' : 'var(--v2-gray-400)',
+          }}
+          >
+            {shareMessages[shareTab]?.length || 0}
+            /
+            {maxChars}
+          </span>
+        </div>
+
+        <p style={{ fontSize: 11, color: 'var(--v2-gray-400)', textAlign: 'right', margin: '0 0 16px' }}>
+          🔗 הלינק יצורף אוטומטית:
+          {' '}
+          <span style={{ color: '#00C37A' }}>{eventUrl}</span>
+        </p>
+
+        {activeMessage && (
+          <div style={{
+            background: 'rgba(0,195,122,0.05)',
+            border: '1px solid rgba(0,195,122,0.2)',
+            borderRadius: 10, padding: 12, marginBottom: 16,
+            fontSize: 13, textAlign: 'right', lineHeight: 1.6,
+            color: 'var(--text)', whiteSpace: 'pre-wrap',
+          }}
+          >
+            <p style={{ margin: '0 0 4px', fontSize: 11, color: 'var(--v2-gray-400)' }}>תצוגה מקדימה:</p>
+            {activeMessage}
+            {'\n'}
+            <span style={{ color: '#00C37A' }}>{eventUrl}</span>
+          </div>
+        )}
+
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+
+          <button
+            type="button"
+            onClick={saveShareMessages}
+            disabled={savingShare}
+            style={{
+              padding: '10px 20px', borderRadius: 10, fontSize: 13,
+              background: '#00C37A', color: '#000', border: 'none',
+              cursor: 'pointer', fontWeight: 700,
+              opacity: savingShare ? 0.6 : 1,
+            }}
+          >
+            {savingShare ? 'שומר...' : 'שמור הודעות'}
+          </button>
+
+          {(shareTab === 'whatsapp' || shareTab === 'default') && (
+            <button
+              type="button"
+              onClick={() => window.open(`https://wa.me/?text=${encodeURIComponent(fullMessage)}`, '_blank')}
+              style={{
+                padding: '10px 20px', borderRadius: 10, fontSize: 13,
+                background: '#25D366', color: '#fff', border: 'none',
+                cursor: 'pointer', fontWeight: 600,
+              }}
+            >
+              📱 שתף בWhatsApp
+            </button>
+          )}
+
+          {shareTab === 'sms' && (
+            <>
+              <button
+                type="button"
+                onClick={() => {
+                  navigator.clipboard.writeText(fullMessage)
+                  toast.success('הועתק ✓')
+                }}
+                style={{
+                  padding: '10px 20px', borderRadius: 10, fontSize: 13,
+                  background: 'var(--glass)', color: 'var(--text)',
+                  border: '1px solid var(--glass-border)', cursor: 'pointer',
+                }}
+              >
+                📋 העתק טקסט
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  await saveShareMessages()
+                  if (onNavigateToCampaigns) {
+                    onNavigateToCampaigns({
+                      type: 'sms',
+                      message: fullMessage,
+                    })
+                  }
+                }}
+                style={{
+                  padding: '10px 20px', borderRadius: 10, fontSize: 13,
+                  background: 'rgba(0,195,122,0.1)', color: '#00C37A',
+                  border: '1px solid rgba(0,195,122,0.3)', cursor: 'pointer',
+                  fontWeight: 600,
+                }}
+              >
+                📨 צור קמפיין SMS
+              </button>
+            </>
+          )}
+
+          {shareTab === 'instagram' && (
+            <button
+              type="button"
+              onClick={() => {
+                navigator.clipboard.writeText(fullMessage)
+                toast.success('הועתק לאינסטגרם ✓')
+              }}
+              style={{
+                padding: '10px 20px', borderRadius: 10, fontSize: 13,
+                background: 'var(--glass)', color: 'var(--text)',
+                border: '1px solid var(--glass-border)', cursor: 'pointer',
+              }}
+            >
+              📸 העתק לאינסטגרם
+            </button>
+          )}
+        </div>
+      </div>
     </div>
   )
 }

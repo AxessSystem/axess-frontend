@@ -773,6 +773,7 @@ export default function EventDetailPage() {
   const navigate = useNavigate()
   const [event, setEvent] = useState(null)
   const [activeTab, setActiveTab] = useState('overview')
+  const [pendingCampaignData, setPendingCampaignData] = useState(null)
   const [orders, setOrders] = useState([])
   const [ordersTab, setOrdersTab] = useState('approved')
   const [eventPromoters, setEventPromoters] = useState([])
@@ -919,6 +920,17 @@ export default function EventDetailPage() {
       })
     return () => { cancelled = true }
   }, [id, businessId, loadData])
+
+  useEffect(() => {
+    if (activeTab === 'campaigns') {
+      const pending = sessionStorage.getItem('pendingCampaign')
+      if (pending) {
+        const data = JSON.parse(pending)
+        sessionStorage.removeItem('pendingCampaign')
+        setPendingCampaignData(data)
+      }
+    }
+  }, [activeTab])
 
   useEffect(() => {
     if (!id) return
