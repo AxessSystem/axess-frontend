@@ -202,10 +202,11 @@ export default function EventEditModal({
     setFetchedEvent(null)
   }, [isOpen, isCreateMode])
 
+  // fetchedEvent בתלות: כשה-DB מחזיר נתונים ה-effect רץ שוב ו-setForm מתעדכן
   useEffect(() => {
     if (!isOpen || isCreateMode || !effectiveEvent?.id) return
     setForm(buildFormStateFromEvent(effectiveEvent))
-  }, [isOpen, isCreateMode, effectiveEvent?.id])
+  }, [isOpen, isCreateMode, effectiveEvent?.id, fetchedEvent])
 
   useEffect(() => {
     const style = document.createElement('style')
