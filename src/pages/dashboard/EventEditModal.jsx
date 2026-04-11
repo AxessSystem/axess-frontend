@@ -156,6 +156,7 @@ export default function EventEditModal({
   const isCreateMode = mode === 'create'
   const isPage = presentation === 'page'
   const [fetchedEvent, setFetchedEvent] = useState(null)
+  // תמיד העדף נתונים מה-DB, אם אין — השתמש ב-prop
   const effectiveEvent = isCreateMode ? null : (fetchedEvent || eventProp)
   const [activeTab, setActiveTab] = useState('basic')
   const [form, setForm] = useState(() => buildFormStateFromEvent(null))
@@ -169,20 +170,20 @@ export default function EventEditModal({
       setFetchedEvent(null)
       return
     }
-    if (!eventIdProp || !authHeaders) return
+    // תמיד שלוף מה-DB אם יש id — גם אם event כבר קיים
+    const id = eventIdProp || eventProp?.id
+    if (!id || !authHeaders) return
 
     let cancelled = false
     const loadEvent = async () => {
       try {
-        const res = await fetch(`${API_BASE}/api/admin/events/${eventIdProp}`, {
-          headers: authHeaders(),
-        })
-        if (!res.ok) return
+        const res = await fetch(
+          `${API_BASE}/api/admin/events/${id}`,
+          { headers: authHeaders() },
+        )
+        if (!res.ok || cancelled) return
         const data = await res.json()
-        if (cancelled) return
-        if (data?.id) {
-          setFetchedEvent(data)
-        }
+        if (data?.id && !cancelled) setFetchedEvent(data)
       } catch (err) {
         console.error('Failed to fetch event:', err)
       }
@@ -192,7 +193,7 @@ export default function EventEditModal({
     return () => {
       cancelled = true
     }
-  }, [eventIdProp, isOpen, isCreateMode, authHeaders])
+  }, [eventIdProp, eventProp?.id, isCreateMode, isOpen, authHeaders])
 
   useEffect(() => {
     if (!isOpen || !isCreateMode) return
