@@ -253,6 +253,9 @@ export default function EventEditModal({
           location: cleanStr(form.location),
           description: cleanStr(form.description),
           status: 'draft',
+          min_age: Number(form.min_age) || 0,
+          approval_mode: form.approval_mode || 'none',
+          approval_required: form.approval_mode !== 'none',
         }),
       })
       const data = await res.json().catch(() => ({}))
