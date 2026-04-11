@@ -7,6 +7,7 @@ import {
 import CustomSelect from '@/components/ui/CustomSelect'
 import DateTimePicker from '@/components/ui/DateTimePicker'
 import RichTextEditor from '@/components/ui/RichTextEditor'
+import { copyToClipboard } from '@/utils/clipboard'
 
 const API_BASE = import.meta.env.VITE_API_URL || 'https://api.axess.pro'
 const FRONTEND_URL = import.meta.env.VITE_FRONTEND_URL || window.location.origin
@@ -457,7 +458,10 @@ export default function EventEditModal({
             <span style={{ fontSize: 12, color: '#00C37A', flex: 1 }}>{eventUrl}</span>
             <button
               type="button"
-              onClick={() => navigator.clipboard.writeText(eventUrl)}
+              onClick={async () => {
+                const result = await copyToClipboard(eventUrl)
+                toast[result.success ? 'success' : 'error'](result.message)
+              }}
               style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#00C37A', fontSize: 11 }}
             >
               העתק
@@ -1128,9 +1132,10 @@ export default function EventEditModal({
                     </button>
                     <button
                       type="button"
-                      onClick={() => {
+                      onClick={async () => {
                         const shareUrl = `https://axess.pro/e/${effectiveEvent?.slug}#venue`
-                        navigator.clipboard.writeText(shareUrl)
+                        const result = await copyToClipboard(shareUrl)
+                        toast[result.success ? 'success' : 'error'](result.message)
                       }}
                       style={{
                         flex: 1,
@@ -1335,8 +1340,8 @@ export default function EventEditModal({
               form={form}
               authHeaders={authHeaders}
               onNavigateToCampaigns={(data) => {
-                onClose?.()
                 sessionStorage.setItem('pendingCampaign', JSON.stringify(data))
+                onClose?.({ navigateTo: 'campaigns' })
               }}
             />
           )}
@@ -2456,9 +2461,10 @@ function PromotersTab({ eventId, authHeaders }) {
           </div>
           <button
             type="button"
-            onClick={() => {
+            onClick={async () => {
               const url = `https://axess.pro/e/${eventId}?ref=${p.id}`
-              navigator.clipboard.writeText(url)
+              const result = await copyToClipboard(url)
+              toast[result.success ? 'success' : 'error'](result.message)
             }}
             style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#00C37A', fontSize: 12 }}
           >
@@ -2869,7 +2875,10 @@ function SummaryTab({ event, form, authHeaders, onNavigateToCampaigns }) {
             >
               שתף בWhatsApp
             </button>
-            <button type="button" onClick={() => navigator.clipboard.writeText(eventUrl)}
+            <button type="button" onClick={async () => {
+              const result = await copyToClipboard(eventUrl)
+              toast[result.success ? 'success' : 'error'](result.message)
+            }}
               style={{ flex: 1, height: 38, borderRadius: 8, border: '1px solid var(--glass-border)', background: 'transparent', color: 'var(--text)', fontSize: 13, cursor: 'pointer' }}
             >
               העתק לינק
@@ -3006,9 +3015,9 @@ function SummaryTab({ event, form, authHeaders, onNavigateToCampaigns }) {
             <>
               <button
                 type="button"
-                onClick={() => {
-                  navigator.clipboard.writeText(fullMessage)
-                  toast.success('הועתק ✓')
+                onClick={async () => {
+                  const result = await copyToClipboard(fullMessage, 'הועתק ✓')
+                  toast[result.success ? 'success' : 'error'](result.message)
                 }}
                 style={{
                   padding: '10px 20px', borderRadius: 10, fontSize: 13,
@@ -3044,9 +3053,9 @@ function SummaryTab({ event, form, authHeaders, onNavigateToCampaigns }) {
           {shareTab === 'instagram' && (
             <button
               type="button"
-              onClick={() => {
-                navigator.clipboard.writeText(fullMessage)
-                toast.success('הועתק לאינסטגרם ✓')
+              onClick={async () => {
+                const result = await copyToClipboard(fullMessage, 'הועתק לאינסטגרם ✓')
+                toast[result.success ? 'success' : 'error'](result.message)
               }}
               style={{
                 padding: '10px 20px', borderRadius: 10, fontSize: 13,
@@ -3105,7 +3114,10 @@ function WebviewTab({ event, authHeaders, businessId: _businessId }) {
             <p style={{ margin: '0 0 8px', fontSize: 13, fontWeight: 700 }}>לינק Webview:</p>
             <div style={{ display: 'flex', gap: 8 }}>
               <input value={webviewUrl} readOnly style={{ flex: 1, height: 36, borderRadius: 6, border: '1px solid var(--glass-border)', background: 'var(--glass)', color: '#00C37A', padding: '0 10px', fontSize: 12 }} />
-              <button type="button" onClick={() => navigator.clipboard.writeText(webviewUrl)}
+              <button type="button" onClick={async () => {
+                const result = await copyToClipboard(webviewUrl)
+                toast[result.success ? 'success' : 'error'](result.message)
+              }}
                 style={{ padding: '0 12px', borderRadius: 6, border: 'none', background: '#00C37A', color: '#000', fontWeight: 600, cursor: 'pointer', fontSize: 12 }}
               >
                 העתק
@@ -3280,8 +3292,9 @@ function ScanStationsTab({ eventId, authHeaders, eventSlug }) {
     loadStations()
   }, [eventId])
 
-  const copy = (text) => {
-    navigator.clipboard?.writeText(text)
+  const copy = async (text) => {
+    const result = await copyToClipboard(text)
+    toast[result.success ? 'success' : 'error'](result.message)
   }
 
   const draftFor = (stationId) => stationStaff[stationId] || { name: '', phone: '' }

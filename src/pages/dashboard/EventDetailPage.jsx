@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import {
   Calendar, MapPin, ChevronLeft, ExternalLink, Download, Edit,
   CheckCircle, Clock, XCircle, MessageCircle, DollarSign, Users, QrCode, Eye, Ticket,
@@ -13,6 +13,7 @@ import Tooltip from '@/components/ui/Tooltip'
 import EventTables from './EventTables'
 import TemplatesTab from './TemplatesTab'
 import { exportToExcel, exportEventReport, exportAudienceToExcel } from '@/utils/exportExcel'
+import { copyToClipboard } from '@/utils/clipboard'
 
 const API_BASE = import.meta.env.VITE_API_URL || 'https://api.axess.pro'
 const PUBLIC_WEBVIEW_ORIGIN = 'https://axess.pro'
@@ -771,6 +772,7 @@ export default function EventDetailPage() {
   const { id } = useParams()
   const { session, businessId } = useAuth()
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const [event, setEvent] = useState(null)
   const [activeTab, setActiveTab] = useState('overview')
   const [pendingCampaignData, setPendingCampaignData] = useState(null)
@@ -922,6 +924,14 @@ export default function EventDetailPage() {
   }, [id, businessId, loadData])
 
   useEffect(() => {
+    const tab = searchParams.get('tab') || (id ? sessionStorage.getItem(`eventTab_${id}`) : null)
+    if (tab) {
+      setActiveTab(tab)
+      if (id) sessionStorage.removeItem(`eventTab_${id}`)
+    }
+  }, [id, searchParams])
+
+  useEffect(() => {
     if (activeTab === 'campaigns') {
       const pending = sessionStorage.getItem('pendingCampaign')
       if (pending) {
@@ -1011,6 +1021,11 @@ export default function EventDetailPage() {
   const handleApproveOrder = approveOrder
   const handleCancelOrder = cancelOrder
 
+  const handleEdit = () => {
+    sessionStorage.setItem(`eventTab_${id}`, activeTab)
+    navigate(`/dashboard/events/${id}/edit`)
+  }
+
   const handleSendMessage = (order) => {
     const raw = String(order.phone || order.customer_phone || '').replace(/\D/g, '')
     if (!raw) {
@@ -1030,8 +1045,8 @@ export default function EventDetailPage() {
       const row = (d.validators || []).find((v) => String(v.id) === String(order.id))
       if (row?.slug) {
         const url = `https://axess.pro/v/${row.slug}`
-        await navigator.clipboard.writeText(url)
-        toast.success('קישור הכרטיס הועתק')
+        const result = await copyToClipboard(url, 'קישור הכרטיס הועתק')
+        toast[result.success ? 'success' : 'error'](result.message)
         return
       }
     } catch { /* ignore */ }
@@ -1188,7 +1203,7 @@ export default function EventDetailPage() {
           </button>
           <button
             type="button"
-            onClick={() => navigate(`/dashboard/events/${id}/edit`)}
+            onClick={handleEdit}
             style={{
               padding: '8px 14px', borderRadius: 8, border: 'none',
               background: '#00C37A', color: '#000',
@@ -1603,10 +1618,10 @@ export default function EventDetailPage() {
                         <td style={{ padding: '10px 12px' }}>
                           <button
                             type="button"
-                            onClick={() => {
+                            onClick={async () => {
                               const url = `https://axess.pro/e/${event?.slug}?ref=${p.promo_code || p.seller_code}`
-                              navigator.clipboard.writeText(url)
-                              toast.success('לינק הועתק!')
+                              const result = await copyToClipboard(url, 'לינק הועתק!')
+                              toast[result.success ? 'success' : 'error'](result.message)
                             }}
                             style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid var(--glass-border)', background: 'transparent', color: '#00C37A', fontSize: 11, cursor: 'pointer' }}
                           >
@@ -2655,8 +2670,8 @@ export default function EventDetailPage() {
                           }
                           const data = await res.json()
                           setShareLinks((prev) => [...prev, { ...data.share, url: data.url }])
-                          navigator.clipboard.writeText(data.url)
-                          toast.success('לינק נוצר והועתק!')
+                          const result = await copyToClipboard(data.url, 'לינק נוצר והועתק!')
+                          toast[result.success ? 'success' : 'error'](result.message)
                           setNewShareForm({ name: '', permission: 'view', expires_days: 7 })
                         }}
                         style={{
@@ -2704,9 +2719,9 @@ export default function EventDetailPage() {
                             </div>
                             <button
                               type="button"
-                              onClick={() => {
-                                navigator.clipboard.writeText(link.url)
-                                toast.success('הועתק!')
+                              onClick={async () => {
+                                const result = await copyToClipboard(link.url, 'הועתק!')
+                                toast[result.success ? 'success' : 'error'](result.message)
                               }}
                               style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#00C37A' }}
                             >

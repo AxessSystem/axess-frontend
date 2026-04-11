@@ -29,7 +29,15 @@ export default function EventEditorPage() {
       eventId={id || null}
       authHeaders={authHeaders}
       businessId={businessId}
-      onClose={() => navigate('/dashboard/events')}
+      onClose={(options) => {
+        if (options?.navigateTo === 'campaigns' && id) {
+          navigate(`/dashboard/events/${id}?tab=campaigns`)
+        } else if (id) {
+          navigate(`/dashboard/events/${id}`)
+        } else {
+          navigate('/dashboard/events')
+        }
+      }}
       onEventCreated={(ev) => {
         if (ev?.id) navigate(`/dashboard/events/${ev.id}`)
       }}
