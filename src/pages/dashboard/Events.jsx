@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useRequirePermission } from '@/hooks/useRequirePermission'
 import { useAuth } from '@/contexts/AuthContext'
@@ -8,7 +8,7 @@ import {
   Clock, CheckCircle, XCircle, Eye, Share2,
   Megaphone, QrCode, ChevronLeft,
   Key, Copy, Copy as CopyIcon, Trash2, ExternalLink,
-  X, Mail, Sparkles, User,
+  X, Mail, Sparkles, User, Search,
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import Tooltip from '../../components/ui/Tooltip'
@@ -32,6 +32,59 @@ const MODAL_CLOSE_X = {
   alignItems: 'center',
   justifyContent: 'center',
 }
+
+const ConfirmModal = ({ title, message, confirmText, confirmColor = '#ef4444', onConfirm, onCancel }) => (
+  <div
+    style={{
+      position: 'fixed', inset: 0, zIndex: 9999,
+      background: 'rgba(0,0,0,0.6)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      padding: 20,
+    }}
+  >
+    <div
+      style={{
+        background: 'var(--card)', borderRadius: 16,
+        padding: 28, maxWidth: 380, width: '100%',
+        border: '1px solid var(--glass-border)', textAlign: 'center',
+      }}
+    >
+      <div style={{ fontSize: 36, marginBottom: 12 }}>⚠️</div>
+      <h3 style={{ margin: '0 0 8px', fontSize: 18, fontWeight: 700 }}>{title}</h3>
+      <p
+        style={{
+          color: 'var(--v2-gray-400)', fontSize: 14, lineHeight: 1.6, margin: '0 0 24px',
+        }}
+        dangerouslySetInnerHTML={{ __html: message }}
+      />
+      <div style={{ display: 'flex', gap: 10 }}>
+        <button
+          type="button"
+          onClick={onCancel}
+          style={{
+            flex: 1, height: 44, borderRadius: 10,
+            border: '1px solid var(--glass-border)',
+            background: 'transparent', color: 'var(--text)',
+            fontSize: 15, cursor: 'pointer',
+          }}
+        >
+          ביטול
+        </button>
+        <button
+          type="button"
+          onClick={onConfirm}
+          style={{
+            flex: 1, height: 44, borderRadius: 10, border: 'none',
+            background: confirmColor, color: '#fff',
+            fontSize: 15, fontWeight: 700, cursor: 'pointer',
+          }}
+        >
+          {confirmText}
+        </button>
+      </div>
+    </div>
+  </div>
+)
 
 const FLOOR_STATUS_COLORS = { arrived: '#22c55e', confirmed: '#2563EB', pending: '#eab308', no_show: '#ef4444', available: '#64748b', reserved: '#64748b' }
 
@@ -670,7 +723,13 @@ export default function Events() {
   const [events, setEvents] = useState([])
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState('הכל')
-  const [deleteConfirm, setDeleteConfirm] = useState(null)
+  const [cancelConfirmEvent, setCancelConfirmEvent] = useState(null)
+  const [deleteDraftConfirm, setDeleteDraftConfirm] = useState(null)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [searchResults, setSearchResults] = useState([])
+  const [searchLoading, setSearchLoading] = useState(false)
+  const [showSearchResults, setShowSearchResults] = useState(false)
+  const searchRef = useRef(null)
   const { session, businessId } = useAuth()
   const authHeaders = useCallback(() => ({
     'Content-Type': 'application/json',
@@ -702,14 +761,48 @@ export default function Events() {
     loadEvents()
   }, [businessId, loadEvents])
 
+  useEffect(() => {
+    if (searchQuery.length < 2) {
+      setSearchResults([])
+      setShowSearchResults(false)
+      return
+    }
+    const timer = setTimeout(async () => {
+      setSearchLoading(true)
+      try {
+        const res = await fetch(
+          `${API_BASE}/api/admin/events/search?q=${encodeURIComponent(searchQuery)}`,
+          { headers: authHeaders() }
+        )
+        const data = await res.json()
+        setSearchResults(data.events || [])
+        setShowSearchResults(true)
+      } catch (err) {
+        console.error('Search error:', err)
+      } finally {
+        setSearchLoading(false)
+      }
+    }, 200)
+    return () => clearTimeout(timer)
+  }, [searchQuery, authHeaders])
+
+  useEffect(() => {
+    const onDown = (e) => {
+      if (!searchRef.current || !showSearchResults) return
+      if (!searchRef.current.contains(e.target)) setShowSearchResults(false)
+    }
+    document.addEventListener('mousedown', onDown)
+    return () => document.removeEventListener('mousedown', onDown)
+  }, [showSearchResults])
+
   const filteredEvents = events.filter(e => {
-    // הצג את כל האירועים של העסק — לא לסנן לפי portal_visible
     const matchTab =
       activeTab === 'הכל' ? true
         : activeTab === 'פעילים' ? (e.status === 'active' || e.status === 'published')
           : activeTab === 'טיוטות' ? e.status === 'draft'
-            : (activeTab === 'הסתיימו' || activeTab === 'הסתיים') ? (e.status === 'ended' || e.status === 'archived')
-              : true
+            : activeTab === 'מבוטלים' ? e.status === 'cancelled'
+              : (activeTab === 'הסתיימו' || activeTab === 'הסתיים') ? (e.status === 'ended' || e.status === 'archived')
+                : true
     return matchTab
   })
 
@@ -738,6 +831,7 @@ export default function Events() {
   const eventCardUiStatus = (ev) => {
     const s = ev.status || 'draft'
     if (s === 'draft') return 'draft'
+    if (s === 'cancelled') return 'cancelled'
     if (s === 'published' || s === 'active') return 'active'
     return 'ended'
   }
@@ -772,18 +866,6 @@ export default function Events() {
       if (!res.ok) throw new Error(data.error || 'שגיאה')
       setEvents(prev => [data, ...prev])
       toast.success('האירוע שוכפל')
-    } catch (err) {
-      toast.error(err.message || 'שגיאה')
-    }
-  }
-
-  const handleDelete = async (ev) => {
-    try {
-      const res = await fetch(`${API_BASE}/api/admin/events/${ev.id}`, { method: 'DELETE' })
-      if (!res.ok) throw new Error('שגיאה')
-      setEvents(prev => prev.filter(e => e.id !== ev.id))
-      setDeleteConfirm(null)
-      toast.success('האירוע נמחק')
     } catch (err) {
       toast.error(err.message || 'שגיאה')
     }
@@ -836,47 +918,163 @@ export default function Events() {
         </p>
       </div>
 
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          {['הכל', 'טיוטות', 'פעילים', 'הסתיים'].map(tabLabel => (
-            <button
-              key={tabLabel}
-              type="button"
-              onClick={() => setActiveTab(tabLabel)}
-              style={{
-                padding: '10px 16px',
-                borderRadius: 10,
-                border: activeTab === tabLabel ? 'none' : '1px solid var(--glass-border)',
-                background: activeTab === tabLabel ? 'rgba(0,195,122,0.12)' : 'transparent',
-                color: activeTab === tabLabel ? 'var(--v2-primary)' : 'var(--text)',
-                fontWeight: activeTab === tabLabel ? 700 : 400,
-                cursor: 'pointer',
-                fontSize: 14,
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 20 }}>
+        <div style={{ display: 'flex', alignItems: 'stretch', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', flex: '1 1 auto', alignItems: 'center' }}>
+            {['הכל', 'טיוטות', 'פעילים', 'הסתיים', 'מבוטלים'].map(tabLabel => (
+              <button
+                key={tabLabel}
+                type="button"
+                onClick={() => setActiveTab(tabLabel)}
+                style={{
+                  padding: '10px 14px',
+                  borderRadius: 10,
+                  border: activeTab === tabLabel ? 'none' : '1px solid var(--glass-border)',
+                  background: activeTab === tabLabel ? 'rgba(0,195,122,0.12)' : 'transparent',
+                  color: activeTab === tabLabel ? 'var(--v2-primary)' : 'var(--text)',
+                  fontWeight: activeTab === tabLabel ? 700 : 400,
+                  cursor: 'pointer',
+                  fontSize: 14,
+                  minHeight: 44,
+                }}
+              >
+                {tabLabel}
+              </button>
+            ))}
+          </div>
+          <div style={{ flex: '1 1 220px', minWidth: 0, maxWidth: 420 }} ref={searchRef}>
+            <div style={{ position: 'relative' }}>
+              <div style={{
+                display: 'flex', alignItems: 'center',
+                background: 'var(--glass)', border: '1px solid var(--glass-border)',
+                borderRadius: 12, padding: '10px 14px', gap: 10,
+                minHeight: 44,
               }}
-            >
-              {tabLabel}
-            </button>
-          ))}
+              >
+                <Search size={16} color="var(--v2-gray-400)" aria-hidden />
+                <input
+                  value={searchQuery}
+                  onChange={e => setSearchQuery(e.target.value)}
+                  placeholder="חיפוש אירוע..."
+                  style={{
+                    flex: 1, background: 'none', border: 'none',
+                    color: 'var(--text)', fontSize: 15, outline: 'none',
+                    textAlign: 'right', minWidth: 0,
+                  }}
+                />
+                {searchLoading && <span style={{ fontSize: 12, color: 'var(--v2-gray-400)', flexShrink: 0 }}>מחפש...</span>}
+                {searchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => { setSearchQuery(''); setShowSearchResults(false) }}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--v2-gray-400)', flexShrink: 0 }}
+                    aria-label="נקה חיפוש"
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
+              {showSearchResults && (
+                <div style={{
+                  position: 'absolute', top: '100%', right: 0, left: 0, zIndex: 100,
+                  background: 'var(--card)', border: '1px solid var(--glass-border)',
+                  borderRadius: 12, marginTop: 4,
+                  maxHeight: 400, overflowY: 'auto',
+                  boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
+                }}
+                >
+                  {searchResults.length === 0 ? (
+                    <p style={{ padding: 16, textAlign: 'center', color: 'var(--v2-gray-400)', fontSize: 13, margin: 0 }}>
+                      לא נמצאו אירועים
+                    </p>
+                  ) : searchResults.map(event => (
+                    <div
+                      key={event.id}
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => {
+                        navigate(`/dashboard/events/${event.id}`)
+                        setShowSearchResults(false)
+                        setSearchQuery('')
+                      }}
+                      onKeyDown={e => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault()
+                          navigate(`/dashboard/events/${event.id}`)
+                          setShowSearchResults(false)
+                          setSearchQuery('')
+                        }
+                      }}
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: 12,
+                        padding: '12px 16px', cursor: 'pointer',
+                        borderBottom: '1px solid var(--glass-border)',
+                        transition: 'background 0.15s',
+                      }}
+                      onMouseEnter={e => { e.currentTarget.style.background = 'var(--glass)' }}
+                      onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
+                    >
+                      {event.cover_image_url ? (
+                        <img
+                          src={event.cover_image_url}
+                          alt={event.title}
+                          style={{ width: 44, height: 44, borderRadius: 8, objectFit: 'cover', flexShrink: 0 }}
+                        />
+                      ) : (
+                        <div style={{
+                          width: 44, height: 44, borderRadius: 8, flexShrink: 0,
+                          background: 'var(--glass)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        }}
+                        >
+                          <Calendar size={20} color="var(--v2-gray-400)" />
+                        </div>
+                      )}
+                      <div style={{ flex: 1, textAlign: 'right', minWidth: 0 }}>
+                        <p style={{ margin: 0, fontSize: 14, fontWeight: 600 }}>{event.title}</p>
+                        <p style={{ margin: '2px 0 0', fontSize: 12, color: 'var(--v2-gray-400)' }}>
+                          {event.date ? new Date(event.date).toLocaleDateString('he-IL') : ''}
+                          {' · '}
+                          <span style={{
+                            color: event.status === 'active' || event.status === 'published' ? '#00C37A'
+                              : event.status === 'cancelled' ? '#ff4444'
+                                : event.status === 'completed' || event.status === 'ended' || event.status === 'archived' ? '#888' : '#f59e0b',
+                          }}
+                          >
+                            {event.status === 'active' || event.status === 'published' ? 'פעיל'
+                              : event.status === 'cancelled' ? 'מבוטל'
+                                : event.status === 'completed' || event.status === 'ended' || event.status === 'archived' ? 'הסתיים' : 'טיוטה'}
+                          </span>
+                        </p>
+                      </div>
+                      <ChevronLeft size={16} color="var(--v2-gray-400)" aria-hidden />
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => navigate('/dashboard/events/new')}
+            style={{
+              padding: '10px 20px',
+              borderRadius: 10,
+              border: 'none',
+              background: '#00C37A',
+              color: '#000',
+              fontWeight: 700,
+              fontSize: 14,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              alignSelf: 'flex-start',
+              minHeight: 44,
+            }}
+          >
+            <Plus size={18} /> צור אירוע
+          </button>
         </div>
-        <button
-          type="button"
-          onClick={() => navigate('/dashboard/events/new')}
-          style={{
-            padding: '10px 20px',
-            borderRadius: 10,
-            border: 'none',
-            background: '#00C37A',
-            color: '#000',
-            fontWeight: 700,
-            fontSize: 14,
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            gap: 8,
-          }}
-        >
-          <Plus size={18} /> צור אירוע
-        </button>
       </div>
 
       {loading ? (
@@ -989,11 +1187,11 @@ export default function Events() {
                     borderRadius: 20,
                     fontSize: 12,
                     fontWeight: 700,
-                    background: uiStatus === 'active' ? '#00C37A' : uiStatus === 'draft' ? '#F59E0B' : 'rgba(255,255,255,0.2)',
+                    background: uiStatus === 'active' ? '#00C37A' : uiStatus === 'draft' ? '#F59E0B' : uiStatus === 'cancelled' ? '#ff4444' : 'rgba(255,255,255,0.2)',
                     color: uiStatus === 'active' ? '#000' : '#fff',
                   }}
                   >
-                    {uiStatus === 'active' ? 'פעיל' : uiStatus === 'draft' ? 'טיוטה' : 'הסתיים'}
+                    {uiStatus === 'active' ? 'פעיל' : uiStatus === 'draft' ? 'טיוטה' : uiStatus === 'cancelled' ? 'מבוטל' : 'הסתיים'}
                   </span>
                   <span style={{
                     position: 'absolute',
@@ -1125,6 +1323,56 @@ export default function Events() {
                     )}
                   </div>
 
+                  <div
+                    style={{
+                      display: 'flex',
+                      flexWrap: 'wrap',
+                      alignItems: 'center',
+                      gap: 8,
+                      marginBottom: 10,
+                    }}
+                    onClick={e => e.stopPropagation()}
+                  >
+                    {(ev.status === 'active' || ev.status === 'published') && (
+                      <button
+                        type="button"
+                        onClick={() => setCancelConfirmEvent(ev)}
+                        style={{ color: '#ff4444', background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, padding: '4px 0' }}
+                      >
+                        ביטול אירוע
+                      </button>
+                    )}
+                    {ev.status === 'cancelled' && (
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          const res = await fetch(`${API_BASE}/api/admin/events/${ev.id}/restore`, {
+                            method: 'PATCH',
+                            headers: authHeaders(),
+                          })
+                          if (res.ok) {
+                            loadEvents()
+                            toast.success('האירוע שוחזר ✓')
+                          } else {
+                            toast.error('לא ניתן לשחזר — עברו יותר מ-30 יום')
+                          }
+                        }}
+                        style={{ color: '#00C37A', background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, padding: '4px 0' }}
+                      >
+                        שחזר אירוע
+                      </button>
+                    )}
+                    {ev.status === 'draft' && (
+                      <button
+                        type="button"
+                        onClick={() => setDeleteDraftConfirm(ev)}
+                        style={{ color: '#ff4444', background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, padding: '4px 0' }}
+                      >
+                        מחק טיוטה
+                      </button>
+                    )}
+                  </div>
+
                   <div style={{ display: 'flex', gap: 8 }}>
                     <button
                       type="button"
@@ -1236,21 +1484,63 @@ export default function Events() {
         />
       )}
 
-      {/* Delete confirm */}
-      {deleteConfirm && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 60 }} onClick={() => setDeleteConfirm(null)}>
-          <div style={{ position: 'relative', background: 'var(--v2-dark-2)', borderRadius: 'var(--radius-lg)', padding: 32, maxWidth: 380 }} onClick={e => e.stopPropagation()}>
-            <button type="button" onClick={() => setDeleteConfirm(null)} style={MODAL_CLOSE_X} aria-label="סגור">
-              <X size={20} />
-            </button>
-            <h3 style={{ marginBottom: 12 }}>מחק אירוע?</h3>
-            <p style={{ color: 'var(--v2-gray-400)', marginBottom: 24 }}>"{deleteConfirm.title}" — פעולה זו לא ניתנת לביטול.</p>
-            <div style={{ display: 'flex', gap: 12 }}>
-              <button onClick={() => setDeleteConfirm(null)} style={{ flex: 1, padding: 14, background: 'var(--v2-dark-3)', border: '1px solid var(--glass-border)', borderRadius: 12, color: '#fff', cursor: 'pointer' }}>ביטול</button>
-              <button onClick={() => handleDelete(deleteConfirm)} style={{ flex: 1, padding: 14, background: '#ef4444', border: 'none', borderRadius: 12, color: '#fff', cursor: 'pointer', fontWeight: 600 }}>מחק</button>
-            </div>
-          </div>
-        </div>
+      {cancelConfirmEvent && (
+        <ConfirmModal
+          title="לבטל את האירוע?"
+          message={`האירוע "<strong>${cancelConfirmEvent.title || ''}</strong>" יסומן כמבוטל.`}
+          confirmText="בטל אירוע"
+          confirmColor="#ff4444"
+          onCancel={() => setCancelConfirmEvent(null)}
+          onConfirm={async () => {
+            const ev = cancelConfirmEvent
+            setCancelConfirmEvent(null)
+            try {
+              const res = await fetch(`${API_BASE}/api/admin/events/${ev.id}/cancel`, {
+                method: 'PATCH',
+                headers: authHeaders(),
+              })
+              if (!res.ok) {
+                toast.error('לא ניתן לבטל את האירוע')
+                return
+              }
+              loadEvents()
+              toast.success('האירוע בוטל')
+            } catch {
+              toast.error('שגיאה')
+            }
+          }}
+        />
+      )}
+
+      {deleteDraftConfirm && (
+        <ConfirmModal
+          title="למחוק את הטיוטה לצמיתות?"
+          message={`"<strong>${deleteDraftConfirm.title || ''}</strong>" — לא ניתן לשחזר לאחר מחיקה.`}
+          confirmText="מחק טיוטה"
+          confirmColor="#ef4444"
+          onCancel={() => setDeleteDraftConfirm(null)}
+          onConfirm={async () => {
+            const ev = deleteDraftConfirm
+            setDeleteDraftConfirm(null)
+            try {
+              const res = await fetch(`${API_BASE}/api/admin/events/${ev.id}`, {
+                method: 'DELETE',
+                headers: authHeaders(),
+              })
+              const data = await res.json().catch(() => ({}))
+              if (res.ok) {
+                loadEvents()
+                toast.success('הטיוטה נמחקה')
+              } else if (data.error === 'has_registrations') {
+                toast.error('לא ניתן למחוק — יש רכישות')
+              } else {
+                toast.error('לא ניתן למחוק')
+              }
+            } catch {
+              toast.error('שגיאה')
+            }
+          }}
+        />
       )}
 
       {/* Staff Scan Tokens Modal */}
