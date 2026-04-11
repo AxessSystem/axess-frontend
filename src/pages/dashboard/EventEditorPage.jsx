@@ -33,9 +33,9 @@ export default function EventEditorPage() {
         if (options?.navigateTo === 'campaigns' && id) {
           navigate(`/dashboard/events/${id}?tab=campaigns`)
         } else if (id) {
-          navigate(`/dashboard/events/${id}`)
+          navigate(`/dashboard/events/${id}`) // חזרה לדף האירוע
         } else {
-          navigate('/dashboard/events')
+          navigate('/dashboard/events') // יצירה חדשה
         }
       }}
       onEventCreated={(ev) => {

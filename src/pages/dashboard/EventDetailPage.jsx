@@ -1616,17 +1616,27 @@ export default function EventDetailPage() {
                           {p.created_at ? new Date(p.created_at).toLocaleDateString('he-IL') : '—'}
                         </td>
                         <td style={{ padding: '10px 12px' }}>
-                          <button
-                            type="button"
+                          <div
+                            role="presentation"
                             onClick={async () => {
                               const url = `https://axess.pro/e/${event?.slug}?ref=${p.promo_code || p.seller_code}`
                               const result = await copyToClipboard(url, 'לינק הועתק!')
                               toast[result.success ? 'success' : 'error'](result.message)
                             }}
-                            style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid var(--glass-border)', background: 'transparent', color: '#00C37A', fontSize: 11, cursor: 'pointer' }}
+                            style={{
+                              cursor: 'pointer',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              padding: '4px 10px',
+                              borderRadius: 6,
+                              border: '1px solid var(--glass-border)',
+                              background: 'transparent',
+                              color: '#00C37A',
+                              fontSize: 11,
+                            }}
                           >
                             📋 לינק
-                          </button>
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -2691,7 +2701,12 @@ export default function EventDetailPage() {
                         {shareLinks.map((link) => (
                           <div
                             key={link.id}
+                            onClick={async () => {
+                              const result = await copyToClipboard(link.url, 'הועתק!')
+                              toast[result.success ? 'success' : 'error'](result.message)
+                            }}
                             style={{
+                              cursor: 'pointer',
                               display: 'flex', alignItems: 'center', gap: 8,
                               padding: '8px 10px', borderRadius: 8,
                               background: 'var(--glass)', marginBottom: 6,
@@ -2719,17 +2734,14 @@ export default function EventDetailPage() {
                             </div>
                             <button
                               type="button"
-                              onClick={async () => {
-                                const result = await copyToClipboard(link.url, 'הועתק!')
-                                toast[result.success ? 'success' : 'error'](result.message)
-                              }}
                               style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#00C37A' }}
                             >
                               <Copy size={14} />
                             </button>
                             <button
                               type="button"
-                              onClick={async () => {
+                              onClick={async (e) => {
+                                e.stopPropagation()
                                 await fetch(`${API_BASE}/api/admin/events/${id}/shares/${link.id}`, {
                                   method: 'DELETE',
                                   headers: authHeaders(),

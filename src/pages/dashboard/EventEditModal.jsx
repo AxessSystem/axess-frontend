@@ -2757,8 +2757,8 @@ function SummaryTab({ event, form, authHeaders, onNavigateToCampaigns }) {
 
   const eventUrl = `https://axess.pro/e/${form.slug || event?.slug || ''}`
 
-  const saveShareMessages = async () => {
-    if (!event?.id || !authHeaders) return
+  const saveShareMessages = async (silent = false) => {
+    if (!event?.id || !authHeaders) return false
     setSavingShare(true)
     try {
       const res = await fetch(`${API_BASE}/api/admin/events/${event.id}`, {
@@ -2766,10 +2766,15 @@ function SummaryTab({ event, form, authHeaders, onNavigateToCampaigns }) {
         headers: authHeaders(),
         body: JSON.stringify({ share_messages: shareMessages }),
       })
-      if (res.ok) toast.success('הודעות השיתוף נשמרו ✓')
-      else toast.error('שגיאה בשמירה')
+      if (res.ok) {
+        if (!silent) toast.success('הודעות השיתוף נשמרו ✓')
+        return true
+      }
+      if (!silent) toast.error('שגיאה בשמירה')
+      return false
     } catch {
-      toast.error('שגיאה בחיבור לשרת')
+      if (!silent) toast.error('שגיאה בחיבור לשרת')
+      return false
     } finally {
       setSavingShare(false)
     }
@@ -3030,7 +3035,7 @@ function SummaryTab({ event, form, authHeaders, onNavigateToCampaigns }) {
               <button
                 type="button"
                 onClick={async () => {
-                  await saveShareMessages()
+                  await saveShareMessages(true)
                   if (onNavigateToCampaigns) {
                     onNavigateToCampaigns({
                       type: 'sms',
