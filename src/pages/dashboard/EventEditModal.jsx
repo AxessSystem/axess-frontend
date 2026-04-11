@@ -322,6 +322,22 @@ export default function EventEditModal({
 
     if (res.ok) {
       toast.success('השינויים נשמרו!')
+
+      if (eventIdProp) {
+        try {
+          const refreshRes = await fetch(
+            `${API_BASE}/api/admin/events/${eventIdProp}`,
+            { headers: authHeaders() },
+          )
+          if (refreshRes.ok) {
+            const refreshedData = await refreshRes.json()
+            if (refreshedData?.id) setFetchedEvent(refreshedData)
+          }
+        } catch (err) {
+          console.error('Failed to refresh event:', err)
+        }
+      }
+
       onSave?.()
     } else {
       const err = await res.json().catch(() => ({}))
