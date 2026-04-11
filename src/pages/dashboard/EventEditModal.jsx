@@ -156,7 +156,7 @@ export default function EventEditModal({
   const isCreateMode = mode === 'create'
   const isPage = presentation === 'page'
   const [fetchedEvent, setFetchedEvent] = useState(null)
-  const effectiveEvent = isCreateMode ? null : (eventProp || fetchedEvent)
+  const effectiveEvent = isCreateMode ? null : (fetchedEvent || eventProp)
   const [activeTab, setActiveTab] = useState('basic')
   const [form, setForm] = useState(() => buildFormStateFromEvent(null))
   const [saving, setSaving] = useState(false)
@@ -169,20 +169,30 @@ export default function EventEditModal({
       setFetchedEvent(null)
       return
     }
-    if (eventProp?.id) {
-      setFetchedEvent(null)
-      return
-    }
     if (!eventIdProp || !authHeaders) return
+
     let cancelled = false
-    fetch(`${API_BASE}/api/admin/events/${eventIdProp}`, { headers: authHeaders() })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => {
-        if (!cancelled && d && !d.error) setFetchedEvent(d)
-      })
-      .catch(() => {})
-    return () => { cancelled = true }
-  }, [isOpen, isCreateMode, eventProp?.id, eventIdProp, authHeaders])
+    const loadEvent = async () => {
+      try {
+        const res = await fetch(`${API_BASE}/api/admin/events/${eventIdProp}`, {
+          headers: authHeaders(),
+        })
+        if (!res.ok) return
+        const data = await res.json()
+        if (cancelled) return
+        if (data?.id) {
+          setFetchedEvent(data)
+        }
+      } catch (err) {
+        console.error('Failed to fetch event:', err)
+      }
+    }
+
+    loadEvent()
+    return () => {
+      cancelled = true
+    }
+  }, [eventIdProp, isOpen, isCreateMode, authHeaders])
 
   useEffect(() => {
     if (!isOpen || !isCreateMode) return
