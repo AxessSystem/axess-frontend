@@ -1200,9 +1200,15 @@ export default function Events() {
 
       {editModalEvent && (
         <EventEditModal
+          eventId={editModalEvent?.id}
           event={editModalEvent}
-          onClose={() => setEditModalEvent(null)}
-          onSave={() => { loadEvents(); setEditModalEvent(null); }}
+          onClose={() => {
+            setEditModalEvent(null)
+            loadEvents()
+          }}
+          onSave={() => {
+            loadEvents()
+          }}
           authHeaders={authHeaders}
           businessId={businessId}
         />
