@@ -131,8 +131,9 @@ function buildFormStateFromEvent(ev) {
     organizer_email: contactInfo0.email || '',
     organizer_avatar: contactInfo0.avatar || '',
     faq: initialFaq(ev?.faq),
-    min_age: ev?.min_age ?? 0,
+    min_age: ev?.min_age || 0,
     approval_mode: ev?.approval_mode || 'none',
+    approval_required: ev?.approval_required || false,
     display_config: { ...displayConfig0 },
     slug: ev?.slug || '',
     share_messages:
@@ -282,7 +283,9 @@ export default function EventEditModal({
       cover_image_url: cleanStr(form.cover_image_url),
       age_restriction: cleanStr(form.age_restriction),
       dress_code: cleanStr(form.dress_code),
-      min_age: Number(form.min_age) || 0,
+      min_age: form.min_age !== undefined && form.min_age !== ''
+        ? Number(form.min_age)
+        : 0,
       approval_mode: form.approval_mode || 'none',
       approval_required: form.approval_mode !== 'none',
       contact_info: {

@@ -41,7 +41,10 @@ export default function EventEditorPage() {
       onEventCreated={(ev) => {
         if (ev?.id) navigate(`/dashboard/events/${ev.id}`)
       }}
-      onSave={() => {}}
+      onSave={() => {
+        // רענן נתוני האירוע בלי לסגור
+        // אל תנווט ואל תסגור
+      }}
     />
   )
 }
