@@ -250,12 +250,16 @@ export default function EventEditModal({
           date: cleanDate(form.date),
           doors_open: cleanDate(form.date),
           event_end: cleanDate(form.event_end),
-          location: cleanStr(form.location),
+          location: cleanStr(form.location) || cleanStr(form.venue_address),
           description: cleanStr(form.description),
           status: 'draft',
           min_age: Number(form.min_age) || 0,
           approval_mode: form.approval_mode || 'none',
           approval_required: form.approval_mode !== 'none',
+          venue_name: cleanStr(form.venue_name),
+          venue_address: cleanStr(form.venue_address),
+          cover_image_url: cleanStr(form.cover_image_url),
+          age_restriction: cleanStr(form.age_restriction),
         }),
       })
       const data = await res.json().catch(() => ({}))
@@ -504,112 +508,8 @@ export default function EventEditModal({
           )}
 
           {activeTab === 'basic' && (
-            isCreateMode ? (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-              <div>
-                <label style={{ fontSize: 12, color: 'var(--v2-gray-400)', display: 'block', marginBottom: 4 }}>
-                  שם האירוע *
-                </label>
-                <input
-                  value={form.title}
-                  onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
-                  style={{
-                    width: '100%',
-                    height: 42,
-                    borderRadius: 8,
-                    border: '1px solid var(--glass-border)',
-                    background: 'var(--glass)',
-                    color: 'var(--text)',
-                    padding: '0 12px',
-                    fontSize: 15,
-                    fontWeight: 600,
-                    boxSizing: 'border-box',
-                  }}
-                />
-              </div>
-              <div>
-                <label style={{ fontSize: 12, color: 'var(--v2-gray-400)', display: 'block', marginBottom: 4 }}>
-                  תאריך התחלה
-                </label>
-                <DateTimePicker
-                  value={form.date}
-                  onChange={(v) => setForm((f) => ({ ...f, date: v, doors_open: v }))}
-                  placeholder="בחר תאריך ושעת התחלה"
-                />
-              </div>
-              <div>
-                <label style={{ fontSize: 12, color: 'var(--v2-gray-400)', display: 'block', marginBottom: 4 }}>
-                  תאריך סיום
-                </label>
-                <DateTimePicker
-                  value={form.event_end}
-                  onChange={(v) => setForm((f) => ({ ...f, event_end: v }))}
-                  placeholder="בחר תאריך סיום"
-                />
-              </div>
-              <div>
-                <label style={{ fontSize: 12, color: 'var(--v2-gray-400)', display: 'block', marginBottom: 4 }}>
-                  מיקום
-                </label>
-                <input
-                  value={form.location}
-                  onChange={(e) => setForm((f) => ({ ...f, location: e.target.value }))}
-                  placeholder="מיקום האירוע"
-                  style={{
-                    width: '100%',
-                    height: 42,
-                    borderRadius: 8,
-                    border: '1px solid var(--glass-border)',
-                    background: 'var(--glass)',
-                    color: 'var(--text)',
-                    padding: '0 12px',
-                    fontSize: 14,
-                    boxSizing: 'border-box',
-                  }}
-                />
-              </div>
-              <div>
-                <label style={{ fontSize: 12, color: 'var(--v2-gray-400)', display: 'block', marginBottom: 4 }}>
-                  תיאור
-                </label>
-                <textarea
-                  value={form.description}
-                  onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
-                  placeholder="תיאור קצר של האירוע"
-                  rows={5}
-                  style={{
-                    width: '100%',
-                    borderRadius: 8,
-                    border: '1px solid var(--glass-border)',
-                    background: 'var(--glass)',
-                    color: 'var(--text)',
-                    padding: 12,
-                    fontSize: 14,
-                    boxSizing: 'border-box',
-                    resize: 'vertical',
-                  }}
-                />
-             </div>
-              <button
-                type="button"
-                onClick={handleCreate}
-                style={{
-                  height: 44,
-                  borderRadius: 8,
-                  border: 'none',
-                  background: '#00C37A',
-                  color: '#000',
-                  fontWeight: 700,
-                  fontSize: 15,
-                  cursor: 'pointer',
-                  marginTop: 8,
-                }}
-              >
-                צור אירוע ←
-              </button>
-            </div>
-            ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              {/* 1. שם האירוע */}
               <div>
                 <label style={{ fontSize: 12, color: 'var(--v2-gray-400)', display: 'block', marginBottom: 4 }}>
                   שם האירוע *
@@ -632,8 +532,17 @@ export default function EventEditModal({
                 />
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, width: '100%', alignItems: 'start' }}>
-                <div>
+              {/* 2. תאריך התחלה + סיום — גריד רספונסיבי */}
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))',
+                  gap: 12,
+                  width: '100%',
+                  alignItems: 'start',
+                }}
+              >
+                <div style={{ minWidth: 0 }}>
                   <label style={{ fontSize: 12, color: 'var(--v2-gray-400)', display: 'block', marginBottom: 4 }}>
                     תחילת אירוע
                   </label>
@@ -643,7 +552,7 @@ export default function EventEditModal({
                     placeholder="בחר תאריך ושעת התחלה"
                   />
                 </div>
-                <div>
+                <div style={{ minWidth: 0 }}>
                   <label style={{ fontSize: 12, color: 'var(--v2-gray-400)', display: 'block', marginBottom: 4 }}>
                     סיום אירוע
                   </label>
@@ -655,6 +564,59 @@ export default function EventEditModal({
                 </div>
               </div>
 
+              {/* 3. שם מקום + כתובת */}
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))',
+                  gap: 12,
+                  width: '100%',
+                }}
+              >
+                <div style={{ minWidth: 0 }}>
+                  <label style={{ fontSize: 12, color: 'var(--v2-gray-400)', display: 'block', marginBottom: 4 }}>
+                    שם המקום
+                  </label>
+                  <input
+                    value={form.venue_name}
+                    onChange={(e) => setForm((f) => ({ ...f, venue_name: e.target.value }))}
+                    placeholder="כתוב את שם המקום בו יתקיים האירוע (מועדון / אולם / גן אירועים...)"
+                    style={{
+                      width: '100%',
+                      height: 40,
+                      borderRadius: 8,
+                      border: '1px solid var(--glass-border)',
+                      background: 'var(--glass)',
+                      color: 'var(--text)',
+                      padding: '0 12px',
+                      fontSize: 14,
+                      boxSizing: 'border-box',
+                    }}
+                  />
+                </div>
+                <div style={{ minWidth: 0 }}>
+                  <label style={{ fontSize: 12, color: 'var(--v2-gray-400)', display: 'block', marginBottom: 4 }}>
+                    כתובת
+                  </label>
+                  <input
+                    value={form.venue_address}
+                    onChange={(e) => setForm((f) => ({ ...f, venue_address: e.target.value }))}
+                    style={{
+                      width: '100%',
+                      height: 40,
+                      borderRadius: 8,
+                      border: '1px solid var(--glass-border)',
+                      background: 'var(--glass)',
+                      color: 'var(--text)',
+                      padding: '0 12px',
+                      fontSize: 14,
+                      boxSizing: 'border-box',
+                    }}
+                  />
+                </div>
+              </div>
+
+              {/* 4. הגבלת גיל + min_age */}
               <div>
                 <label style={{ fontSize: 12, color: 'var(--v2-gray-400)', display: 'block', marginBottom: 4 }}>
                   הגבלת גיל
@@ -677,21 +639,26 @@ export default function EventEditModal({
                 />
               </div>
 
-              <div style={{ marginBottom: 12 }}>
+              <div>
                 <label
                   style={{ fontSize: 12, color: 'var(--v2-gray-400)', display: 'block', marginBottom: 6 }}
                 >
                   הגבלת גיל מינימלית
                 </label>
-                <div style={{ display: 'flex', gap: 8 }}>
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fit, minmax(72px, 1fr))',
+                    gap: 8,
+                  }}
+                >
                   {[0, 18, 21, 25].map((age) => (
                     <div
                       key={age}
                       role="presentation"
                       onClick={() => setForm((f) => ({ ...f, min_age: age }))}
                       style={{
-                        flex: 1,
-                        height: 36,
+                        minHeight: 36,
                         borderRadius: 8,
                         cursor: 'pointer',
                         display: 'flex',
@@ -710,13 +677,13 @@ export default function EventEditModal({
                 </div>
               </div>
 
+              {/* 5. הגדרות אישור מארגן */}
               <div
                 style={{
                   background: 'var(--glass)',
                   borderRadius: 10,
                   padding: 14,
                   border: '1px solid var(--glass-border)',
-                  marginBottom: 12,
                 }}
               >
                 <p style={{ margin: '0 0 12px', fontSize: 14, fontWeight: 700 }}>
@@ -782,7 +749,7 @@ export default function EventEditModal({
                         />
                       )}
                     </div>
-                    <div>
+                    <div style={{ minWidth: 0 }}>
                       <p style={{ margin: 0, fontSize: 13, fontWeight: 600 }}>{opt.label}</p>
                       <p style={{ margin: '2px 0 0', fontSize: 11, color: 'var(--v2-gray-400)' }}>
                         {opt.sub}
@@ -792,49 +759,7 @@ export default function EventEditModal({
                 ))}
               </div>
 
-              <div>
-                <label style={{ fontSize: 12, color: 'var(--v2-gray-400)', display: 'block', marginBottom: 4 }}>
-                  שם המקום
-                </label>
-                <input
-                  value={form.venue_name}
-                  onChange={(e) => setForm((f) => ({ ...f, venue_name: e.target.value }))}
-                  placeholder="כתוב את שם המקום בו יתקיים האירוע (מועדון / אולם / גן אירועים...)"
-                  style={{
-                    width: '100%',
-                    height: 40,
-                    borderRadius: 8,
-                    border: '1px solid var(--glass-border)',
-                    background: 'var(--glass)',
-                    color: 'var(--text)',
-                    padding: '0 12px',
-                    fontSize: 14,
-                    boxSizing: 'border-box',
-                  }}
-                />
-              </div>
-
-              <div>
-                <label style={{ fontSize: 12, color: 'var(--v2-gray-400)', display: 'block', marginBottom: 4 }}>
-                  כתובת
-                </label>
-                <input
-                  value={form.venue_address}
-                  onChange={(e) => setForm((f) => ({ ...f, venue_address: e.target.value }))}
-                  style={{
-                    width: '100%',
-                    height: 40,
-                    borderRadius: 8,
-                    border: '1px solid var(--glass-border)',
-                    background: 'var(--glass)',
-                    color: 'var(--text)',
-                    padding: '0 12px',
-                    fontSize: 14,
-                    boxSizing: 'border-box',
-                  }}
-                />
-              </div>
-
+              {/* 6. תמונת כרטיס Banner */}
               <div>
                 <label style={{ fontSize: 12, color: 'var(--v2-gray-400)', display: 'block', marginBottom: 8 }}>
                   תמונת כרטיס (Banner)
@@ -868,11 +793,17 @@ export default function EventEditModal({
                   </div>
                 )}
 
-                <div style={{ display: 'flex', gap: 8 }}>
+                <div
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 8,
+                  }}
+                >
                   <label
                     style={{
-                      flex: 1,
-                      height: 40,
+                      width: '100%',
+                      minHeight: 40,
                       borderRadius: 8,
                       border: '2px dashed var(--glass-border)',
                       display: 'flex',
@@ -882,6 +813,8 @@ export default function EventEditModal({
                       cursor: 'pointer',
                       fontSize: 13,
                       color: 'var(--v2-gray-400)',
+                      boxSizing: 'border-box',
+                      padding: '8px 12px',
                     }}
                   >
                     <input
@@ -892,31 +825,33 @@ export default function EventEditModal({
                     />
                     <Upload size={14} /> {imageUploading ? 'מעלה...' : 'העלה תמונה'}
                   </label>
-                  <span style={{ display: 'flex', alignItems: 'center', fontSize: 12, color: 'var(--v2-gray-400)' }}>
-                    או
-                  </span>
-                  <input
-                    value={form.cover_image_url}
-                    onChange={(e) => setForm((f) => ({ ...f, cover_image_url: e.target.value }))}
-                    placeholder="הדבק URL תמונה"
-                    style={{
-                      flex: 2,
-                      height: 40,
-                      borderRadius: 8,
-                      border: '1px solid var(--glass-border)',
-                      background: 'var(--glass)',
-                      color: 'var(--text)',
-                      padding: '0 10px',
-                      fontSize: 12,
-                    }}
-                  />
+                  <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}>
+                    <span style={{ fontSize: 12, color: 'var(--v2-gray-400)' }}>או</span>
+                    <input
+                      value={form.cover_image_url}
+                      onChange={(e) => setForm((f) => ({ ...f, cover_image_url: e.target.value }))}
+                      placeholder="הדבק URL תמונה"
+                      style={{
+                        flex: '1 1 200px',
+                        minWidth: 0,
+                        height: 40,
+                        borderRadius: 8,
+                        border: '1px solid var(--glass-border)',
+                        background: 'var(--glass)',
+                        color: 'var(--text)',
+                        padding: '0 10px',
+                        fontSize: 12,
+                      }}
+                    />
+                  </div>
                 </div>
               </div>
 
+              {/* 7. כפתור */}
               <button
                 type="button"
-                onClick={saveBasic}
-                disabled={saving}
+                onClick={isCreateMode ? handleCreate : saveBasic}
+                disabled={!isCreateMode && saving}
                 style={{
                   height: 44,
                   borderRadius: 8,
@@ -925,14 +860,14 @@ export default function EventEditModal({
                   color: '#000',
                   fontWeight: 700,
                   fontSize: 15,
-                  cursor: 'pointer',
+                  cursor: (!isCreateMode && saving) ? 'not-allowed' : 'pointer',
                   marginTop: 8,
+                  opacity: (!isCreateMode && saving) ? 0.7 : 1,
                 }}
               >
-                {saving ? 'שומר...' : 'שמור שינויים'}
+                {isCreateMode ? 'צור אירוע' : (saving ? 'שומר...' : 'שמור שינויים')}
               </button>
             </div>
-            )
           )}
 
           {activeTab === 'description' && (
