@@ -2727,13 +2727,27 @@ function SummaryTab({ event, form, authHeaders, onNavigateToCampaigns }) {
   const [savingShare, setSavingShare] = useState(false)
 
   useEffect(() => {
+    // בנה ברירת מחדל מתיאור האירוע
+    const stripHtml = (html) => (html || '')
+      .replace(/<br\s*\/?>/gi, ' ')
+      .replace(/<\/p>/gi, ' ')
+      .replace(/<\/h[1-6]>/gi, ' ')
+      .replace(/<\/div>/gi, ' ')
+      .replace(/<[^>]*>/g, '')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .slice(0, 300)
+
+    const defaultMsg = form.share_messages?.default ||
+      stripHtml(form.description || event?.description || '')
+
     setShareMessages({
-      default: form.share_messages?.default || '',
+      default: defaultMsg,
       whatsapp: form.share_messages?.whatsapp || '',
       sms: form.share_messages?.sms || '',
       instagram: form.share_messages?.instagram || '',
     })
-  }, [form.share_messages])
+  }, [form.share_messages, form.description, event?.description])
 
   const eventUrl = `https://axess.pro/e/${form.slug || event?.slug || ''}`
 
@@ -2907,9 +2921,13 @@ function SummaryTab({ event, form, authHeaders, onNavigateToCampaigns }) {
             value={shareMessages[shareTab] ?? ''}
             onChange={(e) => setShareMessages((prev) => ({ ...prev, [shareTab]: e.target.value }))}
             placeholder={
-              shareTab === 'sms' ? 'הודעת SMS קצרה (עד 160 תווים)...' :
-                shareTab === 'instagram' ? 'טקסט לאינסטגרם עם האשטאגים...' :
-                  'כתוב הודעת שיתוף...'
+              shareTab === 'sms'
+                ? `הודעת SMS קצרה (עד 160 תווים)... (ברירת מחדל: ${shareMessages.default?.slice(0, 50)}...)`
+                : shareTab === 'instagram'
+                  ? 'טקסט לאינסטגרם עם האשטאגים... (ריק = ישתמש בברירת מחדל)'
+                  : shareTab === 'whatsapp'
+                    ? 'הודעת WhatsApp מותאמת... (ריק = ישתמש בברירת מחדל)'
+                    : 'ברירת מחדל לכל הפלטפורמות...'
             }
             maxLength={maxChars}
             rows={4}
