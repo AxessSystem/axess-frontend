@@ -752,7 +752,7 @@ export default function Events() {
   }
 
   const openEditFromCard = (ev) => {
-    setEditModalEvent(ev)
+    setEditModalEvent({ id: ev.id })
   }
 
   const openCampaignFromCard = (ev) => {
@@ -1222,7 +1222,7 @@ export default function Events() {
           businessId={businessId}
           initialTab={detailEventTab}
           onClose={() => { setDetailEvent(null); setDetailEventTab('overview') }}
-          onEdit={(ev) => { setDetailEvent(null); setDetailEventTab('overview'); setEditModalEvent(ev) }}
+          onEdit={(ev) => { setDetailEvent(null); setDetailEventTab('overview'); setEditModalEvent({ id: ev.id }) }}
           onRefresh={() => fetch(`${API_BASE}/api/admin/events?business_id=${businessId}`).then(r => r.ok ? r.json() : []).then(setEvents)}
         />
       )}
