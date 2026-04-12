@@ -38,7 +38,7 @@ export function TableBookingModalContent({
   slug,
   promoRef,
   setSuccess,
-  setPendingApproval,
+  onClose,
   API_BASE,
   trackStep,
 }) {
@@ -131,25 +131,32 @@ export function TableBookingModalContent({
         throw new Error(data.error || data.message || 'שגיאה')
       }
       if (data.status === 'pending_approval') {
-        setPendingApproval(true)
+        toast.success('הבקשה נשלחה! ממתינה לאישור מנהל 🎉')
+        onClose?.()
         resetAfterClose()
-        toast.success('הבקשה נשלחה לאישור')
         return
       }
       if (!data.order_id) {
         throw new Error('שגיאה ביצירת הזמנה')
       }
-      if (data.total_amount === 0 || data.client_secret === 'free_order') {
-        const conf = await fetch(`${API_BASE}/e/${slug}/confirm`, {
+      if (
+        data.total_amount === 0
+        || data.client_secret === 'free_order'
+        || Number(data.total_amount) === 0
+      ) {
+        const confRes = await fetch(`${API_BASE}/e/${slug}/confirm`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ order_id: data.order_id }),
         })
-        const confData = await conf.json()
-        if (!conf.ok) throw new Error(confData.error || 'שגיאה')
-        setSuccess(true)
-        resetAfterClose()
-        toast.success('הכרטיס בדרך!')
+        if (confRes.ok) {
+          toast.success('ההזמנה אושרה! 🎉')
+          onClose?.()
+          resetAfterClose()
+        } else {
+          const confData = await confRes.json()
+          throw new Error(confData.error || 'שגיאה')
+        }
         return
       }
 
