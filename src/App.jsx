@@ -19,6 +19,7 @@ import ScanStation from '@/pages/ScanStation'
 import Join from '@/pages/Join'
 import InviteAccept from '@/pages/InviteAccept'
 import AuthConnect from '@/pages/AuthConnect'
+import TableView from '@/pages/TableView'
 
 /* ── New AXESS pages (lazy) ── */
 const Onboarding      = lazy(() => import('@/pages/Onboarding'))
@@ -195,6 +196,7 @@ export default function App() {
             <Route path="/t/slug/:slug" element={<TableBookingPage />} />
             <Route path="/booking/:id" element={<BookingManagementPage />} />
             <Route path="/g/token/:token" element={<GuestPaymentPage />} />
+            <Route path="/table/:qrToken" element={<TableView />} />
             <Route path="/shared/event/:id/:token" element={<SharedEventReport />} />
             <Route path="/promoter/join/:code" element={<PromoterJoinPage />} />
             <Route path="/scan/:eventSlug" element={<ScanStation />} />
