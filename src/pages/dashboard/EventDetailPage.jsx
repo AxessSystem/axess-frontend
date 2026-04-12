@@ -4,6 +4,7 @@ import {
   Calendar, MapPin, ChevronLeft, ExternalLink, Download, Edit,
   CheckCircle, Clock, XCircle, MessageCircle, DollarSign, Users, QrCode, Eye, Ticket,
   Upload, Plus, X, Settings, Share2, Copy, Trash2, RotateCcw, Pencil, Calculator,
+  Armchair, Star, Check, AlertTriangle,
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useAuth } from '@/contexts/AuthContext'
@@ -117,6 +118,59 @@ const MODAL_CLOSE_X = {
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
+}
+
+function TableAssignConfirmModal({ title, message, confirmText, confirmColor = '#00C37A', onConfirm, onCancel }) {
+  return (
+    <div
+      style={{
+        position: 'fixed', inset: 0, zIndex: 10002,
+        background: 'rgba(0,0,0,0.65)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        padding: 20,
+      }}
+      onClick={(e) => { if (e.target === e.currentTarget) onCancel() }}
+      role="presentation"
+    >
+      <div style={{
+        background: 'var(--card)', borderRadius: 16,
+        padding: 28, maxWidth: 380, width: '100%',
+        border: '1px solid var(--glass-border)', textAlign: 'center',
+      }}
+      >
+        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 12 }}>
+          <AlertTriangle size={36} strokeWidth={1.75} color="#F59E0B" aria-hidden />
+        </div>
+        <h3 style={{ margin: '0 0 8px', fontSize: 18, fontWeight: 700 }}>{title}</h3>
+        <p style={{ color: 'var(--v2-gray-400)', fontSize: 14, lineHeight: 1.6, margin: '0 0 24px' }}>{message}</p>
+        <div style={{ display: 'flex', gap: 10 }}>
+          <button
+            type="button"
+            onClick={onCancel}
+            style={{
+              flex: 1, minHeight: 44, borderRadius: 10,
+              border: '1px solid var(--glass-border)',
+              background: 'transparent', color: 'var(--text)',
+              fontSize: 15, cursor: 'pointer', WebkitTapHighlightColor: 'transparent',
+            }}
+          >
+            ביטול
+          </button>
+          <button
+            type="button"
+            onClick={onConfirm}
+            style={{
+              flex: 1, minHeight: 44, borderRadius: 10, border: 'none',
+              background: confirmColor, color: '#000',
+              fontSize: 15, fontWeight: 700, cursor: 'pointer', WebkitTapHighlightColor: 'transparent',
+            }}
+          >
+            {confirmText}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
 }
 
 function MenuBuilderModal({ businessId, onClose }) {
@@ -780,6 +834,11 @@ export default function EventDetailPage() {
   const [ordersTab, setOrdersTab] = useState('approved')
   const [eventPromoters, setEventPromoters] = useState([])
   const [cancelConfirm, setCancelConfirm] = useState(null)
+  const [tableAssignModal, setTableAssignModal] = useState(null)
+  const [availableTables, setAvailableTables] = useState([])
+  const [selectedTableId, setSelectedTableId] = useState('')
+  const [assigning, setAssigning] = useState(false)
+  const [tableAssignConfirmOpen, setTableAssignConfirmOpen] = useState(false)
   const [loading, setLoading] = useState(true)
   const [interests, setInterests] = useState([])
   const [webviewAnalyticsRows, setWebviewAnalyticsRows] = useState([])
@@ -854,6 +913,28 @@ export default function EventDetailPage() {
     'Authorization': `Bearer ${session?.access_token}`,
     'X-Business-Id': businessId,
   }), [session, businessId])
+
+  useEffect(() => {
+    if (!tableAssignModal || !id) return
+    fetch(`${API_BASE}/api/admin/events/${id}/tables`, {
+      headers: authHeaders(),
+    })
+      .then((r) => r.json())
+      .then((data) => {
+        const raw = data.tables || data || []
+        const tables = Array.isArray(raw) ? raw : []
+        const free = tables.filter((t) => {
+          const oc = Number(t.orders_count) || 0
+          return (t.status === 'available' || !t.status) && oc === 0
+        })
+        setAvailableTables(free)
+        setSelectedTableId('')
+      })
+      .catch(() => {
+        setAvailableTables([])
+        setSelectedTableId('')
+      })
+  }, [tableAssignModal, id, authHeaders])
 
   const saveToHistory = () => {
     setExpensesHistory((h) => [...h.slice(-4), [...financials.expenses]])
@@ -1682,8 +1763,27 @@ export default function EventDetailPage() {
                         padding: '8px 12px', position: 'sticky', right: 0, background: 'var(--card)', zIndex: 1, whiteSpace: 'nowrap',
                       }}
                       >
-                        <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                          {order.approval_status === 'pending_approval' && (
+                        <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+                          {order.ticket_category === 'table'
+                            && order.approval_status === 'pending_approval' && (
+                            <button
+                              type="button"
+                              onClick={() => setTableAssignModal(order)}
+                              style={{
+                                padding: '6px 14px', borderRadius: 8, fontSize: 12,
+                                background: 'rgba(0,195,122,0.1)',
+                                border: '1px solid rgba(0,195,122,0.3)',
+                                color: '#00C37A', cursor: 'pointer', fontWeight: 600,
+                                WebkitTapHighlightColor: 'transparent',
+                                display: 'inline-flex', alignItems: 'center', gap: 6,
+                              }}
+                            >
+                              <Armchair size={14} strokeWidth={2} aria-hidden />
+                              הקצה שולחן ואשר
+                            </button>
+                          )}
+                          {order.approval_status === 'pending_approval'
+                            && order.ticket_category !== 'table' && (
                             <button
                               type="button"
                               title="אשר כרטיס"
@@ -1758,13 +1858,20 @@ export default function EventDetailPage() {
                       <td style={{ padding: '8px 12px', whiteSpace: 'nowrap' }}>
                         <span style={{
                           fontSize: 11, padding: '2px 8px', borderRadius: 10,
+                          display: 'inline-flex', alignItems: 'center', gap: 4,
                           background: order.ticket_category === 'table' ? 'rgba(139,92,246,0.15)' : 'rgba(0,195,122,0.1)',
                           color: order.ticket_category === 'table' ? '#8B5CF6' : '#00C37A',
                         }}
                         >
-                          {order.ticket_category === 'table' ? '🪑 שולחן'
-                            : order.ticket_category === 'vip' ? '⭐ VIP'
-                              : (Number(order.total_amount ?? order.total_price ?? order.amount ?? 0) === 0 ? '🎟 הרשמה חינם' : '🎫 כניסה')}
+                          {order.ticket_category === 'table' ? (
+                            <><Armchair size={12} strokeWidth={2} aria-hidden /> שולחן</>
+                          ) : order.ticket_category === 'vip' ? (
+                            <><Star size={12} strokeWidth={2} aria-hidden /> VIP</>
+                          ) : (Number(order.total_amount ?? order.total_price ?? order.amount ?? 0) === 0 ? (
+                            <><Ticket size={12} strokeWidth={2} aria-hidden /> הרשמה חינם</>
+                          ) : (
+                            <><Ticket size={12} strokeWidth={2} aria-hidden /> כניסה</>
+                          ))}
                         </span>
                       </td>
 
@@ -3804,6 +3911,182 @@ export default function EventDetailPage() {
               קשר Webview
             </button>
           </div>
+        )}
+
+        {tableAssignModal && (
+          <div
+            style={{
+              position: 'fixed', inset: 0, zIndex: 1000,
+              background: 'rgba(0,0,0,0.7)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              padding: 16,
+            }}
+            onClick={(e) => { if (e.target === e.currentTarget) { setTableAssignModal(null); setSelectedTableId(''); setTableAssignConfirmOpen(false) } }}
+            role="presentation"
+          >
+            <div style={{
+              background: 'var(--card)', borderRadius: 20,
+              padding: 24, width: '100%', maxWidth: 420,
+              border: '1px solid var(--glass-border)',
+            }}
+            >
+              <h3 style={{
+                margin: '0 0 8px', fontSize: 17, fontWeight: 700, textAlign: 'right',
+                display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 8,
+              }}
+              >
+                הקצאת שולחן
+                <Armchair size={22} strokeWidth={2} aria-hidden />
+              </h3>
+              <p style={{ margin: '0 0 20px', fontSize: 13, color: 'var(--v2-gray-400)', textAlign: 'right' }}>
+                {[tableAssignModal.first_name, tableAssignModal.last_name].filter(Boolean).join(' ') || '—'}
+                {' — '}
+                {tableAssignModal.quantity ?? 1}
+                {' '}
+                אנשים
+              </p>
+
+              <div style={{ marginBottom: 20 }}>
+                <span style={{
+                  display: 'block', fontSize: 12,
+                  color: 'var(--v2-gray-400)', marginBottom: 8, textAlign: 'right',
+                }}
+                >
+                  בחר שולחן פנוי
+                </span>
+                {availableTables.length === 0 ? (
+                  <p style={{ color: 'var(--v2-gray-400)', fontSize: 13, textAlign: 'right' }}>
+                    אין שולחנות פנויים כרגע
+                  </p>
+                ) : (
+                  <div style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fill, minmax(70px, 1fr))',
+                    gap: 8, maxHeight: 240, overflowY: 'auto',
+                  }}
+                  >
+                    {availableTables.map((table) => (
+                      <button
+                        key={table.id}
+                        type="button"
+                        onClick={() => setSelectedTableId(table.id)}
+                        style={{
+                          padding: '10px 6px', borderRadius: 10, fontSize: 13,
+                          fontWeight: selectedTableId === table.id ? 700 : 400,
+                          background: selectedTableId === table.id
+                            ? 'rgba(0,195,122,0.15)' : 'var(--glass)',
+                          border: `1px solid ${selectedTableId === table.id
+                            ? 'rgba(0,195,122,0.4)' : 'var(--glass-border)'}`,
+                          color: selectedTableId === table.id ? '#00C37A' : 'var(--text)',
+                          cursor: 'pointer', textAlign: 'center',
+                          WebkitTapHighlightColor: 'transparent',
+                        }}
+                      >
+                        <div style={{ fontSize: 16, fontWeight: 700 }}>
+                          {table.table_number}
+                        </div>
+                        {table.table_name && (
+                          <div style={{ fontSize: 10, opacity: 0.7, marginTop: 2 }}>
+                            {table.table_name}
+                          </div>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!selectedTableId) return
+                    setTableAssignConfirmOpen(true)
+                  }}
+                  disabled={!selectedTableId || assigning}
+                  style={{
+                    flex: 1, minHeight: 48, borderRadius: 12,
+                    background: selectedTableId ? '#00C37A' : 'var(--glass)',
+                    border: 'none',
+                    color: selectedTableId ? '#000' : 'var(--v2-gray-400)',
+                    fontSize: 15, fontWeight: 700,
+                    cursor: selectedTableId ? 'pointer' : 'not-allowed',
+                    opacity: assigning ? 0.6 : 1,
+                    WebkitTapHighlightColor: 'transparent',
+                    display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                  }}
+                >
+                  {assigning ? 'מקצה...' : (
+                    <><Check size={18} strokeWidth={2.5} aria-hidden /> אשר ושלח QR</>
+                  )}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setTableAssignModal(null)
+                    setSelectedTableId('')
+                    setTableAssignConfirmOpen(false)
+                  }}
+                  style={{
+                    minHeight: 48, padding: '0 20px', borderRadius: 12,
+                    background: 'var(--glass)', border: '1px solid var(--glass-border)',
+                    color: 'var(--text)', fontSize: 14, cursor: 'pointer',
+                    WebkitTapHighlightColor: 'transparent',
+                  }}
+                >
+                  ביטול
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {tableAssignConfirmOpen && tableAssignModal && selectedTableId && (
+          <TableAssignConfirmModal
+            title="לאשר הקצאה?"
+            message={
+              `להקצות שולחן ${availableTables.find((t) => t.id === selectedTableId)?.table_number ?? ''} ולאשר את ההזמנה? נשלח SMS עם קישור ה-QR לשולחן.`
+            }
+            confirmText="אשר ושלח"
+            confirmColor="#00C37A"
+            onCancel={() => setTableAssignConfirmOpen(false)}
+            onConfirm={async () => {
+              if (!tableAssignModal || !selectedTableId) return
+              setTableAssignConfirmOpen(false)
+              setAssigning(true)
+              try {
+                const selectedTable = availableTables.find((t) => t.id === selectedTableId)
+                const res = await fetch(
+                  `${API_BASE}/api/admin/orders/${tableAssignModal.id}/approve-table`,
+                  {
+                    method: 'POST',
+                    headers: authHeaders(),
+                    body: JSON.stringify({
+                      table_id: selectedTableId,
+                      table_number: selectedTable?.table_number,
+                    }),
+                  },
+                )
+                if (res.ok) {
+                  toast.success(`שולחן ${selectedTable?.table_number} הוקצה`)
+                  setTableAssignModal(null)
+                  setSelectedTableId('')
+                  await loadData()
+                } else {
+                  let msg = 'שגיאה בהקצאה'
+                  try {
+                    const err = await res.json()
+                    msg = err.message || err.error || msg
+                  } catch { /* ignore */ }
+                  toast.error(msg)
+                }
+              } catch {
+                toast.error('שגיאה בחיבור לשרת')
+              } finally {
+                setAssigning(false)
+              }
+            }}
+          />
         )}
 
         {cancelConfirm && (
