@@ -1138,7 +1138,8 @@ export default function EventDetailPage() {
   if (!event) return <div style={{ padding: 32 }}>אירוע לא נמצא</div>
 
   const approved = orders.filter((o) => o.status === 'approved' || o.status === 'confirmed')
-  const pending = orders.filter((o) => o.status === 'pending')
+  const pending = orders.filter((o) => o.status === 'pending'
+    || o.approval_status === 'pending_approval')
   const cancelled = orders.filter((o) => o.status === 'cancelled')
   const checkedIn = orders.filter((o) => o.checked_in)
 
@@ -1876,6 +1877,18 @@ export default function EventDetailPage() {
                       </td>
 
                       <td style={{ padding: '8px 12px', fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap' }}>
+                        {ordersTab === 'pending' && order.source === 'table' && (
+                          <span style={{
+                            padding: '2px 8px', borderRadius: 20, fontSize: 11,
+                            background: 'rgba(139,92,246,0.15)', color: '#8B5CF6',
+                            marginRight: 6,
+                          }}
+                          >
+                            🪑 שולחן
+                            {' '}
+                            {order.table_number || ''}
+                          </span>
+                        )}
                         {order.first_name || order.customer_name || '—'}
                       </td>
                       <td style={{ padding: '8px 12px', fontSize: 13, whiteSpace: 'nowrap' }}>
