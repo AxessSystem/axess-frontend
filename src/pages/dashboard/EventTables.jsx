@@ -267,28 +267,12 @@ export default function EventTables({
   const extrasMenuWrapRef = useRef(null)
   const suppressCellBlurSave = useRef(false)
   const [extrasDropdownDir, setExtrasDropdownDir] = useState('down')
-  const [tableSubTab, setTableSubTab] = useState('all')
   const [guestsDrawer, setGuestsDrawer] = useState(null)
   const [tableAssignModal, setTableAssignModal] = useState(null)
   const [availableTables, setAvailableTables] = useState([])
   const [selectedTableId, setSelectedTableId] = useState('')
   const [assigning, setAssigning] = useState(false)
   const [tableAssignConfirmOpen, setTableAssignConfirmOpen] = useState(false)
-
-  const filteredTableOrders = useMemo(() => {
-    if (tableSubTab === 'pending') {
-      return tableOrders.filter((o) => o.status === 'pending_approval')
-    }
-    if (tableSubTab === 'active') {
-      return tableOrders.filter((o) => o.status === 'active' || o.status === 'approved')
-    }
-    return tableOrders
-  }, [tableSubTab, tableOrders])
-
-  const ordersForTableView = useMemo(() => filteredTableOrders
-    .filter((o) => tableFilter.category === 'all' || o.category === tableFilter.category)
-    .filter((o) => tableFilter.status === 'all' || o.status === tableFilter.status),
-  [filteredTableOrders, tableFilter])
 
   useEffect(() => {
     if (!tableAssignModal || !eventId) return
@@ -530,29 +514,6 @@ export default function EventTables({
           הכנסות
         </p>
       </div>
-      <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
-        {[
-          { id: 'all', label: 'כל ההזמנות' },
-          { id: 'pending', label: `ממתינים (${tableOrders.filter((o) => o.status === 'pending_approval').length})` },
-          { id: 'active', label: 'פעילים' },
-        ].map((tab) => (
-          <button
-            key={tab.id}
-            type="button"
-            onClick={() => setTableSubTab(tab.id)}
-            style={{
-              padding: '6px 14px', borderRadius: 20, fontSize: 13,
-              background: tableSubTab === tab.id ? 'rgba(0,195,122,0.1)' : 'var(--glass)',
-              border: `1px solid ${tableSubTab === tab.id ? 'rgba(0,195,122,0.3)' : 'var(--glass-border)'}`,
-              color: tableSubTab === tab.id ? '#00C37A' : 'var(--text)',
-              cursor: 'pointer', fontWeight: tableSubTab === tab.id ? 700 : 400,
-              WebkitTapHighlightColor: 'transparent',
-            }}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </div>
       <div
         style={{
           display: 'flex',
@@ -638,14 +599,18 @@ export default function EventTables({
                     method: 'POST',
                     headers: authHeaders(),
                     body: JSON.stringify({
-                      customer_name: 'לקוח בדיקה',
-                      customer_last_name: 'טסט',
+                      customer_name: 'ישראל',
+                      customer_last_name: 'ישראלי',
                       customer_phone: '0501234567',
-                      guest_count: 2,
+                      customer_email: 'test@test.com',
+                      guest_count: 3,
+                      guests: [
+                        { first_name: 'משה', last_name: 'כהן', phone: '0521234567', is_free: true },
+                        { first_name: 'שרה', last_name: 'לוי', phone: '0531234567', is_free: false, ticket_price: 50 },
+                      ],
                       status: 'pending_approval',
                       total_amount: 0,
                       source: 'manual',
-                      approval_status: 'pending_approval',
                     }),
                   },
                 )
@@ -793,6 +758,7 @@ export default function EventTables({
                 ].map((h) => (
                   <th
                     key={h}
+                    title={h === 'כמות אנשים' || h === 'לקוח' ? 'לחץ לפרטי חברי השולחן' : undefined}
                     style={{
                       padding: '8px 10px',
                       textAlign: 'right',
@@ -801,13 +767,15 @@ export default function EventTables({
                       borderLeft: '1px solid var(--glass-border)',
                     }}
                   >
-                    {h}
+                    {h === 'כמות אנשים' ? 'כמות אנשים 👥' : h === 'לקוח' ? 'לקוח 👥' : h}
                   </th>
                 ))}
               </tr>
             </thead>
             <tbody>
-              {ordersForTableView
+              {tableOrders
+                .filter((o) => tableFilter.category === 'all' || o.category === tableFilter.category)
+                .filter((o) => tableFilter.status === 'all' || o.status === tableFilter.status)
                 .map((order, idx) => {
                   const table = tables.find((t) => t.id === order.event_table_id)
 
@@ -1066,6 +1034,7 @@ export default function EventTables({
                       </td>
 
                       <td
+                        title="לחץ לפרטי חברי השולחן"
                         onClick={() => setGuestsDrawer({ ...order, table_number: table?.table_number ?? order.table_number })}
                         style={{
                           cursor: 'pointer',
@@ -1079,6 +1048,7 @@ export default function EventTables({
                       </td>
 
                       <td
+                        title="לחץ לפרטי חברי השולחן"
                         onClick={() => setGuestsDrawer({ ...order, table_number: table?.table_number ?? order.table_number })}
                         style={{
                           cursor: 'pointer',
@@ -1695,13 +1665,18 @@ export default function EventTables({
                 <td colSpan={14} style={{ padding: '8px 12px', fontWeight: 800, fontSize: 13 }}>
                   סה&quot;כ
                   {' '}
-                  {ordersForTableView.length}
+                  {tableOrders
+                    .filter((o) => tableFilter.category === 'all' || o.category === tableFilter.category)
+                    .filter((o) => tableFilter.status === 'all' || o.status === tableFilter.status).length}
                   {' '}
                   שולחנות
                 </td>
                 <td style={{ padding: '8px 12px', fontWeight: 800, fontSize: 14, color: '#00C37A' }}>
                   ₪
-                  {ordersForTableView.reduce((s, o) => s + orderLineTotal(o), 0).toLocaleString()}
+                  {tableOrders
+                    .filter((o) => tableFilter.category === 'all' || o.category === tableFilter.category)
+                    .filter((o) => tableFilter.status === 'all' || o.status === tableFilter.status)
+                    .reduce((s, o) => s + orderLineTotal(o), 0).toLocaleString()}
                 </td>
                 <td colSpan={7} />
               </tr>
@@ -1718,7 +1693,10 @@ export default function EventTables({
             gap: 12,
           }}
         >
-          {ordersForTableView.map((order) => {
+          {tableOrders
+            .filter((o) => tableFilter.category === 'all' || o.category === tableFilter.category)
+            .filter((o) => tableFilter.status === 'all' || o.status === tableFilter.status)
+            .map((order) => {
             const table = tables.find((t) => t.id === order.event_table_id)
             const sc = STATUS_CONFIG[order.status] || STATUS_CONFIG.reserved
             const hasPendingUpsell = order.items?.some((i) => i.is_upsell && i.status === 'pending')
