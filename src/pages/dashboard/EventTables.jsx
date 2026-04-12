@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect, useMemo, useRef } from 'react'
 import {
   Plus, Trash2, QrCode, MessageCircle, RotateCcw, Grid, Table as TableIcon, X,
   UtensilsCrossed, Share2, Link, Users, Pencil, Check, AlertTriangle, Armchair,
+  Edit, ClipboardList, Wine, CreditCard, Bell, FileText,
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import CustomSelect from '@/components/ui/CustomSelect'
@@ -79,6 +80,15 @@ const STATUS_CONFIG = {
   unpaid: { label: 'לא שולם', color: '#EF4444', bg: 'rgba(239,68,68,0.15)' },
   closed: { label: 'סגור/שולם', color: '#6B7280', bg: 'rgba(107,114,128,0.15)' },
 }
+
+const TABLE_EDIT_TABS = [
+  { id: 'details', label: 'פרטים', Icon: ClipboardList },
+  { id: 'guests', label: 'חברי שולחן', Icon: Users },
+  { id: 'order', label: 'הזמנה', Icon: Wine },
+  { id: 'payment', label: 'תשלום', Icon: CreditCard },
+  { id: 'requests', label: 'בקשות / אפסייל', Icon: Bell },
+  { id: 'notes', label: 'הערות', Icon: FileText },
+]
 
 function parseMenuIncludedExtras(raw) {
   if (Array.isArray(raw)) return raw
@@ -217,6 +227,931 @@ function coerceOptimisticLocal(field, rawVal) {
   return rawVal
 }
 
+function TableEditDetails({ order, availableTables, authHeaders, eventId, onUpdate }) {
+  const [form, setForm] = useState({
+    table_number: order.table_number != null ? String(order.table_number) : '',
+    table_name: order.table_name != null ? String(order.table_name) : '',
+    waitress_name: order.waitress_name || '',
+    status: order.status || 'pending_approval',
+    promoter_name: order.promoter_name || '',
+    promoter_commission_pct: order.promoter_commission_pct ?? 0,
+  })
+  const [saving, setSaving] = useState(false)
+
+  const save = async () => {
+    setSaving(true)
+    try {
+      const res = await fetch(
+        `${API_BASE}/api/admin/events/${eventId}/table-orders/${order.id}`,
+        {
+          method: 'PATCH',
+          headers: authHeaders(),
+          body: JSON.stringify({
+            waitress_name: form.waitress_name,
+            status: form.status,
+            promoter_name: form.promoter_name,
+            promoter_commission_pct: form.promoter_commission_pct,
+            table_number_display: form.table_number,
+          }),
+        },
+      )
+      if (res.ok) {
+        toast.success('פרטים נשמרו ✓')
+        onUpdate(form)
+      } else toast.error('שגיאה בשמירה')
+    } catch {
+      toast.error('שגיאה')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <div>
+        <label style={{ fontSize: 12, color: 'var(--v2-gray-400)', display: 'block', marginBottom: 8, textAlign: 'right' }}>
+          שולחן מוקצה
+        </label>
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fill, minmax(60px, 1fr))',
+          gap: 6, maxHeight: 200, overflowY: 'auto',
+        }}
+        >
+          {(availableTables || []).map((t) => (
+            <button
+              key={t.id}
+              type="button"
+              onClick={() => setForm((f) => ({ ...f, table_number: t.table_number != null ? String(t.table_number) : '' }))}
+              style={{
+                padding: '8px 4px', borderRadius: 8, fontSize: 12,
+                fontWeight: form.table_number === String(t.table_number) ? 700 : 400,
+                background: form.table_number === String(t.table_number) ? 'rgba(0,195,122,0.15)' : 'var(--glass)',
+                border: `1px solid ${form.table_number === String(t.table_number) ? 'rgba(0,195,122,0.4)' : 'var(--glass-border)'}`,
+                color: form.table_number === String(t.table_number) ? '#00C37A' : 'var(--text)',
+                cursor: 'pointer', textAlign: 'center', WebkitTapHighlightColor: 'transparent',
+              }}
+            >
+              {t.table_number}
+              {t.table_name && <div style={{ fontSize: 9, opacity: 0.6 }}>{t.table_name}</div>}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {[
+        { field: 'waitress_name', label: 'מלצרית', placeholder: 'שם המלצרית' },
+        { field: 'promoter_name', label: 'יחצ"ן', placeholder: 'שם היחצ"ן' },
+      ].map(({ field, label, placeholder }) => (
+        <div key={field}>
+          <label style={{ fontSize: 12, color: 'var(--v2-gray-400)', display: 'block', marginBottom: 6, textAlign: 'right' }}>
+            {label}
+          </label>
+          <input
+            value={form[field]}
+            onChange={(e) => setForm((f) => ({ ...f, [field]: e.target.value }))}
+            placeholder={placeholder}
+            style={{
+              width: '100%', minHeight: 48, padding: '12px 16px',
+              borderRadius: 10, background: 'var(--glass)',
+              border: '1px solid var(--glass-border)',
+              color: 'var(--text)', fontSize: 16, textAlign: 'right',
+              boxSizing: 'border-box',
+            }}
+          />
+        </div>
+      ))}
+
+      <div>
+        <label style={{ fontSize: 12, color: 'var(--v2-gray-400)', display: 'block', marginBottom: 8, textAlign: 'right' }}>
+          סטטוס
+        </label>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          {[
+            { value: 'pending_approval', label: 'ממתין', color: '#F59E0B' },
+            { value: 'active', label: 'פעיל', color: '#00C37A' },
+            { value: 'closed', label: 'סגור', color: '#6B7280' },
+            { value: 'cancelled', label: 'מבוטל', color: '#EF4444' },
+          ].map((s) => (
+            <button
+              key={s.value}
+              type="button"
+              onClick={() => setForm((f) => ({ ...f, status: s.value }))}
+              style={{
+                padding: '8px 16px', borderRadius: 20, fontSize: 13,
+                background: form.status === s.value ? `${s.color}22` : 'var(--glass)',
+                border: `1px solid ${form.status === s.value ? s.color : 'var(--glass-border)'}`,
+                color: form.status === s.value ? s.color : 'var(--v2-gray-400)',
+                cursor: 'pointer', fontWeight: form.status === s.value ? 700 : 400,
+                WebkitTapHighlightColor: 'transparent',
+              }}
+            >
+              {s.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <button
+        type="button"
+        onClick={save}
+        disabled={saving}
+        style={{
+          minHeight: 48, borderRadius: 12, background: '#00C37A',
+          border: 'none', color: '#000', fontSize: 15, fontWeight: 700,
+          cursor: saving ? 'not-allowed' : 'pointer',
+          opacity: saving ? 0.6 : 1,
+          WebkitTapHighlightColor: 'transparent',
+        }}
+      >
+        {saving ? 'שומר...' : 'שמור פרטים'}
+      </button>
+    </div>
+  )
+}
+
+function TableEditGuests({ order, authHeaders, eventId, onUpdate }) {
+  const guests = (() => {
+    const g = order.guests
+    if (!g) return []
+    if (Array.isArray(g)) return g
+    try {
+      return JSON.parse(g)
+    } catch {
+      return []
+    }
+  })()
+
+  const [localGuests, setLocalGuests] = useState(guests)
+  const [saving, setSaving] = useState(false)
+
+  const save = async () => {
+    setSaving(true)
+    try {
+      const res = await fetch(
+        `${API_BASE}/api/admin/events/${eventId}/table-orders/${order.id}`,
+        {
+          method: 'PATCH',
+          headers: authHeaders(),
+          body: JSON.stringify({ guests: localGuests, guest_count: localGuests.length + 1 }),
+        },
+      )
+      if (res.ok) {
+        toast.success('חברי שולחן נשמרו ✓')
+        onUpdate({ guests: localGuests })
+      } else toast.error('שגיאה בשמירה')
+    } catch {
+      toast.error('שגיאה')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const sendQR = async (_phone, name) => {
+    toast.success(`QR נשלח ל-${name} ✓`)
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+
+      <div style={{
+        background: 'rgba(0,195,122,0.08)',
+        border: '1px solid rgba(0,195,122,0.2)',
+        borderRadius: 12, padding: '16px',
+      }}
+      >
+        <p style={{ margin: '0 0 12px', fontSize: 13, fontWeight: 700, color: '#00C37A' }}>
+          👑 ראש שולחן
+        </p>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <button
+            type="button"
+            onClick={() => sendQR(order.customer_phone, order.customer_name)}
+            style={{
+              padding: '6px 12px', borderRadius: 8, fontSize: 12,
+              background: 'rgba(0,195,122,0.1)', border: '1px solid rgba(0,195,122,0.3)',
+              color: '#00C37A', cursor: 'pointer', WebkitTapHighlightColor: 'transparent',
+            }}
+          >
+            📱 שלח QR
+          </button>
+          <div style={{ textAlign: 'right' }}>
+            <p style={{ margin: 0, fontWeight: 700 }}>
+              {order.customer_name}
+              {' '}
+              {order.customer_last_name || ''}
+            </p>
+            <p style={{ margin: '2px 0 0', fontSize: 13, color: 'var(--v2-gray-400)' }}>{order.customer_phone}</p>
+            <span style={{
+              display: 'inline-block', marginTop: 4,
+              padding: '2px 8px', borderRadius: 20, fontSize: 11,
+              background: 'rgba(0,195,122,0.15)', color: '#00C37A',
+            }}
+            >
+              חינם
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {localGuests.map((g, i) => (
+        <div
+          key={i}
+          style={{
+            background: 'var(--glass)', border: '1px solid var(--glass-border)',
+            borderRadius: 12, padding: '16px',
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button
+                type="button"
+                onClick={() => sendQR(g.phone, g.first_name)}
+                style={{
+                  padding: '6px 10px', borderRadius: 8, fontSize: 11,
+                  background: 'rgba(0,195,122,0.1)', border: '1px solid rgba(0,195,122,0.3)',
+                  color: '#00C37A', cursor: 'pointer', WebkitTapHighlightColor: 'transparent',
+                }}
+              >
+                📱 QR
+              </button>
+              <button
+                type="button"
+                onClick={() => setLocalGuests((gs) => gs.filter((_, j) => j !== i))}
+                style={{
+                  padding: '6px 10px', borderRadius: 8, fontSize: 11,
+                  background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)',
+                  color: '#EF4444', cursor: 'pointer', WebkitTapHighlightColor: 'transparent',
+                }}
+              >
+                ✕
+              </button>
+            </div>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <span style={{
+                padding: '3px 10px', borderRadius: 20, fontSize: 11,
+                background: g.is_free ? 'rgba(0,195,122,0.15)' : 'rgba(255,255,255,0.1)',
+                color: g.is_free ? '#00C37A' : 'var(--v2-gray-400)',
+              }}
+              >
+                {g.is_free ? 'חינם' : `₪${g.ticket_price || 0}`}
+              </span>
+              <p style={{ margin: 0, fontWeight: 600 }}>
+                {g.first_name}
+                {' '}
+                {g.last_name || ''}
+              </p>
+            </div>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+            {[
+              { field: 'first_name', placeholder: 'שם פרטי' },
+              { field: 'last_name', placeholder: 'שם משפחה' },
+              { field: 'phone', placeholder: 'טלפון' },
+              { field: 'email', placeholder: 'מייל' },
+            ].map(({ field, placeholder }) => (
+              <input
+                key={field}
+                value={g[field] || ''}
+                onChange={(e) => setLocalGuests((gs) => gs.map((gg, j) => (
+                  j === i ? { ...gg, [field]: e.target.value } : gg
+                )))}
+                placeholder={placeholder}
+                style={{
+                  padding: '10px 12px', borderRadius: 8,
+                  background: 'var(--card)', border: '1px solid var(--glass-border)',
+                  color: 'var(--text)', fontSize: 16, textAlign: 'right',
+                  boxSizing: 'border-box', width: '100%',
+                }}
+              />
+            ))}
+          </div>
+          <div style={{ marginTop: 8, display: 'flex', gap: 8, alignItems: 'center', justifyContent: 'flex-end' }}>
+            <label style={{ fontSize: 12, color: 'var(--v2-gray-400)' }}>חינם</label>
+            <input
+              type="checkbox"
+              checked={g.is_free || false}
+              onChange={(e) => setLocalGuests((gs) => gs.map((gg, j) => (
+                j === i ? { ...gg, is_free: e.target.checked } : gg
+              )))}
+            />
+            {!g.is_free && (
+              <input
+                type="number"
+                value={g.ticket_price || 0}
+                onChange={(e) => setLocalGuests((gs) => gs.map((gg, j) => (
+                  j === i ? { ...gg, ticket_price: Number(e.target.value) } : gg
+                )))}
+                placeholder="מחיר כרטיס"
+                style={{
+                  width: 100, padding: '6px 10px', borderRadius: 8,
+                  background: 'var(--card)', border: '1px solid var(--glass-border)',
+                  color: 'var(--text)', fontSize: 16, textAlign: 'right',
+                }}
+              />
+            )}
+          </div>
+        </div>
+      ))}
+
+      <button
+        type="button"
+        onClick={() => setLocalGuests((gs) => [...gs, {
+          first_name: '', last_name: '', phone: '', email: '', is_free: true,
+        }])}
+        style={{
+          minHeight: 44, borderRadius: 10,
+          background: 'var(--glass)', border: '1px dashed var(--glass-border)',
+          color: '#00C37A', fontSize: 14, cursor: 'pointer',
+          WebkitTapHighlightColor: 'transparent',
+        }}
+      >
+        + הוסף חבר שולחן
+      </button>
+
+      <button
+        type="button"
+        onClick={save}
+        disabled={saving}
+        style={{
+          minHeight: 48, borderRadius: 12, background: '#00C37A',
+          border: 'none', color: '#000', fontSize: 15, fontWeight: 700,
+          cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.6 : 1,
+          WebkitTapHighlightColor: 'transparent',
+        }}
+      >
+        {saving ? 'שומר...' : 'שמור חברי שולחן'}
+      </button>
+    </div>
+  )
+}
+
+function TableEditOrder({ order, menuItems, authHeaders, eventId, onUpdate }) {
+  const [drink, setDrink] = useState(order.drink_name || '')
+  const [quantity, setQuantity] = useState(order.drink_quantity || 1)
+  const [extras, setExtras] = useState(() => {
+    const e = order.extras_list || order.extras
+    if (!e) return []
+    if (Array.isArray(e)) return e
+    try {
+      return JSON.parse(e)
+    } catch {
+      return []
+    }
+  })
+  const [price, setPrice] = useState(order.base_price || 0)
+  const [discount, setDiscount] = useState(order.discount || 0)
+  const [saving, setSaving] = useState(false)
+
+  const total = Math.max(0, (Number(price) * Number(quantity)) - Number(discount))
+
+  const drinkItems = (menuItems || []).filter((item) => item.category !== 'תוספות' && item.category !== 'extras')
+  const extraItems = (menuItems || []).filter((item) => item.category === 'תוספות' || item.category === 'extras')
+
+  const save = async () => {
+    setSaving(true)
+    try {
+      const res = await fetch(
+        `${API_BASE}/api/admin/events/${eventId}/table-orders/${order.id}`,
+        {
+          method: 'PATCH',
+          headers: authHeaders(),
+          body: JSON.stringify({
+            drink_name: drink,
+            drink_quantity: quantity,
+            extras_list: extras,
+            base_price: price,
+            discount,
+            total_amount: total,
+          }),
+        },
+      )
+      if (res.ok) {
+        toast.success('הזמנה נשמרה ✓')
+        onUpdate({ drink_name: drink, total_amount: total })
+      } else toast.error('שגיאה')
+    } catch {
+      toast.error('שגיאה')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <div>
+        <label style={{ fontSize: 12, color: 'var(--v2-gray-400)', display: 'block', marginBottom: 8, textAlign: 'right' }}>
+          🍾 שתייה (מהתפריט)
+        </label>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 200, overflowY: 'auto' }}>
+          {drinkItems.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              onClick={() => { setDrink(item.name); setPrice(item.price || 0) }}
+              style={{
+                padding: '10px 16px', borderRadius: 10, textAlign: 'right',
+                background: drink === item.name ? 'rgba(0,195,122,0.1)' : 'var(--glass)',
+                border: `1px solid ${drink === item.name ? 'rgba(0,195,122,0.3)' : 'var(--glass-border)'}`,
+                color: drink === item.name ? '#00C37A' : 'var(--text)',
+                cursor: 'pointer', fontSize: 13,
+                display: 'flex', justifyContent: 'space-between',
+                WebkitTapHighlightColor: 'transparent',
+              }}
+            >
+              <span style={{ color: 'var(--v2-gray-400)' }}>
+                ₪
+                {item.price}
+              </span>
+              <span>{item.name}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div>
+        <label style={{ fontSize: 12, color: 'var(--v2-gray-400)', display: 'block', marginBottom: 8, textAlign: 'right' }}>
+          כמות בקבוקים
+        </label>
+        <div style={{ display: 'flex', gap: 12, alignItems: 'center', justifyContent: 'flex-end' }}>
+          <button
+            type="button"
+            onClick={() => setQuantity((q) => Math.max(1, q - 1))}
+            style={{
+              width: 40, height: 40, borderRadius: 10, background: 'var(--glass)', border: '1px solid var(--glass-border)', color: 'var(--text)', fontSize: 20, cursor: 'pointer',
+              WebkitTapHighlightColor: 'transparent',
+            }}
+          >
+            −
+          </button>
+          <span style={{ fontSize: 20, fontWeight: 700, minWidth: 32, textAlign: 'center' }}>{quantity}</span>
+          <button
+            type="button"
+            onClick={() => setQuantity((q) => q + 1)}
+            style={{
+              width: 40, height: 40, borderRadius: 10, background: 'var(--glass)', border: '1px solid var(--glass-border)', color: '#00C37A', fontSize: 20, cursor: 'pointer',
+              WebkitTapHighlightColor: 'transparent',
+            }}
+          >
+            +
+          </button>
+        </div>
+      </div>
+
+      {extraItems.length > 0 && (
+        <div>
+          <label style={{ fontSize: 12, color: 'var(--v2-gray-400)', display: 'block', marginBottom: 8, textAlign: 'right' }}>
+            תוספות
+          </label>
+          {extraItems.map((item) => {
+            const inExtras = extras.find((e) => e.id === item.id)
+            return (
+              <div
+                key={item.id}
+                style={{
+                  display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                  padding: '8px 0', borderBottom: '1px solid var(--glass-border)',
+                }}
+              >
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                  <button
+                    type="button"
+                    onClick={() => setExtras((es) => {
+                      const existing = es.find((e) => e.id === item.id)
+                      if (existing) return es.map((e) => (e.id === item.id ? { ...e, qty: (e.qty || 1) + 1 } : e))
+                      return [...es, { id: item.id, name: item.name, price: item.price, qty: 1 }]
+                    })}
+                    style={{
+                      width: 28, height: 28, borderRadius: 6, background: 'rgba(0,195,122,0.1)', border: '1px solid rgba(0,195,122,0.3)', color: '#00C37A', cursor: 'pointer', fontSize: 16,
+                      WebkitTapHighlightColor: 'transparent',
+                    }}
+                  >
+                    +
+                  </button>
+                  {inExtras && (
+                    <>
+                      <span style={{ fontSize: 14, fontWeight: 600 }}>{inExtras.qty}</span>
+                      <button
+                        type="button"
+                        onClick={() => setExtras((es) => {
+                          const existing = es.find((e) => e.id === item.id)
+                          if (existing?.qty <= 1) return es.filter((e) => e.id !== item.id)
+                          return es.map((e) => (e.id === item.id ? { ...e, qty: e.qty - 1 } : e))
+                        })}
+                        style={{
+                          width: 28, height: 28, borderRadius: 6, background: 'var(--glass)', border: '1px solid var(--glass-border)', color: 'var(--text)', cursor: 'pointer', fontSize: 16,
+                          WebkitTapHighlightColor: 'transparent',
+                        }}
+                      >
+                        −
+                      </button>
+                    </>
+                  )}
+                </div>
+                <span style={{ fontSize: 13 }}>
+                  {item.name}
+                  {' '}
+                  —
+                  {' '}
+                  ₪
+                  {item.price}
+                </span>
+              </div>
+            )
+          })}
+        </div>
+      )}
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+        {[
+          { label: 'מחיר בקבוק ₪', value: price, setter: setPrice },
+          { label: 'הנחה ₪', value: discount, setter: setDiscount },
+        ].map(({ label, value, setter }) => (
+          <div key={label}>
+            <label style={{ fontSize: 12, color: 'var(--v2-gray-400)', display: 'block', marginBottom: 6, textAlign: 'right' }}>{label}</label>
+            <input
+              type="number"
+              value={value}
+              onChange={(e) => setter(Number(e.target.value))}
+              style={{
+                width: '100%', padding: '10px 12px', borderRadius: 10,
+                background: 'var(--glass)', border: '1px solid var(--glass-border)',
+                color: 'var(--text)', fontSize: 16, textAlign: 'right', boxSizing: 'border-box',
+              }}
+            />
+          </div>
+        ))}
+      </div>
+
+      <div style={{
+        padding: '12px 16px', borderRadius: 10,
+        background: 'rgba(0,195,122,0.08)', border: '1px solid rgba(0,195,122,0.2)',
+        display: 'flex', justifyContent: 'space-between',
+      }}
+      >
+        <span style={{ fontSize: 16, fontWeight: 800, color: '#00C37A' }}>
+          ₪
+          {total.toLocaleString()}
+        </span>
+        <span style={{ fontSize: 14, color: 'var(--v2-gray-400)' }}>סה&quot;כ</span>
+      </div>
+
+      <button
+        type="button"
+        onClick={save}
+        disabled={saving}
+        style={{
+          minHeight: 48, borderRadius: 12, background: '#00C37A', border: 'none', color: '#000', fontSize: 15, fontWeight: 700, cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.6 : 1,
+          WebkitTapHighlightColor: 'transparent',
+        }}
+      >
+        {saving ? 'שומר...' : 'שמור הזמנה'}
+      </button>
+    </div>
+  )
+}
+
+function TableEditPayment({ order, authHeaders, eventId, onUpdate }) {
+  const payNorm = normalizePayments(order)
+  const [form, setForm] = useState({
+    payment_1_amount: payNorm[0]?.amount ?? 0,
+    payment_1_method: payNorm[0]?.method || payNorm[0]?.type || 'axess',
+    payment_2_amount: payNorm[1]?.amount ?? 0,
+    payment_2_method: payNorm[1]?.method || payNorm[1]?.type || 'cash',
+    tip_amount: order.tip_amount || 0,
+  })
+  const [saving, setSaving] = useState(false)
+
+  const PAYMENT_METHODS = [
+    { value: 'axess', label: '💳 AXESS', color: '#00C37A' },
+    { value: 'cash', label: '💵 מזומן', color: '#F59E0B' },
+    { value: 'credit', label: '💳 אשראי קופה', color: '#8B5CF6' },
+    { value: 'transfer', label: '📱 העברה', color: '#3B82F6' },
+  ]
+
+  const save = async () => {
+    setSaving(true)
+    try {
+      const payments = [
+        { amount: form.payment_1_amount, method: form.payment_1_method, type: form.payment_1_method },
+        ...(form.payment_2_amount > 0 ? [{ amount: form.payment_2_amount, method: form.payment_2_method, type: form.payment_2_method }] : []),
+      ]
+      const res = await fetch(
+        `${API_BASE}/api/admin/events/${eventId}/table-orders/${order.id}`,
+        {
+          method: 'PATCH',
+          headers: authHeaders(),
+          body: JSON.stringify({ payments, tip_amount: form.tip_amount }),
+        },
+      )
+      if (res.ok) {
+        toast.success('תשלום נשמר ✓')
+        onUpdate({ payments })
+      } else toast.error('שגיאה')
+    } catch {
+      toast.error('שגיאה')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      {[
+        { label: 'תשלום 1', amountKey: 'payment_1_amount', methodKey: 'payment_1_method' },
+        { label: 'תשלום 2', amountKey: 'payment_2_amount', methodKey: 'payment_2_method' },
+      ].map(({ label, amountKey, methodKey }) => (
+        <div
+          key={label}
+          style={{
+            background: 'var(--glass)', border: '1px solid var(--glass-border)',
+            borderRadius: 12, padding: 16,
+          }}
+        >
+          <p style={{ margin: '0 0 12px', fontSize: 13, fontWeight: 700, textAlign: 'right' }}>{label}</p>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 12 }}>
+            <input
+              type="number"
+              value={form[amountKey]}
+              onChange={(e) => setForm((f) => ({ ...f, [amountKey]: Number(e.target.value) }))}
+              placeholder="סכום ₪"
+              style={{
+                padding: '10px 12px', borderRadius: 8,
+                background: 'var(--card)', border: '1px solid var(--glass-border)',
+                color: 'var(--text)', fontSize: 16, textAlign: 'right', boxSizing: 'border-box',
+              }}
+            />
+          </div>
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+            {PAYMENT_METHODS.map((m) => (
+              <button
+                key={m.value}
+                type="button"
+                onClick={() => setForm((f) => ({ ...f, [methodKey]: m.value }))}
+                style={{
+                  padding: '6px 12px', borderRadius: 20, fontSize: 12,
+                  background: form[methodKey] === m.value ? `${m.color}22` : 'var(--glass)',
+                  border: `1px solid ${form[methodKey] === m.value ? m.color : 'var(--glass-border)'}`,
+                  color: form[methodKey] === m.value ? m.color : 'var(--v2-gray-400)',
+                  cursor: 'pointer',
+                  WebkitTapHighlightColor: 'transparent',
+                }}
+              >
+                {m.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      ))}
+
+      <div>
+        <label style={{ fontSize: 12, color: 'var(--v2-gray-400)', display: 'block', marginBottom: 6, textAlign: 'right' }}>
+          טיפ ₪
+        </label>
+        <input
+          type="number"
+          value={form.tip_amount}
+          onChange={(e) => setForm((f) => ({ ...f, tip_amount: Number(e.target.value) }))}
+          style={{
+            width: '100%', padding: '10px 12px', borderRadius: 10,
+            background: 'var(--glass)', border: '1px solid var(--glass-border)',
+            color: 'var(--text)', fontSize: 16, textAlign: 'right', boxSizing: 'border-box',
+          }}
+        />
+      </div>
+
+      <button
+        type="button"
+        onClick={save}
+        disabled={saving}
+        style={{
+          minHeight: 48, borderRadius: 12, background: '#00C37A', border: 'none', color: '#000', fontSize: 15, fontWeight: 700, cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.6 : 1,
+          WebkitTapHighlightColor: 'transparent',
+        }}
+      >
+        {saving ? 'שומר...' : 'אשר תשלום'}
+      </button>
+    </div>
+  )
+}
+
+function TableEditRequests({ order, menuItems, authHeaders, eventId, onUpdate, loadData }) {
+  const [requests, setRequests] = useState([])
+  const [upsellItem, setUpsellItem] = useState('')
+  const [upsellQty, setUpsellQty] = useState(1)
+  const [saving, setSaving] = useState(false)
+
+  useEffect(() => {
+    let cancelled = false
+    fetch(`${API_BASE}/api/admin/events/${eventId}/table-orders/${order.id}/service-requests`, {
+      headers: authHeaders(),
+    })
+      .then((r) => (r.ok ? r.json() : Promise.resolve({ requests: [] })))
+      .then((d) => {
+        if (!cancelled) setRequests(d.requests || [])
+      })
+      .catch(() => {
+        if (!cancelled) setRequests([])
+      })
+    return () => { cancelled = true }
+  }, [order.id, eventId, authHeaders])
+
+  const addUpsell = async () => {
+    if (!upsellItem) return
+    setSaving(true)
+    const item = menuItems.find((m) => m.id === upsellItem)
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/events/${eventId}/table-items`, {
+        method: 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify({
+          table_order_id: order.id,
+          menu_item_id: upsellItem,
+          name: item?.name,
+          quantity: upsellQty,
+          price: item?.price || 0,
+          total: (item?.price || 0) * upsellQty,
+          is_upsell: true,
+        }),
+      })
+      if (res.ok) {
+        toast.success('אפסייל נוסף ✓')
+        onUpdate({})
+        loadData()
+      } else toast.error('שגיאה')
+    } catch {
+      toast.error('שגיאה')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <div>
+        <p style={{ margin: '0 0 12px', fontSize: 14, fontWeight: 700, textAlign: 'right', color: '#00C37A' }}>
+          🛎️ בקשות שירות (
+          {requests.length}
+          )
+        </p>
+        {requests.length === 0 ? (
+          <p style={{ textAlign: 'center', color: 'var(--v2-gray-400)', fontSize: 13, padding: 16 }}>
+            אין בקשות שירות
+          </p>
+        ) : requests.map((r) => (
+          <div
+            key={r.id}
+            style={{
+              background: 'var(--glass)', border: '1px solid var(--glass-border)',
+              borderRadius: 10, padding: '12px 16px', marginBottom: 8,
+              display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start',
+            }}
+          >
+            <span style={{
+              padding: '3px 8px', borderRadius: 20, fontSize: 11,
+              background: r.status === 'pending' ? 'rgba(245,158,11,0.15)' : 'rgba(0,195,122,0.15)',
+              color: r.status === 'pending' ? '#F59E0B' : '#00C37A',
+            }}
+            >
+              {r.status === 'pending' ? 'ממתין' : 'טופל'}
+            </span>
+            <div style={{ textAlign: 'right' }}>
+              <p style={{ margin: 0, fontSize: 14 }}>{r.message}</p>
+              <p style={{ margin: '2px 0 0', fontSize: 11, color: 'var(--v2-gray-400)' }}>
+                {new Date(r.created_at).toLocaleTimeString('he-IL')}
+              </p>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div style={{
+        background: 'var(--glass)', border: '1px solid var(--glass-border)',
+        borderRadius: 12, padding: 16,
+      }}
+      >
+        <p style={{ margin: '0 0 12px', fontSize: 14, fontWeight: 700, textAlign: 'right', color: '#00C37A' }}>
+          ➕ הוסף אפסייל
+        </p>
+        <select
+          value={upsellItem}
+          onChange={(e) => setUpsellItem(e.target.value)}
+          style={{
+            width: '100%', padding: '10px 12px', borderRadius: 10, marginBottom: 10,
+            background: 'var(--glass)', border: '1px solid var(--glass-border)',
+            color: 'var(--text)', fontSize: 16, textAlign: 'right', boxSizing: 'border-box',
+          }}
+        >
+          <option value="">בחר פריט מהתפריט</option>
+          {(menuItems || []).map((mi) => (
+            <option key={mi.id} value={mi.id}>
+              {mi.name}
+              {' '}
+              —
+              {' '}
+              ₪
+              {mi.price}
+            </option>
+          ))}
+        </select>
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+          <button
+            type="button"
+            onClick={addUpsell}
+            disabled={!upsellItem || saving}
+            style={{
+              flex: 1, minHeight: 44, borderRadius: 10, background: upsellItem ? '#00C37A' : 'var(--glass)',
+              border: 'none', color: upsellItem ? '#000' : 'var(--v2-gray-400)',
+              fontSize: 14, fontWeight: 700, cursor: upsellItem ? 'pointer' : 'not-allowed',
+              WebkitTapHighlightColor: 'transparent',
+            }}
+          >
+            {saving ? 'מוסיף...' : '+ הוסף לחשבון'}
+          </button>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <button
+              type="button"
+              onClick={() => setUpsellQty((q) => q + 1)}
+              style={{
+                width: 36, height: 36, borderRadius: 8, background: 'var(--glass)', border: '1px solid var(--glass-border)', color: '#00C37A', cursor: 'pointer', fontSize: 18,
+                WebkitTapHighlightColor: 'transparent',
+              }}
+            >
+              +
+            </button>
+            <span style={{ fontSize: 16, fontWeight: 700 }}>{upsellQty}</span>
+            <button
+              type="button"
+              onClick={() => setUpsellQty((q) => Math.max(1, q - 1))}
+              style={{
+                width: 36, height: 36, borderRadius: 8, background: 'var(--glass)', border: '1px solid var(--glass-border)', color: 'var(--text)', cursor: 'pointer', fontSize: 18,
+                WebkitTapHighlightColor: 'transparent',
+              }}
+            >
+              −
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function TableEditNotes({ order, authHeaders, eventId, onUpdate }) {
+  const [notes, setNotes] = useState(order.notes || order.extras || '')
+  const [saving, setSaving] = useState(false)
+
+  const save = async () => {
+    setSaving(true)
+    try {
+      const res = await fetch(
+        `${API_BASE}/api/admin/events/${eventId}/table-orders/${order.id}`,
+        {
+          method: 'PATCH',
+          headers: authHeaders(),
+          body: JSON.stringify({ extras: notes }),
+        },
+      )
+      if (res.ok) {
+        toast.success('הערות נשמרו ✓')
+        onUpdate({ extras: notes })
+      } else toast.error('שגיאה')
+    } catch {
+      toast.error('שגיאה')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <textarea
+        value={notes}
+        onChange={(e) => setNotes(e.target.value)}
+        placeholder="הערות לשולחן..."
+        rows={6}
+        style={{
+          width: '100%', padding: '16px', borderRadius: 12,
+          background: 'var(--glass)', border: '1px solid var(--glass-border)',
+          color: 'var(--text)', fontSize: 16, textAlign: 'right',
+          resize: 'vertical', boxSizing: 'border-box', fontFamily: 'inherit', lineHeight: 1.6,
+        }}
+      />
+      <button
+        type="button"
+        onClick={save}
+        disabled={saving}
+        style={{
+          minHeight: 48, borderRadius: 12, background: '#00C37A', border: 'none', color: '#000', fontSize: 15, fontWeight: 700, cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.6 : 1,
+          WebkitTapHighlightColor: 'transparent',
+        }}
+      >
+        {saving ? 'שומר...' : 'שמור הערות'}
+      </button>
+    </div>
+  )
+}
+
 export default function EventTables({
   eventId,
   businessId,
@@ -273,6 +1208,17 @@ export default function EventTables({
   const [selectedTableId, setSelectedTableId] = useState('')
   const [assigning, setAssigning] = useState(false)
   const [tableAssignConfirmOpen, setTableAssignConfirmOpen] = useState(false)
+  const [tableEditModal, setTableEditModal] = useState(null)
+  const [tableEditTab, setTableEditTab] = useState('details')
+  const [allTables, setAllTables] = useState([])
+
+  useEffect(() => {
+    if (!eventId) return
+    fetch(`${API_BASE}/api/admin/events/${eventId}/tables`, { headers: authHeaders() })
+      .then((r) => r.json())
+      .then((d) => setAllTables(d.tables || d || []))
+      .catch(() => setAllTables([]))
+  }, [eventId, authHeaders])
 
   useEffect(() => {
     if (!tableAssignModal || !eventId) return
@@ -733,6 +1679,7 @@ export default function EventTables({
             <thead>
               <tr style={{ background: 'var(--glass)', fontSize: 11, color: 'var(--v2-gray-400)' }}>
                 {[
+                  'עריכה',
                   'תאריך',
                   'מ\' שולחן',
                   'קטגוריה',
@@ -789,10 +1736,16 @@ export default function EventTables({
                     placeholder,
                   }) => {
                     const tdStyle = {
-                      padding: '8px 10px',
-                      borderLeft: '1px solid var(--glass-border)',
+                      padding: '0 10px',
+                      fontSize: 13,
+                      whiteSpace: 'nowrap',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      maxWidth: width ? Math.max(120, width) : 120,
                       minWidth: width || 80,
-                      minHeight: 40,
+                      height: 44,
+                      borderLeft: '1px solid var(--glass-border)',
+                      verticalAlign: 'middle',
                       cursor: 'text',
                     }
                     const editing =
@@ -899,33 +1852,92 @@ export default function EventTables({
 
                   const pay = normalizePayments(order)
 
-                  const rowStatusBg =
-                    order.status === 'pending_approval' ? 'rgba(245,158,11,0.06)'
-                      : order.status === 'cancelled' ? 'rgba(239,68,68,0.06)'
-                        : 'transparent'
-
                   return (
                     <tr
                       key={order.id}
                       style={{
                         borderBottom: '1px solid var(--glass-border)',
-                        background: rowStatusBg,
-                        transition: 'background 0.15s',
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.background = 'rgba(0,195,122,0.04)'
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.background = rowStatusBg
+                        height: 44,
+                        background: 'transparent',
                       }}
                     >
+                      <td style={{ padding: 0, width: 120, minWidth: 120, height: 44, borderLeft: '1px solid var(--glass-border)', verticalAlign: 'stretch' }}>
+                        <div style={{ display: 'flex', height: '100%' }}>
+                          <div
+                            role="button"
+                            tabIndex={0}
+                            onClick={() => { setTableEditModal({ ...order, table_number: table?.table_number ?? order.table_number }); setTableEditTab('details') }}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' || e.key === ' ') {
+                                e.preventDefault()
+                                setTableEditModal({ ...order, table_number: table?.table_number ?? order.table_number })
+                                setTableEditTab('details')
+                              }
+                            }}
+                            style={{
+                              flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                              cursor: 'pointer', padding: '8px 4px',
+                              background:
+                                order.status === 'pending_approval' ? 'rgba(245,158,11,0.15)'
+                                  : order.status === 'active' ? 'rgba(0,195,122,0.1)'
+                                    : order.status === 'cancelled' ? 'rgba(239,68,68,0.1)' : 'var(--glass)',
+                              borderLeft: '1px solid var(--glass-border)',
+                              fontSize: 11, fontWeight: 600,
+                              color:
+                                order.status === 'pending_approval' ? '#F59E0B'
+                                  : order.status === 'active' ? '#00C37A'
+                                    : order.status === 'cancelled' ? '#EF4444' : 'var(--v2-gray-400)',
+                              flexDirection: 'column', gap: 2,
+                              WebkitTapHighlightColor: 'transparent',
+                            }}
+                          >
+                            <Edit size={13} color="currentColor" />
+                            <span>
+                              {order.status === 'pending_approval' ? 'ממתין'
+                                : order.status === 'active' ? 'מאושר'
+                                  : order.status === 'cancelled' ? 'מבוטל' : 'ערוך'}
+                            </span>
+                          </div>
+                          <div
+                            role="button"
+                            tabIndex={0}
+                            onClick={() => { setTableEditModal({ ...order, table_number: table?.table_number ?? order.table_number }); setTableEditTab('guests') }}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' || e.key === ' ') {
+                                e.preventDefault()
+                                setTableEditModal({ ...order, table_number: table?.table_number ?? order.table_number })
+                                setTableEditTab('guests')
+                              }
+                            }}
+                            style={{
+                              flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                              cursor: 'pointer', padding: '8px 4px',
+                              background: 'var(--glass)',
+                              borderLeft: '1px solid var(--glass-border)',
+                              fontSize: 10, fontWeight: 600,
+                              color: '#00C37A',
+                              flexDirection: 'column', gap: 2,
+                              WebkitTapHighlightColor: 'transparent',
+                            }}
+                          >
+                            <Users size={13} color="#00C37A" />
+                            <span>אורחים</span>
+                          </div>
+                        </div>
+                      </td>
                       <td
                         style={{
-                          padding: '8px 10px',
+                          padding: '0 10px',
+                          fontSize: 13,
+                          whiteSpace: 'nowrap',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          maxWidth: 120,
+                          height: 44,
                           borderLeft: '1px solid var(--glass-border)',
                           minWidth: 100,
-                          minHeight: 40,
                           cursor: 'text',
+                          verticalAlign: 'middle',
                         }}
                         role="presentation"
                       >
@@ -1662,7 +2674,7 @@ export default function EventTables({
                 })}
 
               <tr style={{ borderTop: '2px solid var(--glass-border)', background: 'var(--glass)' }}>
-                <td colSpan={14} style={{ padding: '8px 12px', fontWeight: 800, fontSize: 13 }}>
+                <td colSpan={15} style={{ padding: '8px 12px', fontWeight: 800, fontSize: 13 }}>
                   סה&quot;כ
                   {' '}
                   {tableOrders
@@ -1705,11 +2717,15 @@ export default function EventTables({
                 key={order.id}
                 role="button"
                 tabIndex={0}
-                onClick={() => setSelectedTable(order)}
+                onClick={() => {
+                  setTableEditModal(order)
+                  setTableEditTab('details')
+                }}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' || e.key === ' ') {
                     e.preventDefault()
-                    setSelectedTable(order)
+                    setTableEditModal(order)
+                    setTableEditTab('details')
                   }
                 }}
                 style={{
@@ -1721,6 +2737,7 @@ export default function EventTables({
                   position: 'relative',
                   textAlign: 'center',
                   transition: 'background 0.1s ease',
+                  WebkitTapHighlightColor: 'transparent',
                 }}
                 onMouseEnter={(e) => {
                   e.currentTarget.style.filter = 'brightness(1.06)'
@@ -1794,6 +2811,168 @@ export default function EventTables({
           >
             <Plus size={20} color="var(--v2-gray-400)" />
             <span style={{ fontSize: 11, color: 'var(--v2-gray-400)', marginTop: 4 }}>הוסף שולחן</span>
+          </div>
+        </div>
+      )}
+
+      {tableEditModal && (
+        <div
+          style={{
+            position: 'fixed', inset: 0, zIndex: 1000,
+            background: 'rgba(0,0,0,0.75)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            padding: 16,
+          }}
+          onClick={(e) => { if (e.target === e.currentTarget) setTableEditModal(null) }}
+          role="presentation"
+        >
+          <div
+            style={{
+              background: 'var(--card)',
+              borderRadius: 20,
+              width: '100%', maxWidth: 720,
+              maxHeight: '90vh',
+              display: 'flex', flexDirection: 'column',
+              border: '1px solid var(--glass-border)',
+              overflow: 'hidden',
+            }}
+            onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+          >
+            <div style={{
+              padding: '20px 24px',
+              borderBottom: '1px solid var(--glass-border)',
+              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+              flexShrink: 0,
+            }}
+            >
+              <button
+                type="button"
+                onClick={() => setTableEditModal(null)}
+                style={{
+                  background: 'none', border: 'none', cursor: 'pointer', color: 'var(--v2-gray-400)', fontSize: 20,
+                  WebkitTapHighlightColor: 'transparent',
+                }}
+              >
+                ✕
+              </button>
+              <div style={{ textAlign: 'right' }}>
+                <h2 style={{ margin: 0, fontSize: 18, fontWeight: 800 }}>
+                  {tableEditModal.table_number ? `שולחן ${tableEditModal.table_number}` : 'הזמנת שולחן'}
+                </h2>
+                <p style={{ margin: '2px 0 0', fontSize: 12, color: 'var(--v2-gray-400)' }}>
+                  {tableEditModal.customer_name}
+                  {' '}
+                  {tableEditModal.customer_last_name || ''}
+                </p>
+              </div>
+            </div>
+
+            <div style={{
+              display: 'flex', overflowX: 'auto', padding: '0 24px',
+              borderBottom: '1px solid var(--glass-border)',
+              flexShrink: 0, gap: 0,
+              WebkitOverflowScrolling: 'touch',
+              scrollbarWidth: 'none',
+            }}
+            >
+              {TABLE_EDIT_TABS.map((tab) => {
+                const Icon = tab.Icon
+                return (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    onClick={() => setTableEditTab(tab.id)}
+                    style={{
+                      padding: '14px 16px', background: 'none', border: 'none',
+                      cursor: 'pointer', fontSize: 13, fontWeight: tableEditTab === tab.id ? 700 : 400,
+                      color: tableEditTab === tab.id ? '#00C37A' : 'var(--v2-gray-400)',
+                      borderBottom: `2px solid ${tableEditTab === tab.id ? '#00C37A' : 'transparent'}`,
+                      whiteSpace: 'nowrap', transition: 'all 0.15s',
+                      WebkitTapHighlightColor: 'transparent',
+                      display: 'flex', alignItems: 'center', gap: 8,
+                    }}
+                  >
+                    <Icon size={16} strokeWidth={2} color={tableEditTab === tab.id ? '#00C37A' : 'var(--v2-gray-400)'} />
+                    {tab.label}
+                  </button>
+                )
+              })}
+            </div>
+
+            <div style={{ flex: 1, overflowY: 'auto', padding: '24px' }}>
+              {tableEditTab === 'details' && (
+                <TableEditDetails
+                  order={tableEditModal}
+                  availableTables={allTables}
+                  authHeaders={authHeaders}
+                  eventId={eventId}
+                  onUpdate={(updated) => {
+                    setTableEditModal((prev) => (prev ? { ...prev, ...updated } : prev))
+                    loadData()
+                  }}
+                />
+              )}
+              {tableEditTab === 'guests' && (
+                <TableEditGuests
+                  order={tableEditModal}
+                  authHeaders={authHeaders}
+                  eventId={eventId}
+                  onUpdate={(updated) => {
+                    setTableEditModal((prev) => (prev ? { ...prev, ...updated } : prev))
+                    loadData()
+                  }}
+                />
+              )}
+              {tableEditTab === 'order' && (
+                <TableEditOrder
+                  order={tableEditModal}
+                  menuItems={menuItems}
+                  authHeaders={authHeaders}
+                  eventId={eventId}
+                  onUpdate={(updated) => {
+                    setTableEditModal((prev) => (prev ? { ...prev, ...updated } : prev))
+                    loadData()
+                  }}
+                />
+              )}
+              {tableEditTab === 'payment' && (
+                <TableEditPayment
+                  order={tableEditModal}
+                  authHeaders={authHeaders}
+                  eventId={eventId}
+                  onUpdate={(updated) => {
+                    setTableEditModal((prev) => (prev ? { ...prev, ...updated } : prev))
+                    loadData()
+                  }}
+                />
+              )}
+              {tableEditTab === 'requests' && (
+                <TableEditRequests
+                  order={tableEditModal}
+                  menuItems={menuItems}
+                  authHeaders={authHeaders}
+                  eventId={eventId}
+                  loadData={loadData}
+                  onUpdate={(updated) => {
+                    setTableEditModal((prev) => (prev ? { ...prev, ...updated } : prev))
+                    loadData()
+                  }}
+                />
+              )}
+              {tableEditTab === 'notes' && (
+                <TableEditNotes
+                  order={tableEditModal}
+                  authHeaders={authHeaders}
+                  eventId={eventId}
+                  onUpdate={(updated) => {
+                    setTableEditModal((prev) => (prev ? { ...prev, ...updated } : prev))
+                    loadData()
+                  }}
+                />
+              )}
+            </div>
           </div>
         </div>
       )}
