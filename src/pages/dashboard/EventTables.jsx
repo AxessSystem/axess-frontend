@@ -508,6 +508,44 @@ export default function EventTables({
             <UtensilsCrossed size={14} color="#00C37A" />
             ניהול תפריט
           </button>
+          {process.env.NODE_ENV === 'development' || true && (
+            <button
+              type="button"
+              onClick={async () => {
+                const res = await fetch(
+                  `${API_BASE}/api/admin/events/${eventId}/table-orders`,
+                  {
+                    method: 'POST',
+                    headers: authHeaders(),
+                    body: JSON.stringify({
+                      customer_name: 'לקוח בדיקה',
+                      customer_last_name: 'טסט',
+                      customer_phone: '0501234567',
+                      guest_count: 2,
+                      status: 'pending_approval',
+                      total_amount: 0,
+                      source: 'manual',
+                      approval_status: 'pending_approval',
+                    }),
+                  },
+                )
+                if (res.ok) {
+                  toast.success('הזמנת בדיקה נוצרה ✓')
+                  loadData()
+                } else {
+                  toast.error('שגיאה')
+                }
+              }}
+              style={{
+                padding: '6px 12px', borderRadius: 8, fontSize: 12,
+                background: 'rgba(245,158,11,0.1)',
+                border: '1px solid rgba(245,158,11,0.3)',
+                color: '#f59e0b', cursor: 'pointer',
+              }}
+            >
+              🧪 הזמנת בדיקה
+            </button>
+          )}
           <button
             type="button"
             onClick={addNewRow}
