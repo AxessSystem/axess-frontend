@@ -383,7 +383,7 @@ function TableEditDetails({
           value={form.waitress_name}
           onChange={(v) => {
             if (v === '__new__') {
-              onOpenStaffTab()
+              onOpenStaffTab?.()
               return
             }
             setForm((f) => ({ ...f, waitress_name: v }))
@@ -3685,6 +3685,101 @@ export default function EventTables({
         />
       )}
 
+      {showStaffPanel && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.6)',
+            zIndex: 1000,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 16,
+          }}
+        >
+          <div
+            style={{
+              background: 'var(--card, #1a1d2e)',
+              borderRadius: 16,
+              padding: 24,
+              maxWidth: 560,
+              width: '100%',
+              maxHeight: '85vh',
+              overflowY: 'auto',
+              border: '1px solid var(--glass-border)',
+              position: 'relative',
+            }}
+          >
+            <button
+              type="button"
+              onClick={() => {
+                setShowStaffPanel(false)
+                setStaffErrors({})
+                setEditingStaffId(null)
+              }}
+              style={{
+                position: 'absolute',
+                top: 12,
+                left: 12,
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                color: 'var(--v2-gray-400)',
+              }}
+            >
+              <X size={20} />
+            </button>
+            <h3 style={{ margin: '0 0 20px', fontSize: 16, fontWeight: 700 }}>צוות האירוע</h3>
+
+            {staffList.map((member) => {
+              const ta = tablesAssignedList(member.tables_assigned)
+              return (
+                <div
+                  key={member.id}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 10,
+                    padding: '10px 0',
+                    borderBottom: '1px solid var(--glass-border)',
+                  }}
+                >
+                  <div
+                    style={{
+                      width: 36,
+                      height: 36,
+                      borderRadius: '50%',
+                      background: 'rgba(0,195,122,0.15)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: '#00C37A',
+                      fontWeight: 700,
+                      fontSize: 14,
+                    }}
+                  >
+                    {(member.name && member.name[0]) || '?'}
+                  </div>
+                  {editingStaffId === member.id ? (
+                    <div style={{ display: 'flex', gap: 6, flex: 1, alignItems: 'center', flexWrap: 'wrap' }}>
+                      <input
+                        value={editStaffData.name || ''}
+                        onChange={(e) => setEditStaffData((f) => ({ ...f, name: e.target.value }))}
+                        style={{
+                          flex: 1,
+                          minWidth: 80,
+                          height: 30,
+                          borderRadius: 6,
+                          border: '1px solid var(--glass-border)',
+                          background: 'var(--glass)',
+                          color: 'var(--text)',
+                          padding: '0 8px',
+                          fontSize: 12,
+                        }}
+                      />
+                      <input
+                        value={editStaffData.phone || ''}
                         onChange={(e) => setEditStaffData((f) => ({ ...f, phone: e.target.value }))}
                         style={{
                           flex: 1,
@@ -4084,6 +4179,404 @@ export default function EventTables({
         </div>
       )}
 
+      {showMenuManager && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.6)',
+            zIndex: 1000,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 16,
+          }}
+        >
+          <div
+            style={{
+              background: 'var(--card, #1a1d2e)',
+              borderRadius: 16,
+              padding: 24,
+              maxWidth: 600,
+              width: '100%',
+              maxHeight: '85vh',
+              overflowY: 'auto',
+              border: '1px solid var(--glass-border)',
+              position: 'relative',
+            }}
+          >
+            <button
+              type="button"
+              onClick={() => setShowMenuManager(false)}
+              style={{
+                position: 'absolute',
+                top: 12,
+                left: 12,
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                color: 'var(--v2-gray-400)',
+              }}
+            >
+              <X size={20} />
+            </button>
+            <h3 style={{ margin: '0 0 12px', fontSize: 16, fontWeight: 700 }}>ניהול תפריט</h3>
+
+            <div style={{ marginBottom: 20 }}>
+              <p style={{ margin: '0 0 10px', fontSize: 13, fontWeight: 700 }}>+ הוסף מוצר לתפריט</p>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                <input
+                  value={newMenuItem.name}
+                  onChange={(e) => setNewMenuItem((f) => ({ ...f, name: e.target.value }))}
+                  placeholder="שם המוצר"
+                  style={{
+                    height: 36,
+                    borderRadius: 6,
+                    border: '1px solid var(--glass-border)',
+                    background: 'var(--glass)',
+                    color: 'var(--text)',
+                    padding: '0 10px',
+                    fontSize: 13,
+                  }}
+                />
+                <input
+                  value={newMenuItem.category}
+                  onChange={(e) => setNewMenuItem((f) => ({ ...f, category: e.target.value }))}
+                  placeholder="קטגוריה"
+                  style={{
+                    height: 36,
+                    borderRadius: 6,
+                    border: '1px solid var(--glass-border)',
+                    background: 'var(--glass)',
+                    color: 'var(--text)',
+                    padding: '0 10px',
+                    fontSize: 13,
+                  }}
+                />
+                <input
+                  value={newMenuItem.price}
+                  onChange={(e) => setNewMenuItem((f) => ({ ...f, price: e.target.value }))}
+                  placeholder="מחיר ₪"
+                  type="number"
+                  style={{
+                    height: 36,
+                    borderRadius: 6,
+                    border: '1px solid var(--glass-border)',
+                    background: 'var(--glass)',
+                    color: 'var(--text)',
+                    padding: '0 10px',
+                    fontSize: 13,
+                  }}
+                />
+                <div />
+                <div style={{ display: 'flex', gap: 6, gridColumn: '1 / -1' }}>
+                  <div style={{ flex: 1 }}>
+                    <label
+                      style={{
+                        fontSize: 11,
+                        color: 'var(--v2-gray-400)',
+                        display: 'block',
+                        marginBottom: 2,
+                      }}
+                    >
+                      כניסות חינם לליטר
+                    </label>
+                    <input
+                      value={newMenuItem.free_entries}
+                      onChange={(e) => setNewMenuItem((f) => ({ ...f, free_entries: e.target.value }))}
+                      placeholder="כניסות חינם לליטר"
+                      type="number"
+                      style={{
+                        width: '100%',
+                        height: 36,
+                        borderRadius: 6,
+                        border: '1px solid var(--glass-border)',
+                        background: 'var(--glass)',
+                        color: 'var(--text)',
+                        padding: '0 10px',
+                        fontSize: 13,
+                        boxSizing: 'border-box',
+                      }}
+                    />
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <label
+                      style={{
+                        fontSize: 11,
+                        color: 'var(--v2-gray-400)',
+                        display: 'block',
+                        marginBottom: 2,
+                      }}
+                    >
+                      תוספות חינם (אנרגי/מיצים)
+                    </label>
+                    <input
+                      value={newMenuItem.free_extras}
+                      onChange={(e) => setNewMenuItem((f) => ({ ...f, free_extras: e.target.value }))}
+                      placeholder="תוספות (אנרגי/מיצים)"
+                      type="number"
+                      style={{
+                        width: '100%',
+                        height: 36,
+                        borderRadius: 6,
+                        border: '1px solid var(--glass-border)',
+                        background: 'var(--glass)',
+                        color: 'var(--text)',
+                        padding: '0 10px',
+                        fontSize: 13,
+                        boxSizing: 'border-box',
+                      }}
+                    />
+                  </div>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={async () => {
+                  if (!newMenuItem.name || !newMenuItem.price) return
+                  await fetch(`${API_BASE}/api/admin/events/${eventId}/table-menu`, {
+                    method: 'POST',
+                    headers: authHeaders(),
+                    body: JSON.stringify(newMenuItem),
+                  })
+                  setNewMenuItem({
+                    name: '',
+                    category: '',
+                    price: '',
+                    unit: 'bottle',
+                    free_entries: 3,
+                    free_extras: 5,
+                  })
+                  loadData()
+                }}
+                style={{
+                  marginTop: 10,
+                  width: '100%',
+                  height: 40,
+                  borderRadius: 8,
+                  border: 'none',
+                  background: '#00C37A',
+                  color: '#000',
+                  fontWeight: 700,
+                  fontSize: 14,
+                  cursor: 'pointer',
+                }}
+              >
+                הוסף לתפריט
+              </button>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => {
+                const menuUrl = `https://axess.pro/menu/${eventId}`
+                navigator.clipboard.writeText(menuUrl)
+                toast.success('לינק תפריט הועתק!')
+              }}
+              style={{
+                padding: '8px 14px',
+                borderRadius: 8,
+                border: 'none',
+                background: 'rgba(0,195,122,0.15)',
+                color: '#00C37A',
+                fontSize: 13,
+                fontWeight: 600,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+                marginBottom: 16,
+              }}
+            >
+              <Share2 size={14} />
+              שלח תפריט ללקוח
+            </button>
+
+            <div
+              style={{
+                display: 'flex',
+                gap: 6,
+                marginBottom: 16,
+                overflowX: 'auto',
+                flexWrap: 'nowrap',
+              }}
+            >
+              {['all', ...new Set(uniqueMenuItems.map((m) => m.category).filter(Boolean))].map((cat) => (
+                <button
+                  key={cat}
+                  type="button"
+                  onClick={() => setMenuFilter(cat)}
+                  style={{
+                    padding: '4px 12px',
+                    borderRadius: 20,
+                    border: 'none',
+                    cursor: 'pointer',
+                    whiteSpace: 'nowrap',
+                    fontSize: 12,
+                    background: menuFilter === cat ? 'var(--primary)' : 'var(--glass)',
+                    color: menuFilter === cat ? '#fff' : 'var(--text)',
+                  }}
+                >
+                  {cat === 'all' ? 'הכל' : cat}
+                </button>
+              ))}
+            </div>
+
+            <div style={{ marginBottom: 16 }}>
+              {(() => {
+                const filtered = uniqueMenuItems.filter(
+                  (m) => menuFilter === 'all' || m.category === menuFilter,
+                )
+                const byCat = {}
+                for (const m of filtered) {
+                  const c = m.category || 'אחר'
+                  if (!byCat[c]) byCat[c] = []
+                  byCat[c].push(m)
+                }
+                const cats = Object.keys(byCat).sort((a, b) => a.localeCompare(b, 'he'))
+                return cats.map((cat) => (
+                  <div key={cat} style={{ marginBottom: 16 }}>
+                    <p
+                      style={{
+                        margin: '0 0 8px',
+                        fontSize: 12,
+                        fontWeight: 700,
+                        color: 'var(--v2-gray-400)',
+                      }}
+                    >
+                      {cat}
+                    </p>
+                    {byCat[cat]
+                      .slice()
+                      .sort((a, b) => (a.name || '').localeCompare(b.name || '', 'he'))
+                      .map((item) => (
+                        <div
+                          key={item.id}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 8,
+                            padding: '8px 0',
+                            borderBottom: '1px solid var(--glass-border)',
+                          }}
+                        >
+                          <div style={{ flex: 1 }}>
+                            <p style={{ margin: 0, fontSize: 13, fontWeight: 600 }}>{item.name}</p>
+                            <p style={{ margin: 0, fontSize: 11, color: 'var(--v2-gray-400)' }}>
+                              {item.category}
+                              {' '}
+                              · ₪
+                              {item.price}
+                              {item.free_entries > 0 && ` · ${item.free_entries} כניסות חינם`}
+                              {item.free_extras > 0
+                                && ` · ${item.free_extras} ${item.free_extras_type === 'energy' ? 'אנרגי' : 'תוספות'}`}
+                            </p>
+                          </div>
+                          {item.id === editMenuItemId ? (
+                            <input
+                              value={editMenuPrice}
+                              onChange={(e) => setEditMenuPrice(e.target.value)}
+                              onBlur={async () => {
+                                await fetch(
+                                  `${API_BASE}/api/admin/events/${eventId}/table-menu/${item.id}`,
+                                  {
+                                    method: 'PATCH',
+                                    headers: authHeaders(),
+                                    body: JSON.stringify({
+                                      price: parseFloat(editMenuPrice),
+                                      name: item.name,
+                                      is_available: item.is_available,
+                                      included_extras: parseMenuIncludedExtras(item.included_extras),
+                                      free_entries: item.free_entries,
+                                      free_extras: item.free_extras,
+                                      free_extras_type: item.free_extras_type,
+                                    }),
+                                  },
+                                )
+                                setEditMenuItemId(null)
+                                loadData()
+                              }}
+                              type="number"
+                              autoFocus
+                              style={{
+                                width: 70,
+                                background: 'var(--glass)',
+                                border: '1px solid #00C37A',
+                                borderRadius: 4,
+                                padding: '2px 6px',
+                                color: 'var(--text)',
+                                fontSize: 13,
+                              }}
+                            />
+                          ) : (
+                            <span
+                              role="button"
+                              tabIndex={0}
+                              onClick={() => {
+                                setEditMenuItemId(item.id)
+                                setEditMenuPrice(String(item.price))
+                              }}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter' || e.key === ' ') {
+                                  e.preventDefault()
+                                  setEditMenuItemId(item.id)
+                                  setEditMenuPrice(String(item.price))
+                                }
+                              }}
+                              style={{ cursor: 'text', fontWeight: 700, color: '#00C37A' }}
+                            >
+                              ₪
+                              {item.price}
+                            </span>
+                          )}
+                          {item.category !== 'תוספות' && (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setEditingExtrasFor({
+                                  ...item,
+                                  included_extras: parseMenuIncludedExtras(item.included_extras),
+                                })
+                              }
+                              style={{
+                                background: 'none',
+                                border: 'none',
+                                cursor: 'pointer',
+                                color: '#00C37A',
+                                fontSize: 12,
+                                whiteSpace: 'nowrap',
+                              }}
+                            >
+                              🥤 {parseMenuIncludedExtras(item.included_extras).length} תוספות
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              await fetch(`${API_BASE}/api/admin/events/${eventId}/table-menu/${item.id}`, {
+                                method: 'DELETE',
+                                headers: authHeaders(),
+                              })
+                              loadData()
+                            }}
+                            style={{
+                              background: 'none',
+                              border: 'none',
+                              cursor: 'pointer',
+                              color: '#EF4444',
+                            }}
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      ))}
+                  </div>
+                ))
+              })()}
+            </div>
+          </div>
+        </div>
+      )}
 
       {editingExtrasFor && (
         <div
