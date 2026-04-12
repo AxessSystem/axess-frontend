@@ -1799,15 +1799,16 @@ export default function EventTables({
       )}
 
       {guestsDrawer && (() => {
-        let gl = guestsDrawer.guests
-        if (typeof gl === 'string') {
+        const drawerGuests = (() => {
+          const g = guestsDrawer?.guests
+          if (!g) return []
+          if (Array.isArray(g)) return g
           try {
-            gl = JSON.parse(gl || '[]')
+            return JSON.parse(g)
           } catch {
-            gl = []
+            return []
           }
-        }
-        if (!Array.isArray(gl)) gl = []
+        })()
         return (
           <div
             style={{
@@ -1876,8 +1877,8 @@ export default function EventTables({
                 </span>
               </div>
 
-              {gl.length > 0 ? (
-                gl.map((g, i) => (
+              {drawerGuests.length > 0 ? (
+                drawerGuests.map((g, i) => (
                   <div
                     key={i}
                     style={{
@@ -1936,7 +1937,7 @@ export default function EventTables({
                 <span style={{ fontSize: 13, color: 'var(--v2-gray-400)' }}>
                   סה&quot;כ
                   {' '}
-                  {gl.length + 1}
+                  {drawerGuests.length + 1}
                   {' '}
                   אנשים
                 </span>
