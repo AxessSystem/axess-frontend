@@ -2984,7 +2984,7 @@ export default function EventTables({
                 />
               )}
               {tableEditTab === 'staff' && (
-                <div style={{ maxHeight: 'min(65vh, 520px)', overflowY: 'auto', WebkitOverflowScrolling: 'touch' }}>
+                <div style={{ WebkitOverflowScrolling: 'touch' }}>
                   <h3 style={{ margin: '0 0 20px', fontSize: 16, fontWeight: 700 }}>צוות האירוע</h3>
                   <div style={{ display: 'flex', gap: 6, overflowX: 'auto', marginBottom: 16, WebkitOverflowScrolling: 'touch' }}>
                     {[
