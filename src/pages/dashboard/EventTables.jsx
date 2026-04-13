@@ -230,7 +230,7 @@ function coerceOptimisticLocal(field, rawVal) {
 }
 
 function TableEditDetails({
-  order, availableTables, staffList, promoters, authHeaders, eventId, onUpdate, onOpenStaffTab, loadData,
+  order, availableTables, staffList, promoters, authHeaders, eventId, businessId, onUpdate, onOpenStaffTab, loadData,
 }) {
   const [form, setForm] = useState({
     table_number: order.table_number != null ? String(order.table_number) : '',
@@ -260,6 +260,20 @@ function TableEditDetails({
     save_to_venue: true, save_to_event: true, wa_notifications: false,
   })
   const [confirmDeleteTable, setConfirmDeleteTable] = useState(false)
+  const [templateTables, setTemplateTables] = useState([])
+
+  useEffect(() => {
+    fetch(`${API_BASE}/api/admin/business/${businessId}/templates?type=tables`, {
+      headers: authHeaders(),
+    })
+      .then((r) => r.json())
+      .then((data) => {
+        const template = (data.templates || []).find((t) => t.is_default)
+        const tables = template?.template_data?.tables || []
+        setTemplateTables(tables)
+      })
+      .catch(() => {})
+  }, [businessId])
 
   const save = async () => {
     setSaving(true)
@@ -316,12 +330,11 @@ function TableEditDetails({
             onChange={(v) => setForm((f) => ({ ...f, table_number: v }))}
             placeholder="בחר מרשימה..."
             searchable
-            options={(availableTables || [])
+            options={templateTables
               .sort((a, b) => Number(a.table_number) - Number(b.table_number))
               .map((t) => ({
                 value: t.table_number,
                 label: `${t.table_number}${t.table_name ? ` — ${t.table_name}` : ''}`,
-                disabled: t.status === 'occupied' && t.table_number !== form.table_number,
               }))}
             menuStyle={{ maxHeight: 220, overflowY: 'auto' }}
             style={{ width: 160 }}
@@ -2807,6 +2820,7 @@ export default function EventTables({
                   onOpenStaffTab={() => setTableEditTab('staff')}
                   authHeaders={authHeaders}
                   eventId={eventId}
+                  businessId={businessId}
                   loadData={loadData}
                   onUpdate={(updated) => {
                     if (updated?.__deleted) {
