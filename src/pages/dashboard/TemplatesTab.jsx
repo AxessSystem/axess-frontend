@@ -1328,16 +1328,20 @@ function MenuTemplate({ data, onUpdate, eventId, businessId, authHeaders, reques
 }
 
 function TablesTemplate({ data, onUpdate, businessId, authHeaders }) {
+  const DEFAULT_TABLE_NAMES = ['VIP', 'בר', 'רגיל', 'DJ Booth']
+  const DEFAULT_TABLE_SERIES = ['100-110', '200-210', '300-310', '400-410', '500-510']
   const [templateData, setTemplateData] = useState({
-    table_names: data?.table_names || ['VIP', 'בר', 'רגיל'],
-    table_series: data?.table_series || ['100-110', '200-210', '300-310', '400-410', '500-510'],
+    table_names: data?.table_names || DEFAULT_TABLE_NAMES,
+    table_series: data?.table_series || DEFAULT_TABLE_SERIES,
     tables: data?.tables || [],
   })
+  const [newTableNameInput, setNewTableNameInput] = useState('')
+  const [newSeriesInput, setNewSeriesInput] = useState('')
 
   useEffect(() => {
     setTemplateData({
-      table_names: data?.table_names || ['VIP', 'בר', 'רגיל'],
-      table_series: data?.table_series || ['100-110', '200-210', '300-310', '400-410', '500-510'],
+      table_names: data?.table_names || DEFAULT_TABLE_NAMES,
+      table_series: data?.table_series || DEFAULT_TABLE_SERIES,
       tables: data?.tables || [],
     })
   }, [data])
@@ -1351,8 +1355,12 @@ function TablesTemplate({ data, onUpdate, businessId, authHeaders }) {
         const tablesTemplate = templates.find((t) => t.template_type === 'tables' && (t.is_default || t.is_system))
         if (tablesTemplate) {
           setTemplateData({
-            table_names: tablesTemplate.template_data?.table_names || ['VIP', 'בר', 'רגיל'],
-            table_series: tablesTemplate.template_data?.table_series || ['100-110', '200-210', '300-310', '400-410', '500-510'],
+            table_names: tablesTemplate.template_data?.table_names?.length > 0
+              ? tablesTemplate.template_data.table_names
+              : DEFAULT_TABLE_NAMES,
+            table_series: tablesTemplate.template_data?.table_series?.length > 0
+              ? tablesTemplate.template_data.table_series
+              : DEFAULT_TABLE_SERIES,
             tables: tablesTemplate.template_data?.tables || [],
           })
         }
@@ -1411,7 +1419,7 @@ function TablesTemplate({ data, onUpdate, businessId, authHeaders }) {
           סוגי/שמות שולחן
         </h3>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 10 }}>
-          {(templateData.table_names || ['VIP', 'בר', 'רגיל', 'DJ Booth']).map((name) => (
+          {(templateData.table_names || DEFAULT_TABLE_NAMES).map((name) => (
             <span key={name} style={{
               padding: '6px 14px', borderRadius: 20, fontSize: 13,
               background: 'rgba(0,195,122,0.1)', border: '1px solid rgba(0,195,122,0.3)',
@@ -1436,13 +1444,12 @@ function TablesTemplate({ data, onUpdate, businessId, authHeaders }) {
           <button
             type="button"
             onClick={() => {
-              const input = document.getElementById('new-table-name-input')
-              if (!input?.value.trim()) return
+              if (!newTableNameInput.trim()) return
               setTemplateData((d) => ({
                 ...d,
-                table_names: [...(d.table_names || []), input.value.trim()],
+                table_names: [...(d.table_names || []), newTableNameInput.trim()],
               }))
-              input.value = ''
+              setNewTableNameInput('')
             }}
             style={{
               minHeight: 44, padding: '0 16px', borderRadius: 10,
@@ -1453,7 +1460,17 @@ function TablesTemplate({ data, onUpdate, businessId, authHeaders }) {
             +
           </button>
           <input
-            id="new-table-name-input"
+            value={newTableNameInput}
+            onChange={(e) => setNewTableNameInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && newTableNameInput.trim()) {
+                setTemplateData((d) => ({
+                  ...d,
+                  table_names: [...(d.table_names || []), newTableNameInput.trim()],
+                }))
+                setNewTableNameInput('')
+              }
+            }}
             placeholder="הוסף סוג שולחן..."
             style={{
               flex: 1, minHeight: 44, padding: '10px 16px', borderRadius: 10,
@@ -1469,7 +1486,7 @@ function TablesTemplate({ data, onUpdate, businessId, authHeaders }) {
           סדרות מספרי שולחן
         </h3>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 10 }}>
-          {(templateData.table_series || []).map((series) => (
+          {(templateData.table_series || DEFAULT_TABLE_SERIES).map((series) => (
             <span key={series} style={{
               padding: '6px 14px', borderRadius: 20, fontSize: 13,
               background: 'rgba(59,130,246,0.1)', border: '1px solid rgba(59,130,246,0.3)',
@@ -1494,13 +1511,12 @@ function TablesTemplate({ data, onUpdate, businessId, authHeaders }) {
           <button
             type="button"
             onClick={() => {
-              const input = document.getElementById('new-series-input')
-              if (!input?.value.trim()) return
+              if (!newSeriesInput.trim()) return
               setTemplateData((d) => ({
                 ...d,
-                table_series: [...(d.table_series || []), input.value.trim()],
+                table_series: [...(d.table_series || []), newSeriesInput.trim()],
               }))
-              input.value = ''
+              setNewSeriesInput('')
             }}
             style={{
               minHeight: 44, padding: '0 16px', borderRadius: 10,
@@ -1511,7 +1527,17 @@ function TablesTemplate({ data, onUpdate, businessId, authHeaders }) {
             +
           </button>
           <input
-            id="new-series-input"
+            value={newSeriesInput}
+            onChange={(e) => setNewSeriesInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && newSeriesInput.trim()) {
+                setTemplateData((d) => ({
+                  ...d,
+                  table_series: [...(d.table_series || []), newSeriesInput.trim()],
+                }))
+                setNewSeriesInput('')
+              }
+            }}
             placeholder="לדוגמה: 100-110"
             style={{
               flex: 1, minHeight: 44, padding: '10px 16px', borderRadius: 10,
