@@ -241,16 +241,16 @@ function TableEditDetails({
     promoter_commission_pct: order.promoter_commission_pct ?? 0,
   })
   const [saving, setSaving] = useState(false)
-  const [tableSearch, setTableSearch] = useState('')
   const [tableNameOptions, setTableNameOptions] = useState([
     'VIP', 'בר', 'טרס', 'מרכז', 'כניסה', 'פינה', 'גן', 'גג',
   ])
-  const [newTableName, setNewTableName] = useState('')
+  const [showAddTableName, setShowAddTableName] = useState(false)
+  const [newTableNameInput, setNewTableNameInput] = useState('')
   const [showAddWaitress, setShowAddWaitress] = useState(false)
   const [newWaitress, setNewWaitress] = useState({
-    name: '', last_name: '', phone: '', wa_phone: '',
+    name: '', last_name: '', phone: '',
     tables_assigned: [],
-    save_to_venue: true, save_to_event: true, wa_notifications: false,
+    save_to_venue: true, save_to_event: true, wa_notifications: true,
   })
   const [showAddPromoter, setShowAddPromoter] = useState(false)
   const [newPromoter, setNewPromoter] = useState({
@@ -260,16 +260,6 @@ function TableEditDetails({
     save_to_venue: true, save_to_event: true, wa_notifications: false,
   })
   const [confirmDeleteTable, setConfirmDeleteTable] = useState(false)
-
-  const tablesByArea = (availableTables || []).reduce((acc, t) => {
-    const area = t.table_number ? `אזור ${String(t.table_number).charAt(0)}00` : 'כללי'
-    if (!acc[area]) acc[area] = []
-    acc[area].push(t)
-    return acc
-  }, {})
-  const filteredTables = (availableTables || []).filter((t) => (
-    !tableSearch || String(t.table_number || '').includes(tableSearch)
-  ))
 
   const save = async () => {
     setSaving(true)
@@ -302,59 +292,14 @@ function TableEditDetails({
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-      <div>
-        <label style={{ fontSize: 12, color: 'var(--v2-gray-400)', display: 'block', marginBottom: 8, textAlign: 'right' }}>
-          שולחן מוקצה
-        </label>
-        {Object.entries(tablesByArea).map(([area, tbls]) => (
-          <div key={area} style={{ marginBottom: 12 }}>
-            <p style={{ margin: '0 0 6px', fontSize: 11, color: 'var(--v2-gray-400)', textAlign: 'right' }}>{area}</p>
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fill, minmax(52px, 1fr))',
-              gap: 4,
-            }}
-            >
-              {tbls.map((t) => {
-                const occ = t.status === 'occupied' || t.status === 'reserved'
-                return (
-                  <button
-                    key={t.id || t.table_number}
-                    type="button"
-                    onClick={() => {
-                      if (occ) return
-                      setForm((f) => ({ ...f, table_number: t.table_number != null ? String(t.table_number) : '' }))
-                    }}
-                    style={{
-                      padding: '6px 4px', borderRadius: 8, fontSize: 12,
-                      fontWeight: form.table_number === String(t.table_number) ? 700 : 400,
-                      background:
-                        occ ? 'rgba(239,68,68,0.1)'
-                          : form.table_number === String(t.table_number) ? 'rgba(0,195,122,0.15)' : 'var(--glass)',
-                      border: `1px solid ${
-                        form.table_number === String(t.table_number) ? 'rgba(0,195,122,0.4)'
-                          : occ ? 'rgba(239,68,68,0.3)' : 'var(--glass-border)'}`,
-                      color:
-                        form.table_number === String(t.table_number) ? '#00C37A'
-                          : occ ? '#EF4444' : 'var(--text)',
-                      cursor: occ ? 'not-allowed' : 'pointer',
-                      textAlign: 'center',
-                      WebkitTapHighlightColor: 'transparent',
-                    }}
-                  >
-                    {t.table_number}
-                  </button>
-                )
-              })}
-            </div>
-          </div>
-        ))}
-      </div>
-
       <div style={{ marginBottom: 16 }}>
-        <label style={{ fontSize: 12, color: 'var(--v2-gray-400)', display: 'block', marginBottom: 6, textAlign: 'right' }}>
-          הקצאת מספר שולחן
-        </label>
+        <p style={{ margin: '0 0 8px', fontSize: 13, fontWeight: 600, textAlign: 'right', color: 'var(--text)' }}>
+          בחר שולחן להקצות להזמנה מספר #
+          {order.id?.slice(-6).toUpperCase()}
+        </p>
+        <p style={{ margin: '0 0 10px', fontSize: 12, color: 'var(--v2-gray-400)', textAlign: 'right' }}>
+          הקצאת שולחן
+        </p>
         <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
           <input
             value={form.table_number}
@@ -366,28 +311,20 @@ function TableEditDetails({
               color: 'var(--text)', fontSize: 16, textAlign: 'right', boxSizing: 'border-box',
             }}
           />
-          <input
-            value={tableSearch}
-            onChange={(e) => setTableSearch(e.target.value)}
-            placeholder="חפש..."
-            style={{
-              width: 110, minHeight: 48, padding: '12px 10px', borderRadius: 10,
-              background: 'var(--glass)', border: '1px solid var(--glass-border)',
-              color: 'var(--text)', fontSize: 16, textAlign: 'right', boxSizing: 'border-box',
-            }}
-          />
           <CustomSelect
             value={form.table_number}
             onChange={(v) => setForm((f) => ({ ...f, table_number: v }))}
             placeholder="בחר מרשימה..."
             searchable
-            options={filteredTables.map((t) => ({
-              value: String(t.table_number),
-              label: `${t.table_number}${t.table_name ? ` — ${t.table_name}` : ''}${t.status === 'occupied' ? ' ✗' : ''}`,
-              disabled: t.status === 'occupied',
-            }))}
-            style={{ width: 160, minHeight: 48 }}
+            options={(availableTables || [])
+              .sort((a, b) => Number(a.table_number) - Number(b.table_number))
+              .map((t) => ({
+                value: t.table_number,
+                label: `${t.table_number}${t.table_name ? ` — ${t.table_name}` : ''}`,
+                disabled: t.status === 'occupied' && t.table_number !== form.table_number,
+              }))}
             menuStyle={{ maxHeight: 220, overflowY: 'auto' }}
+            style={{ width: 160 }}
           />
         </div>
         {form.table_number && (
@@ -413,8 +350,12 @@ function TableEditDetails({
         <CustomSelect
           value={form.table_name}
           onChange={(v) => {
-            if (v === '__add__') return
+            if (v === '__add__') {
+              setShowAddTableName(true)
+              return
+            }
             setForm((f) => ({ ...f, table_name: v }))
+            setShowAddTableName(false)
           }}
           placeholder="שם/סוג שולחן..."
           searchable
@@ -424,34 +365,52 @@ function TableEditDetails({
           ]}
           menuStyle={{ maxHeight: 220, overflowY: 'auto' }}
         />
-        <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-          <button
-            type="button"
-            onClick={() => {
-              if (!newTableName.trim()) return
-              setTableNameOptions((prev) => [...prev, newTableName.trim()])
-              setForm((f) => ({ ...f, table_name: newTableName.trim() }))
-              setNewTableName('')
-            }}
-            style={{
-              minHeight: 48,
-              padding: '8px 16px', borderRadius: 8, background: '#00C37A',
-              border: 'none', color: '#000', fontSize: 13, fontWeight: 700, cursor: 'pointer',
-            }}
+        {showAddTableName && (
+          <div style={{
+            marginTop: 8, padding: '12px', borderRadius: 10,
+            background: 'var(--glass)', border: '1px solid var(--glass-border)',
+            display: 'flex', gap: 8,
+          }}
           >
-            הוסף
-          </button>
-          <input
-            value={newTableName}
-            onChange={(e) => setNewTableName(e.target.value)}
-            placeholder="שם חדש..."
-            style={{
-              flex: 1, minHeight: 48, padding: '8px 12px', borderRadius: 8,
-              background: 'var(--glass)', border: '1px solid var(--glass-border)',
-              color: 'var(--text)', fontSize: 16, textAlign: 'right',
-            }}
-          />
-        </div>
+            <button
+              type="button"
+              onClick={() => {
+                if (!newTableNameInput.trim()) return
+                setTableNameOptions((prev) => [...prev, newTableNameInput.trim()])
+                setForm((f) => ({ ...f, table_name: newTableNameInput.trim() }))
+                setNewTableNameInput('')
+                setShowAddTableName(false)
+              }}
+              style={{
+                padding: '8px 16px', borderRadius: 8, background: '#00C37A',
+                border: 'none', color: '#000', fontSize: 14, fontWeight: 700, cursor: 'pointer',
+                minHeight: 44,
+              }}
+            >
+              הוסף
+            </button>
+            <input
+              value={newTableNameInput}
+              onChange={(e) => setNewTableNameInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  if (!newTableNameInput.trim()) return
+                  setTableNameOptions((prev) => [...prev, newTableNameInput.trim()])
+                  setForm((f) => ({ ...f, table_name: newTableNameInput.trim() }))
+                  setNewTableNameInput('')
+                  setShowAddTableName(false)
+                }
+              }}
+              placeholder="שם חדש..."
+              autoFocus
+              style={{
+                flex: 1, minHeight: 44, padding: '10px 14px', borderRadius: 8,
+                background: 'var(--card)', border: '1px solid var(--glass-border)',
+                color: 'var(--text)', fontSize: 16, textAlign: 'right', boxSizing: 'border-box',
+              }}
+            />
+          </div>
+        )}
       </div>
 
       <div>
@@ -494,7 +453,6 @@ function TableEditDetails({
               { field: 'name', placeholder: 'שם פרטי' },
               { field: 'last_name', placeholder: 'שם משפחה' },
               { field: 'phone', placeholder: 'מספר נייד' },
-              { field: 'wa_phone', placeholder: 'WhatsApp (אם שונה)' },
             ].map(({ field, placeholder }) => (
               <input
                 key={field}
@@ -508,6 +466,45 @@ function TableEditDetails({
                 }}
               />
             ))}
+            <div style={{ marginBottom: 8 }}>
+              <label style={{ fontSize: 12, color: 'var(--v2-gray-400)', display: 'block', marginBottom: 6, textAlign: 'right' }}>
+                שולחנות משויכים
+              </label>
+              <CustomSelect
+                value=""
+                onChange={(v) => {
+                  if (!newWaitress.tables_assigned.includes(v)) {
+                    setNewWaitress((w) => ({ ...w, tables_assigned: [...w.tables_assigned, v] }))
+                  }
+                }}
+                placeholder="הוסף שולחן..."
+                options={(availableTables || [])
+                  .sort((a, b) => Number(a.table_number) - Number(b.table_number))
+                  .map((t) => ({ value: t.table_number, label: t.table_number }))}
+                menuStyle={{ maxHeight: 180, overflowY: 'auto' }}
+              />
+              {newWaitress.tables_assigned.length > 0 && (
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
+                  {newWaitress.tables_assigned.map((t) => (
+                    <span key={t} style={{
+                      padding: '4px 10px', borderRadius: 20, fontSize: 12,
+                      background: 'rgba(0,195,122,0.1)', border: '1px solid rgba(0,195,122,0.3)',
+                      color: '#00C37A', display: 'flex', alignItems: 'center', gap: 6,
+                    }}
+                    >
+                      {t}
+                      <button
+                        type="button"
+                        onClick={() => setNewWaitress((w) => ({ ...w, tables_assigned: w.tables_assigned.filter((x) => x !== t) }))}
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#00C37A', fontSize: 14, padding: 0 }}
+                      >
+                        ✕
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
             {[
               { field: 'save_to_venue', label: 'שמור לצוות המקום' },
               { field: 'save_to_event', label: 'שמור לאירוע זה בלבד' },
@@ -537,7 +534,7 @@ function TableEditDetails({
                         phone: newWaitress.phone,
                         role: 'waitress',
                         wa_notifications: newWaitress.wa_notifications,
-                        tables_assigned: [],
+                        tables_assigned: newWaitress.tables_assigned,
                       }),
                     })
                     setForm((f) => ({ ...f, waitress_name: `${newWaitress.name} ${newWaitress.last_name}`.trim() }))
@@ -731,19 +728,17 @@ function TableEditDetails({
               setConfirmDeleteTable(true)
               return
             }
-            if (v === 'closed') {
-              toast('הסטטוס יסווג כהסתיים וייכלל בדוחות הכנסות')
-            }
             setForm((f) => ({ ...f, status: v }))
           }}
+          placeholder="בחר סטטוס..."
           options={[
             { value: 'pending_approval', label: 'שולחן ממתין לאישור' },
             { value: 'active', label: 'שולחן פעיל' },
             { value: 'cancelled', label: 'שולחן מבוטל' },
-            { value: 'closed', label: 'שולחן הסתיים → העבר להכנסות' },
+            { value: 'closed', label: 'שולחן הסתיים' },
             { value: 'delete', label: '🗑️ מחק שולחן מרשימה' },
           ]}
-          menuStyle={{ maxHeight: 220, overflowY: 'auto' }}
+          menuStyle={{ maxHeight: 240, overflowY: 'auto' }}
         />
       </div>
 
@@ -1694,14 +1689,15 @@ export default function EventTables({
   const [openExtrasOrder, setOpenExtrasOrder] = useState(null)
   const [newStaff, setNewStaff] = useState({
     name: '',
+    last_name: '',
     phone: '',
-    role: 'waitress',
-    tables_assigned: '',
+    tables_assigned: [],
+    save_to_venue: true,
+    save_to_event: true,
     wa_notifications: true,
   })
   const [showTemplateStaff, setShowTemplateStaff] = useState(false)
   const [templateStaffData, setTemplateStaffData] = useState({})
-  const [staffErrors, setStaffErrors] = useState({})
   const [editingStaffId, setEditingStaffId] = useState(null)
   const [editStaffData, setEditStaffData] = useState({})
   const extrasMenuWrapRef = useRef(null)
@@ -3228,135 +3224,108 @@ export default function EventTables({
                   )}
 
                   <div style={{ marginTop: 20, paddingTop: 16, borderTop: '1px solid var(--glass-border)' }}>
-                    <p style={{ margin: '0 0 12px', fontSize: 14, fontWeight: 700 }}>+ הוסף איש צוות</p>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 8 }}>
-                      <div>
-                        <input
-                          value={newStaff.name || ''}
-                          onChange={(e) => {
-                            setNewStaff((f) => ({ ...f, name: e.target.value }))
-                            setStaffErrors((er) => ({ ...er, name: false }))
-                          }}
-                          placeholder="שם מלא *"
-                          style={{
-                            height: 36,
-                            width: '100%',
-                            boxSizing: 'border-box',
-                            borderRadius: 6,
-                            border: `1px solid ${staffErrors.name ? '#EF4444' : 'var(--glass-border)'}`,
-                            background: 'var(--glass)',
-                            color: 'var(--text)',
-                            padding: '0 10px',
-                            fontSize: 13,
-                          }}
-                        />
-                        {staffErrors.name && (
-                          <p style={{ color: '#EF4444', fontSize: 11, margin: '2px 0 0' }}>שם חובה</p>
-                        )}
-                      </div>
-                      <div>
-                        <input
-                          value={newStaff.phone || ''}
-                          onChange={(e) => {
-                            setNewStaff((f) => ({ ...f, phone: e.target.value }))
-                            setStaffErrors((er) => ({ ...er, phone: false }))
-                          }}
-                          placeholder="טלפון WA *"
-                          style={{
-                            height: 36,
-                            width: '100%',
-                            boxSizing: 'border-box',
-                            borderRadius: 6,
-                            border: `1px solid ${staffErrors.phone ? '#EF4444' : 'var(--glass-border)'}`,
-                            background: 'var(--glass)',
-                            color: 'var(--text)',
-                            padding: '0 10px',
-                            fontSize: 13,
-                          }}
-                        />
-                        {staffErrors.phone && (
-                          <p style={{ color: '#EF4444', fontSize: 11, margin: '2px 0 0' }}>
-                            טלפון חובה לקבלת התראות WA
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 8 }}>
-                      <CustomSelect
-                        value={newStaff.role || 'waitress'}
-                        onChange={(v) => setNewStaff((f) => ({ ...f, role: v }))}
-                        options={[
-                          { value: 'manager', label: 'מנהל ערב' },
-                          { value: 'table_manager', label: 'מנהל שולחנות' },
-                          { value: 'waitress', label: 'מלצרית' },
-                          { value: 'bar_manager', label: 'מנהלת בר' },
-                          { value: 'cashier', label: 'קופאית' },
-                          { value: 'selector', label: 'סלקטורית' },
-                        ]}
-                        style={{ fontSize: 13 }}
-                      />
+                    <p style={{ margin: '0 0 12px', fontSize: 14, fontWeight: 700 }}>+ הוספת מלצרית</p>
+                    {[
+                      { field: 'name', placeholder: 'שם פרטי' },
+                      { field: 'last_name', placeholder: 'שם משפחה' },
+                      { field: 'phone', placeholder: 'מספר נייד' },
+                    ].map(({ field, placeholder }) => (
                       <input
-                        value={newStaff.tables_assigned || ''}
-                        onChange={(e) => setNewStaff((f) => ({ ...f, tables_assigned: e.target.value }))}
-                        placeholder="שולחנות (100,101,102)"
+                        key={field}
+                        value={newStaff[field]}
+                        onChange={(e) => setNewStaff((w) => ({ ...w, [field]: e.target.value }))}
+                        placeholder={placeholder}
                         style={{
-                          height: 36,
-                          borderRadius: 6,
-                          border: '1px solid var(--glass-border)',
-                          background: 'var(--glass)',
-                          color: 'var(--text)',
-                          padding: '0 10px',
-                          fontSize: 13,
+                          width: '100%', minHeight: 44, padding: '10px 14px', borderRadius: 8, marginBottom: 8,
+                          background: 'var(--card)', border: '1px solid var(--glass-border)',
+                          color: 'var(--text)', fontSize: 16, textAlign: 'right', boxSizing: 'border-box',
                         }}
                       />
-                    </div>
-                    <label
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 8,
-                        fontSize: 13,
-                        marginBottom: 10,
-                        cursor: 'pointer',
-                      }}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={newStaff.wa_notifications !== false}
-                        onChange={(e) => setNewStaff((f) => ({ ...f, wa_notifications: e.target.checked }))}
+                    ))}
+                    <div style={{ marginBottom: 8 }}>
+                      <label style={{ fontSize: 12, color: 'var(--v2-gray-400)', display: 'block', marginBottom: 6, textAlign: 'right' }}>
+                        שולחנות משויכים
+                      </label>
+                      <CustomSelect
+                        value=""
+                        onChange={(v) => {
+                          if (!newStaff.tables_assigned.includes(v)) {
+                            setNewStaff((w) => ({ ...w, tables_assigned: [...w.tables_assigned, v] }))
+                          }
+                        }}
+                        placeholder="הוסף שולחן..."
+                        options={(availableTables || [])
+                          .sort((a, b) => Number(a.table_number) - Number(b.table_number))
+                          .map((t) => ({ value: t.table_number, label: t.table_number }))}
+                        menuStyle={{ maxHeight: 180, overflowY: 'auto' }}
                       />
-                      קבל התראות WhatsApp
-                    </label>
+                      {newStaff.tables_assigned.length > 0 && (
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
+                          {newStaff.tables_assigned.map((t) => (
+                            <span key={t} style={{
+                              padding: '4px 10px', borderRadius: 20, fontSize: 12,
+                              background: 'rgba(0,195,122,0.1)', border: '1px solid rgba(0,195,122,0.3)',
+                              color: '#00C37A', display: 'flex', alignItems: 'center', gap: 6,
+                            }}
+                            >
+                              {t}
+                              <button
+                                type="button"
+                                onClick={() => setNewStaff((w) => ({ ...w, tables_assigned: w.tables_assigned.filter((x) => x !== t) }))}
+                                style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#00C37A', fontSize: 14, padding: 0 }}
+                              >
+                                ✕
+                              </button>
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    {[
+                      { field: 'save_to_venue', label: 'שמור לצוות המקום' },
+                      { field: 'save_to_event', label: 'שמור לאירוע זה בלבד' },
+                      { field: 'wa_notifications', label: 'קבל התראות WhatsApp' },
+                    ].map(({ field, label }) => (
+                      <label key={field} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, justifyContent: 'flex-end', cursor: 'pointer' }}>
+                        <span style={{ fontSize: 13 }}>{label}</span>
+                        <input
+                          type="checkbox"
+                          checked={newStaff[field]}
+                          onChange={(e) => setNewStaff((w) => ({ ...w, [field]: e.target.checked }))}
+                          style={{ width: 16, height: 16, accentColor: '#00C37A' }}
+                        />
+                      </label>
+                    ))}
                     <button
                       type="button"
                       onClick={async () => {
-                        const errors = {}
-                        if (!newStaff.name?.trim()) errors.name = true
-                        if (!newStaff.phone?.trim()) errors.phone = true
-                        setStaffErrors(errors)
-                        if (Object.keys(errors).length > 0) return
-                        const tablesArr = newStaff.tables_assigned
-                          ? newStaff.tables_assigned.split(',').map((t) => t.trim()).filter(Boolean)
-                          : []
+                        if (!newStaff.name?.trim() || !newStaff.phone?.trim()) return
                         await fetch(`${API_BASE}/api/admin/events/${eventId}/table-staff`, {
                           method: 'POST',
                           headers: { ...authHeaders(), 'Content-Type': 'application/json' },
-                          body: JSON.stringify({ ...newStaff, tables_assigned: tablesArr }),
+                          body: JSON.stringify({
+                            name: `${newStaff.name} ${newStaff.last_name}`.trim(),
+                            phone: newStaff.phone,
+                            role: 'waitress',
+                            tables_assigned: newStaff.tables_assigned,
+                            wa_notifications: newStaff.wa_notifications,
+                          }),
                         })
                         setNewStaff({
                           name: '',
+                          last_name: '',
                           phone: '',
-                          role: 'waitress',
-                          tables_assigned: '',
+                          tables_assigned: [],
+                          save_to_venue: true,
+                          save_to_event: true,
                           wa_notifications: true,
                         })
-                        setStaffErrors({})
                         loadData()
-                        toast.success('איש צוות נוסף!')
+                        toast.success('מלצרית נוספה ✓')
                       }}
                       style={{
                         width: '100%',
-                        height: 40,
+                        minHeight: 44,
                         borderRadius: 8,
                         border: 'none',
                         background: '#00C37A',
