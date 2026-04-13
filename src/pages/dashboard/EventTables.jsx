@@ -230,7 +230,7 @@ function coerceOptimisticLocal(field, rawVal) {
 }
 
 function TableEditDetails({
-  order, availableTables, staffList, promoters, authHeaders, eventId, businessId, onUpdate, onOpenStaffTab, loadData,
+  order, availableTables, staffList, promoters, authHeaders, eventId, businessId, editModalOpenId, onUpdate, onOpenStaffTab, loadData,
 }) {
   const [form, setForm] = useState({
     table_number: order.table_number != null ? String(order.table_number) : '',
@@ -263,7 +263,8 @@ function TableEditDetails({
   const [templateTables, setTemplateTables] = useState([])
 
   useEffect(() => {
-    fetch(`${API_BASE}/api/admin/business/${businessId}/templates?type=tables`, {
+    if (!businessId) return
+    fetch(`${API_BASE}/api/admin/business/${businessId}/templates`, {
       headers: authHeaders(),
     })
       .then((r) => r.json())
@@ -272,10 +273,12 @@ function TableEditDetails({
           t.template_type === 'tables' && (t.is_default || t.is_system)
         )
         const tables = template?.template_data?.tables || []
+        const names = template?.template_data?.table_names || ['VIP', 'בר', 'רגיל', 'DJ Booth']
         setTemplateTables(tables)
+        setTableNameOptions(names)
       })
       .catch(() => {})
-  }, [businessId])
+  }, [businessId, editModalOpenId])
 
   const save = async () => {
     setSaving(true)
@@ -2823,6 +2826,7 @@ export default function EventTables({
                   authHeaders={authHeaders}
                   eventId={eventId}
                   businessId={businessId}
+                  editModalOpenId={tableEditModal?.id}
                   loadData={loadData}
                   onUpdate={(updated) => {
                     if (updated?.__deleted) {
