@@ -811,6 +811,13 @@ function TableEditGuests({ order, authHeaders, eventId, onUpdate }) {
 
   const [localGuests, setLocalGuests] = useState(guests)
   const [saving, setSaving] = useState(false)
+  const [editingHost, setEditingHost] = useState(false)
+  const [hostForm, setHostForm] = useState({
+    customer_name: order.customer_name || '',
+    customer_last_name: order.customer_last_name || '',
+    customer_phone: order.customer_phone || '',
+    customer_email: order.customer_email || '',
+  })
 
   const save = async () => {
     setSaving(true)
@@ -844,41 +851,121 @@ function TableEditGuests({ order, authHeaders, eventId, onUpdate }) {
       <div style={{
         background: 'rgba(0,195,122,0.08)',
         border: '1px solid rgba(0,195,122,0.2)',
-        borderRadius: 12, padding: '16px',
+        borderRadius: 12, padding: '16px', marginBottom: 12,
       }}
       >
-        <p style={{ margin: '0 0 12px', fontSize: 13, fontWeight: 700, color: '#00C37A' }}>
-          👑 ראש שולחן
-        </p>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <button
-            type="button"
-            onClick={() => sendQR(order.customer_phone, order.customer_name)}
-            style={{
-              padding: '6px 12px', borderRadius: 8, fontSize: 12,
-              background: 'rgba(0,195,122,0.1)', border: '1px solid rgba(0,195,122,0.3)',
-              color: '#00C37A', cursor: 'pointer', WebkitTapHighlightColor: 'transparent',
-            }}
-          >
-            📱 שלח QR
-          </button>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button
+              type="button"
+              onClick={() => sendQR(order.customer_phone, order.customer_name)}
+              style={{
+                padding: '6px 10px', borderRadius: 8, fontSize: 11,
+                background: 'rgba(0,195,122,0.1)', border: '1px solid rgba(0,195,122,0.3)',
+                color: '#00C37A', cursor: 'pointer',
+              }}
+            >
+              📱 QR
+            </button>
+            <button
+              type="button"
+              onClick={() => setEditingHost((e) => !e)}
+              style={{
+                padding: '6px 10px', borderRadius: 8, fontSize: 11,
+                background: editingHost ? 'rgba(0,195,122,0.15)' : 'var(--glass)',
+                border: '1px solid var(--glass-border)',
+                color: editingHost ? '#00C37A' : 'var(--v2-gray-400)',
+                cursor: 'pointer',
+              }}
+            >
+              {editingHost ? 'סגור' : 'ערוך'}
+            </button>
+          </div>
+          <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: '#00C37A' }}>👑 ראש שולחן</p>
+        </div>
+
+        {editingHost ? (
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+            {[
+              { field: 'customer_name', placeholder: 'שם פרטי' },
+              { field: 'customer_last_name', placeholder: 'שם משפחה' },
+              { field: 'customer_phone', placeholder: 'טלפון' },
+              { field: 'customer_email', placeholder: 'מייל' },
+            ].map(({ field, placeholder }) => (
+              <input
+                key={field}
+                value={hostForm[field]}
+                onChange={(e) => setHostForm((f) => ({ ...f, [field]: e.target.value }))}
+                placeholder={placeholder}
+                style={{
+                  padding: '10px 12px', borderRadius: 8,
+                  background: 'var(--card)', border: '1px solid var(--glass-border)',
+                  color: 'var(--text)', fontSize: 14, textAlign: 'right',
+                  boxSizing: 'border-box', width: '100%', minHeight: 44,
+                }}
+              />
+            ))}
+            <button
+              type="button"
+              onClick={async () => {
+                try {
+                  const res = await fetch(
+                    `${API_BASE}/api/admin/events/${eventId}/table-orders/${order.id}`,
+                    {
+                      method: 'PATCH',
+                      headers: authHeaders(),
+                      body: JSON.stringify(hostForm),
+                    },
+                  )
+                  if (res.ok) {
+                    toast.success('פרטי ראש שולחן נשמרו ✓')
+                    onUpdate(hostForm)
+                    setEditingHost(false)
+                  } else toast.error('שגיאה בשמירה')
+                } catch {
+                  toast.error('שגיאה')
+                }
+              }}
+              style={{
+                gridColumn: '1 / -1', minHeight: 44, borderRadius: 10,
+                background: '#00C37A', border: 'none',
+                color: '#000', fontSize: 14, fontWeight: 700, cursor: 'pointer',
+              }}
+            >
+              שמור פרטי ראש שולחן
+            </button>
+          </div>
+        ) : (
           <div style={{ textAlign: 'right' }}>
-            <p style={{ margin: 0, fontWeight: 700 }}>
+            <p style={{ margin: '0 0 2px', fontSize: 15, fontWeight: 700 }}>
               {order.customer_name}
               {' '}
               {order.customer_last_name || ''}
             </p>
-            <p style={{ margin: '2px 0 0', fontSize: 13, color: 'var(--v2-gray-400)' }}>{order.customer_phone}</p>
+            {order.customer_phone && (
+              <p style={{ margin: '0 0 2px', fontSize: 13, color: 'var(--v2-gray-400)' }}>
+                📱
+                {' '}
+                {order.customer_phone}
+              </p>
+            )}
+            {order.customer_email && (
+              <p style={{ margin: 0, fontSize: 13, color: 'var(--v2-gray-400)' }}>
+                ✉️
+                {' '}
+                {order.customer_email}
+              </p>
+            )}
             <span style={{
-              display: 'inline-block', marginTop: 4,
-              padding: '2px 8px', borderRadius: 20, fontSize: 11,
+              display: 'inline-block', marginTop: 6,
+              padding: '2px 10px', borderRadius: 20, fontSize: 11,
               background: 'rgba(0,195,122,0.15)', color: '#00C37A',
             }}
             >
               חינם
             </span>
           </div>
-        </div>
+        )}
       </div>
 
       {localGuests.map((g, i) => (
