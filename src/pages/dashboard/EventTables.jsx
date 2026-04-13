@@ -583,10 +583,10 @@ function TableEditDetails({
             }
             setForm((f) => ({ ...f, promoter_name: v }))
           }}
-          placeholder="בחר יחצ\"ן..."
+          placeholder="בחר יחצן..."
           options={[
             ...(promoters || []).map((p) => ({ value: p.name, label: p.name })),
-            { value: '__new__', label: '+ הוסף יחצ"ן חדש' },
+            { value: '__new__', label: '+ הוסף יחצן חדש' },
           ]}
           menuStyle={{ maxHeight: 220, overflowY: 'auto' }}
         />
