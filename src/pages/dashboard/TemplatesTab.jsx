@@ -574,7 +574,7 @@ export default function TemplatesTab({ eventId, businessId, authHeaders }) {
 function TemplateContent({ type, data, onUpdate, eventId, businessId, authHeaders, requestConfirm, eventSlug }) {
   if (type === 'staff') return <StaffTemplate data={data} onUpdate={onUpdate} eventId={eventId} businessId={businessId} authHeaders={authHeaders} requestConfirm={requestConfirm} />
   if (type === 'menu') return <MenuTemplate data={data} onUpdate={onUpdate} eventId={eventId} businessId={businessId} authHeaders={authHeaders} requestConfirm={requestConfirm} />
-  if (type === 'tables') return <TablesTemplate data={data} onUpdate={onUpdate} />
+  if (type === 'tables') return <TablesTemplate data={data} onUpdate={onUpdate} businessId={businessId} authHeaders={authHeaders} />
   if (type === 'promoters') return <PromotersTemplate key="promoters" data={data} onUpdate={onUpdate} businessId={businessId} authHeaders={authHeaders} eventSlug={eventSlug} />
   if (type === 'vendors') return <VendorsTemplate data={data} onUpdate={onUpdate} eventId={eventId} businessId={businessId} authHeaders={authHeaders} />
   if (type === 'expenses') return <ExpensesTemplate data={data} onUpdate={onUpdate} eventId={eventId} businessId={businessId} authHeaders={authHeaders} requestConfirm={requestConfirm} />
@@ -1327,82 +1327,206 @@ function MenuTemplate({ data, onUpdate, eventId, businessId, authHeaders, reques
   )
 }
 
-function TablesTemplate({ data, onUpdate }) {
-  const [freeRule, setFreeRule] = useState(data?.free_rule || { people: 3, per_liter: 1, price_threshold: 1000, below_threshold_people: 2 })
-  const [series, setSeries] = useState(data?.series || ['100-110', '200-210', '300-310', '400-410'])
-  const [tableTypes, setTableTypes] = useState(data?.table_types || ['VIP', 'רגיל', 'DJ Booth', 'בר'])
-  const [newSeries, setNewSeries] = useState('')
-  const [newType, setNewType] = useState('')
+function TablesTemplate({ data, onUpdate, businessId, authHeaders }) {
+  const [templateData, setTemplateData] = useState({
+    table_names: data?.table_names || ['VIP', 'בר', 'רגיל'],
+    table_series: data?.table_series || ['100-110', '200-210', '300-310', '400-410', '500-510'],
+    tables: data?.tables || [],
+  })
 
   useEffect(() => {
-    setFreeRule(data?.free_rule || { people: 3, per_liter: 1, price_threshold: 1000, below_threshold_people: 2 })
-    setSeries(data?.series || ['100-110', '200-210', '300-310', '400-410'])
-    setTableTypes(data?.table_types || ['VIP', 'רגיל', 'DJ Booth', 'בר'])
+    setTemplateData({
+      table_names: data?.table_names || ['VIP', 'בר', 'רגיל'],
+      table_series: data?.table_series || ['100-110', '200-210', '300-310', '400-410', '500-510'],
+      tables: data?.tables || [],
+    })
   }, [data])
 
-  const save = () => onUpdate({ free_rule: freeRule, series, table_types: tableTypes })
+  useEffect(() => {
+    if (!businessId) return
+    fetch(`${API_BASE}/api/admin/business/${businessId}/templates`, { headers: authHeaders() })
+      .then((r) => r.json())
+      .then((payload) => {
+        const templates = payload.templates || []
+        const tablesTemplate = templates.find((t) => t.template_type === 'tables' && (t.is_default || t.is_system))
+        if (tablesTemplate) {
+          setTemplateData({
+            table_names: tablesTemplate.template_data?.table_names || ['VIP', 'בר', 'רגיל'],
+            table_series: tablesTemplate.template_data?.table_series || ['100-110', '200-210', '300-310', '400-410', '500-510'],
+            tables: tablesTemplate.template_data?.tables || [],
+          })
+        }
+      })
+      .catch(() => {})
+  }, [businessId, authHeaders])
+
+  const saveTablesTemplate = async () => {
+    const tables = []
+    for (const series of (templateData.table_series || [])) {
+      const match = series.match(/^(\d+)-(\d+)$/)
+      if (match) {
+        const start = Number(match[1])
+        const end = Number(match[2])
+        for (let i = start; i <= end; i++) {
+          tables.push({
+            table_number: String(i),
+            table_name: '',
+            capacity: 6,
+            min_spend: 0,
+            status: 'available',
+          })
+        }
+      }
+    }
+
+    const res = await fetch(
+      `${API_BASE}/api/admin/business/${businessId}/templates`,
+      {
+        method: 'PATCH',
+        headers: authHeaders(),
+        body: JSON.stringify({
+          template_type: 'tables',
+          template_data: {
+            table_names: templateData.table_names || [],
+            table_series: templateData.table_series || [],
+            tables,
+          },
+        }),
+      }
+    )
+    if (res.ok) {
+      onUpdate({
+        table_names: templateData.table_names || [],
+        table_series: templateData.table_series || [],
+        tables,
+      })
+      toast.success('תבנית שולחנות נשמרה ✓')
+    } else toast.error('שגיאה בשמירה')
+  }
 
   return (
     <div>
-      <div style={{ background: 'var(--glass)', borderRadius: 10, padding: 14, marginBottom: 12 }}>
-        <p style={{ margin: '0 0 10px', fontSize: 13, fontWeight: 700 }}>כלל חינם לליטר/בקבוק</p>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-          <div>
-            <label style={{ fontSize: 11, color: 'var(--v2-gray-400)', display: 'block', marginBottom: 4 }}>
-              אנשים חינם (בקבוק מעל ₪
-              {freeRule.price_threshold}
-              )
-            </label>
-            <input value={freeRule.people} onChange={(e) => setFreeRule((f) => ({ ...f, people: parseInt(e.target.value, 10) || 3 }))} type="number" style={{ width: '100%', height: 36, borderRadius: 6, border: '1px solid var(--glass-border)', background: 'var(--card)', color: 'var(--text)', padding: '0 8px', fontSize: 13, boxSizing: 'border-box' }} />
-          </div>
-          <div>
-            <label style={{ fontSize: 11, color: 'var(--v2-gray-400)', display: 'block', marginBottom: 4 }}>אנשים חינם (מתחת לסף)</label>
-            <input value={freeRule.below_threshold_people} onChange={(e) => setFreeRule((f) => ({ ...f, below_threshold_people: parseInt(e.target.value, 10) || 2 }))} type="number" style={{ width: '100%', height: 36, borderRadius: 6, border: '1px solid var(--glass-border)', background: 'var(--card)', color: 'var(--text)', padding: '0 8px', fontSize: 13, boxSizing: 'border-box' }} />
-          </div>
-          <div>
-            <label style={{ fontSize: 11, color: 'var(--v2-gray-400)', display: 'block', marginBottom: 4 }}>סף מחיר (₪)</label>
-            <input value={freeRule.price_threshold} onChange={(e) => setFreeRule((f) => ({ ...f, price_threshold: parseInt(e.target.value, 10) || 1000 }))} type="number" style={{ width: '100%', height: 36, borderRadius: 6, border: '1px solid var(--glass-border)', background: 'var(--card)', color: 'var(--text)', padding: '0 8px', fontSize: 13, boxSizing: 'border-box' }} />
-          </div>
-          <div>
-            <label style={{ fontSize: 11, color: 'var(--v2-gray-400)', display: 'block', marginBottom: 4 }}>תוספות לליטר</label>
-            <input value={freeRule.per_liter} onChange={(e) => setFreeRule((f) => ({ ...f, per_liter: parseInt(e.target.value, 10) || 1 }))} type="number" style={{ width: '100%', height: 36, borderRadius: 6, border: '1px solid var(--glass-border)', background: 'var(--card)', color: 'var(--text)', padding: '0 8px', fontSize: 13, boxSizing: 'border-box' }} />
-          </div>
-        </div>
-      </div>
-
-      <div style={{ background: 'var(--glass)', borderRadius: 10, padding: 14, marginBottom: 12 }}>
-        <p style={{ margin: '0 0 8px', fontSize: 13, fontWeight: 700 }}>סוגי/שמות שולחן</p>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 8 }}>
-          {tableTypes.map((ty, i) => (
-            <span key={i} style={{ background: 'rgba(0,195,122,0.1)', color: '#00C37A', padding: '4px 10px', borderRadius: 20, fontSize: 12, display: 'flex', alignItems: 'center', gap: 4 }}>
-              {ty}
-              <button type="button" onClick={() => { const u = tableTypes.filter((_, idx) => idx !== i); setTableTypes(u); onUpdate({ ...data, table_types: u }) }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(0,195,122,0.5)', fontSize: 14, padding: 0 }}>×</button>
+      <div style={{ marginBottom: 24 }}>
+        <h3 style={{ fontSize: 15, fontWeight: 700, textAlign: 'right', marginBottom: 12 }}>
+          סוגי/שמות שולחן
+        </h3>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 10 }}>
+          {(templateData.table_names || ['VIP', 'בר', 'רגיל', 'DJ Booth']).map((name) => (
+            <span key={name} style={{
+              padding: '6px 14px', borderRadius: 20, fontSize: 13,
+              background: 'rgba(0,195,122,0.1)', border: '1px solid rgba(0,195,122,0.3)',
+              color: '#00C37A', display: 'flex', alignItems: 'center', gap: 6,
+            }}
+            >
+              {name}
+              <button
+                type="button"
+                onClick={() => setTemplateData((d) => ({
+                  ...d,
+                  table_names: (d.table_names || []).filter((n) => n !== name),
+                }))}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#00C37A', fontSize: 14, padding: 0 }}
+              >
+                ✕
+              </button>
             </span>
           ))}
         </div>
-        <div style={{ display: 'flex', gap: 6 }}>
-          <input value={newType} onChange={(e) => setNewType(e.target.value)} placeholder="הוסף סוג שולחן..." style={{ flex: 1, height: 32, borderRadius: 6, border: '1px solid var(--glass-border)', background: 'var(--card)', color: 'var(--text)', padding: '0 8px', fontSize: 12 }} />
-          <button type="button" onClick={() => { if (!newType.trim()) return; const u = [...tableTypes, newType.trim()]; setTableTypes(u); setNewType(''); onUpdate({ ...data, table_types: u }) }} style={{ height: 32, padding: '0 12px', borderRadius: 6, border: 'none', background: '#00C37A', color: '#000', fontWeight: 700, cursor: 'pointer' }}>+</button>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button
+            type="button"
+            onClick={() => {
+              const input = document.getElementById('new-table-name-input')
+              if (!input?.value.trim()) return
+              setTemplateData((d) => ({
+                ...d,
+                table_names: [...(d.table_names || []), input.value.trim()],
+              }))
+              input.value = ''
+            }}
+            style={{
+              minHeight: 44, padding: '0 16px', borderRadius: 10,
+              background: '#00C37A', border: 'none', color: '#000',
+              fontSize: 14, fontWeight: 700, cursor: 'pointer',
+            }}
+          >
+            +
+          </button>
+          <input
+            id="new-table-name-input"
+            placeholder="הוסף סוג שולחן..."
+            style={{
+              flex: 1, minHeight: 44, padding: '10px 16px', borderRadius: 10,
+              background: 'var(--glass)', border: '1px solid var(--glass-border)',
+              color: 'var(--text)', fontSize: 16, textAlign: 'right', boxSizing: 'border-box',
+            }}
+          />
         </div>
       </div>
 
-      <div style={{ background: 'var(--glass)', borderRadius: 10, padding: 14, marginBottom: 12 }}>
-        <p style={{ margin: '0 0 8px', fontSize: 13, fontWeight: 700 }}>סדרות מספרי שולחן</p>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 8 }}>
-          {series.map((s, i) => (
-            <span key={i} style={{ background: 'rgba(59,130,246,0.1)', color: '#3B82F6', padding: '4px 10px', borderRadius: 20, fontSize: 12, display: 'flex', alignItems: 'center', gap: 4 }}>
-              {s}
-              <button type="button" onClick={() => { const u = series.filter((_, idx) => idx !== i); setSeries(u); onUpdate({ ...data, series: u }) }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(59,130,246,0.5)', fontSize: 14, padding: 0 }}>×</button>
+      <div style={{ marginBottom: 24 }}>
+        <h3 style={{ fontSize: 15, fontWeight: 700, textAlign: 'right', marginBottom: 12 }}>
+          סדרות מספרי שולחן
+        </h3>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 10 }}>
+          {(templateData.table_series || []).map((series) => (
+            <span key={series} style={{
+              padding: '6px 14px', borderRadius: 20, fontSize: 13,
+              background: 'rgba(59,130,246,0.1)', border: '1px solid rgba(59,130,246,0.3)',
+              color: '#3B82F6', display: 'flex', alignItems: 'center', gap: 6,
+            }}
+            >
+              {series}
+              <button
+                type="button"
+                onClick={() => setTemplateData((d) => ({
+                  ...d,
+                  table_series: (d.table_series || []).filter((s) => s !== series),
+                }))}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#3B82F6', fontSize: 14, padding: 0 }}
+              >
+                ✕
+              </button>
             </span>
           ))}
         </div>
-        <div style={{ display: 'flex', gap: 6 }}>
-          <input value={newSeries} onChange={(e) => setNewSeries(e.target.value)} placeholder="למשל: 100-110" style={{ flex: 1, height: 32, borderRadius: 6, border: '1px solid var(--glass-border)', background: 'var(--card)', color: 'var(--text)', padding: '0 8px', fontSize: 12 }} />
-          <button type="button" onClick={() => { if (!newSeries.trim()) return; const u = [...series, newSeries.trim()]; setSeries(u); setNewSeries(''); onUpdate({ ...data, series: u }) }} style={{ height: 32, padding: '0 12px', borderRadius: 6, border: 'none', background: '#3B82F6', color: '#fff', fontWeight: 700, cursor: 'pointer' }}>+</button>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button
+            type="button"
+            onClick={() => {
+              const input = document.getElementById('new-series-input')
+              if (!input?.value.trim()) return
+              setTemplateData((d) => ({
+                ...d,
+                table_series: [...(d.table_series || []), input.value.trim()],
+              }))
+              input.value = ''
+            }}
+            style={{
+              minHeight: 44, padding: '0 16px', borderRadius: 10,
+              background: '#3B82F6', border: 'none', color: '#fff',
+              fontSize: 14, fontWeight: 700, cursor: 'pointer',
+            }}
+          >
+            +
+          </button>
+          <input
+            id="new-series-input"
+            placeholder="לדוגמה: 100-110"
+            style={{
+              flex: 1, minHeight: 44, padding: '10px 16px', borderRadius: 10,
+              background: 'var(--glass)', border: '1px solid var(--glass-border)',
+              color: 'var(--text)', fontSize: 16, textAlign: 'right', boxSizing: 'border-box',
+            }}
+          />
         </div>
       </div>
 
-      <button type="button" onClick={save} style={{ width: '100%', height: 40, borderRadius: 8, border: 'none', background: '#00C37A', color: '#000', fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>
+      <button
+        type="button"
+        onClick={saveTablesTemplate}
+        style={{ width: '100%', height: 40, borderRadius: 8, border: 'none', background: '#00C37A', color: '#000', fontWeight: 700, fontSize: 14, cursor: 'pointer' }}
+      >
         שמור הגדרות שולחנות
       </button>
     </div>
