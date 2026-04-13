@@ -230,7 +230,7 @@ function coerceOptimisticLocal(field, rawVal) {
 }
 
 function TableEditDetails({
-  order, availableTables, staffList, authHeaders, eventId, onUpdate, onOpenStaffTab,
+  order, availableTables, staffList, promoters, authHeaders, eventId, onUpdate, onOpenStaffTab, loadData,
 }) {
   const [form, setForm] = useState({
     table_number: order.table_number != null ? String(order.table_number) : '',
@@ -241,6 +241,25 @@ function TableEditDetails({
     promoter_commission_pct: order.promoter_commission_pct ?? 0,
   })
   const [saving, setSaving] = useState(false)
+  const [tableSearch, setTableSearch] = useState('')
+  const [tableNameOptions, setTableNameOptions] = useState([
+    'VIP', 'בר', 'טרס', 'מרכז', 'כניסה', 'פינה', 'גן', 'גג',
+  ])
+  const [newTableName, setNewTableName] = useState('')
+  const [showAddWaitress, setShowAddWaitress] = useState(false)
+  const [newWaitress, setNewWaitress] = useState({
+    name: '', last_name: '', phone: '', wa_phone: '',
+    tables_assigned: [],
+    save_to_venue: true, save_to_event: true, wa_notifications: false,
+  })
+  const [showAddPromoter, setShowAddPromoter] = useState(false)
+  const [newPromoter, setNewPromoter] = useState({
+    name: '', phone: '',
+    commission_type: 'percent',
+    commission_value: 0,
+    save_to_venue: true, save_to_event: true, wa_notifications: false,
+  })
+  const [confirmDeleteTable, setConfirmDeleteTable] = useState(false)
 
   const tablesByArea = (availableTables || []).reduce((acc, t) => {
     const area = t.table_number ? `אזור ${String(t.table_number).charAt(0)}00` : 'כללי'
@@ -248,6 +267,9 @@ function TableEditDetails({
     acc[area].push(t)
     return acc
   }, {})
+  const filteredTables = (availableTables || []).filter((t) => (
+    !tableSearch || String(t.table_number || '').includes(tableSearch)
+  ))
 
   const save = async () => {
     setSaving(true)
@@ -331,9 +353,9 @@ function TableEditDetails({
 
       <div style={{ marginBottom: 16 }}>
         <label style={{ fontSize: 12, color: 'var(--v2-gray-400)', display: 'block', marginBottom: 6, textAlign: 'right' }}>
-          מספר שולחן
+          הקצאת מספר שולחן
         </label>
-        <div style={{ display: 'flex', gap: 8 }}>
+        <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
           <input
             value={form.table_number}
             onChange={(e) => setForm((f) => ({ ...f, table_number: e.target.value }))}
@@ -341,20 +363,47 @@ function TableEditDetails({
             style={{
               flex: 1, minHeight: 48, padding: '12px 16px', borderRadius: 10,
               background: 'var(--glass)', border: '1px solid var(--glass-border)',
-              color: 'var(--text)', fontSize: 15, textAlign: 'right', boxSizing: 'border-box',
+              color: 'var(--text)', fontSize: 16, textAlign: 'right', boxSizing: 'border-box',
+            }}
+          />
+          <input
+            value={tableSearch}
+            onChange={(e) => setTableSearch(e.target.value)}
+            placeholder="חפש..."
+            style={{
+              width: 110, minHeight: 48, padding: '12px 10px', borderRadius: 10,
+              background: 'var(--glass)', border: '1px solid var(--glass-border)',
+              color: 'var(--text)', fontSize: 16, textAlign: 'right', boxSizing: 'border-box',
             }}
           />
           <CustomSelect
             value={form.table_number}
             onChange={(v) => setForm((f) => ({ ...f, table_number: v }))}
-            placeholder="בחר..."
-            options={(availableTables || []).map((t) => ({
+            placeholder="בחר מרשימה..."
+            searchable
+            options={filteredTables.map((t) => ({
               value: String(t.table_number),
-              label: `${t.table_number}${t.table_name ? ` — ${t.table_name}` : ''}`,
+              label: `${t.table_number}${t.table_name ? ` — ${t.table_name}` : ''}${t.status === 'occupied' ? ' ✗' : ''}`,
+              disabled: t.status === 'occupied',
             }))}
-            style={{ width: 140 }}
+            style={{ width: 160, minHeight: 48 }}
+            menuStyle={{ maxHeight: 220, overflowY: 'auto' }}
           />
         </div>
+        {form.table_number && (
+          <div style={{
+            padding: '10px 16px', borderRadius: 10,
+            background: 'rgba(0,195,122,0.08)', border: '1px solid rgba(0,195,122,0.2)',
+            fontSize: 14, fontWeight: 700, color: '#00C37A', textAlign: 'right',
+          }}
+          >
+            שולחן
+            {' '}
+            {form.table_number}
+            {' '}
+            נבחר ✓
+          </div>
+        )}
       </div>
 
       <div>
@@ -363,16 +412,46 @@ function TableEditDetails({
         </label>
         <CustomSelect
           value={form.table_name}
-          onChange={(v) => setForm((f) => ({ ...f, table_name: v }))}
+          onChange={(v) => {
+            if (v === '__add__') return
+            setForm((f) => ({ ...f, table_name: v }))
+          }}
           placeholder="שם/סוג שולחן..."
+          searchable
           options={[
-            { value: 'VIP', label: 'VIP' },
-            { value: 'בר', label: 'בר' },
-            { value: 'טרס', label: 'טרס' },
-            { value: 'מרכז', label: 'מרכז' },
-            { value: 'כניסה', label: 'כניסה' },
+            ...tableNameOptions.map((n) => ({ value: n, label: n })),
+            { value: '__add__', label: '+ הוסף חדש' },
           ]}
+          menuStyle={{ maxHeight: 220, overflowY: 'auto' }}
         />
+        <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+          <button
+            type="button"
+            onClick={() => {
+              if (!newTableName.trim()) return
+              setTableNameOptions((prev) => [...prev, newTableName.trim()])
+              setForm((f) => ({ ...f, table_name: newTableName.trim() }))
+              setNewTableName('')
+            }}
+            style={{
+              minHeight: 48,
+              padding: '8px 16px', borderRadius: 8, background: '#00C37A',
+              border: 'none', color: '#000', fontSize: 13, fontWeight: 700, cursor: 'pointer',
+            }}
+          >
+            הוסף
+          </button>
+          <input
+            value={newTableName}
+            onChange={(e) => setNewTableName(e.target.value)}
+            placeholder="שם חדש..."
+            style={{
+              flex: 1, minHeight: 48, padding: '8px 12px', borderRadius: 8,
+              background: 'var(--glass)', border: '1px solid var(--glass-border)',
+              color: 'var(--text)', fontSize: 16, textAlign: 'right',
+            }}
+          />
+        </div>
       </div>
 
       <div>
@@ -383,7 +462,7 @@ function TableEditDetails({
           value={form.waitress_name}
           onChange={(v) => {
             if (v === '__new__') {
-              onOpenStaffTab?.()
+              setShowAddWaitress(true)
               return
             }
             setForm((f) => ({ ...f, waitress_name: v }))
@@ -393,30 +472,253 @@ function TableEditDetails({
             ...(staffList || []).filter((s) => s.role === 'waitress').map((s) => ({ value: s.name, label: s.name })),
             { value: '__new__', label: '+ הוסף מלצרית חדשה' },
           ]}
+          menuStyle={{ maxHeight: 220, overflowY: 'auto' }}
         />
+        {showAddWaitress && (
+          <div style={{
+            marginTop: 12, padding: 16, borderRadius: 12,
+            background: 'var(--glass)', border: '1px solid var(--glass-border)',
+          }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+              <button
+                type="button"
+                onClick={() => setShowAddWaitress(false)}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--v2-gray-400)', fontSize: 16 }}
+              >
+                ✕
+              </button>
+              <p style={{ margin: 0, fontSize: 14, fontWeight: 700 }}>הוספת מלצרית</p>
+            </div>
+            {[
+              { field: 'name', placeholder: 'שם פרטי' },
+              { field: 'last_name', placeholder: 'שם משפחה' },
+              { field: 'phone', placeholder: 'מספר נייד' },
+              { field: 'wa_phone', placeholder: 'WhatsApp (אם שונה)' },
+            ].map(({ field, placeholder }) => (
+              <input
+                key={field}
+                value={newWaitress[field]}
+                onChange={(e) => setNewWaitress((w) => ({ ...w, [field]: e.target.value }))}
+                placeholder={placeholder}
+                style={{
+                  width: '100%', minHeight: 48, padding: '10px 14px', borderRadius: 8, marginBottom: 8,
+                  background: 'var(--card)', border: '1px solid var(--glass-border)',
+                  color: 'var(--text)', fontSize: 16, textAlign: 'right', boxSizing: 'border-box',
+                }}
+              />
+            ))}
+            {[
+              { field: 'save_to_venue', label: 'שמור לצוות המקום' },
+              { field: 'save_to_event', label: 'שמור לאירוע זה בלבד' },
+              { field: 'wa_notifications', label: 'קבל התראות WhatsApp' },
+            ].map(({ field, label }) => (
+              <label key={field} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, justifyContent: 'flex-end', cursor: 'pointer' }}>
+                <span style={{ fontSize: 13 }}>{label}</span>
+                <input
+                  type="checkbox"
+                  checked={newWaitress[field]}
+                  onChange={(e) => setNewWaitress((w) => ({ ...w, [field]: e.target.checked }))}
+                  style={{ width: 16, height: 16, accentColor: '#00C37A' }}
+                />
+              </label>
+            ))}
+            <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+              <button
+                type="button"
+                onClick={async () => {
+                  if (!newWaitress.name) return
+                  try {
+                    await fetch(`${API_BASE}/api/admin/events/${eventId}/table-staff`, {
+                      method: 'POST',
+                      headers: authHeaders(),
+                      body: JSON.stringify({
+                        name: `${newWaitress.name} ${newWaitress.last_name}`.trim(),
+                        phone: newWaitress.phone,
+                        role: 'waitress',
+                        wa_notifications: newWaitress.wa_notifications,
+                        tables_assigned: [],
+                      }),
+                    })
+                    setForm((f) => ({ ...f, waitress_name: `${newWaitress.name} ${newWaitress.last_name}`.trim() }))
+                    setShowAddWaitress(false)
+                    toast.success('מלצרית נוספה ✓')
+                    await loadData?.()
+                  } catch {
+                    toast.error('שגיאה')
+                  }
+                }}
+                style={{
+                  flex: 1, minHeight: 48, borderRadius: 10, background: '#00C37A',
+                  border: 'none', color: '#000', fontSize: 14, fontWeight: 700, cursor: 'pointer',
+                }}
+              >
+                שמור מלצרית
+              </button>
+            </div>
+            <button
+              type="button"
+              onClick={() => { setShowAddWaitress(false); onOpenStaffTab?.() }}
+              style={{
+                width: '100%', minHeight: 48, marginTop: 8, padding: '8px 0', background: 'none',
+                border: 'none', color: '#00C37A', fontSize: 12, cursor: 'pointer', textDecoration: 'underline',
+              }}
+            >
+              לניהול צוות מלא ←
+            </button>
+          </div>
+        )}
       </div>
 
-      {[
-        { field: 'promoter_name', label: 'יחצ"ן', placeholder: 'שם היחצ"ן' },
-      ].map(({ field, label, placeholder }) => (
-        <div key={field}>
-          <label style={{ fontSize: 12, color: 'var(--v2-gray-400)', display: 'block', marginBottom: 6, textAlign: 'right' }}>
-            {label}
-          </label>
-          <input
-            value={form[field]}
-            onChange={(e) => setForm((f) => ({ ...f, [field]: e.target.value }))}
-            placeholder={placeholder}
-            style={{
-              width: '100%', minHeight: 48, padding: '12px 16px',
-              borderRadius: 10, background: 'var(--glass)',
-              border: '1px solid var(--glass-border)',
-              color: 'var(--text)', fontSize: 16, textAlign: 'right',
-              boxSizing: 'border-box',
-            }}
-          />
-        </div>
-      ))}
+      <div>
+        <label style={{ fontSize: 12, color: 'var(--v2-gray-400)', display: 'block', marginBottom: 6, textAlign: 'right' }}>
+          יחצ"ן
+        </label>
+        <CustomSelect
+          value={form.promoter_name}
+          onChange={(v) => {
+            if (v === '__new__') {
+              setShowAddPromoter(true)
+              return
+            }
+            setForm((f) => ({ ...f, promoter_name: v }))
+          }}
+          placeholder="בחר יחצ\"ן..."
+          options={[
+            ...(promoters || []).map((p) => ({ value: p.name, label: p.name })),
+            { value: '__new__', label: '+ הוסף יחצ"ן חדש' },
+          ]}
+          menuStyle={{ maxHeight: 220, overflowY: 'auto' }}
+        />
+        {showAddPromoter && (
+          <div style={{
+            marginTop: 12, padding: 16, borderRadius: 12,
+            background: 'var(--glass)', border: '1px solid var(--glass-border)',
+          }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
+              <button
+                type="button"
+                onClick={() => setShowAddPromoter(false)}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--v2-gray-400)' }}
+              >
+                ✕
+              </button>
+              <p style={{ margin: 0, fontSize: 14, fontWeight: 700 }}>הוספת יחצ"ן</p>
+            </div>
+            {[
+              { field: 'name', placeholder: 'שם מלא' },
+              { field: 'phone', placeholder: 'טלפון' },
+            ].map(({ field, placeholder }) => (
+              <input
+                key={field}
+                value={newPromoter[field]}
+                onChange={(e) => setNewPromoter((p) => ({ ...p, [field]: e.target.value }))}
+                placeholder={placeholder}
+                style={{
+                  width: '100%', minHeight: 48, padding: '10px 14px', borderRadius: 8, marginBottom: 8,
+                  background: 'var(--card)', border: '1px solid var(--glass-border)',
+                  color: 'var(--text)', fontSize: 16, textAlign: 'right', boxSizing: 'border-box',
+                }}
+              />
+            ))}
+            <div style={{ marginBottom: 8 }}>
+              <p style={{ margin: '0 0 6px', fontSize: 12, color: 'var(--v2-gray-400)', textAlign: 'right' }}>סוג עמלה</p>
+              <div style={{ display: 'flex', gap: 8 }}>
+                {[
+                  { value: 'percent', label: '% מהכרטיס' },
+                  { value: 'fixed', label: 'סכום קבוע לכרטיס' },
+                ].map((opt) => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => setNewPromoter((p) => ({ ...p, commission_type: opt.value }))}
+                    style={{
+                      flex: 1, minHeight: 48, padding: '8px 12px', borderRadius: 8, fontSize: 13,
+                      background: newPromoter.commission_type === opt.value ? 'rgba(0,195,122,0.1)' : 'var(--glass)',
+                      border: `1px solid ${newPromoter.commission_type === opt.value ? 'rgba(0,195,122,0.3)' : 'var(--glass-border)'}`,
+                      color: newPromoter.commission_type === opt.value ? '#00C37A' : 'var(--text)',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <input
+              type="number"
+              value={newPromoter.commission_value}
+              onChange={(e) => setNewPromoter((p) => ({ ...p, commission_value: Number(e.target.value) }))}
+              placeholder={newPromoter.commission_type === 'percent' ? 'אחוז עמלה (%)' : 'סכום עמלה (₪)'}
+              style={{
+                width: '100%', minHeight: 48, padding: '10px 14px', borderRadius: 8, marginBottom: 8,
+                background: 'var(--card)', border: '1px solid var(--glass-border)',
+                color: 'var(--text)', fontSize: 16, textAlign: 'right', boxSizing: 'border-box',
+              }}
+            />
+            {[
+              { field: 'save_to_venue', label: 'שמור לצוות המקום' },
+              { field: 'save_to_event', label: 'שמור לאירוע זה בלבד' },
+              { field: 'wa_notifications', label: 'קבל התראות WhatsApp' },
+            ].map(({ field, label }) => (
+              <label key={field} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, justifyContent: 'flex-end', cursor: 'pointer' }}>
+                <span style={{ fontSize: 13 }}>{label}</span>
+                <input
+                  type="checkbox"
+                  checked={newPromoter[field]}
+                  onChange={(e) => setNewPromoter((p) => ({ ...p, [field]: e.target.checked }))}
+                  style={{ width: 16, height: 16, accentColor: '#00C37A' }}
+                />
+              </label>
+            ))}
+            <button
+              type="button"
+              onClick={async () => {
+                if (!newPromoter.name || !newPromoter.phone) return
+                try {
+                  const createRes = await fetch(`${API_BASE}/api/admin/promoters`, {
+                    method: 'POST',
+                    headers: authHeaders(),
+                    body: JSON.stringify({
+                      business_id: order.business_id,
+                      name: newPromoter.name,
+                      first_name: newPromoter.name.split(' ')[0] || newPromoter.name,
+                      last_name: newPromoter.name.split(' ').slice(1).join(' ') || null,
+                      phone: newPromoter.phone,
+                    }),
+                  })
+                  const created = await createRes.json()
+                  if (!createRes.ok || !created?.id) throw new Error('create_failed')
+                  if (newPromoter.save_to_event) {
+                    await fetch(`${API_BASE}/api/admin/events/${eventId}/promoters`, {
+                      method: 'POST',
+                      headers: authHeaders(),
+                      body: JSON.stringify({
+                        promoter_id: created.id,
+                        commission_type: newPromoter.commission_type === 'percent' ? 'pct' : 'fixed',
+                        commission_value: Number(newPromoter.commission_value) || 0,
+                      }),
+                    })
+                  }
+                  setForm((f) => ({ ...f, promoter_name: created.name || newPromoter.name }))
+                  setShowAddPromoter(false)
+                  toast.success('יחצ"ן נוסף ✓')
+                  await loadData?.()
+                } catch {
+                  toast.error('שגיאה')
+                }
+              }}
+              style={{
+                width: '100%', minHeight: 48, borderRadius: 10, background: '#00C37A',
+                border: 'none', color: '#000', fontSize: 14, fontWeight: 700, cursor: 'pointer', marginTop: 8,
+              }}
+            >
+              שמור יחצ"ן
+            </button>
+          </div>
+        )}
+      </div>
 
       <div>
         <label style={{ fontSize: 12, color: 'var(--v2-gray-400)', display: 'block', marginBottom: 6, textAlign: 'right' }}>
@@ -424,13 +726,24 @@ function TableEditDetails({
         </label>
         <CustomSelect
           value={form.status}
-          onChange={(v) => setForm((f) => ({ ...f, status: v }))}
+          onChange={async (v) => {
+            if (v === 'delete') {
+              setConfirmDeleteTable(true)
+              return
+            }
+            if (v === 'closed') {
+              toast('הסטטוס יסווג כהסתיים וייכלל בדוחות הכנסות')
+            }
+            setForm((f) => ({ ...f, status: v }))
+          }}
           options={[
-            { value: 'pending_approval', label: 'ממתין לאישור' },
-            { value: 'active', label: 'פעיל' },
-            { value: 'closed', label: 'סגור' },
-            { value: 'cancelled', label: 'מבוטל' },
+            { value: 'pending_approval', label: 'שולחן ממתין לאישור' },
+            { value: 'active', label: 'שולחן פעיל' },
+            { value: 'cancelled', label: 'שולחן מבוטל' },
+            { value: 'closed', label: 'שולחן הסתיים → העבר להכנסות' },
+            { value: 'delete', label: '🗑️ מחק שולחן מרשימה' },
           ]}
+          menuStyle={{ maxHeight: 220, overflowY: 'auto' }}
         />
       </div>
 
@@ -448,6 +761,25 @@ function TableEditDetails({
       >
         {saving ? 'שומר...' : 'שמור פרטים'}
       </button>
+      {confirmDeleteTable && (
+        <TableAssignConfirmModal
+          title="מחיקת שולחן"
+          message="מחיקת שולחן מהרשימה היא סופית. האם אתה בטוח?"
+          confirmText="מחק לצמיתות"
+          confirmColor="#EF4444"
+          onConfirm={async () => {
+            await fetch(`${API_BASE}/api/admin/events/${eventId}/table-orders/${order.id}`, {
+              method: 'DELETE',
+              headers: authHeaders(),
+            })
+            setConfirmDeleteTable(false)
+            onUpdate({ __deleted: true })
+            await loadData?.()
+            toast.success('השולחן נמחק')
+          }}
+          onCancel={() => setConfirmDeleteTable(false)}
+        />
+      )}
     </div>
   )
 }
@@ -1384,6 +1716,8 @@ export default function EventTables({
   const [tableEditModal, setTableEditModal] = useState(null)
   const [tableEditTab, setTableEditTab] = useState('details')
   const [allTables, setAllTables] = useState([])
+  const [promoters, setPromoters] = useState([])
+  const [staffSubTab, setStaffSubTab] = useState('all')
 
   useEffect(() => {
     if (!eventId) return
@@ -1473,16 +1807,18 @@ export default function EventTables({
     setLoading(true)
     try {
       const hdrs = authHeaders()
-      const [t, o, m, s] = await Promise.all([
+      const [t, o, m, s, p] = await Promise.all([
         fetch(`${API_BASE}/api/admin/events/${eventId}/tables`, { headers: hdrs }).then((r) => r.json()),
         fetch(`${API_BASE}/api/admin/events/${eventId}/table-orders`, { headers: hdrs }).then((r) => r.json()),
         fetch(`${API_BASE}/api/admin/events/${eventId}/table-menu`, { headers: hdrs }).then((r) => r.json()),
         fetch(`${API_BASE}/api/admin/events/${eventId}/table-staff`, { headers: hdrs }).then((r) => r.json()),
+        fetch(`${API_BASE}/api/admin/promoters?business_id=${businessId}`, { headers: hdrs }).then((r) => r.json()),
       ])
       setTables(t.tables || [])
       setTableOrders((o.orders || []).map(normalizeOrderItems))
       setMenuItems(m.menu || [])
       setStaffList(s.staff || [])
+      setPromoters(Array.isArray(p) ? p : [])
     } catch (e) {
       console.error(e)
       toast.error('טעינת נתוני שולחנות נכשלה')
@@ -2471,10 +2807,16 @@ export default function EventTables({
                   order={tableEditModal}
                   availableTables={allTables}
                   staffList={staffList}
+                  promoters={promoters}
                   onOpenStaffTab={() => setTableEditTab('staff')}
                   authHeaders={authHeaders}
                   eventId={eventId}
+                  loadData={loadData}
                   onUpdate={(updated) => {
+                    if (updated?.__deleted) {
+                      setTableEditModal(null)
+                      return
+                    }
                     setTableEditModal((prev) => (prev ? { ...prev, ...updated } : prev))
                     loadData()
                   }}
@@ -2541,8 +2883,43 @@ export default function EventTables({
               {tableEditTab === 'staff' && (
                 <div style={{ maxHeight: 'min(65vh, 520px)', overflowY: 'auto', WebkitOverflowScrolling: 'touch' }}>
                   <h3 style={{ margin: '0 0 20px', fontSize: 16, fontWeight: 700 }}>צוות האירוע</h3>
+                  <div style={{ display: 'flex', gap: 6, overflowX: 'auto', marginBottom: 16, WebkitOverflowScrolling: 'touch' }}>
+                    {[
+                      { id: 'all', label: 'כל הצוות' },
+                      { id: 'waitress', label: 'מלצרים' },
+                      { id: 'promoter', label: 'יחצ"נים' },
+                      { id: 'bar', label: 'בר' },
+                      { id: 'entrance', label: 'כניסות' },
+                      { id: 'scanner', label: 'סריקה' },
+                    ].map((tab) => (
+                      <button
+                        key={tab.id}
+                        type="button"
+                        onClick={() => setStaffSubTab(tab.id)}
+                        style={{
+                          minHeight: 48,
+                          padding: '6px 12px', borderRadius: 20, fontSize: 12, whiteSpace: 'nowrap',
+                          background: staffSubTab === tab.id ? 'rgba(0,195,122,0.1)' : 'var(--glass)',
+                          border: `1px solid ${staffSubTab === tab.id ? 'rgba(0,195,122,0.3)' : 'var(--glass-border)'}`,
+                          color: staffSubTab === tab.id ? '#00C37A' : 'var(--v2-gray-400)',
+                          cursor: 'pointer', fontWeight: staffSubTab === tab.id ? 700 : 400,
+                          WebkitTapHighlightColor: 'transparent',
+                        }}
+                      >
+                        {tab.label}
+                      </button>
+                    ))}
+                  </div>
 
-                  {staffList.map((member) => {
+                  {(staffSubTab === 'all'
+                    ? staffList
+                    : staffList.filter((s) => (
+                      s.role === staffSubTab
+                      || (staffSubTab === 'bar' && s.role === 'bar_manager')
+                      || (staffSubTab === 'entrance' && s.role === 'selector')
+                      || (staffSubTab === 'scanner' && s.role === 'scanner')
+                    )))
+                    .map((member) => {
                     const ta = tablesAssignedList(member.tables_assigned)
                     return (
                       <div
@@ -2716,7 +3093,14 @@ export default function EventTables({
                     )
                   })}
 
-                  {staffList.length === 0 && (
+                  {(staffSubTab === 'all'
+                    ? staffList.length === 0
+                    : staffList.filter((s) => (
+                      s.role === staffSubTab
+                      || (staffSubTab === 'bar' && s.role === 'bar_manager')
+                      || (staffSubTab === 'entrance' && s.role === 'selector')
+                      || (staffSubTab === 'scanner' && s.role === 'scanner')
+                    )).length === 0) && (
                     <div style={{ textAlign: 'center', padding: 20 }}>
                       <p style={{ color: 'var(--v2-gray-400)', fontSize: 13, marginBottom: 12 }}>
                         אין צוות מוגדר עדיין
