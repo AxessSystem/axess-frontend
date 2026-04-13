@@ -268,11 +268,9 @@ function TableEditDetails({
     })
       .then((r) => r.json())
       .then((data) => {
-        console.log('Templates:', data.templates?.map((t) => ({ type: t.template_type, is_default: t.is_default, tables_count: t.template_data?.tables?.length })))
         const template = (data.templates || []).find((t) =>
           t.template_type === 'tables' && (t.is_default || t.is_system)
         )
-        console.log('Selected template:', template?.template_name, template?.template_data?.tables?.length)
         const tables = template?.template_data?.tables || []
         setTemplateTables(tables)
       })
