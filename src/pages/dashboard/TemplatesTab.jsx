@@ -1388,12 +1388,11 @@ function TablesTemplate({ data, onUpdate, businessId, authHeaders }) {
     }
 
     const res = await fetch(
-      `${API_BASE}/api/admin/business/${businessId}/templates`,
+      `${API_BASE}/api/admin/business/${businessId}/templates/tables`,
       {
         method: 'PATCH',
         headers: authHeaders(),
         body: JSON.stringify({
-          template_type: 'tables',
           template_data: {
             table_names: templateData.table_names || [],
             table_series: templateData.table_series || [],
