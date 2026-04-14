@@ -1824,15 +1824,17 @@ export default function EventDetailPage() {
                             if (Array.isArray(g)) return g
                             try { return JSON.parse(g) } catch { return [] }
                           })()
-                          const checkedInGuests = guests.filter((g) => g.checked_in)
-                          if (checkedInGuests.length === 0) return null
+                          const guestsToShow = ordersTab === 'checkin'
+                            ? guests.filter((g) => g.checked_in)
+                            : guests
+                          if (guestsToShow.length === 0) return null
                           return (
                             <div style={{
                               marginTop: 6, paddingRight: 16,
                               borderRight: '2px solid rgba(0,195,122,0.2)',
                             }}
                             >
-                              {checkedInGuests.map((g, i) => (
+                              {guestsToShow.map((g, i) => (
                                 <div
                                   key={i}
                                   style={{
