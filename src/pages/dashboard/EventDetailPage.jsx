@@ -1057,9 +1057,15 @@ export default function EventDetailPage() {
   if (loading) return <div style={{ padding: 32, textAlign: 'center' }}>טוען...</div>
   if (!event) return <div style={{ padding: 32 }}>אירוע לא נמצא</div>
 
-  const approved = orders.filter((o) => o.status === 'approved' || o.status === 'confirmed')
-  const pending = orders.filter((o) => o.status === 'pending'
-    || o.approval_status === 'pending_approval')
+  const approved = orders.filter((o) =>
+    o.status === 'approved'
+    || o.status === 'confirmed'
+    || (o.source === 'table' && o.status === 'active')
+  )
+  const pending = orders.filter((o) =>
+    (o.status === 'pending' || o.approval_status === 'pending_approval')
+    && !(o.source === 'table' && o.status === 'active')
+  )
   const cancelled = orders.filter((o) => o.status === 'cancelled')
   const checkedIn = orders.filter((o) => o.checked_in)
 
