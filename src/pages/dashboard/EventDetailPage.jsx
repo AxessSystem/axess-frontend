@@ -1061,7 +1061,45 @@ export default function EventDetailPage() {
   const pending = orders.filter((o) => o.status === 'pending'
     || o.approval_status === 'pending_approval')
   const cancelled = orders.filter((o) => o.status === 'cancelled')
-  const checkedIn = orders.filter((o) => o.checked_in)
+  const checkedIn = []
+  orders.forEach((order) => {
+    if (order.source === 'table') {
+      if (order.checked_in) {
+        checkedIn.push({
+          id: `${order.id}_host`,
+          display_name: `${order.customer_name || ''} ${order.customer_last_name || ''}`.trim(),
+          customer_phone: order.customer_phone,
+          source: 'table',
+          is_host: true,
+          table_number: order.table_number,
+          checked_in_at: order.checked_in_at,
+        })
+      }
+      const guests = (() => {
+        const g = order.guests
+        if (!g) return []
+        if (Array.isArray(g)) return g
+        try { return JSON.parse(g) } catch { return [] }
+      })()
+      guests.forEach((g, i) => {
+        if (g.checked_in) {
+          checkedIn.push({
+            id: `${order.id}_guest_${i}`,
+            display_name: `${g.first_name || g.name || ''} ${g.last_name || ''}`.trim(),
+            customer_phone: g.phone,
+            source: 'table',
+            is_host: false,
+            table_number: order.table_number,
+          })
+        }
+      })
+    } else if (order.checked_in) {
+      checkedIn.push({
+        ...order,
+        display_name: `${order.customer_name || ''} ${order.customer_last_name || ''}`.trim(),
+      })
+    }
+  })
 
   const filteredOrders = ordersTab === 'approved' ? approved
     : ordersTab === 'pending' ? pending
@@ -1810,7 +1848,20 @@ export default function EventDetailPage() {
                             {order.table_number || ''}
                           </span>
                         )}
-                        {order.first_name || order.customer_name || '—'}
+                        {order.display_name || order.customer_name}
+                        {order.source === 'table' && (
+                          <span style={{
+                            padding: '2px 8px', borderRadius: 20, fontSize: 11, marginRight: 6,
+                            background: 'rgba(139,92,246,0.15)', color: '#8B5CF6',
+                          }}
+                          >
+                            🪑
+                            {' '}
+                            {order.table_number}
+                            {' '}
+                            {order.is_host ? '(ראש)' : '(חבר)'}
+                          </span>
+                        )}
                       </td>
                       <td style={{ padding: '8px 12px', fontSize: 13, whiteSpace: 'nowrap' }}>
                         {order.last_name || '—'}
