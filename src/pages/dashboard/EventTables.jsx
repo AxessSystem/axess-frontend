@@ -962,6 +962,54 @@ function TableEditGuests({ order, authHeaders, eventId, onUpdate }) {
             >
               חינם
             </span>
+            <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
+              <button type="button"
+                onClick={async () => {
+                  const res = await fetch(
+                    `${API_BASE}/api/admin/events/${eventId}/table-orders/${order.id}/checkin`,
+                    {
+                      method: 'PATCH',
+                      headers: authHeaders(),
+                      body: JSON.stringify({ guest_index: -1 }),
+                    }
+                  );
+                  if (res.ok) { toast.success('סומן כהגיע ✓'); onUpdate({}); }
+                  else toast.error('שגיאה');
+                }}
+                style={{
+                  flex: 1, minHeight: 36, borderRadius: 8, fontSize: 12,
+                  background: order.checked_in_at ? 'rgba(0,195,122,0.15)' : 'rgba(0,195,122,0.08)',
+                  border: `1px solid ${order.checked_in_at ? 'rgba(0,195,122,0.4)' : 'rgba(0,195,122,0.2)'}`,
+                  color: '#00C37A', cursor: 'pointer', fontWeight: 600,
+                  WebkitTapHighlightColor: 'transparent',
+                }}
+              >
+                {order.checked_in_at ? '✓ הגיע' : '○ סמן הגיע'}
+              </button>
+              {order.checked_in_at && (
+                <button type="button"
+                  onClick={async () => {
+                    const res = await fetch(
+                      `${API_BASE}/api/admin/events/${eventId}/table-orders/${order.id}/checkin`,
+                      {
+                        method: 'PATCH',
+                        headers: authHeaders(),
+                        body: JSON.stringify({ guest_index: -1, undo: true }),
+                      }
+                    );
+                    if (res.ok) { toast.success('סומן כטרם הגיע'); onUpdate({}); }
+                  }}
+                  style={{
+                    minHeight: 36, padding: '0 12px', borderRadius: 8, fontSize: 12,
+                    background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)',
+                    color: '#EF4444', cursor: 'pointer',
+                    WebkitTapHighlightColor: 'transparent',
+                  }}
+                >
+                  טרם הגיע
+                </button>
+              )}
+            </div>
           </div>
         )}
       </div>
@@ -1061,6 +1109,54 @@ function TableEditGuests({ order, authHeaders, eventId, onUpdate }) {
                   color: 'var(--text)', fontSize: 16, textAlign: 'right',
                 }}
               />
+            )}
+          </div>
+          <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
+            <button type="button"
+              onClick={async () => {
+                const res = await fetch(
+                  `${API_BASE}/api/admin/events/${eventId}/table-orders/${order.id}/checkin`,
+                  {
+                    method: 'PATCH',
+                    headers: authHeaders(),
+                    body: JSON.stringify({ guest_index: i }),
+                  }
+                );
+                if (res.ok) { toast.success('סומן כהגיע ✓'); onUpdate({}); }
+                else toast.error('שגיאה');
+              }}
+              style={{
+                flex: 1, minHeight: 36, borderRadius: 8, fontSize: 12,
+                background: g.checked_in ? 'rgba(0,195,122,0.15)' : 'rgba(0,195,122,0.08)',
+                border: `1px solid ${g.checked_in ? 'rgba(0,195,122,0.4)' : 'rgba(0,195,122,0.2)'}`,
+                color: '#00C37A', cursor: 'pointer', fontWeight: 600,
+                WebkitTapHighlightColor: 'transparent',
+              }}
+            >
+              {g.checked_in ? '✓ הגיע' : '○ סמן הגיע'}
+            </button>
+            {g.checked_in && (
+              <button type="button"
+                onClick={async () => {
+                  const res = await fetch(
+                    `${API_BASE}/api/admin/events/${eventId}/table-orders/${order.id}/checkin`,
+                    {
+                      method: 'PATCH',
+                      headers: authHeaders(),
+                      body: JSON.stringify({ guest_index: i, undo: true }),
+                    }
+                  );
+                  if (res.ok) { toast.success('סומן כטרם הגיע'); onUpdate({}); }
+                }}
+                style={{
+                  minHeight: 36, padding: '0 12px', borderRadius: 8, fontSize: 12,
+                  background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)',
+                  color: '#EF4444', cursor: 'pointer',
+                  WebkitTapHighlightColor: 'transparent',
+                }}
+              >
+                טרם הגיע
+              </button>
             )}
           </div>
         </div>
