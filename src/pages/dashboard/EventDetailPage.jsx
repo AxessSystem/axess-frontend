@@ -1804,7 +1804,7 @@ export default function EventDetailPage() {
                       </td>
 
                       <td style={{ padding: '8px 12px', fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap' }}>
-                        {ordersTab === 'pending' && order.source === 'table' && (
+                        {order.source === 'table' && (
                           <span style={{
                             padding: '2px 8px', borderRadius: 20, fontSize: 11,
                             background: 'rgba(139,92,246,0.15)', color: '#8B5CF6',
@@ -1863,14 +1863,47 @@ export default function EventDetailPage() {
                                   </td>
                                   {/* סטטוס */}
                                   <td style={{ padding: '6px 10px' }}>
-                                    <span style={{
-                                      padding: '2px 8px', borderRadius: 20, fontSize: 11,
-                                      background: g.checked_in ? 'rgba(0,195,122,0.15)' : 'rgba(255,255,255,0.06)',
-                                      color: g.checked_in ? '#00C37A' : 'rgba(255,255,255,0.4)',
-                                      border: `1px solid ${g.checked_in ? 'rgba(0,195,122,0.3)' : 'rgba(255,255,255,0.1)'}`,
-                                    }}>
-                                      {g.checked_in ? '✓ הגיע' : '○ טרם הגיע'}
-                                    </span>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                      <span style={{
+                                        padding: '2px 8px', borderRadius: 20, fontSize: 11,
+                                        background: g.checked_in ? 'rgba(0,195,122,0.15)' : 'rgba(255,255,255,0.06)',
+                                        color: g.checked_in ? '#00C37A' : 'rgba(255,255,255,0.4)',
+                                        border: `1px solid ${g.checked_in ? 'rgba(0,195,122,0.3)' : 'rgba(255,255,255,0.1)'}`,
+                                      }}>
+                                        {g.checked_in ? '✓ הגיע' : '○ טרם הגיע'}
+                                      </span>
+                                      {!g.checked_in && (
+                                        <button
+                                          type="button"
+                                          onClick={async () => {
+                                            try {
+                                              const res = await fetch(
+                                                `${API_BASE}/api/admin/events/${id}/table-orders/${order.event_table_order_id}/checkin`,
+                                                {
+                                                  method: 'PATCH',
+                                                  headers: authHeaders(),
+                                                  body: JSON.stringify({ guest_index: i }),
+                                                }
+                                              );
+                                              if (res.ok) {
+                                                toast.success('סומן כהגיע ✓');
+                                                loadData();
+                                              }
+                                            } catch { toast.error('שגיאה'); }
+                                          }}
+                                          style={{
+                                            padding: '2px 8px', borderRadius: 20, fontSize: 11,
+                                            background: 'rgba(255,255,255,0.06)',
+                                            border: '1px solid rgba(255,255,255,0.15)',
+                                            color: 'rgba(255,255,255,0.5)',
+                                            cursor: 'pointer', whiteSpace: 'nowrap',
+                                            WebkitTapHighlightColor: 'transparent',
+                                          }}
+                                        >
+                                          סמן הגיע
+                                        </button>
+                                      )}
+                                    </div>
                                   </td>
                                   {/* שאר העמודות ריקות */}
                                   <td colSpan={10} />
