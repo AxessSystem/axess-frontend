@@ -1835,21 +1835,46 @@ export default function EventDetailPage() {
                             }}
                             >
                               {guestsToShow.map((g, i) => (
-                                <div
-                                  key={i}
-                                  style={{
-                                    display: 'flex', gap: 8, alignItems: 'center',
-                                    padding: '4px 0', fontSize: 12, color: 'var(--v2-gray-400)',
-                                  }}
-                                >
-                                  <span style={{ color: '#00C37A', fontSize: 10 }}>✓</span>
-                                  <span>
-                                    {g.first_name || g.name}
-                                    {' '}
-                                    {g.last_name || ''}
-                                  </span>
-                                  {g.phone && <span style={{ fontSize: 11 }}>{g.phone}</span>}
-                                </div>
+                                <tr key={`guest_${i}`} style={{
+                                  borderBottom: '1px solid rgba(255,255,255,0.06)',
+                                  background: 'rgba(0,195,122,0.03)',
+                                }}>
+                                  {/* עמודת עריכה — ריקה עם תג שולחן */}
+                                  <td style={{ padding: '6px 8px', width: 130 }}>
+                                    <span style={{
+                                      padding: '2px 8px', borderRadius: 20, fontSize: 10,
+                                      background: 'rgba(0,195,122,0.1)', color: '#00C37A',
+                                      border: '1px solid rgba(0,195,122,0.2)',
+                                    }}>
+                                      🪑 חבר שולחן
+                                    </span>
+                                  </td>
+                                  {/* שם */}
+                                  <td style={{ padding: '6px 10px', fontSize: 13 }}>
+                                    {g.first_name || g.name} {g.last_name || ''}
+                                  </td>
+                                  {/* טלפון */}
+                                  <td style={{ padding: '6px 10px', fontSize: 13, color: 'var(--v2-gray-400)' }}>
+                                    {g.phone || '—'}
+                                  </td>
+                                  {/* מייל */}
+                                  <td style={{ padding: '6px 10px', fontSize: 13, color: 'var(--v2-gray-400)' }}>
+                                    {g.email || '—'}
+                                  </td>
+                                  {/* סטטוס */}
+                                  <td style={{ padding: '6px 10px' }}>
+                                    <span style={{
+                                      padding: '2px 8px', borderRadius: 20, fontSize: 11,
+                                      background: g.checked_in ? 'rgba(0,195,122,0.15)' : 'rgba(255,255,255,0.06)',
+                                      color: g.checked_in ? '#00C37A' : 'rgba(255,255,255,0.4)',
+                                      border: `1px solid ${g.checked_in ? 'rgba(0,195,122,0.3)' : 'rgba(255,255,255,0.1)'}`,
+                                    }}>
+                                      {g.checked_in ? '✓ הגיע' : '○ טרם הגיע'}
+                                    </span>
+                                  </td>
+                                  {/* שאר העמודות ריקות */}
+                                  <td colSpan={10} />
+                                </tr>
                               ))}
                             </div>
                           )
