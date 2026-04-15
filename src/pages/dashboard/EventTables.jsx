@@ -1663,6 +1663,15 @@ function TableEditAccount({ order, menuItems, authHeaders, eventId, onUpdate }) 
   const [localPayments, setLocalPayments] = useState(payments)
   const [tip, setTip] = useState(order.tip_amount || 0)
   const [saving, setSaving] = useState(false)
+  const [interimNote, setInterimNote] = useState('')
+  const [tipPayments, setTipPayments] = useState(() => {
+    const t = order.tip_payments
+    if (!t) return []
+    if (Array.isArray(t)) return t
+    try { return JSON.parse(t) } catch { return [] }
+  })
+  const [newTipAmount, setNewTipAmount] = useState(0)
+  const [newTipMethod, setNewTipMethod] = useState('cash')
 
   const guests = (() => {
     const g = order.guests
@@ -1708,32 +1717,6 @@ function TableEditAccount({ order, menuItems, authHeaders, eventId, onUpdate }) 
     setShowAddItem(false)
   }
 
-  const save = async () => {
-    setSaving(true)
-    try {
-      const res = await fetch(
-        `${API_BASE}/api/admin/events/${eventId}/table-orders/${order.id}`,
-        {
-          method: 'PATCH',
-          headers: authHeaders(),
-          body: JSON.stringify({
-            payments: localPayments,
-            tip_amount: tip,
-            total_amount: totalAmount,
-          }),
-        },
-      )
-      if (res.ok) {
-        toast.success('חשבון נשמר ✓')
-        onUpdate({ payments: localPayments, tip_amount: tip })
-      } else toast.error('שגיאה בשמירה')
-    } catch {
-      toast.error('שגיאה')
-    } finally {
-      setSaving(false)
-    }
-  }
-
   const closeAccount = async () => {
     setSaving(true)
     try {
@@ -1745,7 +1728,6 @@ function TableEditAccount({ order, menuItems, authHeaders, eventId, onUpdate }) 
           body: JSON.stringify({
             status: 'closed',
             payments: localPayments,
-            tip_amount: tip,
             total_amount: totalAmount,
             closed_at: new Date().toISOString(),
           }),
@@ -2074,20 +2056,109 @@ function TableEditAccount({ order, menuItems, authHeaders, eventId, onUpdate }) 
         ))}
       </div>
 
-      <div>
-        <label style={{ fontSize: 12, color: 'var(--v2-gray-400)', display: 'block', marginBottom: 6, textAlign: 'right' }}>
-          טיפ ₪
-        </label>
-        <input
-          type="number"
-          value={tip}
-          onChange={(e) => setTip(Number(e.target.value))}
-          style={{
-            width: '100%', minHeight: 48, padding: '12px 16px', borderRadius: 10,
-            background: 'var(--glass)', border: '1px solid var(--glass-border)',
-            color: 'var(--text)', fontSize: 16, textAlign: 'right', boxSizing: 'border-box',
-          }}
-        />
+      <div style={{
+        background: 'var(--glass)', border: '1px solid var(--glass-border)',
+        borderRadius: 12, padding: 16, marginTop: 8,
+      }}>
+        <p style={{ margin: '0 0 12px', fontSize: 14, fontWeight: 700, textAlign: 'right' }}>
+          <span style={{ color: '#00C37A' }}>💵</span>
+          {' '}
+          טיפ
+        </p>
+
+        {tipPayments.length > 0 && (
+          <div style={{ marginBottom: 12 }}>
+            {tipPayments.map((t, i) => (
+              <div key={i} style={{
+                display: 'flex', justifyContent: 'space-between',
+                fontSize: 12, color: 'var(--v2-gray-400)', marginBottom: 4,
+              }}>
+                <span style={{ color: '#00C37A' }}>
+                  ₪
+                  {t.amount}
+                </span>
+                <span>
+                  {t.method === 'cash' ? 'מזומן' : 'אשראי'}
+                  {' — '}
+                  {new Date(t.created_at).toLocaleTimeString('he-IL')}
+                </span>
+              </div>
+            ))}
+            <div style={{
+              display: 'flex', justifyContent: 'space-between',
+              fontSize: 13, fontWeight: 700, borderTop: '1px solid var(--glass-border)', paddingTop: 8,
+            }}>
+              <span style={{ color: '#00C37A' }}>
+                ₪
+                {tipPayments.reduce((s, t) => s + Number(t.amount), 0).toLocaleString()}
+              </span>
+              <span>סה"כ טיפ</span>
+            </div>
+          </div>
+        )}
+
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <button
+            type="button"
+            onClick={async () => {
+              if (!newTipAmount) return
+              const res = await fetch(
+                `${API_BASE}/api/admin/events/${eventId}/table-orders/${order.id}`,
+                {
+                  method: 'PATCH',
+                  headers: authHeaders(),
+                  body: JSON.stringify({
+                    tip_amount: newTipAmount,
+                    tip_payments: { amount: newTipAmount, method: newTipMethod },
+                  }),
+                },
+              )
+              if (res.ok) {
+                setTipPayments((prev) => [...prev, { amount: newTipAmount, method: newTipMethod, created_at: new Date().toISOString() }])
+                setTip((prev) => Number(prev || 0) + Number(newTipAmount || 0))
+                setNewTipAmount(0)
+                toast.success('טיפ נוסף ✓')
+              }
+            }}
+            style={{
+              minHeight: 44, padding: '0 16px', borderRadius: 10,
+              background: '#00C37A', border: 'none', color: '#000',
+              fontSize: 14, fontWeight: 700, cursor: 'pointer',
+              WebkitTapHighlightColor: 'transparent',
+            }}
+          >
+            + הוסף
+          </button>
+          <div style={{ display: 'flex', gap: 6 }}>
+            {[{ value: 'cash', label: 'מזומן' }, { value: 'credit', label: 'אשראי' }].map((m) => (
+              <button
+                key={m.value}
+                type="button"
+                onClick={() => setNewTipMethod(m.value)}
+                style={{
+                  padding: '6px 12px', borderRadius: 20, fontSize: 12,
+                  background: newTipMethod === m.value ? 'rgba(0,195,122,0.1)' : 'var(--glass)',
+                  border: `1px solid ${newTipMethod === m.value ? 'rgba(0,195,122,0.3)' : 'var(--glass-border)'}`,
+                  color: newTipMethod === m.value ? '#00C37A' : 'var(--v2-gray-400)',
+                  cursor: 'pointer',
+                }}
+              >
+                {m.label}
+              </button>
+            ))}
+          </div>
+          <input
+            type="number"
+            value={newTipAmount || ''}
+            onChange={(e) => setNewTipAmount(Number(e.target.value))}
+            placeholder="סכום ₪"
+            style={{
+              flex: 1, minHeight: 44, padding: '10px 12px', borderRadius: 10,
+              background: 'var(--card)', border: '1px solid var(--glass-border)',
+              color: 'var(--text)', fontSize: 15, textAlign: 'right', boxSizing: 'border-box',
+            }}
+          />
+        </div>
       </div>
 
       <div
@@ -2117,35 +2188,102 @@ function TableEditAccount({ order, menuItems, authHeaders, eventId, onUpdate }) 
         ))}
       </div>
 
-      <div style={{ display: 'flex', gap: 10 }}>
-        <button
-          type="button"
-          onClick={closeAccount}
-          disabled={saving || balance > 0}
+      <div style={{ display: 'flex', gap: 10, flexDirection: 'column' }}>
+        <input
+          value={interimNote}
+          onChange={(e) => setInterimNote(e.target.value)}
+          placeholder="הערת סגירת ביניים (אופציונלי)"
           style={{
-            flex: 2, minHeight: 52, borderRadius: 12,
-            background: balance <= 0 ? '#00C37A' : 'var(--glass)',
-            border: 'none', color: balance <= 0 ? '#000' : 'var(--v2-gray-400)',
-            fontSize: 15, fontWeight: 800, cursor: balance <= 0 ? 'pointer' : 'not-allowed',
-            opacity: saving ? 0.6 : 1,
-            WebkitTapHighlightColor: 'transparent',
-          }}
-        >
-          {saving ? 'סוגר...' : balance <= 0 ? '✓ סגור חשבון' : `נותר ₪${balance.toLocaleString()}`}
-        </button>
-        <button
-          type="button"
-          onClick={save}
-          disabled={saving}
-          style={{
-            flex: 1, minHeight: 52, borderRadius: 12,
+            width: '100%', minHeight: 44, padding: '10px 12px', borderRadius: 10,
             background: 'var(--glass)', border: '1px solid var(--glass-border)',
-            color: 'var(--text)', fontSize: 14, cursor: 'pointer',
-            WebkitTapHighlightColor: 'transparent',
+            color: 'var(--text)', fontSize: 14, textAlign: 'right', boxSizing: 'border-box',
           }}
-        >
-          שמור
-        </button>
+        />
+        <div style={{ display: 'flex', gap: 10 }}>
+          <button
+            type="button"
+            onClick={async () => {
+              if (localPayments.length === 0) {
+                toast.error('הוסף תשלום לפני סגירת ביניים')
+                return
+              }
+              setSaving(true)
+              try {
+                for (const item of orderItems) {
+                  if (item.id && !item.id.startsWith('initial') && !item.id.startsWith('extra')) {
+                    await fetch(
+                      `${API_BASE}/api/admin/events/${eventId}/table-items/${item.id}`,
+                      {
+                        method: 'PATCH',
+                        headers: authHeaders(),
+                        body: JSON.stringify({ status: 'paid' }),
+                      },
+                    )
+                  }
+                }
+
+                const res = await fetch(
+                  `${API_BASE}/api/admin/events/${eventId}/table-orders/${order.id}`,
+                  {
+                    method: 'PATCH',
+                    headers: authHeaders(),
+                    body: JSON.stringify({
+                      payments: localPayments.map((p) => ({
+                        ...p,
+                        items_included: orderItems.map((i) => i.name),
+                        interim_id: `interim_${Date.now()}`,
+                        timestamp: new Date().toISOString(),
+                        note: interimNote || undefined,
+                      })),
+                      total_amount: totalAmount,
+                    }),
+                  },
+                )
+
+                if (res.ok) {
+                  toast.success('סגירת ביניים בוצעה ✓')
+                  setLocalPayments([])
+                  setInterimNote('')
+                  onUpdate({})
+                } else toast.error('שגיאה')
+              } catch {
+                toast.error('שגיאה')
+              } finally {
+                setSaving(false)
+              }
+            }}
+            disabled={saving || localPayments.length === 0}
+            style={{
+              flex: 1, minHeight: 52, borderRadius: 12,
+              background: 'rgba(0,195,122,0.1)',
+              border: '1px solid rgba(0,195,122,0.3)',
+              color: '#00C37A', fontSize: 14, fontWeight: 700,
+              cursor: 'pointer', WebkitTapHighlightColor: 'transparent',
+            }}
+          >
+            <span style={{ color: '#00C37A' }}>📋</span>
+            {' '}
+            סגירת ביניים
+          </button>
+
+          <button
+            type="button"
+            onClick={closeAccount}
+            disabled={saving || balance > 0}
+            style={{
+              flex: 1, minHeight: 52, borderRadius: 12,
+              background: balance <= 0 ? '#EF4444' : 'var(--glass)',
+              border: 'none',
+              color: balance <= 0 ? '#fff' : 'var(--v2-gray-400)',
+              fontSize: 14, fontWeight: 800,
+              cursor: balance <= 0 ? 'pointer' : 'not-allowed',
+              opacity: saving ? 0.6 : 1,
+              WebkitTapHighlightColor: 'transparent',
+            }}
+          >
+            {saving ? 'סוגר...' : balance <= 0 ? '🔒 סגור חשבון סופי' : `נותר ₪${balance.toLocaleString()}`}
+          </button>
+        </div>
       </div>
     </div>
   )
