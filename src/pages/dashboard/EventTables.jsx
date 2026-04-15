@@ -281,6 +281,11 @@ function TableEditDetails({
   const save = async () => {
     setSaving(true)
     try {
+      console.log('Saving table details:', {
+        orderId: order.id,
+        table_number_display: form.table_number,
+        form,
+      });
       const res = await fetch(
         `${API_BASE}/api/admin/events/${eventId}/table-orders/${order.id}`,
         {
