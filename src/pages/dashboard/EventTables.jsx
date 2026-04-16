@@ -2745,10 +2745,6 @@ export default function EventTables({
   const [tableNameOptions, setTableNameOptions] = useState([
     'VIP', 'בר', 'טרס', 'מרכז', 'כניסה', 'פינה', 'גן', 'גג',
   ])
-  const [templateTables, setTemplateTables] = useState([])
-  const [tableNameOptions, setTableNameOptions] = useState([
-    'VIP', 'בר', 'טרס', 'מרכז', 'כניסה', 'פינה', 'גן', 'גג',
-  ])
 
   useEffect(() => {
     if (!businessId) return
