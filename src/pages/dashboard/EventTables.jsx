@@ -3007,7 +3007,7 @@ export default function EventTables({
               display: 'flex',
               border: '1px solid var(--glass-border)',
               borderRadius: 8,
-              overflow: 'hidden',
+              overflow: 'visible',
             }}
           >
             <button
@@ -3902,7 +3902,7 @@ export default function EventTables({
               })}
             </div>
 
-            <div style={{ flex: 1, overflowY: 'auto', padding: '24px' }}>
+            <div style={{ flex: 1, overflowY: 'auto', overflowX: 'visible', padding: '24px' }}>
               {tableEditTab === 'details' && (
                 <TableEditDetails
                   order={tableEditModal}
