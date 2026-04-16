@@ -3777,7 +3777,7 @@ export default function EventTables({
               maxHeight: '90vh',
               display: 'flex', flexDirection: 'column',
               border: '1px solid var(--glass-border)',
-              overflow: 'hidden',
+              overflow: 'visible',
             }}
             onClick={(e) => e.stopPropagation()}
             role="dialog"
@@ -3902,7 +3902,7 @@ export default function EventTables({
               })}
             </div>
 
-            <div style={{ flex: 1, overflowY: 'auto', overflowX: 'visible', padding: '24px' }}>
+            <div style={{ flex: 1, overflowY: 'auto', overflowX: 'clip', padding: '24px' }}>
               {tableEditTab === 'details' && (
                 <TableEditDetails
                   order={tableEditModal}
