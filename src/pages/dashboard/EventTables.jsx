@@ -228,7 +228,7 @@ function coerceOptimisticLocal(field, rawVal) {
 }
 
 function TableEditDetails({
-  order, availableTables, staffList, promoters, authHeaders, eventId, businessId, editModalOpenId, onUpdate, onOpenStaffTab, loadData, onRequestDelete,
+  order, availableTables, staffList, promoters, authHeaders, eventId, businessId, editModalOpenId, onUpdate, onOpenStaffTab, loadData, onRequestDelete, templateTables, tableNameOptions, setTableNameOptions,
 }) {
   const [form, setForm] = useState({
     table_number: order.table_number != null ? String(order.table_number) : '',
@@ -239,7 +239,7 @@ function TableEditDetails({
     promoter_commission_pct: order.promoter_commission_pct ?? 0,
   })
   const [saving, setSaving] = useState(false)
-  const [tableNameOptions, setTableNameOptions] = useState([
+  const [tableNameOptionsState, setTableNameOptionsState] = useState([
     'VIP', 'בר', 'טרס', 'מרכז', 'כניסה', 'פינה', 'גן', 'גג',
   ])
   const [showAddTableName, setShowAddTableName] = useState(false)
@@ -257,25 +257,6 @@ function TableEditDetails({
     commission_value: 0,
     save_to_venue: true, save_to_event: true, wa_notifications: false,
   })
-  const [templateTables, setTemplateTables] = useState([])
-
-  useEffect(() => {
-    if (!businessId) return
-    fetch(`${API_BASE}/api/admin/business/${businessId}/templates`, {
-      headers: authHeaders(),
-    })
-      .then((r) => r.json())
-      .then((data) => {
-        const template = (data.templates || []).find((t) =>
-          t.template_type === 'tables' && (t.is_default || t.is_system)
-        )
-        const tables = template?.template_data?.tables || []
-        const names = template?.template_data?.table_names || ['VIP', 'בר', 'רגיל', 'DJ Booth']
-        setTemplateTables(tables)
-        setTableNameOptions(names)
-      })
-      .catch(() => {})
-  }, [businessId, editModalOpenId])
 
   const save = async () => {
     setSaving(true)
@@ -380,7 +361,7 @@ function TableEditDetails({
           placeholder="שם/סוג שולחן..."
           searchable
           options={[
-            ...tableNameOptions.map((n) => ({ value: n, label: n })),
+            ...(tableNameOptions || tableNameOptionsState).map((n) => ({ value: n, label: n })),
             { value: '__add__', label: '+ הוסף חדש' },
           ]}
           menuStyle={{ maxHeight: 220, overflowY: 'auto' }}
@@ -396,7 +377,11 @@ function TableEditDetails({
               type="button"
               onClick={() => {
                 if (!newTableNameInput.trim()) return
-                setTableNameOptions((prev) => [...prev, newTableNameInput.trim()])
+                  if (tableNameOptions) {
+                    setTableNameOptions((prev) => [...prev, newTableNameInput.trim()])
+                  } else {
+                    setTableNameOptionsState((prev) => [...prev, newTableNameInput.trim()])
+                  }
                 setForm((f) => ({ ...f, table_name: newTableNameInput.trim() }))
                 setNewTableNameInput('')
                 setShowAddTableName(false)
@@ -415,7 +400,11 @@ function TableEditDetails({
               onKeyDown={(e) => {
                 if (e.key === 'Enter') {
                   if (!newTableNameInput.trim()) return
-                  setTableNameOptions((prev) => [...prev, newTableNameInput.trim()])
+                  if (tableNameOptions) {
+                    setTableNameOptions((prev) => [...prev, newTableNameInput.trim()])
+                  } else {
+                    setTableNameOptionsState((prev) => [...prev, newTableNameInput.trim()])
+                  }
                   setForm((f) => ({ ...f, table_name: newTableNameInput.trim() }))
                   setNewTableNameInput('')
                   setShowAddTableName(false)
@@ -2752,6 +2741,32 @@ export default function EventTables({
   const [promoters, setPromoters] = useState([])
   const [staffSubTab, setStaffSubTab] = useState('all')
   const [confirmDeleteTable, setConfirmDeleteTable] = useState(false)
+  const [templateTables, setTemplateTables] = useState([])
+  const [tableNameOptions, setTableNameOptions] = useState([
+    'VIP', 'בר', 'טרס', 'מרכז', 'כניסה', 'פינה', 'גן', 'גג',
+  ])
+  const [templateTables, setTemplateTables] = useState([])
+  const [tableNameOptions, setTableNameOptions] = useState([
+    'VIP', 'בר', 'טרס', 'מרכז', 'כניסה', 'פינה', 'גן', 'גג',
+  ])
+
+  useEffect(() => {
+    if (!businessId) return
+    fetch(`${API_BASE}/api/admin/business/${businessId}/templates`, {
+      headers: authHeaders(),
+    })
+      .then((r) => r.json())
+      .then((data) => {
+        const template = (data.templates || []).find((t) =>
+          t.template_type === 'tables' && (t.is_default || t.is_system)
+        )
+        const tables = template?.template_data?.tables || []
+        const names = template?.template_data?.table_names || ['VIP', 'בר', 'רגיל', 'DJ Booth']
+        setTemplateTables(tables)
+        setTableNameOptions(names)
+      })
+      .catch(() => {})
+  }, [businessId, tableEditModal?.id, authHeaders])
 
   useEffect(() => {
     if (!eventId) return
@@ -3897,6 +3912,9 @@ export default function EventTables({
                   businessId={businessId}
                   editModalOpenId={tableEditModal?.id}
                   loadData={loadData}
+                  templateTables={templateTables}
+                  tableNameOptions={tableNameOptions}
+                  setTableNameOptions={setTableNameOptions}
                   onUpdate={(updated) => {
                     if (updated?.__deleted) {
                       setTableEditModal(null)
