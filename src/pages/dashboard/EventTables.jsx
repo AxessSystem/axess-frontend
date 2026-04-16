@@ -228,7 +228,7 @@ function coerceOptimisticLocal(field, rawVal) {
 }
 
 function TableEditDetails({
-  order, availableTables, staffList, promoters, authHeaders, eventId, businessId, editModalOpenId, onUpdate, onOpenStaffTab, loadData,
+  order, availableTables, staffList, promoters, authHeaders, eventId, businessId, editModalOpenId, onUpdate, onOpenStaffTab, loadData, onRequestDelete,
 }) {
   const [form, setForm] = useState({
     table_number: order.table_number != null ? String(order.table_number) : '',
@@ -257,7 +257,6 @@ function TableEditDetails({
     commission_value: 0,
     save_to_venue: true, save_to_event: true, wa_notifications: false,
   })
-  const [confirmDeleteTable, setConfirmDeleteTable] = useState(false)
   const [templateTables, setTemplateTables] = useState([])
 
   useEffect(() => {
@@ -499,9 +498,9 @@ function TableEditDetails({
                   }
                 }}
                 placeholder="הוסף שולחן..."
-                options={(availableTables || [])
-                  .sort((a, b) => Number(a.table_number) - Number(b.table_number))
-                  .map((t) => ({ value: t.table_number, label: t.table_number }))}
+            options={(templateTables || [])
+              .sort((a, b) => Number(a.table_number) - Number(b.table_number))
+              .map((t) => ({ value: t.table_number, label: t.table_number }))}
                 menuStyle={{ maxHeight: 180, overflowY: 'auto' }}
               />
               {newWaitress.tables_assigned.length > 0 && (
@@ -746,7 +745,7 @@ function TableEditDetails({
           value={form.status}
           onChange={async (v) => {
             if (v === 'delete') {
-              setConfirmDeleteTable(true)
+              onRequestDelete?.()
               return
             }
             setForm((f) => ({ ...f, status: v }))
@@ -777,25 +776,6 @@ function TableEditDetails({
       >
         {saving ? 'שומר...' : 'שמור פרטים'}
       </button>
-      {confirmDeleteTable && (
-        <TableAssignConfirmModal
-          title="מחיקת שולחן"
-          message="מחיקת שולחן מהרשימה היא סופית. האם אתה בטוח?"
-          confirmText="מחק לצמיתות"
-          confirmColor="#EF4444"
-          onConfirm={async () => {
-            await fetch(`${API_BASE}/api/admin/events/${eventId}/table-orders/${order.id}`, {
-              method: 'DELETE',
-              headers: authHeaders(),
-            })
-            setConfirmDeleteTable(false)
-            onUpdate({ __deleted: true })
-            await loadData?.()
-            toast.success('השולחן נמחק')
-          }}
-          onCancel={() => setConfirmDeleteTable(false)}
-        />
-      )}
     </div>
   )
 }
@@ -2771,6 +2751,7 @@ export default function EventTables({
   const [newTableNumber, setNewTableNumber] = useState('')
   const [promoters, setPromoters] = useState([])
   const [staffSubTab, setStaffSubTab] = useState('all')
+  const [confirmDeleteTable, setConfirmDeleteTable] = useState(false)
 
   useEffect(() => {
     if (!eventId) return
@@ -3909,6 +3890,7 @@ export default function EventTables({
                   availableTables={allTables}
                   staffList={staffList}
                   promoters={promoters}
+                  onRequestDelete={() => setConfirmDeleteTable(true)}
                   onOpenStaffTab={() => setTableEditTab('staff')}
                   authHeaders={authHeaders}
                   eventId={eventId}
@@ -4350,7 +4332,7 @@ export default function EventTables({
                           }
                         }}
                         placeholder="הוסף שולחן..."
-                        options={(availableTables || [])
+                        options={(templateTables || [])
                           .sort((a, b) => Number(a.table_number) - Number(b.table_number))
                           .map((t) => ({ value: t.table_number, label: t.table_number }))}
                         menuStyle={{ maxHeight: 180, overflowY: 'auto' }}
@@ -4797,6 +4779,25 @@ export default function EventTables({
             </div>
           </div>
         </div>
+      )}
+      {confirmDeleteTable && tableEditModal && (
+        <TableAssignConfirmModal
+          title="מחיקת שולחן"
+          message="מחיקת שולחן מהרשימה היא סופית. האם אתה בטוח?"
+          confirmText="מחק לצמיתות"
+          confirmColor="#EF4444"
+          onConfirm={async () => {
+            await fetch(`${API_BASE}/api/admin/events/${eventId}/table-orders/${tableEditModal.id}`, {
+              method: 'DELETE',
+              headers: authHeaders(),
+            })
+            setConfirmDeleteTable(false)
+            setTableEditModal(null)
+            await loadData?.()
+            toast.success('השולחן נמחק')
+          }}
+          onCancel={() => setConfirmDeleteTable(false)}
+        />
       )}
 
       {guestsDrawer && (() => {
