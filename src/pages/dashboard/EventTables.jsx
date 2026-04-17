@@ -760,6 +760,7 @@ function TableEditDetails({
           border: 'none', color: '#000', fontSize: 15, fontWeight: 700,
           cursor: saving ? 'not-allowed' : 'pointer',
           opacity: saving ? 0.6 : 1,
+          marginTop: 80,
           WebkitTapHighlightColor: 'transparent',
         }}
       >
