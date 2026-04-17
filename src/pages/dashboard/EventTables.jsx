@@ -1745,6 +1745,9 @@ function TableEditAccount({ order, menuItems, authHeaders, eventId, onUpdate }) 
       transactions[txId] = { id: txId, items: [], payments: [], tips: [], created_at: item.requested_at };
     }
     transactions[txId].items.push(item);
+    if (item.requested_at && (!transactions[txId].created_at || new Date(item.requested_at) < new Date(transactions[txId].created_at))) {
+      transactions[txId].created_at = item.requested_at;
+    }
   });
   allPayments.forEach(p => {
     const txId = p.transaction_id || 'txn_legacy';
@@ -1792,6 +1795,7 @@ function TableEditAccount({ order, menuItems, authHeaders, eventId, onUpdate }) 
   const [drinkSearch, setDrinkSearch] = useState('');
   const [menuForm, setMenuForm] = useState({ selected_drinks: [], extras_by_drink: {} });
   const [interimSaving, setInterimSaving] = useState(false);
+  const [deleteTransaction, setDeleteTransaction] = useState(null);
   const selectedDrinks = menuForm.selected_drinks && typeof menuForm.selected_drinks === 'object'
     ? Object.values(menuForm.selected_drinks)
     : [];
@@ -1931,6 +1935,7 @@ function TableEditAccount({ order, menuItems, authHeaders, eventId, onUpdate }) 
           index={idx + 1}
           PAYMENT_METHODS={PAYMENT_METHODS}
           onEdit={() => setOpenTransaction(tx.id)}
+          onDelete={() => setDeleteTransaction(tx)}
           isEditing={openTransaction === tx.id}
           onCancelEdit={() => setOpenTransaction(null)}
         />
@@ -2319,6 +2324,67 @@ function TableEditAccount({ order, menuItems, authHeaders, eventId, onUpdate }) 
         </button>
       )}
 
+      {deleteTransaction && (
+        <div style={{
+          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)',
+          zIndex: 3000, display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }}
+        >
+          <div style={{
+            background: 'var(--card)', borderRadius: 16, padding: 24,
+            width: '90%', maxWidth: 400, textAlign: 'right',
+          }}
+          >
+            <p style={{ margin: '0 0 8px', fontSize: 16, fontWeight: 700 }}>
+              האם למחוק עסקה {closedTransactions.findIndex(t => t.id === deleteTransaction.id) + 1}?
+            </p>
+            <p style={{ margin: '0 0 16px', fontSize: 13, color: 'var(--v2-gray-400)' }}>
+              פעולה זו תמחק את כל הפריטים, התשלומים והטיפים של העסקה. לא ניתן לבטל.
+            </p>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button type="button"
+                onClick={() => setDeleteTransaction(null)}
+                style={{
+                  flex: 1, minHeight: 44, borderRadius: 10,
+                  background: 'var(--glass)', border: '1px solid var(--glass-border)',
+                  color: 'var(--text)', fontSize: 14, cursor: 'pointer',
+                }}
+              >ביטול</button>
+              <button type="button"
+                onClick={async () => {
+                  try {
+                    for (const item of deleteTransaction.items) {
+                      await fetch(`${API_BASE}/api/admin/events/${eventId}/table-items/${item.id}`, {
+                        method: 'DELETE', headers: authHeaders(),
+                      });
+                    }
+                    const otherPayments = allPayments.filter(p => (p.transaction_id || 'txn_legacy') !== deleteTransaction.id);
+                    const otherTips = allTipPayments.filter(t => (t.transaction_id || 'txn_legacy') !== deleteTransaction.id);
+                    await fetch(`${API_BASE}/api/admin/events/${eventId}/table-orders/${order.id}`, {
+                      method: 'PATCH', headers: authHeaders(),
+                      body: JSON.stringify({
+                        payments: otherPayments,
+                        tip_payments: otherTips,
+                        tip_amount: otherTips.reduce((s, t) => s + Number(t.amount || 0), 0),
+                      }),
+                    });
+                    toast.success('עסקה נמחקה ✓');
+                    if (openTransaction === deleteTransaction.id) setOpenTransaction(null);
+                    setDeleteTransaction(null);
+                    onUpdate({});
+                  } catch { toast.error('שגיאה'); }
+                }}
+                style={{
+                  flex: 2, minHeight: 44, borderRadius: 10,
+                  background: '#EF4444', border: 'none',
+                  color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer',
+                }}
+              >🗑️ מחק עסקה</button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
@@ -2618,7 +2684,7 @@ function EditTransactionBlock({ transaction, allPayments, allTipPayments, allPeo
 }
 
 // ===== קומפוננטת עסקה סגורה =====
-function ClosedTransactionBlock({ transaction, index, PAYMENT_METHODS, onEdit, isEditing, onCancelEdit }) {
+function ClosedTransactionBlock({ transaction, index, PAYMENT_METHODS, onEdit, onDelete, isEditing, onCancelEdit }) {
   const [showItems, setShowItems] = useState(false);
   const [showPayments, setShowPayments] = useState(false);
   const [showTips, setShowTips] = useState(false);
@@ -2637,7 +2703,15 @@ function ClosedTransactionBlock({ transaction, index, PAYMENT_METHODS, onEdit, i
         display: 'flex', justifyContent: 'space-between', alignItems: 'center',
         paddingBottom: 10, borderBottom: '1px solid var(--glass-border)', marginBottom: 10,
       }}>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+          <button type="button"
+            onClick={onDelete}
+            style={{
+              padding: '4px 8px', borderRadius: 6, fontSize: 11,
+              background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)',
+              color: '#EF4444', cursor: 'pointer',
+            }}
+          >🗑️ מחק</button>
           <button type="button"
             onClick={onEdit}
             style={{
@@ -2650,7 +2724,14 @@ function ClosedTransactionBlock({ transaction, index, PAYMENT_METHODS, onEdit, i
             ₪{txTotal.toLocaleString()}
           </span>
         </div>
-        <span style={{ fontSize: 14, fontWeight: 700 }}>עסקה {index}</span>
+        <div style={{ textAlign: 'right' }}>
+          <div style={{ fontSize: 14, fontWeight: 700 }}>עסקה {index}</div>
+          {transaction.created_at && (
+            <div style={{ fontSize: 11, color: 'var(--v2-gray-400)' }}>
+              {new Date(transaction.created_at).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* פירוט פריטים */}
