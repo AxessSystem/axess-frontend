@@ -1917,6 +1917,8 @@ function TableEditAccount({ order, menuItems, authHeaders, eventId, onUpdate }) 
 
   const editingTotal = editingItems.reduce((s, i) => s + (Number(i.price) * Number(i.quantity)), 0);
 
+  console.log('menuForm', menuForm);
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
 
