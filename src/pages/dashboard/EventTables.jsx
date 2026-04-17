@@ -1718,6 +1718,7 @@ function TableEditAccount({ order, menuItems, authHeaders, eventId, onUpdate }) 
   const addItem = async (type) => {
     if (!selectedItem) return
     let itemId = `${type}_${Date.now()}`
+    const itemType = type
     try {
       const res = await fetch(
         `${API_BASE}/api/admin/events/${eventId}/table-items`,
@@ -1725,13 +1726,13 @@ function TableEditAccount({ order, menuItems, authHeaders, eventId, onUpdate }) 
           method: 'POST',
           headers: authHeaders(),
           body: JSON.stringify({
-            order_id: order.id,
+            table_order_id: order.id,
+            menu_item_id: selectedItem.id,
             name: selectedItem.name,
             quantity: itemQty,
             price: selectedItem.price || 0,
-            category: selectedItem.category || '',
-            item_type: type,
-            status: 'confirmed',
+            total: (selectedItem.price || 0) * itemQty,
+            is_upsell: itemType === 'pickup',
           }),
         },
       )
@@ -1739,7 +1740,10 @@ function TableEditAccount({ order, menuItems, authHeaders, eventId, onUpdate }) 
         const data = await res.json()
         itemId = data.item?.id || itemId
       }
-    } catch {}
+    } catch (err) {
+      console.error('addItem error:', err);
+      toast.error('שגיאה בהוספת פריט');
+    }
 
     setOrderItems((prev) => [...prev, {
       id: itemId,
