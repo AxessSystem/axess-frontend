@@ -157,13 +157,29 @@ function normalizePayments(order) {
 }
 
 function orderLineTotal(o) {
-  const q = parseInt(String(o.drink_quantity || 1), 10)
-  const qty = Number.isFinite(q) && q > 0 ? q : 1
-  const basePrice = parseFloat(o.base_price || 0) * qty
-  const discount = parseFloat(o.discount || 0)
-  const b = Number.isFinite(basePrice) ? basePrice : 0
-  const d = Number.isFinite(discount) ? discount : 0
-  return Math.max(0, b - d)
+  let items = o.items
+  if (items == null) items = []
+  else if (typeof items === 'string') {
+    try {
+      items = JSON.parse(items)
+    } catch {
+      items = []
+    }
+  }
+  if (!Array.isArray(items)) items = []
+  return items.reduce((s, i) => s + Number(i.total || i.price * i.quantity || 0), 0)
+}
+
+function paymentsByMethod(o) {
+  const payments = normalizePayments(o)
+  const result = { cash: 0, credit: 0, bit: 0, axess: 0, transfer: 0 }
+  payments.forEach((p) => {
+    const method = p.method ?? p.type
+    if (result[method] !== undefined) {
+      result[method] += Number(p.amount || 0)
+    }
+  })
+  return result
 }
 
 function waPromoterDigits(phone) {
@@ -3057,6 +3073,13 @@ export default function EventTables({
   const [view, setView] = useState('table')
   const [tableRowHistory, setTableRowHistory] = useState([])
   const [tableFilter, setTableFilter] = useState({ category: 'all', status: 'all' })
+  const filteredOrders = useMemo(
+    () =>
+      tableOrders
+        .filter((o) => tableFilter.category === 'all' || o.category === tableFilter.category)
+        .filter((o) => tableFilter.status === 'all' || o.status === tableFilter.status),
+    [tableOrders, tableFilter.category, tableFilter.status],
+  )
   const [menuItems, setMenuItems] = useState([])
   const [staffList, setStaffList] = useState([])
   const [customCategories, setCustomCategories] = useState([])
@@ -3546,8 +3569,11 @@ export default function EventTables({
                   'מחיר',
                   'הנחה ₪',
                   'סה"כ',
-                  'תשלום 1',
-                  'תשלום 2',
+                  'מזומן',
+                  'אשראי קופה',
+                  'ביט',
+                  'AXESS',
+                  'העברה',
                   'טיפ',
                   'יחצ"ן',
                   'עמלה %',
@@ -3571,13 +3597,8 @@ export default function EventTables({
               </tr>
             </thead>
             <tbody>
-              {tableOrders
-                .filter((o) => tableFilter.category === 'all' || o.category === tableFilter.category)
-                .filter((o) => tableFilter.status === 'all' || o.status === tableFilter.status)
-                .map((order, idx) => {
+              {filteredOrders.map((order) => {
                   const table = tables.find((t) => t.id === order.event_table_id)
-
-                  const pay = normalizePayments(order)
 
                   return (
                     <tr
@@ -3785,38 +3806,23 @@ export default function EventTables({
                         {orderLineTotal(order).toLocaleString()}
                       </td>
 
-                      <td style={{ padding: '8px 10px', borderLeft: '1px solid var(--glass-border)', minWidth: 130 }}>
-                        {pay[0] && (
-                          <span style={{ fontSize: 11 }}>
-                            {pay[0].type === 'credit'
-                              ? 'אשראי'
-                              : pay[0].type === 'cash'
-                                ? 'מזומן'
-                                : pay[0].type === 'bit'
-                                  ? 'ביט'
-                                  : pay[0].type}
-                            {' '}
-                            ₪
-                            {pay[0].amount}
-                            {pay[0].payer && ` (${pay[0].payer})`}
-                          </span>
-                        )}
-                      </td>
-
-                      <td style={{ padding: '8px 10px', borderLeft: '1px solid var(--glass-border)', minWidth: 130 }}>
-                        {pay[1] && (
-                          <span style={{ fontSize: 11 }}>
-                            {pay[1].type === 'credit'
-                              ? 'אשראי'
-                              : pay[1].type === 'cash'
-                                ? 'מזומן'
-                                : 'ביט'}
-                            {' '}
-                            ₪
-                            {pay[1].amount}
-                          </span>
-                        )}
-                      </td>
+                      {(() => {
+                        const pbm = paymentsByMethod(order)
+                        const cell = {
+                          padding: '8px 10px',
+                          borderLeft: '1px solid var(--glass-border)',
+                          minWidth: 130,
+                        }
+                        return (
+                          <>
+                            <td style={cell}>{pbm.cash > 0 ? `₪${pbm.cash.toLocaleString()}` : '—'}</td>
+                            <td style={cell}>{pbm.credit > 0 ? `₪${pbm.credit.toLocaleString()}` : '—'}</td>
+                            <td style={cell}>{pbm.bit > 0 ? `₪${pbm.bit.toLocaleString()}` : '—'}</td>
+                            <td style={cell}>{pbm.axess > 0 ? `₪${pbm.axess.toLocaleString()}` : '—'}</td>
+                            <td style={cell}>{pbm.transfer > 0 ? `₪${pbm.transfer.toLocaleString()}` : '—'}</td>
+                          </>
+                        )
+                      })()}
 
                       <td style={{
                         padding: '0 10px', fontSize: 13, height: 44, borderLeft: '1px solid var(--glass-border)',
@@ -3901,20 +3907,29 @@ export default function EventTables({
                 <td colSpan={16} style={{ padding: '8px 12px', fontWeight: 800, fontSize: 13 }}>
                   סה&quot;כ
                   {' '}
-                  {tableOrders
-                    .filter((o) => tableFilter.category === 'all' || o.category === tableFilter.category)
-                    .filter((o) => tableFilter.status === 'all' || o.status === tableFilter.status).length}
+                  {filteredOrders.length}
                   {' '}
                   שולחנות
                 </td>
                 <td style={{ padding: '8px 12px', fontWeight: 800, fontSize: 14, color: '#00C37A' }}>
                   ₪
-                  {tableOrders
-                    .filter((o) => tableFilter.category === 'all' || o.category === tableFilter.category)
-                    .filter((o) => tableFilter.status === 'all' || o.status === tableFilter.status)
-                    .reduce((s, o) => s + orderLineTotal(o), 0).toLocaleString()}
+                  {filteredOrders.reduce((s, o) => s + orderLineTotal(o), 0).toLocaleString()}
                 </td>
-                <td colSpan={5} />
+                {['cash', 'credit', 'bit', 'axess', 'transfer'].map((method) => {
+                  const total = filteredOrders.reduce((s, o) => {
+                    const pbm = paymentsByMethod(o)
+                    return s + pbm[method]
+                  }, 0)
+                  return (
+                    <td
+                      key={method}
+                      style={{ padding: '8px 10px', fontWeight: 800, fontSize: 13, borderLeft: '1px solid var(--glass-border)', minWidth: 130 }}
+                    >
+                      {total > 0 ? `₪${total.toLocaleString()}` : '—'}
+                    </td>
+                  )
+                })}
+                <td colSpan={3} style={{ padding: '8px 12px' }} />
               </tr>
             </tbody>
           </table>
