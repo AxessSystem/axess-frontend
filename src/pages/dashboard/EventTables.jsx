@@ -1790,7 +1790,9 @@ function TableEditAccount({ order, menuItems, authHeaders, eventId, onUpdate }) 
   const [showMenuSelector, setShowMenuSelector] = useState(false);
   const [menuForm, setMenuForm] = useState({ selected_drinks: [], extras_by_drink: {} });
   const [interimSaving, setInterimSaving] = useState(false);
-  const selectedDrinks = Array.isArray(menuForm.selected_drinks) ? menuForm.selected_drinks : [];
+  const selectedDrinks = menuForm.selected_drinks && typeof menuForm.selected_drinks === 'object'
+    ? Object.values(menuForm.selected_drinks)
+    : [];
 
   const PAYMENT_METHODS = [
     { value: 'axess', label: 'AXESS', color: '#00C37A' },
@@ -1980,7 +1982,7 @@ function TableEditAccount({ order, menuItems, authHeaders, eventId, onUpdate }) 
               <button type="button"
                 onClick={() => {
                   const newItems = [];
-                  selectedDrinks.forEach(d => {
+                  Object.values(menuForm.selected_drinks || {}).forEach(d => {
                     newItems.push({
                       menu_item_id: d.id,
                       name: d.name,
@@ -2339,11 +2341,15 @@ function EditTransactionBlock({ transaction, allPayments, allTipPayments, allPeo
       for (const origItem of transaction.items) {
         const stillExists = items.find(i => i.id === origItem.id);
         if (!stillExists) {
-          await fetch(`${API_BASE}/api/admin/events/${eventId}/table-items/${origItem.id}`, {
+          const r = await fetch(`${API_BASE}/api/admin/events/${eventId}/table-items/${origItem.id}`, {
             method: 'DELETE', headers: authHeaders(),
           });
+          if (!r.ok) {
+            const err = await r.text();
+            console.error('API error:', r.status, err);
+          }
         } else if (stillExists.quantity !== origItem.quantity || stillExists.price !== origItem.price) {
-          await fetch(`${API_BASE}/api/admin/events/${eventId}/table-items/${origItem.id}`, {
+          const r = await fetch(`${API_BASE}/api/admin/events/${eventId}/table-items/${origItem.id}`, {
             method: 'PATCH', headers: authHeaders(),
             body: JSON.stringify({
               quantity: Number(stillExists.quantity),
@@ -2351,6 +2357,10 @@ function EditTransactionBlock({ transaction, allPayments, allTipPayments, allPeo
               total: Number(stillExists.price) * Number(stillExists.quantity),
             }),
           });
+          if (!r.ok) {
+            const err = await r.text();
+            console.error('API error:', r.status, err);
+          }
         }
       }
 
@@ -2368,10 +2378,15 @@ function EditTransactionBlock({ transaction, allPayments, allTipPayments, allPeo
       });
 
       if (res.ok) {
+        const data = await res.json();
+        console.log('save response:', data);
         toast.success('העסקה עודכנה ✓');
         onUpdate({});
-        // המודאל לא נסגר — הoUpdate יטען מחדש והבלוק יתעדכן
-      } else toast.error('שגיאה בשמירה');
+      } else {
+        const errText = await res.text();
+        console.error('save failed:', res.status, errText);
+        toast.error(`שגיאה בשמירה (${res.status})`);
+      }
     } catch (e) {
       console.error('save error:', e);
       toast.error('שגיאה');
