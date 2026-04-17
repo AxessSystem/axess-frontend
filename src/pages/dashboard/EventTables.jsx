@@ -1788,6 +1788,8 @@ function TableEditAccount({ order, menuItems, authHeaders, eventId, onUpdate }) 
   const [newTipAmount, setNewTipAmount] = useState(0);
   const [newTipMethod, setNewTipMethod] = useState('cash');
   const [showMenuSelector, setShowMenuSelector] = useState(false);
+  const [manualStep, setManualStep] = useState(1);
+  const [drinkSearch, setDrinkSearch] = useState('');
   const [menuForm, setMenuForm] = useState({ selected_drinks: [], extras_by_drink: {} });
   const [interimSaving, setInterimSaving] = useState(false);
   const selectedDrinks = menuForm.selected_drinks && typeof menuForm.selected_drinks === 'object'
@@ -1810,6 +1812,7 @@ function TableEditAccount({ order, menuItems, authHeaders, eventId, onUpdate }) 
     setPaymentMode('single');
     setNewTipAmount(0);
     setShowMenuSelector(false);
+    setManualStep(1);
   };
 
   // ===== סגירת ביניים =====
@@ -1917,8 +1920,6 @@ function TableEditAccount({ order, menuItems, authHeaders, eventId, onUpdate }) 
 
   const editingTotal = editingItems.reduce((s, i) => s + (Number(i.price) * Number(i.quantity)), 0);
 
-  console.log('menuForm', menuForm);
-
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
 
@@ -1943,7 +1944,7 @@ function TableEditAccount({ order, menuItems, authHeaders, eventId, onUpdate }) 
         }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
             <button type="button"
-              onClick={() => { setOpenTransaction(null); setEditingItems([]); setLocalPayments([]); }}
+              onClick={() => { setOpenTransaction(null); setEditingItems([]); setLocalPayments([]); setManualStep(1); }}
               style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--v2-gray-400)', fontSize: 18 }}
             >✕</button>
             <p style={{ margin: 0, fontSize: 15, fontWeight: 700, color: '#00C37A' }}>
@@ -1954,7 +1955,7 @@ function TableEditAccount({ order, menuItems, authHeaders, eventId, onUpdate }) 
           {/* כפתור פתיחת תפריט */}
           {!showMenuSelector && editingItems.length === 0 && (
             <button type="button"
-              onClick={() => setShowMenuSelector(true)}
+              onClick={() => { setManualStep(1); setShowMenuSelector(true); }}
               style={{
                 width: '100%', minHeight: 48, borderRadius: 10,
                 background: 'rgba(0,195,122,0.1)', border: '1px solid rgba(0,195,122,0.3)',
@@ -1968,59 +1969,83 @@ function TableEditAccount({ order, menuItems, authHeaders, eventId, onUpdate }) 
           {showMenuSelector && (
             <div style={{ marginBottom: 12 }}>
               <TableMenuSelector
-                tableStep={selectedDrinks.length > 0 ? 4 : 1}
+                tableStep={manualStep}
                 isSmartTable={true}
                 menuItems={menuItems}
                 extrasOptions={(menuItems || []).filter(m => m.category === 'תוספות')}
                 tableForm={menuForm}
                 setTableForm={setMenuForm}
-                drinkSearch=""
-                setDrinkSearch={() => {}}
+                drinkSearch={drinkSearch}
+                setDrinkSearch={setDrinkSearch}
                 totalBottles={selectedDrinks.reduce((s, d) => s + d.quantity, 0)}
                 drinksTotal={selectedDrinks.reduce((s, d) => s + (d.price * d.quantity), 0)}
                 totalFreePeople={0}
                 maxExtras={selectedDrinks.reduce((s, d) => s + ((d.free_extras || 0) * d.quantity), 0)}
               />
-              <button type="button"
-                onClick={() => {
-                  const newItems = [];
-                  Object.values(menuForm.selected_drinks || {}).forEach(d => {
-                    newItems.push({
-                      menu_item_id: d.id,
-                      name: d.name,
-                      quantity: d.quantity,
-                      price: d.price,
-                      is_upsell: false,
-                    });
-                  });
-                  Object.values(menuForm.extras_by_drink || {}).forEach(extras => {
-                    Object.values(extras).forEach(e => {
-                      if (e.quantity > 0) newItems.push({
-                        menu_item_id: e.id,
-                        name: e.name,
-                        quantity: e.quantity,
-                        price: e.price || 0,
-                        is_upsell: true,
+              <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+                {manualStep === 1 && selectedDrinks.length > 0 && (
+                  <button type="button"
+                    onClick={() => setManualStep(4)}
+                    style={{
+                      flex: 1, minHeight: 44, borderRadius: 10,
+                      background: 'rgba(59,130,246,0.1)', border: '1px solid rgba(59,130,246,0.3)',
+                      color: '#3B82F6', fontSize: 14, fontWeight: 700, cursor: 'pointer',
+                    }}
+                  >המשך לתוספות →</button>
+                )}
+
+                {manualStep === 4 && (
+                  <button type="button"
+                    onClick={() => setManualStep(1)}
+                    style={{
+                      flex: 1, minHeight: 44, borderRadius: 10,
+                      background: 'var(--glass)', border: '1px solid var(--glass-border)',
+                      color: 'var(--text)', fontSize: 14, cursor: 'pointer',
+                    }}
+                  >← הוסף עוד פריט</button>
+                )}
+
+                <button type="button"
+                  onClick={() => {
+                    const newItems = [];
+                    selectedDrinks.forEach(d => {
+                      newItems.push({
+                        menu_item_id: d.id,
+                        name: d.name,
+                        quantity: d.quantity,
+                        price: d.price,
+                        is_upsell: false,
                       });
                     });
-                  });
-                  setEditingItems(prev => [...prev, ...newItems]);
-                  setMenuForm({ selected_drinks: [], extras_by_drink: {} });
-                  setShowMenuSelector(false);
-                  // אתחל תשלומים לפי סכום מעודכן
-                  const total = [...editingItems, ...newItems].reduce((s, i) => s + (i.price * i.quantity), 0);
-                  initPayments(paymentMode, total);
-                }}
-                disabled={selectedDrinks.length === 0}
-                style={{
-                  width: '100%', minHeight: 44, borderRadius: 10, marginTop: 12,
-                  background: selectedDrinks.length > 0 ? '#00C37A' : 'var(--glass)',
-                  border: 'none',
-                  color: selectedDrinks.length > 0 ? '#000' : 'var(--v2-gray-400)',
-                  fontSize: 14, fontWeight: 700,
-                  cursor: selectedDrinks.length > 0 ? 'pointer' : 'not-allowed',
-                }}
-              >הוסף לעסקה</button>
+                    Object.values(menuForm.extras_by_drink || {}).forEach(extras => {
+                      Object.values(extras || {}).forEach(e => {
+                        if (e.quantity > 0) newItems.push({
+                          menu_item_id: e.id,
+                          name: e.name,
+                          quantity: e.quantity,
+                          price: e.price || 0,
+                          is_upsell: true,
+                        });
+                      });
+                    });
+                    setEditingItems(prev => [...prev, ...newItems]);
+                    setMenuForm({ selected_drinks: {}, extras_by_drink: {} });
+                    setManualStep(1);
+                    setShowMenuSelector(false);
+                    const total = [...editingItems, ...newItems].reduce((s, i) => s + (i.price * i.quantity), 0);
+                    initPayments(paymentMode, total);
+                  }}
+                  disabled={selectedDrinks.length === 0}
+                  style={{
+                    flex: 2, minHeight: 44, borderRadius: 10,
+                    background: selectedDrinks.length > 0 ? '#00C37A' : 'var(--glass)',
+                    border: 'none',
+                    color: selectedDrinks.length > 0 ? '#000' : 'var(--v2-gray-400)',
+                    fontSize: 14, fontWeight: 700,
+                    cursor: selectedDrinks.length > 0 ? 'pointer' : 'not-allowed',
+                  }}
+                >הוסף לעסקה</button>
+              </div>
             </div>
           )}
 
@@ -2053,7 +2078,7 @@ function TableEditAccount({ order, menuItems, authHeaders, eventId, onUpdate }) 
                 <span style={{ fontSize: 14, fontWeight: 700 }}>סה"כ עסקה</span>
               </div>
               <button type="button"
-                onClick={() => setShowMenuSelector(true)}
+                onClick={() => { setManualStep(1); setShowMenuSelector(true); }}
                 style={{
                   width: '100%', minHeight: 36, borderRadius: 8, marginTop: 8,
                   background: 'transparent', border: '1px dashed var(--glass-border)',
@@ -2943,6 +2968,10 @@ export default function EventTables({
 }) {
   const [tables, setTables] = useState([])
   const [tableOrders, setTableOrders] = useState([])
+  const tableOrdersRef = useRef([])
+  useEffect(() => {
+    tableOrdersRef.current = tableOrders
+  }, [tableOrders])
   const [loading, setLoading] = useState(true)
   const [view, setView] = useState('table')
   const [tableRowHistory, setTableRowHistory] = useState([])
@@ -3116,7 +3145,9 @@ export default function EventTables({
         fetch(`${API_BASE}/api/admin/promoters?business_id=${businessId}`, { headers: hdrs }).then((r) => r.json()),
       ])
       setTables(t.tables || [])
-      setTableOrders((o.orders || []).map(normalizeOrderItems))
+      const nextOrders = (o.orders || []).map(normalizeOrderItems)
+      setTableOrders(nextOrders)
+      tableOrdersRef.current = nextOrders
       setMenuItems(m.menu || [])
       setStaffList(s.staff || [])
       setPromoters(Array.isArray(p) ? p : [])
@@ -4194,9 +4225,14 @@ export default function EventTables({
                   menuItems={menuItems}
                   authHeaders={authHeaders}
                   eventId={eventId}
-                  onUpdate={(updated) => {
+                  onUpdate={async (updated) => {
                     setTableEditModal((prev) => ({ ...prev, ...updated }))
-                    loadData()
+                    await loadData()
+                    setTableEditModal((prev) => {
+                      if (!prev) return prev
+                      const fresh = tableOrdersRef.current?.find((o) => o.id === prev.id)
+                      return fresh ? { ...prev, ...fresh } : prev
+                    })
                   }}
                 />
               )}
