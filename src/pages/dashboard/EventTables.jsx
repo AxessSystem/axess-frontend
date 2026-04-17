@@ -1584,49 +1584,142 @@ function TableEditPayment({ order, authHeaders, eventId, onUpdate }) {
   )
 }
 
+function TransactionBlock({ transaction, index, onUpdate, eventId, orderId, authHeaders }) {
+  const [showItems, setShowItems] = useState(true)
+  const [showPayments, setShowPayments] = useState(false)
+  const [showTips, setShowTips] = useState(false)
+  const hasContext = Boolean(onUpdate && eventId && orderId && authHeaders)
+
+  const txTotal = transaction.total
+  const txPaid = transaction.payments.reduce((s, p) => s + Number(p.amount || 0), 0)
+  const txTip = transaction.tips.reduce((s, t) => s + Number(t.amount || 0), 0)
+
+  return (
+    <div style={{
+      background: 'var(--glass)', border: '1px solid var(--glass-border)',
+      borderRadius: 12, padding: 16,
+    }}
+    >
+      <div style={{
+        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+        paddingBottom: 12, borderBottom: '1px solid var(--glass-border)', marginBottom: 12,
+      }}
+      >
+        <span style={{ fontSize: 16, fontWeight: 700, color: '#00C37A' }}>
+          ₪{txTotal.toLocaleString()}
+        </span>
+        <span style={{ fontSize: 15, fontWeight: 700 }} title={hasContext ? '' : 'missing_context'}>עסקה {index}</span>
+      </div>
+
+      <div style={{ marginBottom: 8 }}>
+        <div
+          onClick={() => setShowItems((s) => !s)}
+          style={{
+            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+            cursor: 'pointer', padding: '6px 0',
+          }}
+          role="button"
+          tabIndex={0}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault()
+              setShowItems((s) => !s)
+            }
+          }}
+        >
+          <span style={{ fontSize: 13, color: 'var(--v2-gray-400)' }}>{showItems ? '▼' : '▶'}</span>
+          <span style={{ fontSize: 14, fontWeight: 600 }}>מפרט ההזמנה</span>
+        </div>
+        {showItems && transaction.items.map((item, i) => (
+          <div key={item.id || i} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', fontSize: 13 }}>
+            <span style={{ color: '#00C37A', fontWeight: 700 }}>
+              ₪{Number(item.total || item.price * item.quantity).toLocaleString()}
+            </span>
+            <span>
+              {item.name}
+              {item.quantity > 1 && <span style={{ color: 'var(--v2-gray-400)', marginRight: 4 }}>×{item.quantity}</span>}
+              {item.is_upsell && <span style={{ fontSize: 10, color: '#8B5CF6', marginRight: 6 }}>תוספת</span>}
+            </span>
+          </div>
+        ))}
+      </div>
+
+      <div style={{ marginBottom: 8 }}>
+        <div
+          onClick={() => setShowPayments((s) => !s)}
+          style={{
+            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+            cursor: 'pointer', padding: '6px 0',
+          }}
+          role="button"
+          tabIndex={0}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault()
+              setShowPayments((s) => !s)
+            }
+          }}
+        >
+          <span style={{ fontSize: 13, color: 'var(--v2-gray-400)' }}>{showPayments ? '▼' : '▶'}</span>
+          <span style={{ fontSize: 14, fontWeight: 600 }}>
+            היסטוריית תשלומים {txPaid > 0 && <span style={{ color: '#00C37A' }}>(₪{txPaid.toLocaleString()})</span>}
+          </span>
+        </div>
+        {showPayments && (transaction.payments.length === 0 ? (
+          <p style={{ fontSize: 12, color: 'var(--v2-gray-400)', textAlign: 'center', padding: 8 }}>אין תשלומים</p>
+        ) : transaction.payments.map((p, i) => (
+          <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', fontSize: 12, color: 'var(--v2-gray-400)' }}>
+            <span style={{ color: '#00C37A' }}>₪{Number(p.amount).toLocaleString()}</span>
+            <span>
+              {p.method === 'cash' ? 'מזומן' : p.method === 'bit' ? 'ביט'
+                : p.method === 'credit' ? 'אשראי קופה' : p.method === 'axess' ? 'AXESS'
+                  : p.method === 'transfer' ? 'העברה' : p.method}
+              {p.person && ` — ${p.person}`}
+            </span>
+          </div>
+        )))}
+      </div>
+
+      <div>
+        <div
+          onClick={() => setShowTips((s) => !s)}
+          style={{
+            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+            cursor: 'pointer', padding: '6px 0',
+          }}
+          role="button"
+          tabIndex={0}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault()
+              setShowTips((s) => !s)
+            }
+          }}
+        >
+          <span style={{ fontSize: 13, color: 'var(--v2-gray-400)' }}>{showTips ? '▼' : '▶'}</span>
+          <span style={{ fontSize: 14, fontWeight: 600 }}>
+            טיפ {txTip > 0 ? <span style={{ color: '#F59E0B' }}>(₪{txTip.toLocaleString()})</span> : <span style={{ color: 'var(--v2-gray-400)' }}>(0₪)</span>}
+          </span>
+        </div>
+        {showTips && (transaction.tips.length === 0 ? (
+          <p style={{ fontSize: 12, color: 'var(--v2-gray-400)', textAlign: 'center', padding: 8 }}>אין טיפ</p>
+        ) : transaction.tips.map((t, i) => (
+          <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', fontSize: 12, color: 'var(--v2-gray-400)' }}>
+            <span style={{ color: '#F59E0B' }}>₪{Number(t.amount).toLocaleString()}</span>
+            <span>{t.method === 'cash' ? 'מזומן' : 'אשראי'}</span>
+          </div>
+        )))}
+      </div>
+    </div>
+  )
+}
+
 function TableEditAccount({ order, menuItems, authHeaders, eventId, onUpdate }) {
-  const [localOrder, setLocalOrder] = useState(order)
-  const [orderItems, setOrderItems] = useState(() => {
-    const extras = order.extras_list || order.extras
-    const extrasArr = Array.isArray(extras)
-      ? extras
-      : (extras ? (() => {
-          try { return JSON.parse(extras) } catch { return [] }
-        })() : [])
-
-    const items = []
-    if (order.drink_name) {
-      items.push({
-        id: 'initial',
-        name: order.drink_name,
-        quantity: order.drink_quantity || 1,
-        price: order.base_price || 0,
-        type: 'initial',
-        label: 'ראשונית',
-      })
-    }
-    extrasArr.forEach((e, i) => {
-      items.push({
-        id: `extra_${i}`,
-        name: e.name,
-        quantity: e.qty || e.quantity || 1,
-        price: e.price || 0,
-        type: 'initial',
-        label: 'ראשונית',
-      })
-    })
-    return items
-  })
-
   const [showMenuSelector, setShowMenuSelector] = useState(false)
   const [menuForm, setMenuForm] = useState({
     selected_drinks: [],
     extras_by_drink: {},
   })
-  const [addItemType, setAddItemType] = useState('manual')
-  const [selectedItem, setSelectedItem] = useState(null)
-  const [itemQty, setItemQty] = useState(1)
-  const [menuSearch, setMenuSearch] = useState('')
   const menuSelectorForm = useMemo(() => ({
     ...menuForm,
     selected_drinks: (menuForm.selected_drinks || []).reduce((acc, d) => {
@@ -1657,61 +1750,56 @@ function TableEditAccount({ order, menuItems, authHeaders, eventId, onUpdate }) 
   const [interimSaving, setInterimSaving] = useState(false)
   const [finalSaving, setFinalSaving] = useState(false)
   const [interimNote, setInterimNote] = useState('')
-  const [expandedPayment, setExpandedPayment] = useState(null)
-  const [tipPayments, setTipPayments] = useState(() => {
-    const t = order.tip_payments
-    if (!t) return []
-    if (Array.isArray(t)) return t
-    try { return JSON.parse(t) } catch { return [] }
-  })
   const [newTipAmount, setNewTipAmount] = useState(0)
   const [newTipMethod, setNewTipMethod] = useState('cash')
-  useEffect(() => {
-    setLocalOrder(order)
-    setLocalPayments([])
-    setPaymentMode('single')
-    setOrderItems(() => {
-      const extras = order.extras_list || order.extras
-      const extrasArr = Array.isArray(extras) ? extras
-        : (extras ? (() => { try { return JSON.parse(extras) } catch { return [] } })() : [])
-      const items = []
-      if (order.drink_name) {
-        items.push({
-          id: 'initial',
-          name: order.drink_name,
-          quantity: order.drink_quantity || 1,
-          price: order.base_price || 0,
-          type: 'initial',
-          label: 'ראשונית',
-        })
-      }
-      extrasArr.forEach((e, i) => items.push({
-        id: `extra_${i}`,
-        name: e.name,
-        quantity: e.qty || e.quantity || 1,
-        price: e.price || 0,
-        type: 'initial',
-        label: 'ראשונית',
-      }))
-      return items
-    })
-    setShowPaymentBlock(false)
-    setNewTipAmount(0)
-    setInterimNote('')
-    setTipPayments(() => {
-      const t = order.tip_payments
-      if (!t) return []
-      if (Array.isArray(t)) return t
-      try { return JSON.parse(t) } catch { return [] }
-    })
-  }, [order.id])
 
-  const existingPayments = (() => {
-    const p = localOrder.payments
+  const allItems = (() => {
+    const items = order.items
+    if (!items) return []
+    if (Array.isArray(items)) return items.filter((i) => i && i.id)
+    try { return JSON.parse(items).filter((i) => i && i.id) } catch { return [] }
+  })()
+
+  const allPayments = (() => {
+    const p = order.payments
     if (!p) return []
     if (Array.isArray(p)) return p
     try { return JSON.parse(p) } catch { return [] }
   })()
+
+  const allTipPayments = (() => {
+    const t = order.tip_payments
+    if (!t) return []
+    if (Array.isArray(t)) return t
+    try { return JSON.parse(t) } catch { return [] }
+  })()
+
+  const transactions = {}
+  allItems.forEach((item) => {
+    const txId = item.transaction_id || 'txn_legacy'
+    if (!transactions[txId]) {
+      transactions[txId] = { id: txId, items: [], payments: [], tips: [], total: 0 }
+    }
+    transactions[txId].items.push(item)
+    transactions[txId].total += Number(item.total || item.price * item.quantity || 0)
+  })
+
+  allPayments.forEach((p) => {
+    const txId = p.transaction_id || p.interim_id || 'txn_legacy'
+    if (transactions[txId]) transactions[txId].payments.push(p)
+  })
+
+  allTipPayments.forEach((t) => {
+    const txId = t.transaction_id || 'txn_legacy'
+    if (transactions[txId]) transactions[txId].tips.push(t)
+  })
+
+  const transactionsList = Object.values(transactions)
+  const totalOrdered = allItems.reduce((s, i) => s + Number(i.total || i.price * i.quantity || 0), 0)
+  const totalPaid = allPayments.reduce((s, p) => s + Number(p.amount || 0), 0)
+    + localPayments.reduce((s, p) => s + Number(p.amount || 0), 0)
+  const totalTip = allTipPayments.reduce((s, t) => s + Number(t.amount || 0), 0)
+  const balance = totalOrdered - totalPaid
 
   const guests = (() => {
     const g = order.guests
@@ -1719,17 +1807,10 @@ function TableEditAccount({ order, menuItems, authHeaders, eventId, onUpdate }) 
     if (Array.isArray(g)) return g
     try { return JSON.parse(g) } catch { return [] }
   })()
-
   const allPeople = [
     { name: `${order.customer_name} ${order.customer_last_name || ''}`.trim(), is_host: true },
     ...guests.map((g) => ({ name: `${g.first_name || g.name} ${g.last_name || ''}`.trim() })),
   ]
-
-  const totalAmount = orderItems.reduce((sum, i) => sum + (i.price * i.quantity), 0)
-  const totalPaid = existingPayments.reduce((s, p) => s + Number(p.amount || 0), 0)
-    + localPayments.reduce((s, p) => s + Number(p.amount || 0), 0)
-  const totalOrderAmount = Number(localOrder.total_amount) || 0
-  const balance = totalOrderAmount + totalAmount - totalPaid
 
   const PAYMENT_METHODS = [
     { value: 'axess', label: 'AXESS', color: '#00C37A' },
@@ -1739,108 +1820,42 @@ function TableEditAccount({ order, menuItems, authHeaders, eventId, onUpdate }) 
     { value: 'transfer', label: 'העברה', color: '#EC4899' },
   ]
 
-  const filteredMenu = (menuItems || []).filter((item) =>
-    !menuSearch || item.name?.includes(menuSearch) || item.category?.includes(menuSearch)
-  )
-
-  const addItem = async (type) => {
-    if (!selectedItem) return
-    let itemId = `${type}_${Date.now()}`
-    const itemType = type
-    try {
-      const res = await fetch(
-        `${API_BASE}/api/admin/events/${eventId}/table-items`,
-        {
-          method: 'POST',
-          headers: authHeaders(),
-          body: JSON.stringify({
-            table_order_id: order.id,
-            menu_item_id: selectedItem.id,
-            name: selectedItem.name,
-            quantity: itemQty,
-            price: selectedItem.price || 0,
-            total: (selectedItem.price || 0) * itemQty,
-            is_upsell: itemType === 'pickup',
-          }),
-        },
-      )
-      if (res.ok) {
-        const data = await res.json()
-        itemId = data.item?.id || itemId
-      }
-    } catch (err) {
-      console.error('addItem error:', err);
-      toast.error('שגיאה בהוספת פריט');
-    }
-
-    setOrderItems((prev) => [...prev, {
-      id: itemId,
-      name: selectedItem.name,
-      quantity: itemQty,
-      price: selectedItem.price || 0,
-      type,
-      label: type === 'pickup' ? 'פיק-אפ' : 'ידני',
-      status: 'confirmed',
-    }])
-    setSelectedItem(null)
-    setItemQty(1)
-    setMenuSearch('')
-    setShowAddItem(false)
-  }
-
   const handleInterim = async () => {
-    if (localPayments.length === 0) {
-      toast.error('הוסף תשלום לפני סגירת ביניים')
-      return
-    }
+    const paymentTotal = localPayments.reduce((s, p) => s + Number(p.amount || 0), 0)
+    if (paymentTotal === 0) { toast.error('הזן סכום תשלום'); return }
+    if (paymentTotal > balance) { toast.error('סכום התשלום עולה על היתרה'); return }
+
     setInterimSaving(true)
     try {
-      const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+      const unpaidItems = allItems.filter((i) => !i.paid_in_transaction)
+      const targetTxId = unpaidItems[0]?.transaction_id || `txn_${Date.now()}`
+      const newPayments = localPayments.map((p) => ({
+        ...p,
+        transaction_id: targetTxId,
+        interim_id: `interim_${Date.now()}`,
+        timestamp: new Date().toISOString(),
+        note: interimNote || undefined,
+      }))
 
-      for (const item of orderItems) {
-        if (item.id && UUID_REGEX.test(item.id) && item.status !== 'paid') {
-          await fetch(
-            `${API_BASE}/api/admin/events/${eventId}/table-items/${item.id}`,
-            { method: 'PATCH', headers: authHeaders(), body: JSON.stringify({ status: 'paid' }) },
-          )
-        }
-      }
-
-      const existingTotal = Number(localOrder.total_amount) || 0
       const res = await fetch(
         `${API_BASE}/api/admin/events/${eventId}/table-orders/${order.id}`,
         {
           method: 'PATCH',
           headers: authHeaders(),
           body: JSON.stringify({
-            payments: localPayments.map((p) => ({
-              ...p,
-              items_included: orderItems.map((i) => i.name),
-              interim_id: `interim_${Date.now()}`,
-              timestamp: new Date().toISOString(),
-              note: interimNote || undefined,
-            })),
-            total_amount: existingTotal + totalAmount,
+            payments: [...allPayments, ...newPayments],
+            total_amount: totalOrdered,
           }),
         },
       )
 
       if (res.ok) {
-        const updatedData = await res.json()
-        setLocalOrder((prev) => ({
-          ...prev,
-          payments: updatedData.order?.payments || prev.payments,
-          total_amount: updatedData.order?.total_amount ?? existingTotal + totalAmount,
-        }))
+        toast.success('סגירת ביניים בוצעה ✓')
         setShowPaymentBlock(false)
         setLocalPayments([])
         setPaymentMode('single')
-        setOrderItems([])
-        setNewTipAmount(0)
-        setInterimNote('')
         onUpdate({})
-        toast.success('סגירת ביניים בוצעה ✓')
-      } else toast.error('שגיאה בשמירה')
+      } else toast.error('שגיאה')
     } catch {
       toast.error('שגיאה')
     } finally {
@@ -1851,14 +1866,6 @@ function TableEditAccount({ order, menuItems, authHeaders, eventId, onUpdate }) 
   const closeAccount = async () => {
     setFinalSaving(true)
     try {
-      const newItemsTotal = orderItems
-        .filter((item) =>
-          item.id !== 'initial'
-          && !item.id.toString().startsWith('extra_'))
-        .reduce((sum, item) => sum + (item.price * item.quantity), 0)
-
-      const finalTotal = (Number(localOrder.total_amount) || 0) + newItemsTotal
-
       const res = await fetch(
         `${API_BASE}/api/admin/events/${eventId}/table-orders/${order.id}`,
         {
@@ -1867,7 +1874,7 @@ function TableEditAccount({ order, menuItems, authHeaders, eventId, onUpdate }) 
           body: JSON.stringify({
             status: 'closed',
             closed_at: new Date().toISOString(),
-            total_amount: finalTotal,
+            total_amount: totalOrdered,
           }),
         },
       )
@@ -1897,76 +1904,35 @@ function TableEditAccount({ order, menuItems, authHeaders, eventId, onUpdate }) 
           >
             + הוסף פריט
           </button>
-          <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700 }}>הזמנות</h3>
+          <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700 }}>עסקאות</h3>
         </div>
 
-        {orderItems.length === 0 ? (
-          <p style={{ textAlign: 'center', color: 'var(--v2-gray-400)', fontSize: 13, padding: 16 }}>
-            אין הזמנות עדיין
-          </p>
-        ) : orderItems.map((item, i) => (
-          <div
-            key={item.id}
-            style={{
-              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-              padding: '10px 0', borderBottom: '1px solid var(--glass-border)',
-            }}
-          >
-            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-              <button
-                type="button"
-                onClick={() => setOrderItems((prev) => prev.filter((_, j) => j !== i))}
-                style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#EF4444', fontSize: 16, WebkitTapHighlightColor: 'transparent' }}
-              >
-                ✕
-              </button>
-              <span style={{ fontSize: 13, color: '#00C37A', fontWeight: 700 }}>
-                ₪
-                {(item.price * item.quantity).toLocaleString()}
-              </span>
-            </div>
-            <div style={{ textAlign: 'right' }}>
-              <span
-                style={{
-                  padding: '2px 8px', borderRadius: 20, fontSize: 10, marginLeft: 6,
-                  background: item.type === 'pickup' ? 'rgba(139,92,246,0.15)'
-                    : item.type === 'axess' ? 'rgba(0,195,122,0.15)' : 'rgba(255,255,255,0.1)',
-                  color: item.type === 'pickup' ? '#8B5CF6'
-                    : item.type === 'axess' ? '#00C37A' : 'var(--v2-gray-400)',
-                }}
-              >
-                {item.label}
-              </span>
-              <span style={{ fontSize: 14 }}>{item.name}</span>
-              {item.quantity > 1 && (
-                <span style={{ fontSize: 12, color: 'var(--v2-gray-400)', marginRight: 4 }}>
-                  ×
-                  {item.quantity}
-                </span>
-              )}
-            </div>
+        {transactionsList.length > 0 ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {transactionsList.map((tx, idx) => (
+              <TransactionBlock
+                key={tx.id}
+                transaction={tx}
+                index={idx + 1}
+                onUpdate={onUpdate}
+                eventId={eventId}
+                orderId={order.id}
+                authHeaders={authHeaders}
+              />
+            ))}
           </div>
-        ))}
-
-        <div
-          style={{
-            marginTop: 12, padding: '12px 16px', borderRadius: 10,
-            background: 'var(--glass)', border: '1px solid var(--glass-border)',
-            display: 'flex', justifyContent: 'space-between',
-          }}
-        >
-          <span style={{ fontSize: 16, fontWeight: 800, color: '#00C37A' }}>
-            ₪
-            {totalAmount.toLocaleString()}
-          </span>
-          <span style={{ fontSize: 14, color: 'var(--v2-gray-400)' }}>סה"כ להזמנות</span>
-        </div>
+        ) : (
+          <p style={{ textAlign: 'center', color: 'var(--v2-gray-400)', fontSize: 13, padding: 16 }}>
+            אין עסקאות עדיין
+          </p>
+        )}
       </div>
 
       {showMenuSelector && (
         <div
           style={{
-            background: 'var(--glass)', border: '1px solid var(--glass-border)',
+            background: 'var(--glass)',
+            border: '1px solid var(--glass-border)',
             borderRadius: 12, padding: 16, marginTop: 8,
           }}
         >
@@ -1978,9 +1944,7 @@ function TableEditAccount({ order, menuItems, authHeaders, eventId, onUpdate }) 
                 setMenuForm({ selected_drinks: [], extras_by_drink: {} })
               }}
               style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, color: 'var(--v2-gray-400)' }}
-            >
-              ✕
-            </button>
+            >✕</button>
             <p style={{ margin: 0, fontSize: 14, fontWeight: 700 }}>הוסף פריטים</p>
           </div>
 
@@ -2062,67 +2026,11 @@ function TableEditAccount({ order, menuItems, authHeaders, eventId, onUpdate }) 
               fontSize: 15, fontWeight: 700,
               cursor: menuForm.selected_drinks.length > 0 ? 'pointer' : 'not-allowed',
             }}
-          >
-            הוסף לחשבון
-          </button>
+          >הוסף לחשבון</button>
         </div>
       )}
 
-      {existingPayments.length > 0 && (
-        <div style={{ marginBottom: 16 }}>
-          <p style={{ margin: '0 0 8px', fontSize: 13, fontWeight: 700, textAlign: 'right', color: 'var(--v2-gray-400)' }}>
-            היסטוריית תשלומים
-          </p>
-          {existingPayments.map((p, i) => (
-            <div key={i}>
-              <div
-                onClick={() => setExpandedPayment(expandedPayment === i ? null : i)}
-                style={{
-                  display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                  padding: '10px 14px', borderRadius: 10, marginBottom: 4,
-                  background: 'var(--glass)', border: '1px solid var(--glass-border)',
-                  cursor: 'pointer',
-                }}
-              >
-                <span style={{ fontSize: 12, color: 'var(--v2-gray-400)' }}>
-                  {p.timestamp ? new Date(p.timestamp).toLocaleTimeString('he-IL') : ''}
-                </span>
-                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                  <span style={{ color: 'var(--v2-gray-400)', fontSize: 14 }}>›</span>
-                  <span style={{ fontSize: 11, color: 'var(--v2-gray-400)' }}>
-                    {p.method === 'cash' ? 'מזומן'
-                      : p.method === 'bit' ? 'ביט'
-                        : p.method === 'credit' ? 'אשראי' : p.method}
-                  </span>
-                  <span style={{ fontSize: 14, fontWeight: 700, color: '#00C37A' }}>
-                    ₪
-                    {Number(p.amount).toLocaleString()}
-                  </span>
-                </div>
-              </div>
-              {expandedPayment === i && (
-                <div style={{
-                  padding: '10px 14px', marginBottom: 4, borderRadius: 10,
-                  background: 'rgba(0,195,122,0.05)',
-                  border: '1px solid rgba(0,195,122,0.15)',
-                  fontSize: 12, textAlign: 'right',
-                }}>
-                  {p.person && <p style={{ margin: '0 0 4px', color: 'var(--text)' }}>שולם ע"י: {p.person}</p>}
-                  {p.items_included?.length > 0 && (
-                    <p style={{ margin: '0 0 4px', color: 'var(--v2-gray-400)' }}>
-                      פריטים:
-                      {' '}
-                      {p.items_included.join(', ')}
-                    </p>
-                  )}
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-      )}
-
-      {orderItems.length > 0 && !showPaymentBlock && (
+      {allItems.length > 0 && !showPaymentBlock && (
         <button
           type="button"
           onClick={() => setShowPaymentBlock(true)}
@@ -2165,14 +2073,14 @@ function TableEditAccount({ order, menuItems, authHeaders, eventId, onUpdate }) 
                 onClick={() => {
                   setPaymentMode(opt.value)
                   if (opt.value === 'equal') {
-                    const perPerson = Math.ceil(totalAmount / allPeople.length)
+                    const perPerson = Math.ceil(totalOrdered / allPeople.length)
                     setLocalPayments(allPeople.map((p) => ({
                       person: p.name,
                       amount: perPerson,
                       method: 'cash',
                     })))
                   } else if (opt.value === 'single') {
-                    setLocalPayments([{ person: allPeople[0]?.name, amount: totalAmount, method: 'cash' }])
+                    setLocalPayments([{ person: allPeople[0]?.name, amount: balance > 0 ? balance : 0, method: 'cash' }])
                   } else {
                     setLocalPayments(allPeople.map((p) => ({ person: p.name, amount: 0, method: 'cash' })))
                   }
@@ -2286,16 +2194,12 @@ function TableEditAccount({ order, menuItems, authHeaders, eventId, onUpdate }) 
           טיפ
         </p>
 
-        {tipPayments.length > 0 && (
+        {allTipPayments.length > 0 && (
           <div style={{ marginBottom: 12 }}>
-            {tipPayments.map((t, i) => (
-              <div key={i} style={{
-                display: 'flex', justifyContent: 'space-between',
-                fontSize: 12, color: 'var(--v2-gray-400)', marginBottom: 4,
-              }}>
+            {allTipPayments.map((t, i) => (
+              <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: 'var(--v2-gray-400)', marginBottom: 4 }}>
                 <span style={{ color: '#00C37A' }}>
-                  ₪
-                  {t.amount}
+                  ₪{t.amount}
                 </span>
                 <span>
                   {t.method === 'cash' ? 'מזומן' : 'אשראי'}
@@ -2304,13 +2208,9 @@ function TableEditAccount({ order, menuItems, authHeaders, eventId, onUpdate }) 
                 </span>
               </div>
             ))}
-            <div style={{
-              display: 'flex', justifyContent: 'space-between',
-              fontSize: 13, fontWeight: 700, borderTop: '1px solid var(--glass-border)', paddingTop: 8,
-            }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, fontWeight: 700, borderTop: '1px solid var(--glass-border)', paddingTop: 8 }}>
               <span style={{ color: '#00C37A' }}>
-                ₪
-                {tipPayments.reduce((s, t) => s + Number(t.amount), 0).toLocaleString()}
+                ₪{allTipPayments.reduce((s, t) => s + Number(t.amount), 0).toLocaleString()}
               </span>
               <span>סה"כ טיפ</span>
             </div>
@@ -2352,21 +2252,32 @@ function TableEditAccount({ order, menuItems, authHeaders, eventId, onUpdate }) 
               type="button"
               onClick={async () => {
                 if (!newTipAmount) return
+                const unpaidItems = allItems.filter((i) => !i.paid_in_transaction)
+                const targetTxId = unpaidItems[0]?.transaction_id || `txn_${Date.now()}`
+
                 const res = await fetch(
-                  `${API_BASE}/api/admin/events/${eventId}/table-orders/${localOrder.id}`,
+                  `${API_BASE}/api/admin/events/${eventId}/table-orders/${order.id}`,
                   {
                     method: 'PATCH',
                     headers: authHeaders(),
                     body: JSON.stringify({
-                      tip_amount: newTipAmount,
-                      tip_payments: { amount: newTipAmount, method: newTipMethod },
+                      tip_amount: totalTip + newTipAmount,
+                      tip_payments: [
+                        ...allTipPayments,
+                        {
+                          amount: newTipAmount,
+                          method: newTipMethod,
+                          transaction_id: targetTxId,
+                          created_at: new Date().toISOString(),
+                        },
+                      ],
                     }),
                   },
                 )
                 if (res.ok) {
-                  setTipPayments((prev) => [...prev, { amount: newTipAmount, method: newTipMethod, created_at: new Date().toISOString() }])
-                  setNewTipAmount(0)
                   toast.success('טיפ נשמר ✓')
+                  setNewTipAmount(0)
+                  onUpdate({})
                 }
               }}
               style={{
@@ -2382,34 +2293,41 @@ function TableEditAccount({ order, menuItems, authHeaders, eventId, onUpdate }) 
         </div>
       </div>
 
-      <div style={{ background: 'var(--glass)', border: '1px solid var(--glass-border)', borderRadius: 12, padding: 16 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-          <span style={{ fontSize: 14, color: 'var(--text)' }}>
-            ₪
-            {(totalOrderAmount + totalAmount).toLocaleString()}
-          </span>
-          <span style={{ fontSize: 13, color: 'var(--v2-gray-400)' }}>סה"כ לתשלום</span>
+      <div style={{
+        background: 'rgba(0,195,122,0.05)',
+        border: '1px solid rgba(0,195,122,0.2)',
+        borderRadius: 12, padding: 16,
+      }}
+      >
+        <p style={{ margin: '0 0 12px', fontSize: 14, fontWeight: 700, textAlign: 'right', color: '#00C37A' }}>
+          סיכום מאוחד
+        </p>
+
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+          <span style={{ fontSize: 14, fontWeight: 700 }}>₪{totalOrdered.toLocaleString()}</span>
+          <span style={{ fontSize: 13, color: 'var(--v2-gray-400)' }}>סה"כ פריטים</span>
         </div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-          <span style={{ fontSize: 14, color: '#00C37A' }}>
-            ₪
-            {totalPaid.toLocaleString()}
-          </span>
-          <span style={{ fontSize: 13, color: 'var(--v2-gray-400)' }}>שולם עד כה</span>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+          <span style={{ fontSize: 14, fontWeight: 700, color: '#00C37A' }}>₪{totalPaid.toLocaleString()}</span>
+          <span style={{ fontSize: 13, color: 'var(--v2-gray-400)' }}>סה"כ שולם</span>
         </div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
+          <span style={{ fontSize: 14, fontWeight: 700, color: '#F59E0B' }}>₪{totalTip.toLocaleString()}</span>
+          <span style={{ fontSize: 13, color: 'var(--v2-gray-400)' }}>סה"כ טיפים</span>
+        </div>
+
         <div style={{
-          display: 'flex', justifyContent: 'space-between',
-          padding: '12px 0', borderTop: '1px solid var(--glass-border)',
-        }}>
-          <span style={{
-            fontSize: 22, fontWeight: 900,
-            color: balance > 0 ? '#EF4444' : '#00C37A',
-          }}>
-            ₪
-            {Math.abs(balance).toLocaleString()}
+          padding: '12px 16px', borderRadius: 10,
+          background: balance > 0 ? 'rgba(239,68,68,0.1)' : 'rgba(0,195,122,0.1)',
+          border: `1px solid ${balance > 0 ? 'rgba(239,68,68,0.3)' : 'rgba(0,195,122,0.3)'}`,
+          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+        }}
+        >
+          <span style={{ fontSize: 22, fontWeight: 900, color: balance > 0 ? '#EF4444' : '#00C37A' }}>
+            ₪{Math.abs(balance).toLocaleString()}
           </span>
           <span style={{ fontSize: 14, color: 'var(--v2-gray-400)' }}>
-            {balance > 0 ? 'יתרה לתשלום' : balance < 0 ? 'עודף' : '✓ שולם במלואו'}
+            {balance > 0 ? 'נותר לתשלום' : balance < 0 ? 'עודף' : '✓ שולם במלואו'}
           </span>
         </div>
       </div>
