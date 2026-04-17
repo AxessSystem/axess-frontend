@@ -1790,6 +1790,7 @@ function TableEditAccount({ order, menuItems, authHeaders, eventId, onUpdate }) 
   const [showMenuSelector, setShowMenuSelector] = useState(false);
   const [menuForm, setMenuForm] = useState({ selected_drinks: [], extras_by_drink: {} });
   const [interimSaving, setInterimSaving] = useState(false);
+  const selectedDrinks = Array.isArray(menuForm.selected_drinks) ? menuForm.selected_drinks : [];
 
   const PAYMENT_METHODS = [
     { value: 'axess', label: 'AXESS', color: '#00C37A' },
@@ -1963,7 +1964,7 @@ function TableEditAccount({ order, menuItems, authHeaders, eventId, onUpdate }) 
           {showMenuSelector && (
             <div style={{ marginBottom: 12 }}>
               <TableMenuSelector
-                tableStep={menuForm.selected_drinks.length > 0 ? 4 : 1}
+                tableStep={selectedDrinks.length > 0 ? 4 : 1}
                 isSmartTable={true}
                 menuItems={menuItems}
                 extrasOptions={(menuItems || []).filter(m => m.category === 'תוספות')}
@@ -1971,15 +1972,15 @@ function TableEditAccount({ order, menuItems, authHeaders, eventId, onUpdate }) 
                 setTableForm={setMenuForm}
                 drinkSearch=""
                 setDrinkSearch={() => {}}
-                totalBottles={menuForm.selected_drinks.reduce((s, d) => s + d.quantity, 0)}
-                drinksTotal={menuForm.selected_drinks.reduce((s, d) => s + (d.price * d.quantity), 0)}
+                totalBottles={selectedDrinks.reduce((s, d) => s + d.quantity, 0)}
+                drinksTotal={selectedDrinks.reduce((s, d) => s + (d.price * d.quantity), 0)}
                 totalFreePeople={0}
-                maxExtras={menuForm.selected_drinks.reduce((s, d) => s + ((d.free_extras || 0) * d.quantity), 0)}
+                maxExtras={selectedDrinks.reduce((s, d) => s + ((d.free_extras || 0) * d.quantity), 0)}
               />
               <button type="button"
                 onClick={() => {
                   const newItems = [];
-                  menuForm.selected_drinks.forEach(d => {
+                  selectedDrinks.forEach(d => {
                     newItems.push({
                       menu_item_id: d.id,
                       name: d.name,
@@ -2006,14 +2007,14 @@ function TableEditAccount({ order, menuItems, authHeaders, eventId, onUpdate }) 
                   const total = [...editingItems, ...newItems].reduce((s, i) => s + (i.price * i.quantity), 0);
                   initPayments(paymentMode, total);
                 }}
-                disabled={menuForm.selected_drinks.length === 0}
+                disabled={selectedDrinks.length === 0}
                 style={{
                   width: '100%', minHeight: 44, borderRadius: 10, marginTop: 12,
-                  background: menuForm.selected_drinks.length > 0 ? '#00C37A' : 'var(--glass)',
+                  background: selectedDrinks.length > 0 ? '#00C37A' : 'var(--glass)',
                   border: 'none',
-                  color: menuForm.selected_drinks.length > 0 ? '#000' : 'var(--v2-gray-400)',
+                  color: selectedDrinks.length > 0 ? '#000' : 'var(--v2-gray-400)',
                   fontSize: 14, fontWeight: 700,
-                  cursor: menuForm.selected_drinks.length > 0 ? 'pointer' : 'not-allowed',
+                  cursor: selectedDrinks.length > 0 ? 'pointer' : 'not-allowed',
                 }}
               >הוסף לעסקה</button>
             </div>
@@ -2172,6 +2173,25 @@ function TableEditAccount({ order, menuItems, authHeaders, eventId, onUpdate }) 
         </div>
       )}
 
+      {openTransaction && openTransaction !== 'new' && (() => {
+        const tx = closedTransactions.find(t => t.id === openTransaction);
+        if (!tx) return null;
+        return (
+          <EditTransactionBlock
+            transaction={tx}
+            allPayments={allPayments}
+            allTipPayments={allTipPayments}
+            allPeople={allPeople}
+            PAYMENT_METHODS={PAYMENT_METHODS}
+            authHeaders={authHeaders}
+            eventId={eventId}
+            orderId={order.id}
+            onClose={() => setOpenTransaction(null)}
+            onUpdate={onUpdate}
+          />
+        );
+      })()}
+
       {/* ===== כפתור עסקה חדשה ===== */}
       {openTransaction !== 'new' && order.status !== 'closed' && (
         <button type="button"
@@ -2248,21 +2268,6 @@ function TableEditAccount({ order, menuItems, authHeaders, eventId, onUpdate }) 
               )))}
             </div>
           </details>
-
-          {/* יתרה */}
-          <div style={{
-            padding: 12, borderRadius: 10, marginTop: 8,
-            background: balance > 0 ? 'rgba(239,68,68,0.1)' : 'rgba(0,195,122,0.1)',
-            border: `1px solid ${balance > 0 ? 'rgba(239,68,68,0.3)' : 'rgba(0,195,122,0.3)'}`,
-            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-          }}>
-            <span style={{ fontSize: 20, fontWeight: 900, color: balance > 0 ? '#EF4444' : '#00C37A' }}>
-              ₪{Math.abs(balance).toLocaleString()}
-            </span>
-            <span style={{ fontSize: 14, color: 'var(--v2-gray-400)' }}>
-              {balance > 0 ? 'יתרה לתשלום' : balance < 0 ? 'עודף' : '✓ שולם במלואו'}
-            </span>
-          </div>
         </div>
       )}
 
@@ -2270,14 +2275,14 @@ function TableEditAccount({ order, menuItems, authHeaders, eventId, onUpdate }) 
       {order.status !== 'closed' && closedTransactions.length > 0 && (
         <button type="button"
           onClick={closeAccount}
-          disabled={finalSaving || balance > 0 || openTransaction === 'new'}
+          disabled={finalSaving || openTransaction === 'new' || openTransaction !== null}
           style={{
             width: '100%', minHeight: 52, borderRadius: 12,
-            background: (balance <= 0 && openTransaction !== 'new') ? '#EF4444' : 'var(--glass)',
-            border: `1px solid ${(balance <= 0 && openTransaction !== 'new') ? '#EF4444' : 'var(--glass-border)'}`,
-            color: (balance <= 0 && openTransaction !== 'new') ? '#fff' : 'var(--v2-gray-400)',
+            background: openTransaction === null ? '#EF4444' : 'var(--glass)',
+            border: `1px solid ${openTransaction === null ? '#EF4444' : 'var(--glass-border)'}`,
+            color: openTransaction === null ? '#fff' : 'var(--v2-gray-400)',
             fontSize: 15, fontWeight: 800,
-            cursor: (balance <= 0 && openTransaction !== 'new') ? 'pointer' : 'not-allowed',
+            cursor: openTransaction === null ? 'pointer' : 'not-allowed',
             opacity: finalSaving ? 0.6 : 1,
           }}
         >
@@ -2285,6 +2290,186 @@ function TableEditAccount({ order, menuItems, authHeaders, eventId, onUpdate }) 
         </button>
       )}
 
+    </div>
+  );
+}
+
+function EditTransactionBlock({ transaction, allPayments, allTipPayments, allPeople, PAYMENT_METHODS, authHeaders, eventId, orderId, onClose, onUpdate }) {
+  const [items, setItems] = useState(transaction.items.map(i => ({ ...i })));
+  const [payments, setPayments] = useState(transaction.payments.map(p => ({ ...p })));
+  const [tips, setTips] = useState(transaction.tips.map(t => ({ ...t })));
+  const [saving, setSaving] = useState(false);
+
+  const txTotal = items.reduce((s, i) => s + Number(i.total || i.price * i.quantity || 0), 0);
+  const txPaid = payments.reduce((s, p) => s + Number(p.amount || 0), 0);
+  const balance = txTotal - txPaid;
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      for (const origItem of transaction.items) {
+        const stillExists = items.find(i => i.id === origItem.id);
+        if (!stillExists) {
+          await fetch(`${API_BASE}/api/admin/events/${eventId}/table-items/${origItem.id}`, {
+            method: 'DELETE', headers: authHeaders(),
+          });
+        } else if (stillExists.quantity !== origItem.quantity || stillExists.price !== origItem.price) {
+          await fetch(`${API_BASE}/api/admin/events/${eventId}/table-items/${origItem.id}`, {
+            method: 'PATCH', headers: authHeaders(),
+            body: JSON.stringify({
+              quantity: stillExists.quantity,
+              price: stillExists.price,
+              total: stillExists.price * stillExists.quantity,
+            }),
+          });
+        }
+      }
+
+      const otherPayments = allPayments.filter(p => (p.transaction_id || 'txn_legacy') !== transaction.id);
+      const otherTips = allTipPayments.filter(t => (t.transaction_id || 'txn_legacy') !== transaction.id);
+
+      await fetch(`${API_BASE}/api/admin/events/${eventId}/table-orders/${orderId}`, {
+        method: 'PATCH', headers: authHeaders(),
+        body: JSON.stringify({
+          payments: [...otherPayments, ...payments],
+          tip_payments: [...otherTips, ...tips],
+          tip_amount: [...otherTips, ...tips].reduce((s, t) => s + Number(t.amount || 0), 0),
+        }),
+      });
+
+      toast.success('העסקה עודכנה ✓');
+      onClose();
+      onUpdate({});
+    } catch { toast.error('שגיאה'); }
+    finally { setSaving(false); }
+  };
+
+  return (
+    <div style={{
+      background: 'rgba(59,130,246,0.05)',
+      border: '2px solid rgba(59,130,246,0.4)',
+      borderRadius: 12, padding: 16,
+    }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
+        <button type="button" onClick={onClose}
+          style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--v2-gray-400)', fontSize: 18 }}
+        >✕</button>
+        <p style={{ margin: 0, fontSize: 15, fontWeight: 700, color: '#3B82F6' }}>עריכת עסקה</p>
+      </div>
+
+      <div style={{ marginBottom: 16 }}>
+        <p style={{ margin: '0 0 8px', fontSize: 13, fontWeight: 700, textAlign: 'right' }}>פריטים:</p>
+        {items.map((item, i) => (
+          <div key={i} style={{
+            display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8,
+            padding: 8, borderRadius: 8, marginBottom: 4,
+            background: 'var(--card)', border: '1px solid var(--glass-border)',
+          }}>
+            <button type="button"
+              onClick={() => setItems(prev => prev.filter((_, j) => j !== i))}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#EF4444', fontSize: 14 }}
+            >🗑️</button>
+            <input type="number" value={item.quantity}
+              onChange={e => setItems(prev => prev.map((it, j) => j === i ? { ...it, quantity: Number(e.target.value) } : it))}
+              style={{ width: 50, padding: 4, borderRadius: 6, background: 'var(--glass)', border: '1px solid var(--glass-border)', color: 'var(--text)', fontSize: 13, textAlign: 'center' }}
+            />
+            <input type="number" value={item.price}
+              onChange={e => setItems(prev => prev.map((it, j) => j === i ? { ...it, price: Number(e.target.value) } : it))}
+              style={{ width: 70, padding: 4, borderRadius: 6, background: 'var(--glass)', border: '1px solid var(--glass-border)', color: 'var(--text)', fontSize: 13, textAlign: 'center' }}
+            />
+            <span style={{ flex: 1, textAlign: 'right', fontSize: 13 }}>{item.name}</span>
+          </div>
+        ))}
+      </div>
+
+      <div style={{ marginBottom: 16 }}>
+        <p style={{ margin: '0 0 8px', fontSize: 13, fontWeight: 700, textAlign: 'right' }}>תשלומים:</p>
+        {payments.map((p, i) => (
+          <div key={i} style={{
+            background: 'var(--card)', border: '1px solid var(--glass-border)',
+            borderRadius: 8, padding: 10, marginBottom: 6,
+          }}>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 6 }}>
+              <button type="button"
+                onClick={() => setPayments(prev => prev.filter((_, j) => j !== i))}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#EF4444', fontSize: 14 }}
+              >🗑️</button>
+              <input type="number" value={p.amount}
+                onChange={e => setPayments(prev => prev.map((pp, j) => j === i ? { ...pp, amount: Number(e.target.value) } : pp))}
+                style={{ flex: 1, padding: 6, borderRadius: 6, background: 'var(--glass)', border: '1px solid var(--glass-border)', color: 'var(--text)', fontSize: 13, textAlign: 'right' }}
+              />
+              <span style={{ fontSize: 12, color: 'var(--v2-gray-400)' }}>{p.person}</span>
+            </div>
+            <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+              {PAYMENT_METHODS.map(m => (
+                <button key={m.value} type="button"
+                  onClick={() => setPayments(prev => prev.map((pp, j) => j === i ? { ...pp, method: m.value } : pp))}
+                  style={{
+                    padding: '3px 8px', borderRadius: 20, fontSize: 10,
+                    background: p.method === m.value ? `${m.color}22` : 'var(--glass)',
+                    border: `1px solid ${p.method === m.value ? m.color : 'var(--glass-border)'}`,
+                    color: p.method === m.value ? m.color : 'var(--v2-gray-400)',
+                    cursor: 'pointer',
+                  }}
+                >{m.label}</button>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div style={{ marginBottom: 16 }}>
+        <p style={{ margin: '0 0 8px', fontSize: 13, fontWeight: 700, textAlign: 'right', color: '#F59E0B' }}>💵 טיפים:</p>
+        {tips.map((t, i) => (
+          <div key={i} style={{
+            display: 'flex', gap: 8, alignItems: 'center',
+            padding: 8, borderRadius: 8, marginBottom: 4,
+            background: 'var(--card)', border: '1px solid var(--glass-border)',
+          }}>
+            <button type="button"
+              onClick={() => setTips(prev => prev.filter((_, j) => j !== i))}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#EF4444', fontSize: 14 }}
+            >🗑️</button>
+            <input type="number" value={t.amount}
+              onChange={e => setTips(prev => prev.map((tt, j) => j === i ? { ...tt, amount: Number(e.target.value) } : tt))}
+              style={{ flex: 1, padding: 6, borderRadius: 6, background: 'var(--glass)', border: '1px solid var(--glass-border)', color: 'var(--text)', fontSize: 13, textAlign: 'right' }}
+            />
+            <span style={{ fontSize: 11, color: 'var(--v2-gray-400)' }}>{t.method === 'cash' ? 'מזומן' : 'אשראי'}</span>
+          </div>
+        ))}
+      </div>
+
+      <div style={{
+        padding: 10, borderRadius: 8, marginBottom: 12,
+        background: balance === 0 ? 'rgba(0,195,122,0.1)' : 'rgba(239,68,68,0.1)',
+        border: `1px solid ${balance === 0 ? 'rgba(0,195,122,0.3)' : 'rgba(239,68,68,0.3)'}`,
+        display: 'flex', justifyContent: 'space-between',
+      }}>
+        <span style={{ fontSize: 14, fontWeight: 700, color: balance === 0 ? '#00C37A' : '#EF4444' }}>
+          ₪{Math.abs(balance).toLocaleString()}
+        </span>
+        <span style={{ fontSize: 13, color: 'var(--v2-gray-400)' }}>
+          {balance > 0 ? 'חסר בעסקה' : balance < 0 ? 'עודף בעסקה' : 'מאוזן'}
+        </span>
+      </div>
+
+      <div style={{ display: 'flex', gap: 8 }}>
+        <button type="button" onClick={onClose}
+          style={{
+            flex: 1, minHeight: 44, borderRadius: 10,
+            background: 'var(--glass)', border: '1px solid var(--glass-border)',
+            color: 'var(--v2-gray-400)', fontSize: 14, cursor: 'pointer',
+          }}
+        >ביטול</button>
+        <button type="button" onClick={save} disabled={saving}
+          style={{
+            flex: 2, minHeight: 44, borderRadius: 10,
+            background: '#3B82F6', border: 'none',
+            color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer',
+            opacity: saving ? 0.6 : 1,
+          }}
+        >{saving ? 'שומר...' : 'שמור שינויים'}</button>
+      </div>
     </div>
   );
 }
