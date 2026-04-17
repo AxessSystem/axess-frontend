@@ -6,6 +6,7 @@ import {
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import CustomSelect from '@/components/ui/CustomSelect'
+import TableMenuSelector from '../../components/TableMenuSelector'
 
 const API_BASE = import.meta.env.VITE_API_URL || 'https://api.axess.pro'
 const PUBLIC_TABLE_ORIGIN = 'https://axess.pro'
@@ -1617,11 +1618,38 @@ function TableEditAccount({ order, menuItems, authHeaders, eventId, onUpdate }) 
     return items
   })
 
-  const [showAddItem, setShowAddItem] = useState(false)
+  const [showMenuSelector, setShowMenuSelector] = useState(false)
+  const [menuForm, setMenuForm] = useState({
+    selected_drinks: [],
+    extras_by_drink: {},
+  })
   const [addItemType, setAddItemType] = useState('manual')
   const [selectedItem, setSelectedItem] = useState(null)
   const [itemQty, setItemQty] = useState(1)
   const [menuSearch, setMenuSearch] = useState('')
+  const menuSelectorForm = useMemo(() => ({
+    ...menuForm,
+    selected_drinks: (menuForm.selected_drinks || []).reduce((acc, d) => {
+      if (d?.id) acc[d.id] = d
+      return acc
+    }, {}),
+  }), [menuForm])
+  const setMenuSelectorForm = (updater) => {
+    setMenuForm((prev) => {
+      const prevForSelector = {
+        ...prev,
+        selected_drinks: (prev.selected_drinks || []).reduce((acc, d) => {
+          if (d?.id) acc[d.id] = d
+          return acc
+        }, {}),
+      }
+      const nextForSelector = typeof updater === 'function' ? updater(prevForSelector) : updater
+      return {
+        ...nextForSelector,
+        selected_drinks: Object.values(nextForSelector.selected_drinks || {}),
+      }
+    })
+  }
 
   const [paymentMode, setPaymentMode] = useState('single')
   const [localPayments, setLocalPayments] = useState([])
@@ -1860,7 +1888,7 @@ function TableEditAccount({ order, menuItems, authHeaders, eventId, onUpdate }) 
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
           <button
             type="button"
-            onClick={() => setShowAddItem(true)}
+            onClick={() => setShowMenuSelector(true)}
             style={{
               padding: '6px 14px', borderRadius: 8, fontSize: 13,
               background: 'rgba(0,195,122,0.1)', border: '1px solid rgba(0,195,122,0.3)',
@@ -1935,136 +1963,104 @@ function TableEditAccount({ order, menuItems, authHeaders, eventId, onUpdate }) 
         </div>
       </div>
 
-      {showAddItem && (
+      {showMenuSelector && (
         <div
           style={{
             background: 'var(--glass)', border: '1px solid var(--glass-border)',
-            borderRadius: 12, padding: 16,
+            borderRadius: 12, padding: 16, marginTop: 8,
           }}
         >
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
             <button
               type="button"
-              onClick={() => setShowAddItem(false)}
-              style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--v2-gray-400)', WebkitTapHighlightColor: 'transparent' }}
+              onClick={() => {
+                setShowMenuSelector(false)
+                setMenuForm({ selected_drinks: [], extras_by_drink: {} })
+              }}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, color: 'var(--v2-gray-400)' }}
             >
               ✕
             </button>
-            <p style={{ margin: 0, fontSize: 14, fontWeight: 700 }}>הוסף פריט</p>
+            <p style={{ margin: 0, fontSize: 14, fontWeight: 700 }}>הוסף פריטים</p>
           </div>
 
-          <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
-            {[
-              { value: 'manual', label: 'הזמנה ידנית' },
-              { value: 'pickup', label: 'פיק-אפ' },
-            ].map((opt) => (
-              <button
-                key={opt.value}
-                type="button"
-                onClick={() => setAddItemType(opt.value)}
-                style={{
-                  flex: 1, padding: '8px', borderRadius: 8, fontSize: 13,
-                  background: addItemType === opt.value ? 'rgba(0,195,122,0.1)' : 'var(--glass)',
-                  border: `1px solid ${addItemType === opt.value ? 'rgba(0,195,122,0.3)' : 'var(--glass-border)'}`,
-                  color: addItemType === opt.value ? '#00C37A' : 'var(--text)',
-                  cursor: 'pointer', WebkitTapHighlightColor: 'transparent',
-                }}
-              >
-                {opt.label}
-              </button>
-            ))}
-          </div>
-
-          <div style={{ position: 'relative', marginBottom: 8 }}>
-            <input
-              value={menuSearch}
-              onChange={(e) => setMenuSearch(e.target.value)}
-              placeholder="חיפוש בתפריט..."
-              style={{
-                width: '100%', minHeight: 44, padding: '10px 40px 10px 16px',
-                borderRadius: 10, background: 'var(--card)',
-                border: '1px solid var(--glass-border)',
-                color: 'var(--text)', fontSize: 15, textAlign: 'right',
-                boxSizing: 'border-box',
-              }}
-            />
-            <Search
-              size={16}
-              style={{
-                position: 'absolute', right: 14, top: '50%',
-                transform: 'translateY(-50%)', color: '#00C37A',
-              }}
-            />
-          </div>
-
-          <div style={{ maxHeight: 200, overflowY: 'auto', marginBottom: 12 }}>
-            {filteredMenu.map((item) => (
-              <div
-                key={item.id}
-                role="button"
-                tabIndex={0}
-                onClick={() => setSelectedItem(item)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault()
-                    setSelectedItem(item)
-                  }
-                }}
-                style={{
-                  display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                  padding: '10px 12px', borderRadius: 8, cursor: 'pointer', marginBottom: 4,
-                  background: selectedItem?.id === item.id ? 'rgba(0,195,122,0.1)' : 'var(--glass)',
-                  border: `1px solid ${selectedItem?.id === item.id ? 'rgba(0,195,122,0.3)' : 'transparent'}`,
-                  WebkitTapHighlightColor: 'transparent',
-                }}
-              >
-                <span style={{ fontSize: 13, color: '#00C37A', fontWeight: 700 }}>
-                  ₪
-                  {item.price}
-                </span>
-                <span style={{ fontSize: 14 }}>{item.name}</span>
-              </div>
-            ))}
-          </div>
-
-          {selectedItem && (
-            <div style={{ display: 'flex', gap: 12, alignItems: 'center', justifyContent: 'center', marginBottom: 12 }}>
-              <button
-                type="button"
-                onClick={() => setItemQty((q) => q + 1)}
-                style={{
-                  width: 36, height: 36, borderRadius: 8,
-                  background: 'rgba(0,195,122,0.1)', border: '1px solid rgba(0,195,122,0.3)',
-                  color: '#00C37A', cursor: 'pointer', fontSize: 18, WebkitTapHighlightColor: 'transparent',
-                }}
-              >
-                +
-              </button>
-              <span style={{ fontSize: 18, fontWeight: 700, minWidth: 32, textAlign: 'center' }}>{itemQty}</span>
-              <button
-                type="button"
-                onClick={() => setItemQty((q) => Math.max(1, q - 1))}
-                style={{
-                  width: 36, height: 36, borderRadius: 8,
-                  background: 'var(--glass)', border: '1px solid var(--glass-border)',
-                  color: 'var(--text)', cursor: 'pointer', fontSize: 18, WebkitTapHighlightColor: 'transparent',
-                }}
-              >
-                −
-              </button>
-            </div>
-          )}
+          <TableMenuSelector
+            tableStep={menuForm.selected_drinks.length > 0 ? 4 : 1}
+            isSmartTable
+            menuItems={menuItems}
+            extrasOptions={(menuItems || []).filter((m) => m.category === 'תוספות')}
+            tableForm={menuSelectorForm}
+            setTableForm={setMenuSelectorForm}
+            drinkSearch=""
+            setDrinkSearch={() => {}}
+            totalBottles={menuForm.selected_drinks.reduce((s, d) => s + d.quantity, 0)}
+            drinksTotal={menuForm.selected_drinks.reduce((s, d) => s + (d.price * d.quantity), 0)}
+            totalFreePeople={0}
+            maxExtras={menuForm.selected_drinks.reduce((s, d) => s + ((d.free_extras || 0) * d.quantity), 0)}
+          />
 
           <button
             type="button"
-            onClick={() => addItem(addItemType)}
-            disabled={!selectedItem}
+            onClick={async () => {
+              const transactionId = `txn_${Date.now()}`
+
+              for (const drink of menuForm.selected_drinks) {
+                await fetch(
+                  `${API_BASE}/api/admin/events/${eventId}/table-items`,
+                  {
+                    method: 'POST',
+                    headers: authHeaders(),
+                    body: JSON.stringify({
+                      table_order_id: order.id,
+                      menu_item_id: drink.id,
+                      name: drink.name,
+                      quantity: drink.quantity,
+                      price: drink.price,
+                      total: drink.price * drink.quantity,
+                      is_upsell: false,
+                      transaction_id: transactionId,
+                    }),
+                  },
+                )
+              }
+
+              for (const [drinkId, extras] of Object.entries(menuForm.extras_by_drink)) {
+                for (const [extraName, qty] of Object.entries(extras || {})) {
+                  if ((Number(qty) || 0) <= 0) continue
+                  const extraItem = (menuItems || []).find((m) => m.category === 'תוספות' && m.name === extraName)
+                  await fetch(
+                    `${API_BASE}/api/admin/events/${eventId}/table-items`,
+                    {
+                      method: 'POST',
+                      headers: authHeaders(),
+                      body: JSON.stringify({
+                        table_order_id: order.id,
+                        menu_item_id: extraItem?.id || null,
+                        name: extraName,
+                        quantity: Number(qty) || 0,
+                        price: extraItem?.price || 0,
+                        total: (extraItem?.price || 0) * (Number(qty) || 0),
+                        is_upsell: true,
+                        transaction_id: transactionId,
+                      }),
+                    },
+                  )
+                }
+              }
+
+              toast.success('פריטים נוספו ✓')
+              setMenuForm({ selected_drinks: [], extras_by_drink: {} })
+              setShowMenuSelector(false)
+              onUpdate({})
+            }}
+            disabled={menuForm.selected_drinks.length === 0}
             style={{
-              width: '100%', minHeight: 44, borderRadius: 10,
-              background: selectedItem ? '#00C37A' : 'var(--glass)',
-              border: 'none', color: selectedItem ? '#000' : 'var(--v2-gray-400)',
-              fontSize: 14, fontWeight: 700, cursor: selectedItem ? 'pointer' : 'not-allowed',
-              WebkitTapHighlightColor: 'transparent',
+              width: '100%', minHeight: 48, borderRadius: 10, marginTop: 16,
+              background: menuForm.selected_drinks.length > 0 ? '#00C37A' : 'var(--glass'),
+              border: 'none',
+              color: menuForm.selected_drinks.length > 0 ? '#000' : 'var(--v2-gray-400)',
+              fontSize: 15, fontWeight: 700,
+              cursor: menuForm.selected_drinks.length > 0 ? 'pointer' : 'not-allowed',
             }}
           >
             הוסף לחשבון
