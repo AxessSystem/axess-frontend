@@ -2056,7 +2056,7 @@ function TableEditAccount({ order, menuItems, authHeaders, eventId, onUpdate }) 
             disabled={menuForm.selected_drinks.length === 0}
             style={{
               width: '100%', minHeight: 48, borderRadius: 10, marginTop: 16,
-              background: menuForm.selected_drinks.length > 0 ? '#00C37A' : 'var(--glass'),
+              background: menuForm.selected_drinks.length > 0 ? '#00C37A' : 'var(--glass)',
               border: 'none',
               color: menuForm.selected_drinks.length > 0 ? '#000' : 'var(--v2-gray-400)',
               fontSize: 15, fontWeight: 700,
