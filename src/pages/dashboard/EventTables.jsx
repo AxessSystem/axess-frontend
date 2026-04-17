@@ -2299,14 +2299,43 @@ function EditTransactionBlock({ transaction, allPayments, allTipPayments, allPeo
   const [payments, setPayments] = useState(transaction.payments.map(p => ({ ...p })));
   const [tips, setTips] = useState(transaction.tips.map(t => ({ ...t })));
   const [saving, setSaving] = useState(false);
+  const [paymentMode, setPaymentMode] = useState('custom');
+  const [newTipAmount, setNewTipAmount] = useState(0);
+  const [newTipMethod, setNewTipMethod] = useState('cash');
 
   const txTotal = items.reduce((s, i) => s + Number(i.total || i.price * i.quantity || 0), 0);
   const txPaid = payments.reduce((s, p) => s + Number(p.amount || 0), 0);
   const balance = txTotal - txPaid;
 
+  // עדכן תשלומים לפי מצב:
+  const changePaymentMode = (mode) => {
+    setPaymentMode(mode);
+    if (mode === 'single') {
+      setPayments([{ person: allPeople[0]?.name, amount: txTotal, method: payments[0]?.method || 'cash', transaction_id: transaction.id }]);
+    } else if (mode === 'equal') {
+      const per = allPeople.length > 0 ? Math.ceil(txTotal / allPeople.length) : txTotal;
+      setPayments(allPeople.map(p => ({
+        person: p.name, amount: per, method: 'cash', transaction_id: transaction.id
+      })));
+    }
+    // custom — משאיר כמו שיש
+  };
+
+  const addTip = () => {
+    if (!newTipAmount) return;
+    setTips(prev => [...prev, {
+      amount: newTipAmount,
+      method: newTipMethod,
+      transaction_id: transaction.id,
+      created_at: new Date().toISOString(),
+    }]);
+    setNewTipAmount(0);
+  };
+
   const save = async () => {
     setSaving(true);
     try {
+      // 1. עדכן/מחק פריטים
       for (const origItem of transaction.items) {
         const stillExists = items.find(i => i.id === origItem.id);
         if (!stillExists) {
@@ -2317,30 +2346,36 @@ function EditTransactionBlock({ transaction, allPayments, allTipPayments, allPeo
           await fetch(`${API_BASE}/api/admin/events/${eventId}/table-items/${origItem.id}`, {
             method: 'PATCH', headers: authHeaders(),
             body: JSON.stringify({
-              quantity: stillExists.quantity,
-              price: stillExists.price,
-              total: stillExists.price * stillExists.quantity,
+              quantity: Number(stillExists.quantity),
+              price: Number(stillExists.price),
+              total: Number(stillExists.price) * Number(stillExists.quantity),
             }),
           });
         }
       }
 
+      // 2. עדכן תשלומים וטיפים
       const otherPayments = allPayments.filter(p => (p.transaction_id || 'txn_legacy') !== transaction.id);
       const otherTips = allTipPayments.filter(t => (t.transaction_id || 'txn_legacy') !== transaction.id);
 
-      await fetch(`${API_BASE}/api/admin/events/${eventId}/table-orders/${orderId}`, {
+      const res = await fetch(`${API_BASE}/api/admin/events/${eventId}/table-orders/${orderId}`, {
         method: 'PATCH', headers: authHeaders(),
         body: JSON.stringify({
-          payments: [...otherPayments, ...payments],
+          payments: [...otherPayments, ...payments.filter(p => Number(p.amount) > 0)],
           tip_payments: [...otherTips, ...tips],
           tip_amount: [...otherTips, ...tips].reduce((s, t) => s + Number(t.amount || 0), 0),
         }),
       });
 
-      toast.success('העסקה עודכנה ✓');
-      onClose();
-      onUpdate({});
-    } catch { toast.error('שגיאה'); }
+      if (res.ok) {
+        toast.success('העסקה עודכנה ✓');
+        onUpdate({});
+        // המודאל לא נסגר — הoUpdate יטען מחדש והבלוק יתעדכן
+      } else toast.error('שגיאה בשמירה');
+    } catch (e) {
+      console.error('save error:', e);
+      toast.error('שגיאה');
+    }
     finally { setSaving(false); }
   };
 
@@ -2357,6 +2392,7 @@ function EditTransactionBlock({ transaction, allPayments, allTipPayments, allPeo
         <p style={{ margin: 0, fontSize: 15, fontWeight: 700, color: '#3B82F6' }}>עריכת עסקה</p>
       </div>
 
+      {/* פריטים */}
       <div style={{ marginBottom: 16 }}>
         <p style={{ margin: '0 0 8px', fontSize: 13, fontWeight: 700, textAlign: 'right' }}>פריטים:</p>
         {items.map((item, i) => (
@@ -2382,6 +2418,30 @@ function EditTransactionBlock({ transaction, allPayments, allTipPayments, allPeo
         ))}
       </div>
 
+      {/* חלוקת תשלום */}
+      <div style={{ marginBottom: 12 }}>
+        <p style={{ margin: '0 0 8px', fontSize: 13, fontWeight: 700, textAlign: 'right' }}>אופן תשלום:</p>
+        <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+          {[
+            { value: 'single', label: 'ראש שולחן' },
+            { value: 'equal', label: 'חלוקה שווה' },
+            { value: 'custom', label: 'חלוקה משתנה' },
+          ].map(opt => (
+            <button key={opt.value} type="button"
+              onClick={() => changePaymentMode(opt.value)}
+              style={{
+                flex: 1, padding: '6px 4px', borderRadius: 8, fontSize: 11,
+                background: paymentMode === opt.value ? 'rgba(59,130,246,0.1)' : 'var(--glass)',
+                border: `1px solid ${paymentMode === opt.value ? 'rgba(59,130,246,0.3)' : 'var(--glass-border)'}`,
+                color: paymentMode === opt.value ? '#3B82F6' : 'var(--text)',
+                cursor: 'pointer',
+              }}
+            >{opt.label}</button>
+          ))}
+        </div>
+      </div>
+
+      {/* תשלומים */}
       <div style={{ marginBottom: 16 }}>
         <p style={{ margin: '0 0 8px', fontSize: 13, fontWeight: 700, textAlign: 'right' }}>תשלומים:</p>
         {payments.map((p, i) => (
@@ -2396,7 +2456,8 @@ function EditTransactionBlock({ transaction, allPayments, allTipPayments, allPeo
               >🗑️</button>
               <input type="number" value={p.amount}
                 onChange={e => setPayments(prev => prev.map((pp, j) => j === i ? { ...pp, amount: Number(e.target.value) } : pp))}
-                style={{ flex: 1, padding: 6, borderRadius: 6, background: 'var(--glass)', border: '1px solid var(--glass-border)', color: 'var(--text)', fontSize: 13, textAlign: 'right' }}
+                disabled={paymentMode === 'equal'}
+                style={{ flex: 1, padding: 6, borderRadius: 6, background: 'var(--glass)', border: '1px solid var(--glass-border)', color: 'var(--text)', fontSize: 13, textAlign: 'right', opacity: paymentMode === 'equal' ? 0.6 : 1 }}
               />
               <span style={{ fontSize: 12, color: 'var(--v2-gray-400)' }}>{p.person}</span>
             </div>
@@ -2418,8 +2479,11 @@ function EditTransactionBlock({ transaction, allPayments, allTipPayments, allPeo
         ))}
       </div>
 
+      {/* טיפים — תמיד ניתן להוסיף */}
       <div style={{ marginBottom: 16 }}>
-        <p style={{ margin: '0 0 8px', fontSize: 13, fontWeight: 700, textAlign: 'right', color: '#F59E0B' }}>💵 טיפים:</p>
+        <p style={{ margin: '0 0 8px', fontSize: 13, fontWeight: 700, textAlign: 'right', color: '#F59E0B' }}>
+          💵 טיפים:
+        </p>
         {tips.map((t, i) => (
           <div key={i} style={{
             display: 'flex', gap: 8, alignItems: 'center',
@@ -2437,8 +2501,45 @@ function EditTransactionBlock({ transaction, allPayments, allTipPayments, allPeo
             <span style={{ fontSize: 11, color: 'var(--v2-gray-400)' }}>{t.method === 'cash' ? 'מזומן' : 'אשראי'}</span>
           </div>
         ))}
+
+        {/* הוסף טיפ חדש */}
+        <div style={{
+          display: 'flex', gap: 6, marginTop: 8,
+          padding: 8, borderRadius: 8,
+          background: 'rgba(245,158,11,0.05)', border: '1px dashed rgba(245,158,11,0.3)',
+        }}>
+          <input type="number" value={newTipAmount || ''}
+            onChange={e => setNewTipAmount(Number(e.target.value))}
+            placeholder="0"
+            style={{ flex: 1, padding: 6, borderRadius: 6, background: 'var(--glass)', border: '1px solid var(--glass-border)', color: 'var(--text)', fontSize: 13, textAlign: 'right' }}
+          />
+          {[{ value: 'cash', label: 'מזומן' }, { value: 'credit', label: 'אשראי' }].map(m => (
+            <button key={m.value} type="button"
+              onClick={() => setNewTipMethod(m.value)}
+              style={{
+                padding: '4px 10px', borderRadius: 6, fontSize: 11,
+                background: newTipMethod === m.value ? 'rgba(245,158,11,0.1)' : 'var(--glass)',
+                border: `1px solid ${newTipMethod === m.value ? '#F59E0B' : 'var(--glass-border)'}`,
+                color: newTipMethod === m.value ? '#F59E0B' : 'var(--v2-gray-400)',
+                cursor: 'pointer',
+              }}
+            >{m.label}</button>
+          ))}
+          <button type="button" onClick={addTip}
+            disabled={!newTipAmount}
+            style={{
+              padding: '4px 10px', borderRadius: 6, fontSize: 11,
+              background: newTipAmount ? '#F59E0B' : 'var(--glass)',
+              border: 'none',
+              color: newTipAmount ? '#000' : 'var(--v2-gray-400)',
+              cursor: newTipAmount ? 'pointer' : 'not-allowed',
+              fontWeight: 700,
+            }}
+          >+</button>
+        </div>
       </div>
 
+      {/* סיכום */}
       <div style={{
         padding: 10, borderRadius: 8, marginBottom: 12,
         background: balance === 0 ? 'rgba(0,195,122,0.1)' : 'rgba(239,68,68,0.1)',
@@ -2449,7 +2550,7 @@ function EditTransactionBlock({ transaction, allPayments, allTipPayments, allPeo
           ₪{Math.abs(balance).toLocaleString()}
         </span>
         <span style={{ fontSize: 13, color: 'var(--v2-gray-400)' }}>
-          {balance > 0 ? 'חסר בעסקה' : balance < 0 ? 'עודף בעסקה' : 'מאוזן'}
+          {balance > 0 ? 'חסר בעסקה' : balance < 0 ? 'עודף בעסקה' : '✓ מאוזן'}
         </span>
       </div>
 
