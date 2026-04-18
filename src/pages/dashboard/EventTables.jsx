@@ -3468,6 +3468,28 @@ export default function EventTables({
     }
   }, [eventId, businessId, authHeaders])
 
+  const silentRefresh = useCallback(async () => {
+    if (!eventId || !businessId) return
+    try {
+      const [ordersRes, menuRes] = await Promise.all([
+        fetch(`${API_BASE}/api/admin/events/${eventId}/table-orders`, { headers: authHeaders() }),
+        fetch(`${API_BASE}/api/admin/events/${eventId}/table-menu`, { headers: authHeaders() }),
+      ])
+      if (ordersRes.ok) {
+        const data = await ordersRes.json()
+        const nextOrders = data.orders || []
+        setTableOrders(nextOrders)
+        tableOrdersRef.current = nextOrders
+      }
+      if (menuRes.ok) {
+        const m = await menuRes.json()
+        setMenuItems(m.menu || [])
+      }
+    } catch (e) {
+      console.error('Silent refresh failed:', e)
+    }
+  }, [eventId, businessId, authHeaders])
+
   useEffect(() => {
     loadData()
   }, [loadData])
@@ -4617,7 +4639,7 @@ export default function EventTables({
                   eventId={eventId}
                   onUpdate={async (updated) => {
                     setTableEditModal((prev) => ({ ...prev, ...updated }))
-                    await loadData()
+                    await silentRefresh()
                     setTableEditModal((prev) => {
                       if (!prev) return prev
                       const fresh = tableOrdersRef.current?.find((o) => o.id === prev.id)
