@@ -157,17 +157,14 @@ function normalizePayments(order) {
 }
 
 function orderLineTotal(o) {
-  let items = o.items
-  if (items == null) items = []
-  else if (typeof items === 'string') {
-    try {
-      items = JSON.parse(items)
-    } catch {
-      items = []
-    }
+  const items = Array.isArray(o.items) ? o.items : []
+  if (items.length > 0) {
+    return items.reduce((s, i) => s + Number(i.total || (i.price * i.quantity) || 0), 0)
   }
-  if (!Array.isArray(items)) items = []
-  return items.reduce((s, i) => s + Number(i.total || i.price * i.quantity || 0), 0)
+  const q = parseInt(String(o.drink_quantity || 1), 10)
+  const qty = Number.isFinite(q) && q > 0 ? q : 1
+  const basePrice = parseFloat(o.base_price || 0) * qty
+  return Math.max(0, basePrice)
 }
 
 function paymentsByMethod(o) {
@@ -3794,7 +3791,10 @@ export default function EventTables({
                         minWidth: 70, verticalAlign: 'middle',
                       }}
                       >
-                        {order.base_price != null && order.base_price !== '' ? order.base_price : '—'}
+                        {(() => {
+                          const total = orderLineTotal(order)
+                          return total > 0 ? `₪${total.toLocaleString()}` : '—'
+                        })()}
                       </td>
 
                       <td style={{
@@ -3814,8 +3814,12 @@ export default function EventTables({
                           color: '#00C37A',
                         }}
                       >
-                        ₪
-                        {orderLineTotal(order).toLocaleString()}
+                        {(() => {
+                          const total = orderLineTotal(order)
+                          const discount = Number(order.discount || 0)
+                          const final = Math.max(0, total - discount)
+                          return final > 0 ? `₪${final.toLocaleString()}` : '—'
+                        })()}
                       </td>
 
                       {(() => {
