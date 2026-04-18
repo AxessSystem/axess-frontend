@@ -3558,7 +3558,7 @@ export default function EventTables({
                   'מ\' שולחן',
                   'קטגוריה',
                   'כמות אנשים',
-                  'לקוח',
+                  'שם פרטי',
                   'שם משפחה',
                   'טלפון',
                   'מייל',
@@ -3580,7 +3580,7 @@ export default function EventTables({
                 ].map((h) => (
                   <th
                     key={h}
-                    title={h === 'כמות אנשים' || h === 'לקוח' ? 'לחץ לפרטי חברי השולחן' : undefined}
+                    title={h === 'כמות אנשים' || h === 'שם פרטי' ? 'לחץ לפרטי חברי השולחן' : undefined}
                     style={{
                       padding: h === 'מס\' הזמנה' ? '10px 8px' : '8px 10px',
                       textAlign: 'right',
@@ -3727,9 +3727,7 @@ export default function EventTables({
                           minWidth: 100,
                         }}
                       >
-                        {order.customer_name}
-                        {' '}
-                        {order.customer_last_name || ''}
+                        {order.customer_name || '—'}
                       </td>
 
                       <td style={{
@@ -3759,21 +3757,35 @@ export default function EventTables({
                       </td>
 
                       <td style={{ padding: '0 10px', fontSize: 13, borderLeft: '1px solid var(--glass-border)', minWidth: 130, height: 44, verticalAlign: 'middle', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {order.drink_name || '—'}
+                        {(() => {
+                          const items = Array.isArray(order.items) ? order.items : []
+                          const drinks = items.filter((i) => !i.is_upsell)
+                          if (drinks.length === 0) return order.drink_name || '—'
+                          return drinks.map((d) => d.name).join(', ')
+                        })()}
                       </td>
 
                       <td style={{
                         padding: '0 10px', fontSize: 13, borderLeft: '1px solid var(--glass-border)', minWidth: 60, height: 44, verticalAlign: 'middle',
                       }}
                       >
-                        {order.drink_quantity || 1}
+                        {(() => {
+                          const items = Array.isArray(order.items) ? order.items : []
+                          const drinks = items.filter((i) => !i.is_upsell)
+                          if (drinks.length === 0) return order.drink_quantity || 1
+                          return drinks.reduce((s, d) => s + Number(d.quantity || 1), 0)
+                        })()}
                       </td>
 
                       <td style={{ padding: '0 10px', fontSize: 12, borderLeft: '1px solid var(--glass-border)', minWidth: 160, height: 44, verticalAlign: 'middle', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         {(() => {
-                          const selectedExtras = order.extras_list || []
-                          if (!Array.isArray(selectedExtras) || selectedExtras.length === 0) return '—'
-                          return selectedExtras.map((e) => (typeof e === 'string' ? e : e?.name || '')).filter(Boolean).join(', ')
+                          const items = Array.isArray(order.items) ? order.items : []
+                          const extras = items.filter((i) => i.is_upsell)
+                          if (extras.length === 0) {
+                            const el = order.extras_list || []
+                            return el.length > 0 ? el.map((e) => (typeof e === 'string' ? e : e.name)).join(', ') : '—'
+                          }
+                          return extras.map((e) => e.name).join(', ')
                         })()}
                       </td>
 
@@ -3904,14 +3916,36 @@ export default function EventTables({
                 })}
 
               <tr style={{ borderTop: '2px solid var(--glass-border)', background: 'var(--glass)' }}>
-                <td colSpan={16} style={{ padding: '8px 12px', fontWeight: 800, fontSize: 13 }}>
+                <td colSpan={14} style={{ padding: '8px 12px', fontWeight: 800, fontSize: 13 }}>
                   סה&quot;כ
                   {' '}
                   {filteredOrders.length}
                   {' '}
                   שולחנות
                 </td>
-                <td style={{ padding: '8px 12px', fontWeight: 800, fontSize: 14, color: '#00C37A' }}>
+                <td style={{
+                  padding: '8px 10px',
+                  fontWeight: 700,
+                  fontSize: 13,
+                  borderLeft: '1px solid var(--glass-border)',
+                  color: '#00C37A',
+                }}
+                >
+                  ₪
+                  {filteredOrders.reduce((s, o) => s + parseFloat(o.base_price || 0), 0).toLocaleString()}
+                </td>
+                <td style={{
+                  padding: '8px 10px',
+                  fontWeight: 700,
+                  fontSize: 13,
+                  borderLeft: '1px solid var(--glass-border)',
+                  color: '#EF4444',
+                }}
+                >
+                  ₪
+                  {filteredOrders.reduce((s, o) => s + parseFloat(o.discount || 0), 0).toLocaleString()}
+                </td>
+                <td style={{ padding: '8px 12px', fontWeight: 800, fontSize: 14, color: '#00C37A', borderLeft: '1px solid var(--glass-border)' }}>
                   ₪
                   {filteredOrders.reduce((s, o) => s + orderLineTotal(o), 0).toLocaleString()}
                 </td>
@@ -3929,7 +3963,33 @@ export default function EventTables({
                     </td>
                   )
                 })}
-                <td colSpan={3} style={{ padding: '8px 12px' }} />
+                <td style={{
+                  padding: '8px 10px',
+                  fontWeight: 700,
+                  fontSize: 13,
+                  borderLeft: '1px solid var(--glass-border)',
+                  color: '#F59E0B',
+                }}
+                >
+                  ₪
+                  {filteredOrders.reduce((s, o) => s + Number(o.tip_amount || 0), 0).toLocaleString()}
+                </td>
+                <td style={{ padding: '8px 12px', borderLeft: '1px solid var(--glass-border)', minWidth: 100 }} />
+                <td style={{
+                  padding: '8px 10px',
+                  fontWeight: 700,
+                  fontSize: 13,
+                  borderLeft: '1px solid var(--glass-border)',
+                  color: '#8B5CF6',
+                }}
+                >
+                  ₪
+                  {filteredOrders.reduce((s, o) => {
+                    if (!o.promoter_name) return s
+                    const pct = parseFloat(o.promoter_commission_pct || 10) / 100
+                    return s + (orderLineTotal(o) * pct)
+                  }, 0).toLocaleString()}
+                </td>
               </tr>
             </tbody>
           </table>
