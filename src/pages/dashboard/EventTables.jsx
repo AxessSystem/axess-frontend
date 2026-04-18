@@ -3574,7 +3574,25 @@ export default function EventTables({
           {tableOrders.filter((o) => o.status === 'reserved').length}
           {' '}
           שמורים · ₪
-          {tableOrders.reduce((s, o) => s + orderLineTotal(o), 0).toLocaleString()}
+          {(() => {
+            const tableRevenue = tableOrders.reduce((s, o) => {
+              const gross = orderLineTotal(o);
+              const discount = Number(o.discount || 0);
+              return s + Math.max(0, gross - discount);
+            }, 0);
+
+            const ticketRevenue = tableOrders.reduce((s, o) => {
+              const guests = (() => {
+                const g = o.guests;
+                if (!g) return [];
+                if (Array.isArray(g)) return g;
+                try { return JSON.parse(g); } catch { return []; }
+              })();
+              return s + guests.reduce((gs, g) => gs + (g.is_free ? 0 : Number(g.ticket_price || 0)), 0);
+            }, 0);
+
+            return (tableRevenue + ticketRevenue).toLocaleString();
+          })()}
           {' '}
           הכנסות
         </p>
