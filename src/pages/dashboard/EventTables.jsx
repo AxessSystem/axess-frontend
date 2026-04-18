@@ -157,14 +157,32 @@ function normalizePayments(order) {
 }
 
 function orderLineTotal(o) {
+  const paymentsRaw = (() => {
+    const p = o.payments
+    if (!p) return []
+    if (Array.isArray(p)) return p
+    try {
+      return JSON.parse(p)
+    } catch {
+      return []
+    }
+  })()
+  const payments = Array.isArray(paymentsRaw) ? paymentsRaw : []
+
+  if (payments.length > 0) {
+    return payments.reduce((s, p) => s + Number(p.amount || 0), 0)
+  }
+
   const items = Array.isArray(o.items) ? o.items : []
   if (items.length > 0) {
     return items.reduce((s, i) => s + Number(i.total || (i.price * i.quantity) || 0), 0)
   }
+
   const q = parseInt(String(o.drink_quantity || 1), 10)
   const qty = Number.isFinite(q) && q > 0 ? q : 1
   const basePrice = parseFloat(o.base_price || 0) * qty
-  return Math.max(0, basePrice)
+  const discount = Number(o.discount || 0)
+  return Math.max(0, basePrice - discount)
 }
 
 function paymentsByMethod(o) {
@@ -1857,10 +1875,12 @@ function TableEditAccount({ order, menuItems, authHeaders, eventId, onUpdate }) 
   const handleInterim = async () => {
     const paymentTotal = localPayments.reduce((s, p) => s + Number(p.amount || 0), 0);
     const itemsTotal = editingItems.reduce((s, i) => s + (Number(i.price) * Number(i.quantity)), 0);
+    const currentTransactionDiscount = Number(newDiscountAmount) || 0;
+    const currentTransactionTotal = Math.max(0, itemsTotal - currentTransactionDiscount);
 
     if (editingItems.length === 0) { toast.error('הוסף פריטים לעסקה'); return; }
     if (paymentTotal === 0) { toast.error('הזן סכום תשלום'); return; }
-    if (paymentTotal > itemsTotal + 0.01) { toast.error('סכום תשלום עולה על סכום העסקה'); return; }
+    if (paymentTotal > currentTransactionTotal + 0.01) { toast.error('סכום תשלום עולה על סכום העסקה'); return; }
 
     setInterimSaving(true);
     try {
@@ -1984,6 +2004,10 @@ function TableEditAccount({ order, menuItems, authHeaders, eventId, onUpdate }) 
   };
 
   const editingTotal = editingItems.reduce((s, i) => s + (Number(i.price) * Number(i.quantity)), 0);
+  const currentTransactionDiscount = Number(newDiscountAmount) || 0;
+  const currentTransactionTotal = Math.max(0, editingTotal - currentTransactionDiscount);
+  const totalOrderAmount = totalOrdered;
+  const balance = totalOrderAmount + currentTransactionTotal - totalPaid;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -2108,7 +2132,8 @@ function TableEditAccount({ order, menuItems, authHeaders, eventId, onUpdate }) 
                     setManualStep(1);
                     setShowMenuSelector(false);
                     const total = [...editingItems, ...newItems].reduce((s, i) => s + (i.price * i.quantity), 0);
-                    initPayments(paymentMode, total);
+                    const txTotalAfterDiscount = Math.max(0, total - (Number(newDiscountAmount) || 0));
+                    initPayments(paymentMode, txTotalAfterDiscount);
                   }}
                   disabled={selectedDrinks.length === 0}
                   style={{
@@ -2145,13 +2170,75 @@ function TableEditAccount({ order, menuItems, authHeaders, eventId, onUpdate }) 
                   <span>{item.name} {item.quantity > 1 && <span style={{ color: 'var(--v2-gray-400)' }}>×{item.quantity}</span>}</span>
                 </div>
               ))}
+              {currentTransactionDiscount > 0 && (
+                <div style={{
+                  display: 'flex', justifyContent: 'space-between',
+                  padding: '6px 0', fontSize: 13,
+                }}
+                >
+                  <span style={{ color: '#F59E0B' }}>-₪{currentTransactionDiscount.toLocaleString()}</span>
+                  <span style={{ color: 'var(--v2-gray-400)' }}>🏷️ הנחה בעסקה זו</span>
+                </div>
+              )}
               <div style={{
-                display: 'flex', justifyContent: 'space-between', marginTop: 8,
+                display: 'flex', justifyContent: 'space-between',
                 padding: '8px 0', borderTop: '1px solid var(--glass-border)',
-              }}>
-                <span style={{ fontSize: 15, fontWeight: 800, color: '#00C37A' }}>₪{editingTotal.toLocaleString()}</span>
-                <span style={{ fontSize: 14, fontWeight: 700 }}>סה"כ עסקה</span>
+                fontSize: 14, fontWeight: 700,
+              }}
+              >
+                <span style={{ color: '#00C37A' }}>₪{currentTransactionTotal.toLocaleString()}</span>
+                <span>סה&quot;כ לתשלום בעסקה זו</span>
               </div>
+
+              {/* הנחה — אופציונלי */}
+              <div style={{
+                background: 'var(--card)', border: '1px solid var(--glass-border)',
+                borderRadius: 10, padding: 12, marginBottom: 12,
+              }}
+              >
+                <p style={{ margin: '0 0 8px', fontSize: 13, fontWeight: 700, textAlign: 'right', color: '#EF4444' }}>
+                  🏷️ הנחה (אופציונלי)
+                </p>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  <input
+                    type="number"
+                    value={newDiscountAmount || ''}
+                    onChange={(e) => setNewDiscountAmount(Number(e.target.value))}
+                    placeholder="סכום הנחה ₪"
+                    style={{
+                      width: '100%', minHeight: 40, padding: '8px 10px', borderRadius: 8,
+                      background: 'var(--glass)', border: '1px solid var(--glass-border)',
+                      color: 'var(--text)', fontSize: 14, textAlign: 'right',
+                      boxSizing: 'border-box',
+                    }}
+                  />
+                  <input
+                    type="text"
+                    value={newDiscountApprover}
+                    onChange={(e) => setNewDiscountApprover(e.target.value)}
+                    placeholder="אושר ע״י"
+                    style={{
+                      width: '100%', minHeight: 40, padding: '8px 10px', borderRadius: 8,
+                      background: 'var(--glass)', border: '1px solid var(--glass-border)',
+                      color: 'var(--text)', fontSize: 14, textAlign: 'right',
+                      boxSizing: 'border-box',
+                    }}
+                  />
+                  <input
+                    type="text"
+                    value={newDiscountNote}
+                    onChange={(e) => setNewDiscountNote(e.target.value)}
+                    placeholder="הערה (אופציונלי)"
+                    style={{
+                      width: '100%', minHeight: 40, padding: '8px 10px', borderRadius: 8,
+                      background: 'var(--glass)', border: '1px solid var(--glass-border)',
+                      color: 'var(--text)', fontSize: 14, textAlign: 'right',
+                      boxSizing: 'border-box',
+                    }}
+                  />
+                </div>
+              </div>
+
               <button type="button"
                 onClick={() => { setManualStep(1); setShowMenuSelector(true); }}
                 style={{
@@ -2166,7 +2253,7 @@ function TableEditAccount({ order, menuItems, authHeaders, eventId, onUpdate }) 
           {/* חלוקת תשלום */}
           {editingItems.length > 0 && !showMenuSelector && (
             <>
-              <div style={{ marginBottom: 12 }}>
+              <div style={{ marginBottom: 12 }} data-order-balance={balance}>
                 <p style={{ margin: '0 0 8px', fontSize: 13, fontWeight: 700, textAlign: 'right' }}>אופן תשלום:</p>
                 <div style={{ display: 'flex', gap: 8 }}>
                   {[
@@ -2175,7 +2262,7 @@ function TableEditAccount({ order, menuItems, authHeaders, eventId, onUpdate }) 
                     { value: 'custom', label: 'חלוקה משתנה' },
                   ].map(opt => (
                     <button key={opt.value} type="button"
-                      onClick={() => initPayments(opt.value, editingTotal)}
+                      onClick={() => initPayments(opt.value, currentTransactionTotal)}
                       style={{
                         flex: 1, padding: '8px 4px', borderRadius: 8, fontSize: 11,
                         background: paymentMode === opt.value ? 'rgba(0,195,122,0.1)' : 'var(--glass)',
@@ -2226,55 +2313,6 @@ function TableEditAccount({ order, menuItems, authHeaders, eventId, onUpdate }) 
                   </div>
                 </div>
               ))}
-
-              {/* הנחה — אופציונלי */}
-              <div style={{
-                background: 'var(--card)', border: '1px solid var(--glass-border)',
-                borderRadius: 10, padding: 12, marginBottom: 12,
-              }}
-              >
-                <p style={{ margin: '0 0 8px', fontSize: 13, fontWeight: 700, textAlign: 'right', color: '#EF4444' }}>
-                  🏷️ הנחה (אופציונלי)
-                </p>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  <input
-                    type="number"
-                    value={newDiscountAmount || ''}
-                    onChange={(e) => setNewDiscountAmount(Number(e.target.value))}
-                    placeholder="סכום הנחה ₪"
-                    style={{
-                      width: '100%', minHeight: 40, padding: '8px 10px', borderRadius: 8,
-                      background: 'var(--glass)', border: '1px solid var(--glass-border)',
-                      color: 'var(--text)', fontSize: 14, textAlign: 'right',
-                      boxSizing: 'border-box',
-                    }}
-                  />
-                  <input
-                    type="text"
-                    value={newDiscountApprover}
-                    onChange={(e) => setNewDiscountApprover(e.target.value)}
-                    placeholder="אושר ע״י"
-                    style={{
-                      width: '100%', minHeight: 40, padding: '8px 10px', borderRadius: 8,
-                      background: 'var(--glass)', border: '1px solid var(--glass-border)',
-                      color: 'var(--text)', fontSize: 14, textAlign: 'right',
-                      boxSizing: 'border-box',
-                    }}
-                  />
-                  <input
-                    type="text"
-                    value={newDiscountNote}
-                    onChange={(e) => setNewDiscountNote(e.target.value)}
-                    placeholder="הערה (אופציונלי)"
-                    style={{
-                      width: '100%', minHeight: 40, padding: '8px 10px', borderRadius: 8,
-                      background: 'var(--glass)', border: '1px solid var(--glass-border)',
-                      color: 'var(--text)', fontSize: 14, textAlign: 'right',
-                      boxSizing: 'border-box',
-                    }}
-                  />
-                </div>
-              </div>
 
               {/* טיפ */}
               <div style={{
