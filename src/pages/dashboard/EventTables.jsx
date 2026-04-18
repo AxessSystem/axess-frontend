@@ -1782,6 +1782,21 @@ function TableEditAccount({ order, menuItems, authHeaders, eventId, onUpdate }) 
   const totalTip = allTipPayments.reduce((s, t) => s + Number(t.amount || 0), 0);
   const balance = totalOrdered - totalPaid;
 
+  const discountLogNormalized = (() => {
+    const dl = order.discount_log
+    if (!dl) return []
+    if (Array.isArray(dl)) return dl
+    if (typeof dl === 'string') {
+      try {
+        const p = JSON.parse(dl)
+        return Array.isArray(p) ? p : []
+      } catch {
+        return []
+      }
+    }
+    return []
+  })()
+
   // ===== אנשים =====
   const guests = (() => {
     const g = order.guests;
@@ -1803,6 +1818,9 @@ function TableEditAccount({ order, menuItems, authHeaders, eventId, onUpdate }) 
   const [localPayments, setLocalPayments] = useState([]);
   const [newTipAmount, setNewTipAmount] = useState(0);
   const [newTipMethod, setNewTipMethod] = useState('cash');
+  const [newDiscountAmount, setNewDiscountAmount] = useState(0);
+  const [newDiscountApprover, setNewDiscountApprover] = useState('');
+  const [newDiscountNote, setNewDiscountNote] = useState('');
   const [showMenuSelector, setShowMenuSelector] = useState(false);
   const [manualStep, setManualStep] = useState(1);
   const [drinkSearch, setDrinkSearch] = useState('');
@@ -1828,6 +1846,9 @@ function TableEditAccount({ order, menuItems, authHeaders, eventId, onUpdate }) 
     setLocalPayments([]);
     setPaymentMode('single');
     setNewTipAmount(0);
+    setNewDiscountAmount(0);
+    setNewDiscountApprover('');
+    setNewDiscountNote('');
     setShowMenuSelector(false);
     setManualStep(1);
   };
@@ -1879,6 +1900,28 @@ function TableEditAccount({ order, menuItems, authHeaders, eventId, onUpdate }) 
         created_at: new Date().toISOString(),
       }] : [];
 
+      const currentDiscount = Number(order.discount || 0);
+      const newTotalDiscount = currentDiscount + (newDiscountAmount || 0);
+      const discountEntry = newDiscountAmount > 0 ? {
+        transaction_id: txId,
+        amount: newDiscountAmount,
+        approver: newDiscountApprover,
+        note: newDiscountNote,
+        created_at: new Date().toISOString(),
+      } : null;
+
+      let existingDiscountLog = [];
+      const rawLog = order.discount_log;
+      if (Array.isArray(rawLog)) existingDiscountLog = rawLog;
+      else if (typeof rawLog === 'string') {
+        try {
+          const p = JSON.parse(rawLog);
+          existingDiscountLog = Array.isArray(p) ? p : [];
+        } catch {
+          existingDiscountLog = [];
+        }
+      }
+
       await fetch(`${API_BASE}/api/admin/events/${eventId}/table-orders/${order.id}`, {
         method: 'PATCH',
         headers: authHeaders(),
@@ -1887,6 +1930,8 @@ function TableEditAccount({ order, menuItems, authHeaders, eventId, onUpdate }) 
           tip_amount: totalTip + newTipAmount,
           tip_payments: [...allTipPayments, ...newTipEntry],
           total_amount: totalOrdered + itemsTotal,
+          discount: newTotalDiscount,
+          discount_log: discountEntry ? [...existingDiscountLog, discountEntry] : existingDiscountLog,
         }),
       });
 
@@ -1896,6 +1941,9 @@ function TableEditAccount({ order, menuItems, authHeaders, eventId, onUpdate }) 
       setLocalPayments([]);
       setPaymentMode('single');
       setNewTipAmount(0);
+      setNewDiscountAmount(0);
+      setNewDiscountApprover('');
+      setNewDiscountNote('');
       onUpdate({});
     } catch (e) {
       toast.error('שגיאה');
@@ -1951,6 +1999,7 @@ function TableEditAccount({ order, menuItems, authHeaders, eventId, onUpdate }) 
           onDelete={() => setDeleteTransaction(tx)}
           isEditing={openTransaction === tx.id}
           onCancelEdit={() => setOpenTransaction(null)}
+          discountLog={discountLogNormalized}
         />
       ))}
 
@@ -1962,7 +2011,15 @@ function TableEditAccount({ order, menuItems, authHeaders, eventId, onUpdate }) 
         }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
             <button type="button"
-              onClick={() => { setOpenTransaction(null); setEditingItems([]); setLocalPayments([]); setManualStep(1); }}
+              onClick={() => {
+                setOpenTransaction(null);
+                setEditingItems([]);
+                setLocalPayments([]);
+                setManualStep(1);
+                setNewDiscountAmount(0);
+                setNewDiscountApprover('');
+                setNewDiscountNote('');
+              }}
               style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--v2-gray-400)', fontSize: 18 }}
             >✕</button>
             <p style={{ margin: 0, fontSize: 15, fontWeight: 700, color: '#00C37A' }}>
@@ -2170,35 +2227,92 @@ function TableEditAccount({ order, menuItems, authHeaders, eventId, onUpdate }) 
                 </div>
               ))}
 
-              {/* טיפ אופציונלי */}
+              {/* הנחה — אופציונלי */}
               <div style={{
                 background: 'var(--card)', border: '1px solid var(--glass-border)',
                 borderRadius: 10, padding: 12, marginBottom: 12,
-              }}>
-                <p style={{ margin: '0 0 8px', fontSize: 13, fontWeight: 700, textAlign: 'right', color: '#F59E0B' }}>
-                  💵 טיפ (אופציונלי) — לא חלק מהחשבון
+              }}
+              >
+                <p style={{ margin: '0 0 8px', fontSize: 13, fontWeight: 700, textAlign: 'right', color: '#EF4444' }}>
+                  🏷️ הנחה (אופציונלי)
                 </p>
-                <div style={{ display: 'flex', gap: 6 }}>
-                  <input type="number" value={newTipAmount || ''}
-                    onChange={e => setNewTipAmount(Number(e.target.value))}
-                    placeholder="0"
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  <input
+                    type="number"
+                    value={newDiscountAmount || ''}
+                    onChange={(e) => setNewDiscountAmount(Number(e.target.value))}
+                    placeholder="סכום הנחה ₪"
                     style={{
-                      flex: 1, minHeight: 40, padding: '8px', borderRadius: 8,
+                      width: '100%', minHeight: 40, padding: '8px 10px', borderRadius: 8,
                       background: 'var(--glass)', border: '1px solid var(--glass-border)',
                       color: 'var(--text)', fontSize: 14, textAlign: 'right',
                       boxSizing: 'border-box',
-                    }} />
-                  {[{ value: 'cash', label: 'מזומן' }, { value: 'credit', label: 'אשראי' }].map(m => (
-                    <button key={m.value} type="button"
+                    }}
+                  />
+                  <input
+                    type="text"
+                    value={newDiscountApprover}
+                    onChange={(e) => setNewDiscountApprover(e.target.value)}
+                    placeholder="אושר ע״י"
+                    style={{
+                      width: '100%', minHeight: 40, padding: '8px 10px', borderRadius: 8,
+                      background: 'var(--glass)', border: '1px solid var(--glass-border)',
+                      color: 'var(--text)', fontSize: 14, textAlign: 'right',
+                      boxSizing: 'border-box',
+                    }}
+                  />
+                  <input
+                    type="text"
+                    value={newDiscountNote}
+                    onChange={(e) => setNewDiscountNote(e.target.value)}
+                    placeholder="הערה (אופציונלי)"
+                    style={{
+                      width: '100%', minHeight: 40, padding: '8px 10px', borderRadius: 8,
+                      background: 'var(--glass)', border: '1px solid var(--glass-border)',
+                      color: 'var(--text)', fontSize: 14, textAlign: 'right',
+                      boxSizing: 'border-box',
+                    }}
+                  />
+                </div>
+              </div>
+
+              {/* טיפ */}
+              <div style={{
+                background: 'var(--card)', border: '1px solid var(--glass-border)',
+                borderRadius: 10, padding: 12, marginBottom: 12,
+              }}
+              >
+                <p style={{ margin: '0 0 8px', fontSize: 13, fontWeight: 700, textAlign: 'right', color: '#F59E0B' }}>
+                  💵 טיפ (אופציונלי) — לא חלק מהחשבון
+                </p>
+                <input
+                  type="number"
+                  value={newTipAmount || ''}
+                  onChange={(e) => setNewTipAmount(Number(e.target.value))}
+                  placeholder="0"
+                  style={{
+                    width: '100%', minHeight: 40, padding: '8px 10px', borderRadius: 8,
+                    background: 'var(--glass)', border: '1px solid var(--glass-border)',
+                    color: 'var(--text)', fontSize: 14, textAlign: 'right',
+                    boxSizing: 'border-box', marginBottom: 6,
+                  }}
+                />
+                <div style={{ display: 'flex', gap: 6 }}>
+                  {[{ value: 'cash', label: 'מזומן' }, { value: 'credit', label: 'אשראי' }].map((m) => (
+                    <button
+                      key={m.value}
+                      type="button"
                       onClick={() => setNewTipMethod(m.value)}
                       style={{
-                        padding: '6px 12px', borderRadius: 8, fontSize: 12,
+                        flex: 1, padding: '8px', borderRadius: 8, fontSize: 12,
                         background: newTipMethod === m.value ? 'rgba(245,158,11,0.1)' : 'var(--glass)',
                         border: `1px solid ${newTipMethod === m.value ? '#F59E0B' : 'var(--glass-border)'}`,
                         color: newTipMethod === m.value ? '#F59E0B' : 'var(--v2-gray-400)',
                         cursor: 'pointer',
                       }}
-                    >{m.label}</button>
+                    >
+                      {m.label}
+                    </button>
                   ))}
                 </div>
               </div>
@@ -2313,6 +2427,38 @@ function TableEditAccount({ order, menuItems, authHeaders, eventId, onUpdate }) 
                   <span>עסקה {idx + 1} — {t.method === 'cash' ? 'מזומן' : 'אשראי'}</span>
                 </div>
               )))}
+            </div>
+          </details>
+
+          <details style={{ marginBottom: 12 }}>
+            <summary style={{ cursor: 'pointer', fontSize: 13, fontWeight: 600, textAlign: 'right', color: '#EF4444' }}>
+              סה&quot;כ הנחות: -₪{Number(order.discount || 0).toLocaleString()}
+            </summary>
+            <div style={{ marginTop: 8 }}>
+              {discountLogNormalized.map((d, i) => {
+                const txIdx = closedTransactions.findIndex((t) => t.id === d.transaction_id)
+                return (
+                  <div
+                    key={i}
+                    style={{
+                      padding: '6px 8px', borderRadius: 6, marginBottom: 4,
+                      background: 'rgba(239,68,68,0.05)', fontSize: 12,
+                      color: 'var(--v2-gray-400)', textAlign: 'right',
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ color: '#EF4444' }}>-₪{Number(d.amount).toLocaleString()}</span>
+                      <span>
+                        עסקה
+                        {' '}
+                        {txIdx >= 0 ? txIdx + 1 : '—'}
+                      </span>
+                    </div>
+                    {d.approver && <div>אושר ע״י: {d.approver}</div>}
+                    {d.note && <div>הערה: {d.note}</div>}
+                  </div>
+                )
+              })}
             </div>
           </details>
         </div>
@@ -2697,7 +2843,7 @@ function EditTransactionBlock({ transaction, allPayments, allTipPayments, allPeo
 }
 
 // ===== קומפוננטת עסקה סגורה =====
-function ClosedTransactionBlock({ transaction, index, PAYMENT_METHODS, onEdit, onDelete, isEditing, onCancelEdit }) {
+function ClosedTransactionBlock({ transaction, index, PAYMENT_METHODS, onEdit, onDelete, isEditing, onCancelEdit, discountLog }) {
   const [showItems, setShowItems] = useState(false);
   const [showPayments, setShowPayments] = useState(false);
   const [showTips, setShowTips] = useState(false);
@@ -2705,6 +2851,8 @@ function ClosedTransactionBlock({ transaction, index, PAYMENT_METHODS, onEdit, o
   const txTotal = transaction.items.reduce((s, i) => s + Number(i.total || i.price * i.quantity || 0), 0);
   const txPaid = transaction.payments.reduce((s, p) => s + Number(p.amount || 0), 0);
   const txTip = transaction.tips.reduce((s, t) => s + Number(t.amount || 0), 0);
+  const txDiscounts = (discountLog || []).filter((d) => d.transaction_id === transaction.id);
+  const txDiscountTotal = txDiscounts.reduce((s, d) => s + Number(d.amount || 0), 0);
 
   return (
     <div style={{
@@ -2804,6 +2952,28 @@ function ClosedTransactionBlock({ transaction, index, PAYMENT_METHODS, onEdit, o
           </div>
         ))}
       </div>
+
+      {txDiscountTotal > 0 && (
+        <div style={{ marginTop: 6 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0' }}>
+            <span style={{ fontSize: 13, color: '#EF4444' }}>-₪{txDiscountTotal.toLocaleString()}</span>
+            <span style={{ fontSize: 13, fontWeight: 600, color: '#EF4444' }}>🏷️ הנחה</span>
+          </div>
+          {txDiscounts.map((d, i) => (
+            <div
+              key={i}
+              style={{
+                padding: '6px 8px', borderRadius: 6, marginBottom: 4,
+                background: 'rgba(239,68,68,0.05)', fontSize: 11,
+                color: 'var(--v2-gray-400)', textAlign: 'right',
+              }}
+            >
+              {d.approver && <div>אושר ע״י: {d.approver}</div>}
+              {d.note && <div>הערה: {d.note}</div>}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
