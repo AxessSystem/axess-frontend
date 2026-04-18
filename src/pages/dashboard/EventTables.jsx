@@ -157,22 +157,6 @@ function normalizePayments(order) {
 }
 
 function orderLineTotal(o) {
-  const paymentsRaw = (() => {
-    const p = o.payments
-    if (!p) return []
-    if (Array.isArray(p)) return p
-    try {
-      return JSON.parse(p)
-    } catch {
-      return []
-    }
-  })()
-  const payments = Array.isArray(paymentsRaw) ? paymentsRaw : []
-
-  if (payments.length > 0) {
-    return payments.reduce((s, p) => s + Number(p.amount || 0), 0)
-  }
-
   const items = Array.isArray(o.items) ? o.items : []
   if (items.length > 0) {
     return items.reduce((s, i) => s + Number(i.total || (i.price * i.quantity) || 0), 0)
@@ -181,8 +165,7 @@ function orderLineTotal(o) {
   const q = parseInt(String(o.drink_quantity || 1), 10)
   const qty = Number.isFinite(q) && q > 0 ? q : 1
   const basePrice = parseFloat(o.base_price || 0) * qty
-  const discount = Number(o.discount || 0)
-  return Math.max(0, basePrice - discount)
+  return Math.max(0, basePrice)
 }
 
 function paymentsByMethod(o) {
@@ -1844,6 +1827,7 @@ function TableEditAccount({ order, menuItems, authHeaders, eventId, onUpdate }) 
   const [menuForm, setMenuForm] = useState({ selected_drinks: [], extras_by_drink: {} });
   const [interimSaving, setInterimSaving] = useState(false);
   const [deleteTransaction, setDeleteTransaction] = useState(null);
+  const editTransactionRef = useRef(null);
   const selectedDrinks = menuForm.selected_drinks && typeof menuForm.selected_drinks === 'object'
     ? Object.values(menuForm.selected_drinks)
     : [];
@@ -2008,6 +1992,13 @@ function TableEditAccount({ order, menuItems, authHeaders, eventId, onUpdate }) 
   const totalOrderAmount = totalOrdered;
   const balance = totalOrderAmount + currentTransactionTotal - totalPaid;
 
+  useEffect(() => {
+    if (openTransaction !== 'new') return
+    if (paymentMode && localPayments.length > 0) {
+      initPayments(paymentMode, currentTransactionTotal)
+    }
+  }, [currentTransactionDiscount, currentTransactionTotal])
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
 
@@ -2018,7 +2009,15 @@ function TableEditAccount({ order, menuItems, authHeaders, eventId, onUpdate }) 
           transaction={tx}
           index={idx + 1}
           PAYMENT_METHODS={PAYMENT_METHODS}
-          onEdit={() => setOpenTransaction(tx.id)}
+          onEdit={() => {
+            setOpenTransaction(tx.id)
+            setTimeout(() => {
+              editTransactionRef.current?.scrollIntoView({
+                behavior: 'smooth',
+                block: 'start',
+              })
+            }, 100)
+          }}
           onDelete={() => setDeleteTransaction(tx)}
           isEditing={openTransaction === tx.id}
           onCancelEdit={() => setOpenTransaction(null)}
@@ -2375,18 +2374,20 @@ function TableEditAccount({ order, menuItems, authHeaders, eventId, onUpdate }) 
         const tx = closedTransactions.find(t => t.id === openTransaction);
         if (!tx) return null;
         return (
-          <EditTransactionBlock
-            transaction={tx}
-            allPayments={allPayments}
-            allTipPayments={allTipPayments}
-            allPeople={allPeople}
-            PAYMENT_METHODS={PAYMENT_METHODS}
-            authHeaders={authHeaders}
-            eventId={eventId}
-            orderId={order.id}
-            onClose={() => setOpenTransaction(null)}
-            onUpdate={onUpdate}
-          />
+          <div ref={editTransactionRef}>
+            <EditTransactionBlock
+              transaction={tx}
+              allPayments={allPayments}
+              allTipPayments={allTipPayments}
+              allPeople={allPeople}
+              PAYMENT_METHODS={PAYMENT_METHODS}
+              authHeaders={authHeaders}
+              eventId={eventId}
+              orderId={order.id}
+              onClose={() => setOpenTransaction(null)}
+              onUpdate={onUpdate}
+            />
+          </div>
         );
       })()}
 
@@ -4143,7 +4144,7 @@ export default function EventTables({
                 }}
                 >
                   ₪
-                  {filteredOrders.reduce((s, o) => s + parseFloat(o.base_price || 0), 0).toLocaleString()}
+                  {filteredOrders.reduce((s, o) => s + orderLineTotal(o), 0).toLocaleString()}
                 </td>
                 <td style={{
                   padding: '8px 10px',
