@@ -1798,7 +1798,6 @@ function TableEditAccount({ order, menuItems, authHeaders, eventId, onUpdate }) 
   const totalOrdered = allItems.reduce((s, i) => s + Number(i.total || i.price * i.quantity || 0), 0);
   const totalPaid = allPayments.reduce((s, p) => s + Number(p.amount || 0), 0);
   const totalTip = allTipPayments.reduce((s, t) => s + Number(t.amount || 0), 0);
-  const balance = totalOrdered - totalPaid;
 
   const discountLogNormalized = (() => {
     const dl = order.discount_log
