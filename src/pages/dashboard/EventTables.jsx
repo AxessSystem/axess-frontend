@@ -4159,7 +4159,11 @@ export default function EventTables({
                 </td>
                 <td style={{ padding: '8px 12px', fontWeight: 800, fontSize: 14, color: '#00C37A', borderLeft: '1px solid var(--glass-border)' }}>
                   ₪
-                  {filteredOrders.reduce((s, o) => s + orderLineTotal(o), 0).toLocaleString()}
+                  {filteredOrders.reduce((s, o) => {
+                    const gross = orderLineTotal(o)
+                    const discount = Number(o.discount || 0)
+                    return s + Math.max(0, gross - discount)
+                  }, 0).toLocaleString()}
                 </td>
                 {['cash', 'credit', 'bit', 'axess', 'transfer'].map((method) => {
                   const total = filteredOrders.reduce((s, o) => {
