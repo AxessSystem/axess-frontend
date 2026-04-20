@@ -17,6 +17,15 @@ export async function fetchWithAuth(url, options = {}, retries = 2) {
   if (!businessId) {
     businessId = session?.user?.user_metadata?.business_id
   }
+  if (!businessId) {
+    try {
+      const { data } = await supabase.auth.getUser()
+      businessId = data?.user?.user_metadata?.business_id
+    } catch {}
+  }
+  if (!businessId) {
+    console.warn('[fetchWithAuth] proceeding without businessId')
+  }
 
   const buildConfig = (sess) => ({
     ...options,
