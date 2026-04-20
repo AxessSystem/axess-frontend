@@ -1,5 +1,6 @@
 import toast from 'react-hot-toast'
 import { supabase } from '@/lib/supabase'
+import { getValidSession, safeRefresh } from '@/lib/authCore'
 
 const BASE = import.meta.env.VITE_API_URL || 'https://api.axess.pro'
 
@@ -7,9 +8,7 @@ const BASE = import.meta.env.VITE_API_URL || 'https://api.axess.pro'
 async function apiFetch(path, options = {}, retries = 2) {
   const url = `${BASE}${path}`
 
-  const {
-    data: { session },
-  } = await supabase.auth.getSession()
+  let session = await getValidSession(supabase)
   const authHeaders = session?.access_token
     ? { Authorization: `Bearer ${session.access_token}` }
     : {}
@@ -42,9 +41,18 @@ async function apiFetch(path, options = {}, retries = 2) {
     try {
       const res = await fetch(url, config)
 
-      if (!res.ok) {
+      if (!res.ok && !(res.status === 401 && attempt === 0)) {
         const errBody = await res.json().catch(() => ({}))
         throw new Error(errBody.message || `HTTP ${res.status}`)
+      }
+
+      if (res.status === 401 && attempt === 0) {
+        session = await safeRefresh(supabase)
+        if (session?.access_token) {
+          config.headers['Authorization'] =
+            `Bearer ${session.access_token}`
+        }
+        continue
       }
 
       return await res.json()
