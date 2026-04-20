@@ -11,8 +11,6 @@ import { fetchWithAuth, supabase } from "@/lib/supabase";
 import toast from "react-hot-toast";
 import CustomSelect from "@/components/ui/CustomSelect";
 
-const API_BASE = import.meta.env.VITE_API_URL || "https://api.axess.pro";
-
 const SELECT_STYLE = {
   width: "100%", padding: "8px 12px", borderRadius: 8,
   border: "1px solid var(--glass-border)", background: "var(--card)",
@@ -102,24 +100,15 @@ function ChatSendPanel({
   const selectedTemplate = approvedTemplates.find((t) => t.template_name === templateName);
   const templateVarCount = extractVariables(selectedTemplate?.components);
 
-  const noteHeaders = {
-    "Content-Type": "application/json",
-    Authorization: `Bearer ${apiFetch.token}`,
-    "X-Business-Id": apiFetch.businessId,
-  };
-
   const handleSend = async () => {
     if (messageMode === "note") {
       if (!message.trim()) return toast.error("הכנס תוכן להערה");
       setSending(true);
       try {
-        const r = await fetch(`${API_BASE}/api/inbox/conversations/${convId}/notes`, {
+        await fetchWithAuth(`/api/inbox/conversations/${convId}/notes`, {
           method: "POST",
-          headers: noteHeaders,
           body: JSON.stringify({ content: message.trim(), is_pinned: false, mentioned_agents: [] }),
         });
-        const data = await r.json().catch(() => ({}));
-        if (!r.ok) throw new Error(data.error || "שגיאה");
         setMessage("");
         if (textareaRef.current) {
           textareaRef.current.style.height = "120px";
@@ -153,13 +142,10 @@ function ChatSendPanel({
             .map((k) => templateVars[k]);
         }
       }
-      const r = await fetch(`${API_BASE}/api/inbox/conversations/${convId}/send`, {
+      await fetchWithAuth(`/api/inbox/conversations/${convId}/send`, {
         method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiFetch.token}`, "X-Business-Id": apiFetch.businessId },
         body: JSON.stringify(body),
       });
-      const data = await r.json().catch(() => ({}));
-      if (!r.ok) throw new Error(data.error || "שגיאה");
       setMessage("");
       setTemplateVars({});
       if (textareaRef.current) {
@@ -301,10 +287,10 @@ function ChatSendPanel({
             onChange={async (val) => {
               const online = val === "online";
               onAgentStatusChange?.(online);
-              const r = await fetch(`${API_BASE}/api/inbox/agents/status`, {
+              const r = await fetchWithAuth(`/api/inbox/agents/status`, {
                 method: "PATCH",
-                headers: noteHeaders,
                 body: JSON.stringify({ is_online: online }),
+                _raw: true,
               });
               if (!r.ok) toast.error("לא עודכן סטטוס");
             }}
@@ -506,13 +492,10 @@ function SupervisorPanel({
     }
     setTransferring(true);
     try {
-      const r = await fetch(`${API_BASE}/api/inbox/conversations/${conv.id}/transfer`, {
+      await fetchWithAuth(`/api/inbox/conversations/${conv.id}/transfer`, {
         method: "PATCH",
-        headers: { ...authHeaders() },
         body: JSON.stringify({ new_agent_id: transferAgent }),
       });
-      const data = await r.json().catch(() => ({}));
-      if (!r.ok) throw new Error(data.error || "שגיאה");
       toast.success("השיחה הועברה");
       setTransferAgent("");
       onAfterTransfer?.();
@@ -527,13 +510,10 @@ function SupervisorPanel({
     if (!whisperText.trim()) return;
     setWhisperSending(true);
     try {
-      const r = await fetch(`${API_BASE}/api/inbox/conversations/${conv.id}/whisper`, {
+      await fetchWithAuth(`/api/inbox/conversations/${conv.id}/whisper`, {
         method: "POST",
-        headers: { ...authHeaders() },
         body: JSON.stringify({ content: whisperText.trim() }),
       });
-      const data = await r.json().catch(() => ({}));
-      if (!r.ok) throw new Error(data.error || "שגיאה");
       toast.success("נשלחה הערת מנהל");
       setWhisperText("");
       onAfterWhisper?.();
@@ -759,12 +739,6 @@ export default function Inbox({ onUnreadChange }) {
 
   const isSupervisor = role === "owner" || role === "manager";
 
-  const authHeaders = useCallback(() => ({
-    "Content-Type": "application/json",
-    Authorization: `Bearer ${session?.access_token}`,
-    "X-Business-Id": businessId,
-  }), [session?.access_token, businessId]);
-
   const queryClient = useQueryClient();
 
   const onUnauthorized = async () => {
@@ -809,42 +783,36 @@ export default function Inbox({ onUnreadChange }) {
     recipientSearchDebounceRef.current = setTimeout(() => {
       const q = recipientSearch.trim();
       if (!q || !session?.access_token || !businessId) return;
-      fetch(`${API_BASE}/api/admin/recipients?search=${encodeURIComponent(q)}`, { headers: authHeaders() })
-        .then((r) => (r.ok ? r.json() : []))
+      fetchWithAuth(`/api/admin/recipients?search=${encodeURIComponent(q)}`)
+        .catch(() => [])
         .then((data) => setRecipientResults(Array.isArray(data) ? data : (data?.recipients || [])))
         .catch(() => setRecipientResults([]));
     }, 300);
     return () => {
       if (recipientSearchDebounceRef.current) clearTimeout(recipientSearchDebounceRef.current);
     };
-  }, [recipientSearch, session?.access_token, businessId, authHeaders]);
+  }, [recipientSearch, session?.access_token, businessId]);
 
   useEffect(() => {
     if (inboxView !== "contacts" || !businessId || !session?.access_token) return;
     const ac = new AbortController();
-    fetch(
-      `${API_BASE}/api/inbox/contacts?search=${encodeURIComponent(contactsSearch)}`,
-      { headers: authHeaders(), signal: ac.signal },
-    )
-      .then((r) => (r.ok ? r.json() : { contacts: [] }))
+    fetchWithAuth(`/api/inbox/contacts?search=${encodeURIComponent(contactsSearch)}`)
+      .catch(() => ({ contacts: [] }))
       .then((d) => setContacts(d.contacts || []))
       .catch(() => {
         if (ac.signal.aborted) return;
         setContacts([]);
       });
     return () => ac.abort();
-  }, [inboxView, businessId, contactsSearch, session?.access_token, authHeaders]);
+  }, [inboxView, businessId, contactsSearch, session?.access_token]);
 
   const apiFetch = useCallback(
     async (path, opts = {}) => {
-      const r = await fetch(`${API_BASE}${path}`, {
-        ...opts,
-        headers: { ...authHeaders(), ...(opts.headers || {}) },
-      });
+      const r = await fetchWithAuth(path, { ...opts, _raw: true });
       const data = await r.json().catch(() => ({}));
       return { ...data, ok: r.ok };
     },
-    [authHeaders]
+    []
   );
 
   const {
@@ -880,13 +848,10 @@ export default function Inbox({ onUnreadChange }) {
         return;
       }
       try {
-        const r = await fetch(`${API_BASE}/api/inbox/conversations/start`, {
+        const data = await fetchWithAuth(`/api/inbox/conversations/start`, {
           method: "POST",
-          headers: authHeaders(),
           body: JSON.stringify({ phone, channel: "whatsapp" }),
         });
-        const data = await r.json().catch(() => ({}));
-        if (!r.ok) throw new Error(data.error || "שגיאה");
         if (data.conversation) {
           setInboxView("conversations");
           refetchConversations();
@@ -896,7 +861,7 @@ export default function Inbox({ onUnreadChange }) {
         toast.error(e.message || "שגיאה");
       }
     },
-    [conversations, authHeaders, refetchConversations],
+    [conversations, refetchConversations],
   );
 
   const activeConversationId = selectedConv?.id ?? null;
@@ -918,10 +883,7 @@ export default function Inbox({ onUnreadChange }) {
   const { data: supervisor } = useQuery({
     queryKey: ["inbox-supervisor", businessId],
     queryFn: async () => {
-      const r = await fetch(`${API_BASE}/api/inbox/supervisor`, { headers: authHeaders() });
-      const data = await r.json().catch(() => ({}));
-      if (!r.ok) throw new Error(data.error || "supervisor");
-      return data;
+      return fetchWithAuth(`/api/inbox/supervisor`);
     },
     refetchInterval: 30_000,
     enabled: !!session?.access_token && !!businessId && isSupervisor,
@@ -992,23 +954,22 @@ export default function Inbox({ onUnreadChange }) {
 
   useEffect(() => {
     if (session?.access_token && businessId) {
-      fetch(`${API_BASE}/api/whatsapp/status`, { headers: authHeaders() })
-        .then((r) => (r.ok ? r.json() : {}))
+      fetchWithAuth(`/api/whatsapp/status`)
         .then(setWaStatus)
         .catch(() => setWaStatus(null));
       apiFetch("/api/whatsapp/templates").then((d) => setTemplates(d.templates || []));
       if (isSupervisor) {
-        fetch(`${API_BASE}/api/staff?business_id=${businessId}`, { headers: authHeaders() })
-          .then((r) => (r.ok ? r.json() : []))
+        fetchWithAuth(`/api/staff?business_id=${businessId}`)
+          .catch(() => [])
           .then((data) => setStaff(Array.isArray(data) ? data : []))
           .catch(() => setStaff([]));
       }
-      fetch(`${API_BASE}/api/inbox/queues`, { headers: authHeaders() })
-        .then((r) => (r.ok ? r.json() : {}))
+      fetchWithAuth(`/api/inbox/queues`)
+        .catch(() => ({}))
         .then((d) => setQueues(d.queues || []))
         .catch(() => setQueues([]));
-      fetch(`${API_BASE}/api/inbox/agents`, { headers: authHeaders() })
-        .then((r) => (r.ok ? r.json() : {}))
+      fetchWithAuth(`/api/inbox/agents`)
+        .catch(() => ({}))
         .then((d) => {
           const rows = d.agents || [];
           setAgents(rows);
@@ -1018,7 +979,7 @@ export default function Inbox({ onUnreadChange }) {
         })
         .catch(() => {});
     }
-  }, [session?.access_token, businessId, isSupervisor, authHeaders, user?.email]);
+  }, [session?.access_token, businessId, isSupervisor, apiFetch, user?.email]);
 
   useEffect(() => {
     const pending = pendingOpenRef.current;
@@ -1048,19 +1009,19 @@ export default function Inbox({ onUnreadChange }) {
   }, [selectedConv?.id, selectedConv?.customer_phone, apiFetch, refetchConversations]);
 
   const handleAssign = async (convId, agentId, department) => {
-    const r = await fetch(`${API_BASE}/api/inbox/conversations/${convId}/assign`, {
+    const r = await fetchWithAuth(`/api/inbox/conversations/${convId}/assign`, {
       method: "POST",
-      headers: authHeaders(),
       body: JSON.stringify({ agent_id: agentId || undefined, department: department || undefined }),
+      _raw: true,
     });
     if (!r.ok) throw new Error("שגיאה בהקצאה");
     await refetchConversations();
   };
 
   const handleResolve = async (convId) => {
-    const r = await fetch(`${API_BASE}/api/inbox/conversations/${convId}/resolve`, {
+    const r = await fetchWithAuth(`/api/inbox/conversations/${convId}/resolve`, {
       method: "POST",
-      headers: authHeaders(),
+      _raw: true,
     });
     if (!r.ok) throw new Error();
     setSelectedConv(null);
@@ -1916,13 +1877,12 @@ export default function Inbox({ onUnreadChange }) {
                   if (newMsgChannel === "whatsapp" && !useTemplate && !newMsgMessage.trim()) return toast.error("הכנס הודעה או בחר תבנית");
                   setNewMsgSending(true);
                   try {
-                    const createRes = await fetch(`${API_BASE}/api/inbox/conversations`, {
+                    const createData = await fetchWithAuth(`/api/inbox/conversations`, {
                       method: "POST",
-                      headers: authHeaders(),
                       body: JSON.stringify({ business_id: businessId, customer_phone: selectedRecipient.phone, channel: newMsgChannel }),
                     });
-                    const convData = await createRes.json().catch(() => ({}));
-                    if (!createRes.ok) throw new Error(convData.error || "שגיאה ביצירת שיחה");
+                    if (!createData?.id) throw new Error(createData?.error || "שגיאה ביצירת שיחה");
+                    const convData = createData;
                     const convId = convData.id;
                     const sendBody = { channel: newMsgChannel, target_conversation_id: convId };
                     if (newMsgChannel === "sms") sendBody.message = newMsgMessage.trim();
@@ -1932,13 +1892,10 @@ export default function Inbox({ onUnreadChange }) {
                         sendBody.template_variables = Object.keys(newMsgTemplateVars).sort().map((k) => newMsgTemplateVars[k]);
                       } else sendBody.message = newMsgMessage.trim();
                     }
-                    const sendRes = await fetch(`${API_BASE}/api/inbox/conversations/${convId}/send`, {
+                    await fetchWithAuth(`/api/inbox/conversations/${convId}/send`, {
                       method: "POST",
-                      headers: authHeaders(),
                       body: JSON.stringify(sendBody),
                     });
-                    const sendData = await sendRes.json().catch(() => ({}));
-                    if (!sendRes.ok) throw new Error(sendData.message || sendData.error || "שגיאה בשליחה");
                     toast.success("נשלח");
                     setShowNewMessage(false);
                     setSelectedRecipient(null);
