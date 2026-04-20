@@ -432,7 +432,7 @@ function ChatSendPanel({
 }
 
 function SupervisorPanel({
-  conv, staff, agents, onAssign, onResolve, onClose, authHeaders, onAfterTransfer, onAfterWhisper, memberRole,
+  conv, staff, agents, onAssign, onResolve, onClose, onAfterTransfer, onAfterWhisper, memberRole,
 }) {
   const [agentId, setAgentId] = useState(conv?.assigned_to || "");
   const [department, setDepartment] = useState(conv?.department || "");
@@ -1737,7 +1737,6 @@ export default function Inbox({ onUnreadChange }) {
                   staff={staff}
                   agents={agents}
                   memberRole={role}
-                  authHeaders={authHeaders}
                   onAfterTransfer={() => {
                     refetchConversations();
                     queryClient.invalidateQueries({ queryKey: ["messages", selectedConv.id] });

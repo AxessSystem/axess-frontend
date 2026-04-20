@@ -9,8 +9,6 @@ import {
 import { useAuth } from '@/contexts/AuthContext'
 import { supabase, fetchWithAuth } from '@/lib/supabase'
 
-const API_BASE = import.meta.env.VITE_API_URL || 'https://api.axess.pro'
-
 const NAV_SHORTCUTS = {
   '/dashboard': [],
   '/dashboard/new-campaign': [
@@ -1102,10 +1100,10 @@ export default function DashboardClientLayout() {
                           onClick={() => {
                             setNotificationsDropdownOpen(false)
                             if (!n.is_read) {
-                              fetch(`${API_BASE}/api/notifications/${n.id}/read`, {
+                              fetchWithAuth(`/api/notifications/${n.id}/read`, {
                                 method: 'PATCH',
-                                headers: { Authorization: `Bearer ${session.access_token}`, 'X-Business-Id': businessId },
                               }).then(() => setNotificationsUnreadCount(c => Math.max(0, c - 1)))
+                                .catch(() => {})
                             }
                             const url = n.action_url || '/dashboard/notifications'
                             if (url.startsWith('http')) window.location.href = url

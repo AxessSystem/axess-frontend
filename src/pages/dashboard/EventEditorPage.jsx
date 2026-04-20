@@ -1,4 +1,3 @@
-import { useCallback } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '@/contexts/AuthContext'
 import { useRequirePermission } from '@/hooks/useRequirePermission'
@@ -7,14 +6,8 @@ import EventEditModal from './EventEditModal'
 export default function EventEditorPage() {
   const { id } = useParams()
   const navigate = useNavigate()
-  const { session, businessId } = useAuth()
+  const { businessId } = useAuth()
   const allowed = useRequirePermission('can_view_events')
-
-  const authHeaders = useCallback(() => ({
-    'Content-Type': 'application/json',
-    Authorization: `Bearer ${session?.access_token}`,
-    'X-Business-Id': businessId,
-  }), [session, businessId])
 
   if (!allowed) return null
 
@@ -27,7 +20,6 @@ export default function EventEditorPage() {
       isOpen
       mode={mode}
       eventId={id || null}
-      authHeaders={authHeaders}
       businessId={businessId}
       onClose={(options) => {
         if (options?.navigateTo === 'campaigns' && id) {

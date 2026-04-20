@@ -769,7 +769,7 @@ function EditableRevenueRow({
 
 export default function EventDetailPage() {
   const { id } = useParams()
-  const { session, businessId } = useAuth()
+  const { businessId } = useAuth()
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const [event, setEvent] = useState(null)
@@ -848,12 +848,6 @@ export default function EventDetailPage() {
     return () => window.removeEventListener('resize', handler)
   }, [])
 
-  const authHeaders = useCallback(() => ({
-    'Content-Type': 'application/json',
-    'Authorization': `Bearer ${session?.access_token}`,
-    'X-Business-Id': businessId,
-  }), [session, businessId])
-
   const saveToHistory = () => {
     setExpensesHistory((h) => [...h.slice(-4), [...financials.expenses]])
   }
@@ -893,7 +887,7 @@ export default function EventDetailPage() {
       })
       setVendors(Array.isArray(vendData?.vendors) ? vendData.vendors : [])
     })
-  }, [id, businessId, authHeaders])
+  }, [id, businessId])
 
   const eventWebStats = useMemo(() => {
     const slug = (event?.slug || '').toLowerCase()
@@ -946,7 +940,7 @@ export default function EventDetailPage() {
       .then((r) => (r.ok ? r.json() : []))
       .then((d) => setEventPromoters(Array.isArray(d) ? d : (d.promoters || [])))
       .catch(() => {})
-  }, [id, authHeaders])
+  }, [id])
 
   useEffect(() => {
     const list = selectedChannel === 'all'
@@ -974,7 +968,7 @@ export default function EventDetailPage() {
       fetchWithAuth(`/api/admin/layouts?business_id=${businessId}`, { _raw: true })
         .then((r) => (r.ok ? r.json() : [])),
     ]).then(([m, l]) => { setMenus(m); setLayouts(l) }).catch(() => {})
-  }, [businessId, authHeaders])
+  }, [businessId])
 
   useEffect(() => {
     if (!id || !businessId) return
@@ -985,7 +979,7 @@ export default function EventDetailPage() {
         linked_layout_ids: (d.linked_layout_ids || []).map(String),
       }))
       .catch(() => {})
-  }, [id, businessId, authHeaders])
+  }, [id, businessId])
 
   const approveOrder = async (orderId) => {
     try {
@@ -3382,7 +3376,6 @@ export default function EventDetailPage() {
             eventTitle={event?.title}
             eventDate={event?.date}
             businessId={businessId}
-            authHeaders={authHeaders}
           />
         )}
 
