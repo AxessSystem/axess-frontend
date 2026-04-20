@@ -17,10 +17,9 @@ import {
   Smile, Highlighter, Eraser, Image as ImageIcon,
   Palette,
 } from 'lucide-react';
+import { fetchWithAuth } from '@/lib/supabase';
 
-const API_BASE = import.meta.env.VITE_API_URL || 'https://api.axess.pro';
-
-export default function RichTextEditor({ value, onChange, placeholder, authHeaders }) {
+export default function RichTextEditor({ value, onChange, placeholder }) {
   const [showEmoji, setShowEmoji] = useState(false);
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [showHighlightPicker, setShowHighlightPicker] = useState(false);
@@ -91,12 +90,10 @@ export default function RichTextEditor({ value, onChange, placeholder, authHeade
     const reader = new FileReader();
     reader.onload = async (e) => {
       try {
-        const res = await fetch(`${API_BASE}/upload/image`, {
+        const data = await fetchWithAuth('/upload/image', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', ...(authHeaders?.() || {}) },
           body: JSON.stringify({ image: e.target.result, folder: 'events/description' }),
-        });
-        const data = await res.json();
+        }).catch(() => ({}));
         if (data.url) editor.chain().focus().setImage({ src: data.url }).run();
       } catch (err) {
         console.error('upload error:', err);

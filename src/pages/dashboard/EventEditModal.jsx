@@ -8,8 +8,7 @@ import CustomSelect from '@/components/ui/CustomSelect'
 import DateTimePicker from '@/components/ui/DateTimePicker'
 import RichTextEditor from '@/components/ui/RichTextEditor'
 import { copyToClipboard } from '@/utils/clipboard'
-
-const API_BASE = import.meta.env.VITE_API_URL || 'https://api.axess.pro'
+import { fetchWithAuth } from '@/lib/supabase'
 const FRONTEND_URL = import.meta.env.VITE_FRONTEND_URL || window.location.origin
 
 const DATETIME_LOCAL_STYLE = {
@@ -147,7 +146,6 @@ export default function EventEditModal({
   isOpen = true,
   onClose,
   onSave,
-  authHeaders,
   businessId,
   mode = 'edit',
   onEventCreated,
@@ -172,15 +170,12 @@ export default function EventEditModal({
     }
     // תמיד שלוף מה-DB אם יש id — גם אם event כבר קיים
     const id = eventIdProp || eventProp?.id
-    if (!id || !authHeaders) return
+    if (!id) return
 
     let cancelled = false
     const loadEvent = async () => {
       try {
-        const res = await fetch(
-          `${API_BASE}/api/admin/events/${id}`,
-          { headers: authHeaders() },
-        )
+        const res = await fetchWithAuth(`/api/admin/events/${id}`, { _raw: true })
         if (!res.ok || cancelled) return
         const data = await res.json()
         if (data?.id && !cancelled) setFetchedEvent(data)
@@ -193,7 +188,7 @@ export default function EventEditModal({
     return () => {
       cancelled = true
     }
-  }, [eventIdProp, eventProp?.id, isCreateMode, isOpen, authHeaders])
+  }, [eventIdProp, eventProp?.id, isCreateMode, isOpen])
 
   useEffect(() => {
     if (!isOpen || !isCreateMode) return
@@ -241,9 +236,8 @@ export default function EventEditModal({
     try {
       const cleanDate = (val) => (val && String(val).trim() !== '') ? val : null
       const cleanStr = (val) => (val && String(val).trim() !== '') ? String(val).trim() : null
-      const res = await fetch(`${API_BASE}/api/admin/events`, {
+      const res = await fetchWithAuth('/api/admin/events', {
         method: 'POST',
-        headers: authHeaders(),
         body: JSON.stringify({
           business_id: businessId,
           title: form.title.trim(),
@@ -261,6 +255,7 @@ export default function EventEditModal({
           cover_image_url: cleanStr(form.cover_image_url),
           age_restriction: cleanStr(form.age_restriction),
         }),
+        _raw: true,
       })
       const data = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(data.error || 'fail')
@@ -321,10 +316,10 @@ export default function EventEditModal({
       faq: form.faq || [],
     }
 
-    const res = await fetch(`${API_BASE}/api/admin/events/${effectiveEvent.id}`, {
+    const res = await fetchWithAuth(`/api/admin/events/${effectiveEvent.id}`, {
       method: 'PATCH',
-      headers: authHeaders(),
       body: JSON.stringify(payload),
+      _raw: true,
     })
 
     setSaving(false)
@@ -334,10 +329,7 @@ export default function EventEditModal({
 
       if (eventIdProp) {
         try {
-          const refreshRes = await fetch(
-            `${API_BASE}/api/admin/events/${eventIdProp}`,
-            { headers: authHeaders() },
-          )
+          const refreshRes = await fetchWithAuth(`/api/admin/events/${eventIdProp}`, { _raw: true })
           if (refreshRes.ok) {
             const refreshedData = await refreshRes.json()
             if (refreshedData?.id) setFetchedEvent(refreshedData)
@@ -360,12 +352,10 @@ export default function EventEditModal({
     const reader = new FileReader()
     reader.onload = async (e) => {
       try {
-        const res = await fetch(`${API_BASE}/api/upload/image`, {
+        const data = await fetchWithAuth('/api/upload/image', {
           method: 'POST',
-          headers: authHeaders(),
           body: JSON.stringify({ image: e.target.result, folder: 'events' }),
-        })
-        const data = await res.json()
+        }).catch(() => ({}))
         console.log('[upload] response:', data) // ← בדיקה
         if (data.url) {
           // עדכן גם image_url וגם cover_image_url:
@@ -879,7 +869,6 @@ export default function EventEditModal({
                 value={form.description}
                 onChange={(v) => setForm((f) => ({ ...f, description: v }))}
                 placeholder="תאר את האירוע..."
-                authHeaders={authHeaders}
               />
               <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
                 <button
@@ -894,15 +883,14 @@ export default function EventEditModal({
                 <button
                   type="button"
                   onClick={async () => {
-                    await fetch(`${API_BASE}/api/admin/business/${businessId}/templates`, {
+                    await fetchWithAuth(`/api/admin/business/${businessId}/templates`, {
                       method: 'POST',
-                      headers: authHeaders(),
                       body: JSON.stringify({
                         template_type: 'description',
                         source_event_id: effectiveEvent?.id,
                         template_data: { description: form.description },
                       }),
-                    })
+                    }).catch(() => {})
                     toast.success('התיאור נשמר כתבנית!')
                   }}
                   style={{
@@ -919,7 +907,7 @@ export default function EventEditModal({
             <div style={{ textAlign: 'center', padding: 32, color: 'var(--v2-gray-400)', fontSize: 14 }}>
               <p style={{ margin: 0 }}>צור תחילה את האירוע בטאב «פרטים» עם כפתור «צור אירוע».</p>
             </div>
-          ) : <TicketsTab eventId={effectiveEvent?.id} authHeaders={authHeaders} />)}
+          ) : <TicketsTab eventId={effectiveEvent?.id} />)}
 
           {activeTab === 'tables' && (isCreateMode ? (
             <div style={{ textAlign: 'center', padding: 32, color: 'var(--v2-gray-400)', fontSize: 14 }}>
@@ -950,9 +938,9 @@ export default function EventEditModal({
             </div>
           ))}
 
-          {activeTab === 'fields' && <RegistrationFieldsTab event={effectiveEvent} authHeaders={authHeaders} />}
+          {activeTab === 'fields' && <RegistrationFieldsTab event={effectiveEvent} />}
 
-          {activeTab === 'promoters' && <PromotersTab eventId={effectiveEvent?.id} authHeaders={authHeaders} />}
+          {activeTab === 'promoters' && <PromotersTab eventId={effectiveEvent?.id} />}
 
           {activeTab === 'staff' && (
             <div>
@@ -961,7 +949,7 @@ export default function EventEditModal({
                   לניהול מלא של הצוות — עבור לטאב &quot;שולחנות&quot; → כפתור &quot;צוות&quot;
                 </p>
               </div>
-              <ScanStationsTab eventId={effectiveEvent?.id} authHeaders={authHeaders} eventSlug={effectiveEvent?.slug} />
+              <ScanStationsTab eventId={effectiveEvent?.id} eventSlug={effectiveEvent?.slug} />
             </div>
           )}
 
@@ -1016,12 +1004,10 @@ export default function EventEditModal({
                         if (!file) return
                         const reader = new FileReader()
                         reader.onload = async (ev) => {
-                          const res = await fetch(`${API_BASE}/api/upload/image`, {
+                          const data = await fetchWithAuth('/api/upload/image', {
                             method: 'POST',
-                            headers: authHeaders(),
                             body: JSON.stringify({ image: ev.target.result, folder: 'venues' }),
-                          })
-                          const data = await res.json()
+                          }).catch(() => ({}))
                           if (data.url) setForm((f) => ({ ...f, venue_image: data.url }))
                         }
                         reader.readAsDataURL(file)
@@ -1199,12 +1185,10 @@ export default function EventEditModal({
                         if (!file) return
                         const reader = new FileReader()
                         reader.onload = async (ev) => {
-                          const res = await fetch(`${API_BASE}/api/upload/image`, {
+                          const data = await fetchWithAuth('/api/upload/image', {
                             method: 'POST',
-                            headers: authHeaders(),
                             body: JSON.stringify({ image: ev.target.result, folder: 'organizers' }),
-                          })
-                          const data = await res.json()
+                          }).catch(() => ({}))
                           if (data.url) setForm((f) => ({ ...f, organizer_avatar: data.url }))
                         }
                         reader.readAsDataURL(file)
@@ -1292,22 +1276,21 @@ export default function EventEditModal({
           ))}
 
           {activeTab === 'faq' && (
-            <FAQEditTab event={effectiveEvent} form={form} setForm={setForm} authHeaders={authHeaders} />
+            <FAQEditTab event={effectiveEvent} form={form} setForm={setForm} />
           )}
 
           {activeTab === 'webview' && (
-            <WebviewTab event={effectiveEvent} authHeaders={authHeaders} businessId={businessId} />
+            <WebviewTab event={effectiveEvent} businessId={businessId} />
           )}
 
           {activeTab === 'design' && (
-            <DesignTab form={form} setForm={setForm} event={effectiveEvent} authHeaders={authHeaders} onSave={saveBasic} />
+            <DesignTab form={form} setForm={setForm} event={effectiveEvent} onSave={saveBasic} />
           )}
 
           {activeTab === 'summary' && (
             <SummaryTab
               event={effectiveEvent}
               form={form}
-              authHeaders={authHeaders}
               onNavigateToCampaigns={(data) => {
                 sessionStorage.setItem('pendingCampaign', JSON.stringify(data))
                 onClose?.({ navigateTo: 'campaigns' })
@@ -1362,7 +1345,7 @@ const DEFAULT_TABLE_TICKET = {
   extras_per_bottle: 1,
 }
 
-function TicketsTab({ eventId, authHeaders }) {
+function TicketsTab({ eventId }) {
   const [tickets, setTickets] = useState([])
   const [showAdd, setShowAdd] = useState(null)
   const [newTicket, setNewTicket] = useState({ ...DEFAULT_TICKET })
@@ -1370,17 +1353,15 @@ function TicketsTab({ eventId, authHeaders }) {
 
   useEffect(() => {
     if (!eventId) return
-    fetch(`${API_BASE}/api/admin/events/${eventId}/ticket-types`, { headers: authHeaders() })
-      .then((r) => r.json())
+    fetchWithAuth(`/api/admin/events/${eventId}/ticket-types`)
       .then((d) =>
         setTickets(Array.isArray(d.ticket_types) ? d.ticket_types : Array.isArray(d) ? d : []),
       )
-  }, [eventId, authHeaders])
+  }, [eventId])
 
   const loadTickets = () => {
     if (!eventId) return
-    fetch(`${API_BASE}/api/admin/events/${eventId}/ticket-types`, { headers: authHeaders() })
-      .then((r) => r.json())
+    fetchWithAuth(`/api/admin/events/${eventId}/ticket-types`)
       .then((d) =>
         setTickets(Array.isArray(d.ticket_types) ? d.ticket_types : Array.isArray(d) ? d : []),
       )
@@ -1496,10 +1477,9 @@ function TicketsTab({ eventId, authHeaders }) {
               <button
                 type="button"
                 onClick={async () => {
-                  await fetch(`${API_BASE}/api/admin/events/${eventId}/ticket-types/${tt.id}`, {
+                  await fetchWithAuth(`/api/admin/events/${eventId}/ticket-types/${tt.id}`, {
                     method: 'DELETE',
-                    headers: authHeaders(),
-                  })
+                  }).catch(() => {})
                   loadTickets()
                 }}
                 style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#EF4444' }}
@@ -1673,11 +1653,10 @@ function TicketsTab({ eventId, authHeaders }) {
                 onClick={async () => {
                   if (!newTicket.name?.trim()) return
                   if (!newTicket.price || !newTicket.quantity_total) return
-                  await fetch(`${API_BASE}/api/admin/events/${eventId}/ticket-types`, {
+                  await fetchWithAuth(`/api/admin/events/${eventId}/ticket-types`, {
                     method: 'POST',
-                    headers: authHeaders(),
                     body: JSON.stringify(newTicket),
-                  })
+                  }).catch(() => {})
                   setShowAdd(null)
                   setNewTicket({ ...DEFAULT_TICKET })
                   loadTickets()
@@ -2119,9 +2098,8 @@ function TicketsTab({ eventId, authHeaders }) {
                 type="button"
                 onClick={async () => {
                   if (!newTableTicket.name) return
-                  await fetch(`${API_BASE}/api/admin/events/${eventId}/ticket-types`, {
+                  await fetchWithAuth(`/api/admin/events/${eventId}/ticket-types`, {
                     method: 'POST',
-                    headers: authHeaders(),
                     body: JSON.stringify({
                       name: newTableTicket.name,
                       description: newTableTicket.description || '',
@@ -2143,7 +2121,7 @@ function TicketsTab({ eventId, authHeaders }) {
                         },
                       },
                     }),
-                  })
+                  }).catch(() => {})
                   setShowAdd(null)
                   loadTickets()
                   toast.success('כרטיס שולחן נוסף!')
@@ -2185,7 +2163,7 @@ function TicketsTab({ eventId, authHeaders }) {
   )
 }
 
-function RegistrationFieldsTab({ event, authHeaders }) {
+function RegistrationFieldsTab({ event }) {
   const [fields, setFields] = useState(
     Array.isArray(event?.registration_fields) && event.registration_fields.length > 0
       ? event.registration_fields
@@ -2206,10 +2184,10 @@ function RegistrationFieldsTab({ event, authHeaders }) {
   const saveFields = async () => {
     setSaving(true)
     try {
-      const res = await fetch(`${API_BASE}/api/admin/events/${event.id}`, {
+      const res = await fetchWithAuth(`/api/admin/events/${event.id}`, {
         method: 'PATCH',
-        headers: authHeaders(),
         body: JSON.stringify({ registration_fields: fields }),
+        _raw: true,
       })
       if (res.ok) {
         toast.success('שדות ההרשמה נשמרו ✓')
@@ -2358,7 +2336,7 @@ function RegistrationFieldsTab({ event, authHeaders }) {
   )
 }
 
-function PromotersTab({ eventId, authHeaders }) {
+function PromotersTab({ eventId }) {
   const [promoters, setPromoters] = useState([])
   const [newPromoter, setNewPromoter] = useState({
     name: '',
@@ -2370,17 +2348,15 @@ function PromotersTab({ eventId, authHeaders }) {
 
   useEffect(() => {
     if (!eventId) return
-    fetch(`${API_BASE}/api/admin/events/${eventId}/promoters`, { headers: authHeaders() })
-      .then((r) => r.json())
+    fetchWithAuth(`/api/admin/events/${eventId}/promoters`)
       .then((d) =>
         setPromoters(Array.isArray(d.promoters) ? d.promoters : Array.isArray(d) ? d : []),
       )
-  }, [eventId, authHeaders])
+  }, [eventId])
 
   const loadPromoters = () => {
     if (!eventId) return
-    fetch(`${API_BASE}/api/admin/events/${eventId}/promoters`, { headers: authHeaders() })
-      .then((r) => r.json())
+    fetchWithAuth(`/api/admin/events/${eventId}/promoters`)
       .then((d) =>
         setPromoters(Array.isArray(d.promoters) ? d.promoters : Array.isArray(d) ? d : []),
       )
@@ -2517,11 +2493,10 @@ function PromotersTab({ eventId, authHeaders }) {
                 type="button"
                 onClick={async () => {
                   if (!newPromoter.name || !newPromoter.phone) return
-                  await fetch(`${API_BASE}/api/admin/events/${eventId}/promoters`, {
+                  await fetchWithAuth(`/api/admin/events/${eventId}/promoters`, {
                     method: 'POST',
-                    headers: authHeaders(),
                     body: JSON.stringify(newPromoter),
-                  })
+                  }).catch(() => {})
                   setShowAdd(false)
                   setNewPromoter({
                     name: '',
@@ -2567,7 +2542,7 @@ function PromotersTab({ eventId, authHeaders }) {
   )
 }
 
-function DesignTab({ form, setForm, event, authHeaders: _authHeaders, onSave }) {
+function DesignTab({ form, setForm, event, onSave }) {
   const AXESS_DEFAULTS = {
     primary_color: '#00C37A',
     background_color: '#0a1628',
@@ -2690,7 +2665,7 @@ function DesignTab({ form, setForm, event, authHeaders: _authHeaders, onSave }) 
   )
 }
 
-function SummaryTab({ event, form, authHeaders, onNavigateToCampaigns }) {
+function SummaryTab({ event, form, onNavigateToCampaigns }) {
   const [previewMode, setPreviewMode] = useState('mobile')
   const [shareTab, setShareTab] = useState('default')
   const [shareMessages, setShareMessages] = useState({
@@ -2727,13 +2702,13 @@ function SummaryTab({ event, form, authHeaders, onNavigateToCampaigns }) {
   const eventUrl = `https://axess.pro/e/${form.slug || event?.slug || ''}`
 
   const saveShareMessages = async (silent = false) => {
-    if (!event?.id || !authHeaders) return false
+    if (!event?.id) return false
     setSavingShare(true)
     try {
-      const res = await fetch(`${API_BASE}/api/admin/events/${event.id}`, {
+      const res = await fetchWithAuth(`/api/admin/events/${event.id}`, {
         method: 'PATCH',
-        headers: authHeaders(),
         body: JSON.stringify({ share_messages: shareMessages }),
+        _raw: true,
       })
       if (res.ok) {
         if (!silent) toast.success('הודעות השיתוף נשמרו ✓')
@@ -3046,17 +3021,17 @@ function SummaryTab({ event, form, authHeaders, onNavigateToCampaigns }) {
   )
 }
 
-function WebviewTab({ event, authHeaders, businessId: _businessId }) {
+function WebviewTab({ event, businessId: _businessId }) {
   const webviewUrl = `https://axess.pro/w/${event?.slug}`
   const [webviewEnabled, setWebviewEnabled] = useState(event?.display_config?.webview_enabled || false)
 
   const toggleWebview = async () => {
     const newVal = !webviewEnabled
     setWebviewEnabled(newVal)
-    await fetch(`${API_BASE}/api/admin/events/${event.id}`, {
-      method: 'PATCH', headers: authHeaders(),
+    await fetchWithAuth(`/api/admin/events/${event.id}`, {
+      method: 'PATCH',
       body: JSON.stringify({ display_config: { ...(event.display_config || {}), webview_enabled: newVal } }),
-    })
+    }).catch(() => {})
   }
 
   return (
@@ -3117,7 +3092,7 @@ function WebviewTab({ event, authHeaders, businessId: _businessId }) {
   )
 }
 
-function FAQEditTab({ event, form, setForm, authHeaders }) {
+function FAQEditTab({ event, form, setForm }) {
   const [faqs, setFaqs] = useState(() => {
     try {
       return Array.isArray(form.faq) ? form.faq : JSON.parse(form.faq || '[]')
@@ -3131,11 +3106,10 @@ function FAQEditTab({ event, form, setForm, authHeaders }) {
 
   const saveFaqs = async () => {
     setSaving(true)
-    await fetch(`${API_BASE}/api/admin/events/${event.id}`, {
+    await fetchWithAuth(`/api/admin/events/${event.id}`, {
       method: 'PATCH',
-      headers: authHeaders(),
       body: JSON.stringify({ faq: faqs }),
-    })
+    }).catch(() => {})
     setForm((f) => ({ ...f, faq: faqs }))
     setSaving(false)
   }
@@ -3249,7 +3223,7 @@ function FAQEditTab({ event, form, setForm, authHeaders }) {
   )
 }
 
-function ScanStationsTab({ eventId, authHeaders, eventSlug }) {
+function ScanStationsTab({ eventId, eventSlug }) {
   const [tokens, setTokens] = useState([])
   const [label, setLabel] = useState('')
   const [newTokenResult, setNewTokenResult] = useState(null)
@@ -3257,7 +3231,7 @@ function ScanStationsTab({ eventId, authHeaders, eventSlug }) {
 
   const loadStations = () => {
     if (!eventId) return
-    fetch(`${API_BASE}/api/admin/events/${eventId}/staff-tokens`)
+    fetchWithAuth(`/api/admin/events/${eventId}/staff-tokens`, { _raw: true })
       .then((r) => (r.ok ? r.json() : []))
       .then((d) => setTokens(Array.isArray(d) ? d : []))
   }
@@ -3394,11 +3368,10 @@ function ScanStationsTab({ eventId, authHeaders, eventSlug }) {
                       onClick={async () => {
                         if (!draft.name || !draft.phone) return
                         const updatedScanners = [...scanners, { name: draft.name, phone: draft.phone }]
-                        await fetch(`${API_BASE}/api/admin/events/${eventId}/scan-stations/${station.id}`, {
+                        await fetchWithAuth(`/api/admin/events/${eventId}/scan-stations/${station.id}`, {
                           method: 'PATCH',
-                          headers: authHeaders(),
                           body: JSON.stringify({ scanners: updatedScanners }),
-                        })
+                        }).catch(() => {})
                         setStationStaff((prev) => ({ ...prev, [station.id]: { name: '', phone: '' } }))
                         loadStations()
                       }}
@@ -3447,10 +3420,10 @@ function ScanStationsTab({ eventId, authHeaders, eventSlug }) {
           onClick={async () => {
             if (!eventId) return
             try {
-              const r = await fetch(`${API_BASE}/api/admin/events/${eventId}/staff-tokens`, {
+              const r = await fetchWithAuth(`/api/admin/events/${eventId}/staff-tokens`, {
                 method: 'POST',
-                headers: authHeaders(),
                 body: JSON.stringify({ label: label || 'עמדת סריקה' }),
+                _raw: true,
               })
               const data = await r.json()
               if (!r.ok) throw new Error(data.error || 'שגיאה')
