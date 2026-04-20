@@ -238,6 +238,8 @@ export function AuthProvider({ children }) {
   }
 
   const signOut = async () => {
+    sessionStorage.removeItem('axess_impersonate')
+    sessionStorage.removeItem('axess_admin_token')
     await supabase.auth.signOut()
     setSession(null)
     setProfile(null)
