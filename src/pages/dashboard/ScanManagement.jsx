@@ -8,7 +8,6 @@ import { useRequirePermission } from '@/hooks/useRequirePermission'
 import { fetchWithAuth, supabase } from '@/lib/supabase'
 import CustomSelect from '@/components/ui/CustomSelect'
 
-const API_BASE = import.meta.env.VITE_API_URL || 'https://api.axess.pro'
 
 const MODAL_CLOSE_X = {
   position: 'absolute',
@@ -250,55 +249,31 @@ export default function ScanManagement() {
     window.location.href = '/login'
   }, [])
 
-  const authHeaders = useCallback(
-    () => ({
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${session?.access_token}`,
-      'X-Business-Id': businessId,
-    }),
-    [session?.access_token, businessId],
-  )
-
   const loadStations = useCallback(async () => {
     if (!businessId || !session?.access_token) return
-    const r = await fetchWithAuth(`${API_BASE}/api/scan-stations`, { headers: authHeaders() }, session, onUnauthorized)
-    const data = await r.json()
-    if (!r.ok) throw new Error(data.error || 'שגיאה')
+    const data = await fetchWithAuth('/api/scan-stations')
     setStations(Array.isArray(data.stations) ? data.stations : [])
-  }, [businessId, session, authHeaders, onUnauthorized])
+  }, [businessId, session, onUnauthorized])
 
   const loadLibrary = useCallback(async () => {
     if (!businessId || !session?.access_token) return
     setLibLoading(true)
     try {
-      const r = await fetchWithAuth(
-        `${API_BASE}/api/scan-stations/qr-library`,
-        { headers: authHeaders() },
-        session,
-        onUnauthorized,
-      )
-      const data = await r.json()
-      if (!r.ok) throw new Error(data.error || 'שגיאה')
+      const data = await fetchWithAuth('/api/scan-stations/qr-library')
       setLibrary(Array.isArray(data.items) ? data.items : [])
     } catch (e) {
       toast.error(e.message || 'שגיאה')
     } finally {
       setLibLoading(false)
     }
-  }, [businessId, session, authHeaders, onUnauthorized])
+  }, [businessId, session, onUnauthorized])
 
   const fetchObjects = useCallback(
     async (type) => {
       if (!type || !businessId || !session?.access_token) return
       try {
-        const r = await fetchWithAuth(
-          `${API_BASE}/api/scan-stations/objects?type=${encodeURIComponent(type)}`,
-          { headers: authHeaders() },
-          session,
-          onUnauthorized,
-        )
-        const data = await r.json()
-        if (!r.ok) {
+        const data = await fetchWithAuth(`/api/scan-stations/objects?type=${encodeURIComponent(type)}`)
+        if (data?.error) {
           toast.error(data.error || 'שגיאה')
           setObjects([])
           return
@@ -309,7 +284,7 @@ export default function ScanManagement() {
         setObjects([])
       }
     },
-    [businessId, session, authHeaders, onUnauthorized],
+    [businessId, session, onUnauthorized],
   )
 
   useEffect(() => {
@@ -349,18 +324,10 @@ export default function ScanManagement() {
     if (!editStation) return
     setSavingEdit(true)
     try {
-      const r = await fetchWithAuth(
-        `${API_BASE}/api/scan-stations/${editStation.id}`,
-        {
-          method: 'PATCH',
-          headers: authHeaders(),
-          body: JSON.stringify({ scanners: editScanners }),
-        },
-        session,
-        onUnauthorized,
-      )
-      const data = await r.json()
-      if (!r.ok) throw new Error(data.error || 'שגיאה')
+      await fetchWithAuth(`/api/scan-stations/${editStation.id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ scanners: editScanners }),
+      })
       toast.success('נשמר')
       setEditStation(null)
       await loadStations()
@@ -390,14 +357,7 @@ export default function ScanManagement() {
         expires_hours: formExpire === 'never' ? 'never' : Number(formExpire),
         scanners,
       }
-      const r = await fetchWithAuth(
-        `${API_BASE}/api/scan-stations`,
-        { method: 'POST', headers: authHeaders(), body: JSON.stringify(body) },
-        session,
-        onUnauthorized,
-      )
-      const data = await r.json()
-      if (!r.ok) throw new Error(data.error || 'שגיאה')
+      const data = await fetchWithAuth('/api/scan-stations', { method: 'POST', body: JSON.stringify(body) })
       const station = data.station
       toast.success('נוצרה עמדה')
       setModalOpen(false)
@@ -424,14 +384,7 @@ export default function ScanManagement() {
   const deactivateStation = async (id) => {
     if (!confirm('לבטל את העמדה?')) return
     try {
-      const r = await fetchWithAuth(
-        `${API_BASE}/api/scan-stations/${id}`,
-        { method: 'DELETE', headers: authHeaders() },
-        session,
-        onUnauthorized,
-      )
-      const data = await r.json()
-      if (!r.ok) throw new Error(data.error || 'שגיאה')
+      await fetchWithAuth(`/api/scan-stations/${id}`, { method: 'DELETE' })
       toast.success('בוטל')
       await loadStations()
     } catch (e) {

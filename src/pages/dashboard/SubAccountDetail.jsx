@@ -5,8 +5,7 @@ import { useRequirePermission } from '@/hooks/useRequirePermission'
 import { ArrowRight, Building2, Users, Calendar, Settings2, X } from 'lucide-react'
 import toast from 'react-hot-toast'
 import CustomSelect from '@/components/ui/CustomSelect'
-
-const API_BASE = import.meta.env.VITE_API_URL || 'https://api.axess.pro'
+import { fetchWithAuth } from '@/lib/supabase'
 
 const MODAL_CLOSE_X = {
   position: 'absolute',
@@ -68,7 +67,7 @@ export default function SubAccountDetail() {
   const subAccountsAllowed = useRequirePermission('can_manage_sub_accounts')
   const { id } = useParams()
   const navigate = useNavigate()
-  const { session, businessId } = useAuth()
+  const { businessId } = useAuth()
   const [tab, setTab] = useState(0)
   const [dept, setDept] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -93,17 +92,10 @@ export default function SubAccountDetail() {
     shared_portal: true,
   })
 
-  const authHeaders = useCallback(() => {
-    const h = { 'Content-Type': 'application/json', 'X-Business-Id': businessId }
-    if (session?.access_token) h.Authorization = `Bearer ${session.access_token}`
-    return h
-  }, [businessId, session?.access_token])
-
   const load = useCallback(() => {
     if (!businessId) return
     setLoading(true)
-    fetch(`${API_BASE}/api/sub-accounts`, { headers: authHeaders() })
-      .then((r) => r.json())
+    fetchWithAuth('/api/sub-accounts')
       .then((d) => {
         const list = Array.isArray(d.sub_accounts) ? d.sub_accounts : []
         const found = list.find((s) => String(s.id) === String(id))
@@ -111,15 +103,14 @@ export default function SubAccountDetail() {
       })
       .catch(() => setDept(null))
       .finally(() => setLoading(false))
-  }, [businessId, authHeaders, id])
+  }, [businessId, id])
 
   const loadStaff = useCallback(() => {
-    if (!businessId || !session?.access_token) return
-    fetch(`${API_BASE}/api/staff`, { headers: authHeaders() })
-      .then((r) => r.json())
+    if (!businessId) return
+    fetchWithAuth('/api/staff')
       .then((d) => setStaffList(Array.isArray(d.staff) ? d.staff : []))
       .catch(() => setStaffList([]))
-  }, [businessId, session?.access_token, authHeaders])
+  }, [businessId])
 
   useEffect(() => {
     load()
@@ -199,13 +190,10 @@ export default function SubAccountDetail() {
           manager_user_id: editForm.manager_user_id || null,
         },
       }
-      const res = await fetch(`${API_BASE}/api/sub-accounts/${dept.id}`, {
+      const data = await fetchWithAuth(`/api/sub-accounts/${dept.id}`, {
         method: 'PATCH',
-        headers: authHeaders(),
         body: JSON.stringify(body),
       })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'שגיאה')
       toast.success('נשמר')
       setEditOpen(false)
       const row = data.sub_account

@@ -11,7 +11,6 @@ import { useRequirePermission } from '@/hooks/useRequirePermission'
 import { fetchWithAuth, supabase } from '@/lib/supabase'
 import CustomSelect from '@/components/ui/CustomSelect'
 
-const API_BASE = import.meta.env.VITE_API_URL || 'https://api.axess.pro'
 const PUBLIC_WEBVIEW_ORIGIN = 'https://axess.pro'
 
 const SELECT_STYLE = {
@@ -155,15 +154,6 @@ export default function WebviewSettings() {
     window.location.href = '/login'
   }, [])
 
-  const authHeaders = useCallback(
-    () => ({
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${session?.access_token}`,
-      'X-Business-Id': businessId,
-    }),
-    [session?.access_token, businessId],
-  )
-
   const load = useCallback(async () => {
     if (!businessId || !session?.access_token) {
       setLoading(false)
@@ -171,14 +161,7 @@ export default function WebviewSettings() {
     }
     setLoading(true)
     try {
-      const r = await fetchWithAuth(
-        `${API_BASE}/api/webview/settings`,
-        { headers: authHeaders() },
-        session,
-        onUnauthorized,
-      )
-      const data = await r.json()
-      if (!r.ok) throw new Error(data.error || 'שגיאה בטעינה')
+      const data = await fetchWithAuth('/api/webview/settings')
       const b = data.business
       setBusiness(b)
       setItems(Array.isArray(data.items) ? data.items : [])
@@ -196,7 +179,7 @@ export default function WebviewSettings() {
     } finally {
       setLoading(false)
     }
-  }, [businessId, session, authHeaders, onUnauthorized])
+  }, [businessId, session, onUnauthorized])
 
   useEffect(() => {
     load()
@@ -206,14 +189,7 @@ export default function WebviewSettings() {
     if (!businessId || !session?.access_token) return
     setWaLoading(true)
     try {
-      const r = await fetchWithAuth(
-        `${API_BASE}/api/webview/wa-settings`,
-        { headers: authHeaders() },
-        session,
-        onUnauthorized,
-      )
-      const data = await r.json()
-      if (!r.ok) throw new Error(data.error || 'שגיאה בטעינת WA')
+      const data = await fetchWithAuth('/api/webview/wa-settings')
       setWaTemplates(data.templates || [])
       setWaLibrary(data.library || [])
       setWaAutoMessages(data.autoMessages || [])
@@ -222,7 +198,7 @@ export default function WebviewSettings() {
     } finally {
       setWaLoading(false)
     }
-  }, [businessId, session, authHeaders, onUnauthorized])
+  }, [businessId, session, onUnauthorized])
 
   useEffect(() => {
     if (tab === 'wa' && businessId && session?.access_token) {
@@ -238,18 +214,10 @@ export default function WebviewSettings() {
 
   const toggleAutoMessage = async (key, nextEnabled) => {
     try {
-      const r = await fetchWithAuth(
-        `${API_BASE}/api/webview/wa-auto-message`,
-        {
-          method: 'PATCH',
-          headers: authHeaders(),
-          body: JSON.stringify({ key, enabled: nextEnabled }),
-        },
-        session,
-        onUnauthorized,
-      )
-      const data = await r.json()
-      if (!r.ok) throw new Error(data.error || 'שגיאה בשמירה')
+      await fetchWithAuth('/api/webview/wa-auto-message', {
+        method: 'PATCH',
+        body: JSON.stringify({ key, enabled: nextEnabled }),
+      })
       setWaAutoMessages((prev) => {
         const i = prev.findIndex((m) => m.key === key)
         if (i >= 0) return prev.map((m) => (m.key === key ? { ...m, enabled: nextEnabled } : m))
@@ -264,18 +232,10 @@ export default function WebviewSettings() {
   const adoptFromLibrary = async (libraryId) => {
     setWaAdopting(libraryId)
     try {
-      const r = await fetchWithAuth(
-        `${API_BASE}/api/webview/wa-template-from-library`,
-        {
-          method: 'POST',
-          headers: authHeaders(),
-          body: JSON.stringify({ library_id: libraryId }),
-        },
-        session,
-        onUnauthorized,
-      )
-      const data = await r.json()
-      if (!r.ok) throw new Error(data.error || 'שגיאה ביצירת תבנית')
+      const data = await fetchWithAuth('/api/webview/wa-template-from-library', {
+        method: 'POST',
+        body: JSON.stringify({ library_id: libraryId }),
+      })
       if (data.template) setWaTemplates((prev) => [data.template, ...prev])
       toast.success('נוספה תבנית לעסק')
       setWaLibraryModal(false)
@@ -299,18 +259,10 @@ export default function WebviewSettings() {
     if (!businessId) return
     setSavingBrand(true)
     try {
-      const r = await fetchWithAuth(
-        `${API_BASE}/api/webview/settings/brand`,
-        {
-          method: 'PATCH',
-          headers: authHeaders(),
-          body: JSON.stringify({ brand_assets: brandDraft }),
-        },
-        session,
-        onUnauthorized,
-      )
-      const data = await r.json()
-      if (!r.ok) throw new Error(data.error || 'שגיאה בשמירה')
+      const data = await fetchWithAuth('/api/webview/settings/brand', {
+        method: 'PATCH',
+        body: JSON.stringify({ brand_assets: brandDraft }),
+      })
       setBusiness((prev) => ({ ...prev, ...data.business }))
       toast.success('העיצוב נשמר')
     } catch (e) {
@@ -324,23 +276,15 @@ export default function WebviewSettings() {
     if (!businessId) return
     setSavingSettings(true)
     try {
-      const r = await fetchWithAuth(
-        `${API_BASE}/api/webview/settings/brand`,
-        {
-          method: 'PATCH',
-          headers: authHeaders(),
-          body: JSON.stringify({
-            name: settingsDraft.name,
-            slug: settingsDraft.slug,
-            business_type: settingsDraft.business_type,
-            phone: settingsDraft.phone,
-          }),
-        },
-        session,
-        onUnauthorized,
-      )
-      const data = await r.json()
-      if (!r.ok) throw new Error(data.error || 'שגיאה בשמירה')
+      const data = await fetchWithAuth('/api/webview/settings/brand', {
+        method: 'PATCH',
+        body: JSON.stringify({
+          name: settingsDraft.name,
+          slug: settingsDraft.slug,
+          business_type: settingsDraft.business_type,
+          phone: settingsDraft.phone,
+        }),
+      })
       setBusiness((prev) => ({ ...prev, ...data.business }))
       toast.success('ההגדרות נשמרו')
     } catch (e) {
@@ -351,14 +295,10 @@ export default function WebviewSettings() {
   }
 
   const patchItem = async (id, body) => {
-    const r = await fetchWithAuth(
-      `${API_BASE}/api/webview/items/${id}`,
-      { method: 'PATCH', headers: authHeaders(), body: JSON.stringify(body) },
-      session,
-      onUnauthorized,
-    )
-    const data = await r.json()
-    if (!r.ok) throw new Error(data.error || 'שגיאה')
+    const data = await fetchWithAuth(`/api/webview/items/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(body),
+    })
     return data.item
   }
 
@@ -374,14 +314,7 @@ export default function WebviewSettings() {
   const deleteItem = async (id) => {
     if (!confirm('למחוק פריט זה?')) return
     try {
-      const r = await fetchWithAuth(
-        `${API_BASE}/api/webview/items/${id}`,
-        { method: 'DELETE', headers: authHeaders() },
-        session,
-        onUnauthorized,
-      )
-      const data = await r.json()
-      if (!r.ok) throw new Error(data.error || 'שגיאה')
+      await fetchWithAuth(`/api/webview/items/${id}`, { method: 'DELETE' })
       setItems((prev) => prev.filter((x) => x.id !== id))
       toast.success('נמחק')
     } catch (e) {
@@ -427,26 +360,18 @@ export default function WebviewSettings() {
     }
     try {
       if (itemModal.mode === 'create') {
-        const r = await fetchWithAuth(
-          `${API_BASE}/api/webview/items`,
-          {
-            method: 'POST',
-            headers: authHeaders(),
-            body: JSON.stringify({
-              name: itemForm.name.trim(),
-              description: itemForm.description || null,
-              price: priceNum,
-              category: itemForm.category || null,
-              business_type: itemForm.business_type,
-              image_url: itemForm.image_url || null,
-              sort_order: Number(itemForm.sort_order) || 0,
-            }),
-          },
-          session,
-          onUnauthorized,
-        )
-        const data = await r.json()
-        if (!r.ok) throw new Error(data.error || 'שגיאה')
+        const data = await fetchWithAuth('/api/webview/items', {
+          method: 'POST',
+          body: JSON.stringify({
+            name: itemForm.name.trim(),
+            description: itemForm.description || null,
+            price: priceNum,
+            category: itemForm.category || null,
+            business_type: itemForm.business_type,
+            image_url: itemForm.image_url || null,
+            sort_order: Number(itemForm.sort_order) || 0,
+          }),
+        })
         setItems((prev) => [...prev, data.item].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0)))
         toast.success('נוסף')
       } else {
@@ -479,14 +404,10 @@ export default function WebviewSettings() {
     reordered[next] = tmp
     const payload = reordered.map((it, i) => ({ id: it.id, sort_order: i }))
     try {
-      const r = await fetchWithAuth(
-        `${API_BASE}/api/webview/items/reorder`,
-        { method: 'PATCH', headers: authHeaders(), body: JSON.stringify({ items: payload }) },
-        session,
-        onUnauthorized,
-      )
-      const data = await r.json()
-      if (!r.ok) throw new Error(data.error || 'שגיאה')
+      await fetchWithAuth('/api/webview/items/reorder', {
+        method: 'PATCH',
+        body: JSON.stringify({ items: payload }),
+      })
       setItems(reordered.map((it, i) => ({ ...it, sort_order: i })))
     } catch (e) {
       toast.error(e.message)

@@ -16,7 +16,6 @@ import { useRequirePermission } from '@/hooks/useRequirePermission'
 import { fetchWithAuth, supabase } from '@/lib/supabase'
 import CustomSelect from '@/components/ui/CustomSelect'
 
-const API_BASE = import.meta.env.VITE_API_URL || 'https://api.axess.pro'
 
 const MODAL_CLOSE_X = {
   position: 'absolute',
@@ -324,15 +323,6 @@ export default function Flows() {
     window.location.href = '/login'
   }, [])
 
-  const authHeaders = useCallback(
-    () => ({
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${session?.access_token}`,
-      'X-Business-Id': businessId,
-    }),
-    [session?.access_token, businessId],
-  )
-
   const loadFlows = useCallback(async () => {
     if (!businessId || !session?.access_token) {
       setLoading(false)
@@ -340,21 +330,14 @@ export default function Flows() {
     }
     setLoading(true)
     try {
-      const r = await fetchWithAuth(
-        `${API_BASE}/api/flows`,
-        { headers: authHeaders() },
-        session,
-        onUnauthorized,
-      )
-      const data = await r.json()
-      if (!r.ok) throw new Error(data.error || 'שגיאה בטעינת Flows')
+      const data = await fetchWithAuth('/api/flows')
       setFlows(Array.isArray(data.flows) ? data.flows : [])
     } catch (e) {
       toast.error(e.message || 'שגיאה')
     } finally {
       setLoading(false)
     }
-  }, [businessId, session, authHeaders, onUnauthorized])
+  }, [businessId, session, onUnauthorized])
 
   useEffect(() => {
     loadFlows()
@@ -389,21 +372,14 @@ export default function Flows() {
     setLibraryLoading(true)
     try {
       const q = businessType ? `?business_type=${encodeURIComponent(businessType)}` : ''
-      const r = await fetchWithAuth(
-        `${API_BASE}/api/flows/library${q}`,
-        { headers: authHeaders() },
-        session,
-        onUnauthorized,
-      )
-      const data = await r.json()
-      if (!r.ok) throw new Error(data.error || 'שגיאה בטעינת הספרייה')
+      const data = await fetchWithAuth(`/api/flows/library${q}`)
       setLibraryFlows(Array.isArray(data.flows) ? data.flows : [])
     } catch (e) {
       toast.error(e.message || 'שגיאה')
     } finally {
       setLibraryLoading(false)
     }
-  }, [session, authHeaders, onUnauthorized, businessType])
+  }, [session, onUnauthorized, businessType])
 
   const openLibrary = () => {
     setLibraryOpen(true)
@@ -420,14 +396,7 @@ export default function Flows() {
         trigger_value: libRow.trigger_value || null,
         steps: Array.isArray(libRow.steps) ? libRow.steps : [],
       }
-      const r = await fetchWithAuth(
-        `${API_BASE}/api/flows`,
-        { method: 'POST', headers: authHeaders(), body: JSON.stringify(body) },
-        session,
-        onUnauthorized,
-      )
-      const data = await r.json()
-      if (!r.ok) throw new Error(data.error || 'שגיאה בשמירה')
+      await fetchWithAuth('/api/flows', { method: 'POST', body: JSON.stringify(body) })
       toast.success('הועתק לעסק')
       setLibraryOpen(false)
       await loadFlows()
@@ -456,30 +425,15 @@ export default function Flows() {
         steps: form.steps,
         is_active: form.is_active,
       }
-      const url = editingId ? `${API_BASE}/api/flows/${editingId}` : `${API_BASE}/api/flows`
+      const url = editingId ? `/api/flows/${editingId}` : '/api/flows'
       const method = editingId ? 'PATCH' : 'POST'
-      const r = await fetchWithAuth(
-        url,
-        { method, headers: authHeaders(), body: JSON.stringify(payload) },
-        session,
-        onUnauthorized,
-      )
-      const data = await r.json()
-      if (!r.ok) throw new Error(data.error || 'שגיאה בשמירה')
+      const data = await fetchWithAuth(url, { method, body: JSON.stringify(payload) })
       const newId = data.flow?.id
       if (!editingId && form.is_active && newId) {
-        const r2 = await fetchWithAuth(
-          `${API_BASE}/api/flows/${newId}`,
-          {
-            method: 'PATCH',
-            headers: authHeaders(),
-            body: JSON.stringify({ is_active: true }),
-          },
-          session,
-          onUnauthorized,
-        )
-        const d2 = await r2.json()
-        if (!r2.ok) throw new Error(d2.error || 'נוצר אך לא הופעל')
+        await fetchWithAuth(`/api/flows/${newId}`, {
+          method: 'PATCH',
+          body: JSON.stringify({ is_active: true }),
+        })
       }
       toast.success(editingId ? 'עודכן' : 'נוצר')
       setEditorOpen(false)
@@ -493,14 +447,7 @@ export default function Flows() {
 
   const duplicateFlow = async (id) => {
     try {
-      const r = await fetchWithAuth(
-        `${API_BASE}/api/flows/${id}/duplicate`,
-        { method: 'POST', headers: authHeaders() },
-        session,
-        onUnauthorized,
-      )
-      const data = await r.json()
-      if (!r.ok) throw new Error(data.error || 'שגיאה')
+      await fetchWithAuth(`/api/flows/${id}/duplicate`, { method: 'POST' })
       toast.success('שוכפל')
       await loadFlows()
     } catch (e) {
@@ -511,14 +458,9 @@ export default function Flows() {
   const deleteFlow = async (id) => {
     if (!confirm('למחוק את ה-Flow?')) return
     try {
-      const r = await fetchWithAuth(
-        `${API_BASE}/api/flows/${id}`,
-        { method: 'DELETE', headers: authHeaders() },
-        session,
-        onUnauthorized,
-      )
-      const data = await r.json().catch(() => ({}))
-      if (!r.ok) throw new Error(data.error || 'שגיאה')
+      const data = await fetchWithAuth(`/api/flows/${id}`, {
+        method: 'DELETE',
+      }).catch(() => ({}))
       toast.success('נמחק')
       await loadFlows()
     } catch (e) {
@@ -529,18 +471,10 @@ export default function Flows() {
   const toggleActive = async (f, next) => {
     setToggleBusy(f.id)
     try {
-      const r = await fetchWithAuth(
-        `${API_BASE}/api/flows/${f.id}`,
-        {
-          method: 'PATCH',
-          headers: authHeaders(),
-          body: JSON.stringify({ is_active: next }),
-        },
-        session,
-        onUnauthorized,
-      )
-      const data = await r.json()
-      if (!r.ok) throw new Error(data.error || 'שגיאה')
+      await fetchWithAuth(`/api/flows/${f.id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ is_active: next }),
+      })
       setFlows((prev) => prev.map((x) => (x.id === f.id ? { ...x, is_active: next } : x)))
     } catch (e) {
       toast.error(e.message || 'שגיאה')

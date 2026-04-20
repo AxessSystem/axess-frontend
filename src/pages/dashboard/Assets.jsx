@@ -15,7 +15,6 @@ import {
 import { useAuth } from '@/contexts/AuthContext'
 import { fetchWithAuth, supabase } from '@/lib/supabase'
 
-const API_BASE = import.meta.env.VITE_API_URL || 'https://api.axess.pro'
 
 const cardStyle = {
   background: 'var(--card)',
@@ -147,7 +146,7 @@ function assetStatusBadgeStyle(status) {
 }
 
 export default function Assets() {
-  const { session, businessId } = useAuth()
+  const { businessId } = useAuth()
   const [loading, setLoading] = useState(true)
   const [assets, setAssets] = useState([])
   const [activeType, setActiveType] = useState(null)
@@ -157,26 +156,15 @@ export default function Assets() {
     window.location.href = '/login'
   }, [])
 
-  const authHeaders = useCallback(
-    () => ({
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${session?.access_token}`,
-      'X-Business-Id': businessId,
-    }),
-    [session?.access_token, businessId],
-  )
-
   const load = useCallback(async () => {
-    if (!businessId || !session?.access_token) {
+    if (!businessId) {
       setLoading(false)
       setAssets(DEMO_ASSETS)
       return
     }
     setLoading(true)
     try {
-      const r = await fetchWithAuth(`${API_BASE}/api/assets`, { headers: authHeaders() }, session, onUnauthorized)
-      const data = await r.json()
-      if (!r.ok) throw new Error(data.error || 'שגיאה בטעינה')
+      const data = await fetchWithAuth('/api/assets')
       const list = Array.isArray(data.assets) ? data.assets : []
       if (list.length === 0) {
         setAssets(DEMO_ASSETS)
@@ -189,7 +177,7 @@ export default function Assets() {
     } finally {
       setLoading(false)
     }
-  }, [businessId, session, authHeaders, onUnauthorized])
+  }, [businessId, onUnauthorized])
 
   useEffect(() => {
     load()
