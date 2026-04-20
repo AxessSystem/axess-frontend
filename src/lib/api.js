@@ -1,6 +1,9 @@
 import { supabase } from '@/lib/supabase'
 import { getValidSession, safeRefresh } from '@/lib/authCore'
 
+let _cachedBusinessId = null
+let _cachedUserId = null
+
 const BASE = import.meta.env.VITE_API_URL || 'https://api.axess.pro'
 
 export async function fetchWithAuth(url, options = {}, retries = 2) {
@@ -15,15 +18,23 @@ export async function fetchWithAuth(url, options = {}, retries = 2) {
     try { businessId = JSON.parse(impersonateRaw)?.business?.id } catch {}
   }
   if (!businessId && session?.user?.id) {
-    try {
-      const { data: members } = await supabase
-        .from('business_members')
-        .select('business_id')
-        .eq('user_id', session.user.id)
-        .eq('status', 'active')
-        .limit(1)
-      if (members?.length) businessId = members[0].business_id
-    } catch {}
+    if (_cachedUserId === session.user.id && _cachedBusinessId) {
+      businessId = _cachedBusinessId
+    } else {
+      try {
+        const { data: members } = await supabase
+          .from('business_members')
+          .select('business_id')
+          .eq('user_id', session.user.id)
+          .eq('status', 'active')
+          .limit(1)
+        if (members?.length) {
+          businessId = members[0].business_id
+          _cachedBusinessId = businessId
+          _cachedUserId = session.user.id
+        }
+      } catch {}
+    }
   }
   if (!businessId) {
     console.warn('[fetchWithAuth] proceeding without businessId')
