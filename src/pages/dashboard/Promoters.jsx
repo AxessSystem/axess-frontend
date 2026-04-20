@@ -3,8 +3,7 @@ import { Edit3, Trash2 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useAuth } from '@/contexts/AuthContext'
 import { useRequirePermission } from '@/hooks/useRequirePermission'
-
-const API_BASE = import.meta.env.VITE_API_URL || 'https://api.axess.pro'
+import { fetchWithAuth } from '@/lib/supabase'
 
 export default function Promoters() {
   const promotersAllowed = useRequirePermission('can_manage_promoters')
@@ -19,8 +18,9 @@ export default function Promoters() {
   const [instagram, setInstagram] = useState('')
 
   useEffect(() => {
-    fetch(`${API_BASE}/api/admin/promoters?business_id=${businessId}`)
-      .then(r => r.ok ? r.json() : [])
+    fetchWithAuth(`/api/admin/promoters?business_id=${businessId}`)
+      .catch(() => [])
+      .then(data => Array.isArray(data) ? data : [])
       .then(data => { setPromoters(data); setLoading(false) })
       .catch(() => setLoading(false))
   }, [businessId])
@@ -28,13 +28,10 @@ export default function Promoters() {
   const handleCreate = async () => {
     if (!name.trim()) return
     try {
-      const res = await fetch(`${API_BASE}/api/admin/promoters`, {
+      const data = await fetchWithAuth(`/api/admin/promoters`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ business_id: businessId, name: name.trim(), phone: phone || null, email: email || null, instagram: instagram || null }),
       })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'שגיאה')
       toast.success('יחצ"ן נוצר')
       setPromoters(prev => [data, ...prev])
       setAddOpen(false)
@@ -48,13 +45,10 @@ export default function Promoters() {
   const handleUpdate = async () => {
     if (!editPromoter) return
     try {
-      const res = await fetch(`${API_BASE}/api/admin/promoters/${editPromoter.id}`, {
+      const data = await fetchWithAuth(`/api/admin/promoters/${editPromoter.id}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: name.trim(), phone: phone || null, email: email || null, instagram: instagram || null }),
       })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'שגיאה')
       toast.success('עודכן')
       setPromoters(prev => prev.map(p => p.id === editPromoter.id ? data : p))
       setEditPromoter(null)
@@ -64,8 +58,7 @@ export default function Promoters() {
   const handleDeactivate = async (p) => {
     if (!confirm('להשבית את היחצ"ן?')) return
     try {
-      const res = await fetch(`${API_BASE}/api/admin/promoters/${p.id}`, { method: 'DELETE' })
-      if (!res.ok) throw new Error('שגיאה')
+      await fetchWithAuth(`/api/admin/promoters/${p.id}`, { method: 'DELETE' })
       toast.success('הושבת')
       setPromoters(prev => prev.map(x => x.id === p.id ? { ...x, status: 'inactive' } : x))
     } catch (e) { toast.error(e.message || 'שגיאה') }

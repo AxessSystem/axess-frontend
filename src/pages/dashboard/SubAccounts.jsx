@@ -5,8 +5,7 @@ import { useRequirePermission } from '@/hooks/useRequirePermission'
 import { Building2, Plus, Users, Calendar, Pencil, Copy, Globe, Save, Settings2, ClipboardList, X } from 'lucide-react'
 import toast from 'react-hot-toast'
 import CustomSelect from '@/components/ui/CustomSelect'
-
-const API_BASE = import.meta.env.VITE_API_URL || 'https://api.axess.pro'
+import { fetchWithAuth } from '@/lib/supabase'
 
 const MODAL_CLOSE_X = {
   position: 'absolute',
@@ -84,7 +83,7 @@ function emptyDeptForm() {
 
 export default function SubAccounts() {
   const subAccountsAllowed = useRequirePermission('can_manage_sub_accounts')
-  const { session, businessId } = useAuth()
+  const { businessId } = useAuth()
   const navigate = useNavigate()
   const [tab, setTab] = useState(0)
   const [subAccounts, setSubAccounts] = useState([])
@@ -119,39 +118,30 @@ export default function SubAccounts() {
     event_ids: [],
   })
 
-  const authHeaders = useCallback(() => {
-    const h = { 'Content-Type': 'application/json', 'X-Business-Id': businessId }
-    if (session?.access_token) h.Authorization = `Bearer ${session.access_token}`
-    return h
-  }, [businessId, session?.access_token])
-
   const loadDepartments = useCallback(() => {
     if (!businessId) return
     setLoading(true)
-    fetch(`${API_BASE}/api/sub-accounts`, { headers: authHeaders() })
-      .then((r) => r.json())
+    fetchWithAuth(`/api/sub-accounts`)
       .then((d) => setSubAccounts(Array.isArray(d.sub_accounts) ? d.sub_accounts : []))
       .catch(() => setSubAccounts([]))
       .finally(() => setLoading(false))
-  }, [businessId, authHeaders])
+  }, [businessId])
 
   const loadPOs = useCallback(() => {
     if (!businessId) return
     setPoLoading(true)
-    fetch(`${API_BASE}/api/purchase-orders`, { headers: authHeaders() })
-      .then((r) => r.json())
+    fetchWithAuth(`/api/purchase-orders`)
       .then((d) => setPurchaseOrders(Array.isArray(d.purchase_orders) ? d.purchase_orders : []))
       .catch(() => setPurchaseOrders([]))
       .finally(() => setPoLoading(false))
-  }, [businessId, authHeaders])
+  }, [businessId])
 
   const loadStaffForModal = useCallback(() => {
-    if (!businessId || !session?.access_token) return
-    fetch(`${API_BASE}/api/staff`, { headers: authHeaders() })
-      .then((r) => r.json())
+    if (!businessId) return
+    fetchWithAuth(`/api/staff`)
       .then((d) => setStaffList(Array.isArray(d.staff) ? d.staff : []))
       .catch(() => setStaffList([]))
-  }, [businessId, session?.access_token, authHeaders])
+  }, [businessId])
 
   useEffect(() => {
     if (modalOpen) loadStaffForModal()
@@ -160,8 +150,7 @@ export default function SubAccounts() {
   const loadOrg = useCallback(() => {
     if (!businessId) return
     setOrgLoading(true)
-    fetch(`${API_BASE}/api/sub-accounts/org`, { headers: authHeaders() })
-      .then((r) => r.json())
+    fetchWithAuth(`/api/sub-accounts/org`)
       .then((d) => {
         const o = d.org || {}
         const logo = o.brand_assets?.logo_url || ''
@@ -174,7 +163,7 @@ export default function SubAccounts() {
       })
       .catch(() => {})
       .finally(() => setOrgLoading(false))
-  }, [businessId, authHeaders])
+  }, [businessId])
 
   useEffect(() => {
     loadDepartments()
@@ -188,8 +177,8 @@ export default function SubAccounts() {
     if (tab === 2) {
       loadPOs()
       if (businessId) {
-        fetch(`${API_BASE}/api/admin/events?business_id=${businessId}`)
-          .then((r) => (r.ok ? r.json() : []))
+        fetchWithAuth(`/api/admin/events?business_id=${businessId}`)
+          .catch(() => [])
           .then((rows) => setEvents(Array.isArray(rows) ? rows : []))
           .catch(() => setEvents([]))
       }
@@ -273,14 +262,11 @@ export default function SubAccounts() {
           manager_user_id: deptForm.manager_user_id || null,
         },
       }
-      const url = editId ? `${API_BASE}/api/sub-accounts/${editId}` : `${API_BASE}/api/sub-accounts`
-      const res = await fetch(url, {
+      const url = editId ? `/api/sub-accounts/${editId}` : `/api/sub-accounts`
+      await fetchWithAuth(url, {
         method: editId ? 'PATCH' : 'POST',
-        headers: authHeaders(),
         body: JSON.stringify(body),
       })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'שגיאה')
       toast.success(editId ? 'עודכן' : 'נוצר')
       setModalOpen(false)
       loadDepartments()
@@ -293,12 +279,9 @@ export default function SubAccounts() {
 
   const duplicateDept = async (id) => {
     try {
-      const res = await fetch(`${API_BASE}/api/sub-accounts/${id}/duplicate`, {
+      await fetchWithAuth(`/api/sub-accounts/${id}/duplicate`, {
         method: 'POST',
-        headers: authHeaders(),
       })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'שגיאה')
       toast.success('נוצר עותק')
       loadDepartments()
     } catch (e) {
@@ -309,9 +292,8 @@ export default function SubAccounts() {
   const saveOrg = async () => {
     setSubmitting(true)
     try {
-      const res = await fetch(`${API_BASE}/api/sub-accounts/org`, {
+      const data = await fetchWithAuth(`/api/sub-accounts/org`, {
         method: 'PATCH',
-        headers: authHeaders(),
         body: JSON.stringify({
           name: orgForm.name,
           logo_url: orgForm.logo_url || null,
@@ -319,8 +301,6 @@ export default function SubAccounts() {
           portal_general_enabled: orgForm.portal_general_enabled,
         }),
       })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'שגיאה')
       toast.success('נשמר')
       if (data.org) {
         const logo = data.org.brand_assets?.logo_url || ''
@@ -346,9 +326,8 @@ export default function SubAccounts() {
     }
     setSubmitting(true)
     try {
-      const res = await fetch(`${API_BASE}/api/purchase-orders`, {
+      await fetchWithAuth(`/api/purchase-orders`, {
         method: 'POST',
-        headers: authHeaders(),
         body: JSON.stringify({
           sub_account_id: poForm.sub_account_id || null,
           po_number: poForm.po_number.trim(),
@@ -357,8 +336,6 @@ export default function SubAccounts() {
           event_ids: poForm.event_ids,
         }),
       })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'שגיאה')
       toast.success('נוצר PO')
       setPoModal(false)
       setPoForm({ sub_account_id: '', po_number: '', amount: '', description: '', event_ids: [] })
@@ -373,8 +350,7 @@ export default function SubAccounts() {
   const handleDelete = async (id) => {
     if (!confirm('למחוק את המחלקה?')) return
     try {
-      const res = await fetch(`${API_BASE}/api/admin/sub-accounts/${id}`, { method: 'DELETE' })
-      if (!res.ok) throw new Error('שגיאה')
+      await fetchWithAuth(`/api/admin/sub-accounts/${id}`, { method: 'DELETE' })
       setSubAccounts((prev) => prev.filter((s) => s.id !== id))
       toast.success('נמחק')
     } catch (err) {
