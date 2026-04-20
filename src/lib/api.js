@@ -14,13 +14,15 @@ export async function fetchWithAuth(url, options = {}, retries = 2) {
   if (impersonateRaw) {
     try { businessId = JSON.parse(impersonateRaw)?.business?.id } catch {}
   }
-  if (!businessId) {
-    businessId = session?.user?.user_metadata?.business_id
-  }
-  if (!businessId) {
+  if (!businessId && session?.user?.id) {
     try {
-      const { data } = await supabase.auth.getUser()
-      businessId = data?.user?.user_metadata?.business_id
+      const { data: members } = await supabase
+        .from('business_members')
+        .select('business_id')
+        .eq('user_id', session.user.id)
+        .eq('status', 'active')
+        .limit(1)
+      if (members?.length) businessId = members[0].business_id
     } catch {}
   }
   if (!businessId) {
