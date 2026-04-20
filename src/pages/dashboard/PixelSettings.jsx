@@ -21,6 +21,7 @@ import {
   X,
 } from 'lucide-react'
 import toast from 'react-hot-toast'
+import { fetchWithAuth as centralFetch } from '@/lib/supabase'
 
 const API_BASE = (import.meta.env.VITE_API_URL || 'https://api.axess.pro').replace(/\/$/, '')
 const PIXEL_EMBED_HOST = (import.meta.env.VITE_PIXEL_SCRIPT_ORIGIN || 'https://api.axess.pro').replace(/\/$/, '')
@@ -71,36 +72,23 @@ export default function PixelSettings() {
   const [showAddLink, setShowAddLink] = useState(false)
   const [newLink, setNewLink] = useState({ name: '', url: '', type: 'custom' })
 
-  const authHeaders =
-    session?.access_token && businessId
-      ? {
-          Authorization: `Bearer ${session.access_token}`,
-          'X-Business-Id': businessId,
-          'Content-Type': 'application/json',
-        }
-      : null
-
-  const fetchWithAuth = useCallback(
+  const localFetch = useCallback(
     (url, options = {}) =>
-      fetch(url, {
+      centralFetch(url, {
         ...options,
-        headers: {
-          Authorization: `Bearer ${session.access_token}`,
-          'X-Business-Id': businessId,
-          ...(options.headers || {}),
-        },
+        _raw: true,
       }),
-    [session?.access_token, businessId]
+    []
   )
 
   useEffect(() => {
     if (activeTab !== 'mylinks') return
     setLinksLoading(true)
-    fetchWithAuth(`${API_BASE}/api/pixel/my-links`)
+    localFetch(`${API_BASE}/api/pixel/my-links`)
       .then((r) => r.json())
       .then((d) => setLinks(d.links || []))
       .finally(() => setLinksLoading(false))
-  }, [activeTab, businessId, fetchWithAuth])
+  }, [activeTab, businessId, localFetch])
 
   useEffect(() => {
     if (!businessId) return
@@ -119,15 +107,7 @@ export default function PixelSettings() {
   const { data: statsData, isLoading: statsLoading } = useQuery({
     queryKey: ['pixel-stats-business', citySlug, businessId, session?.access_token],
     queryFn: () =>
-      fetch(`${API_BASE}/api/pixel/stats/${encodeURIComponent(citySlug)}`, {
-        headers: {
-          Authorization: `Bearer ${session.access_token}`,
-          'X-Business-Id': businessId,
-        },
-      }).then((r) => {
-        if (!r.ok) throw new Error('stats')
-        return r.json()
-      }),
+      centralFetch(`/api/pixel/stats/${encodeURIComponent(citySlug)}`),
     enabled: !!session?.access_token && !!businessId && !!citySlug,
   })
 
@@ -136,28 +116,15 @@ export default function PixelSettings() {
   const { data: partners = [] } = useQuery({
     queryKey: ['pixel-partners-business', businessId, session?.access_token],
     queryFn: () =>
-      fetch(`${API_BASE}/api/pixel/partners`, {
-        headers: {
-          Authorization: `Bearer ${session.access_token}`,
-          'X-Business-Id': businessId,
-        },
-      }).then((r) => {
-        if (!r.ok) throw new Error('partners')
-        return r.json()
-      }),
+      centralFetch('/api/pixel/partners'),
     enabled: !!session?.access_token && !!businessId && canManagePartners,
   })
 
   const createPartner = useMutation({
     mutationFn: (body) =>
-      fetch(`${API_BASE}/api/pixel/partners`, {
+      centralFetch('/api/pixel/partners', {
         method: 'POST',
-        headers: authHeaders,
         body: JSON.stringify(body),
-      }).then(async (r) => {
-        const j = await r.json().catch(() => ({}))
-        if (!r.ok) throw new Error(j.error || 'שגיאה')
-        return j
       }),
     onSuccess: (row) => {
       qc.invalidateQueries({ queryKey: ['pixel-partners-business', businessId] })
@@ -830,7 +797,7 @@ export default function PixelSettings() {
                         type="button"
                         onClick={async () => {
                           const id = link.id.replace('custom_', '')
-                          await fetchWithAuth(`${API_BASE}/api/pixel/my-links/${id}`, { method: 'DELETE' })
+                          await localFetch(`${API_BASE}/api/pixel/my-links/${id}`, { method: 'DELETE' })
                           setLinks((prev) => prev.filter((l) => l.id !== link.id))
                           toast.success('נמחק')
                         }}
@@ -938,14 +905,14 @@ export default function PixelSettings() {
                     type="button"
                     onClick={async () => {
                       if (!newLink.name || !newLink.url) return
-                      await fetchWithAuth(`${API_BASE}/api/pixel/my-links`, {
+                      await localFetch(`${API_BASE}/api/pixel/my-links`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify(newLink),
                       })
                       setShowAddLink(false)
                       setNewLink({ name: '', url: '', type: 'custom' })
-                      const d = await fetchWithAuth(`${API_BASE}/api/pixel/my-links`).then((r) => r.json())
+                      const d = await localFetch(`${API_BASE}/api/pixel/my-links`).then((r) => r.json())
                       setLinks(d.links || [])
                       toast.success('לינק נוסף!')
                     }}

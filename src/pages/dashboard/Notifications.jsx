@@ -5,23 +5,13 @@ import {
   CheckCheck, Filter, Loader2,
 } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
-
-const API_BASE = import.meta.env.VITE_API_URL || 'https://api.axess.pro'
+import { fetchWithAuth } from '@/lib/supabase'
 
 const TYPE_ICONS = {
   sms_incoming: MessageSquare,
   pending_approval: Calendar,
   vip_booking: CheckCircle,
   low_balance: Wallet,
-}
-
-function useAuthHeaders() {
-  const { session, businessId } = useAuth()
-  return useCallback(() => {
-    const h = { 'Content-Type': 'application/json', 'X-Business-Id': businessId || '' }
-    if (session?.access_token) h['Authorization'] = `Bearer ${session.access_token}`
-    return h
-  }, [session?.access_token, businessId])
 }
 
 function groupByDate(items) {
@@ -54,37 +44,31 @@ export default function Notifications() {
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState('all') // all | unread | urgent
   const [markingAll, setMarkingAll] = useState(false)
-  const { session, businessId } = useAuth()
+  const { businessId } = useAuth()
   const navigate = useNavigate()
-  const headers = useAuthHeaders()
 
   const fetchNotifications = useCallback(async () => {
-    if (!session?.access_token || !businessId) return
-    const r = await fetch(`${API_BASE}/api/notifications`, {
-      headers: headers(),
-    })
-    const data = await r.json().catch(() => [])
+    if (!businessId) return
+    const data = await fetchWithAuth('/api/notifications').catch(() => [])
     setItems(Array.isArray(data) ? data : [])
-  }, [session?.access_token, businessId, headers])
+  }, [businessId])
 
   useEffect(() => {
     fetchNotifications().finally(() => setLoading(false))
   }, [fetchNotifications])
 
   const handleMarkRead = async (id) => {
-    await fetch(`${API_BASE}/api/notifications/${id}/read`, {
+    await fetchWithAuth(`/api/notifications/${id}/read`, {
       method: 'PATCH',
-      headers: headers(),
-    })
+    }).catch(() => {})
     setItems(prev => prev.map(n => (n.id === id ? { ...n, is_read: true } : n)))
   }
 
   const handleReadAll = async () => {
     setMarkingAll(true)
-    await fetch(`${API_BASE}/api/notifications/read-all`, {
+    await fetchWithAuth('/api/notifications/read-all', {
       method: 'PATCH',
-      headers: headers(),
-    })
+    }).catch(() => {})
     setItems(prev => prev.map(n => ({ ...n, is_read: true })))
     setMarkingAll(false)
   }

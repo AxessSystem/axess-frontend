@@ -16,8 +16,7 @@ import toast from 'react-hot-toast'
 import { useAuth } from '@/contexts/AuthContext'
 import { useRequirePermission } from '@/hooks/useRequirePermission'
 import CustomSelect from '@/components/ui/CustomSelect'
-
-const API_BASE = import.meta.env.VITE_API_URL || 'https://api.axess.pro'
+import { fetchWithAuth } from '@/lib/supabase'
 
 const MODAL_CLOSE_X = {
   position: 'absolute',
@@ -134,7 +133,7 @@ function logIcon(actionType) {
 
 export default function Staff() {
   const staffAllowed = useRequirePermission('can_manage_staff')
-  const { session, businessId } = useAuth()
+  const { businessId } = useAuth()
   const [tab, setTab] = useState(0)
   const [staff, setStaff] = useState([])
   const [logs, setLogs] = useState([])
@@ -162,25 +161,19 @@ export default function Staff() {
   const [logFilterFrom, setLogFilterFrom] = useState('')
   const [logFilterTo, setLogFilterTo] = useState('')
 
-  const authHeaders = useCallback(() => ({
-    'Content-Type': 'application/json',
-    'Authorization': `Bearer ${session?.access_token}`,
-    'X-Business-Id': businessId,
-  }), [session?.access_token, businessId])
-
   const loadStaff = useCallback(async () => {
-    if (!businessId || !session?.access_token) return
+    if (!businessId) return
     setLoading(true)
     try {
-      const r = await fetch(`${API_BASE}/api/staff`, { headers: authHeaders() })
-      const data = await r.json()
+      const data = await fetchWithAuth('/api/staff').catch(() => null)
+      if (!data) return
       setStaff(Array.isArray(data.staff) ? data.staff : [])
     } catch {
       setStaff([])
     } finally {
       setLoading(false)
     }
-  }, [businessId, session?.access_token, authHeaders])
+  }, [businessId])
 
   const loadLogs = useCallback(() => {
     if (!businessId) return
@@ -191,12 +184,11 @@ export default function Staff() {
     if (logFilterFrom) q.set('from', logFilterFrom)
     if (logFilterTo) q.set('to', logFilterTo)
     const qs = q.toString()
-    fetch(`${API_BASE}/api/staff/activity-log${qs ? `?${qs}` : ''}`, { headers: authHeaders() })
-      .then((r) => r.json())
+    fetchWithAuth(`/api/staff/activity-log${qs ? `?${qs}` : ''}`)
       .then((data) => setLogs(Array.isArray(data.logs) ? data.logs : []))
       .catch(() => setLogs([]))
       .finally(() => setLogsLoading(false))
-  }, [businessId, authHeaders, logFilterUser, logFilterAction, logFilterFrom, logFilterTo])
+  }, [businessId, logFilterUser, logFilterAction, logFilterFrom, logFilterTo])
 
   useEffect(() => {
     loadStaff()
@@ -204,8 +196,8 @@ export default function Staff() {
 
   useEffect(() => {
     if (!businessId) return
-    fetch(`${API_BASE}/api/admin/sub-accounts?parent_business_id=${businessId}`)
-      .then((r) => (r.ok ? r.json() : []))
+    fetchWithAuth(`/api/admin/sub-accounts?parent_business_id=${businessId}`)
+      .catch(() => [])
       .then(setSubAccounts)
       .catch(() => setSubAccounts([]))
   }, [businessId])
@@ -248,9 +240,8 @@ export default function Staff() {
     try {
       const valid_until =
         inviteValidMode === 'until' && inviteValidDate ? new Date(inviteValidDate).toISOString() : null
-      const res = await fetch(`${API_BASE}/api/staff/invite`, {
+      const data = await fetchWithAuth('/api/staff/invite', {
         method: 'POST',
-        headers: authHeaders(),
         body: JSON.stringify({
           email: inviteEmail.trim() || undefined,
           phone: invitePhone.trim() || undefined,
@@ -261,8 +252,6 @@ export default function Staff() {
           custom_permissions: inviteCustomPerms,
         }),
       })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || data.message || 'שגיאה')
       const link = data.invite_link || ''
       setLastInviteLink(link)
       toast.success('ההזמנה נוצרה')
@@ -291,13 +280,10 @@ export default function Staff() {
   const handlePatchMember = async (id, body) => {
     setSubmitting(true)
     try {
-      const res = await fetch(`${API_BASE}/api/staff/${id}`, {
+      const data = await fetchWithAuth(`/api/staff/${id}`, {
         method: 'PATCH',
-        headers: authHeaders(),
         body: JSON.stringify(body),
       })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || data.message || 'שגיאה')
       toast.success('עודכן')
       loadStaff()
       setEditMember(null)
@@ -311,12 +297,9 @@ export default function Staff() {
   const handleRemove = async (m) => {
     if (!confirm('להסיר את חבר הצוות?')) return
     try {
-      const res = await fetch(`${API_BASE}/api/staff/${m.id}`, {
+      const d = await fetchWithAuth(`/api/staff/${m.id}`, {
         method: 'DELETE',
-        headers: authHeaders(),
-      })
-      const d = await res.json().catch(() => ({}))
-      if (!res.ok) throw new Error(d.error || d.message || 'שגיאה')
+      }).catch(() => ({}))
       toast.success('הוסר')
       setStaff((prev) => prev.filter((x) => x.id !== m.id))
     } catch (e) {
