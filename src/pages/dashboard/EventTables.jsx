@@ -2,13 +2,12 @@ import { useState, useCallback, useEffect, useMemo, useRef } from 'react'
 import {
   Plus, Trash2, QrCode, MessageCircle, RotateCcw, Grid, Table as TableIcon, X,
   UtensilsCrossed, Share2, Link, Users, Pencil, Check, AlertTriangle, Armchair,
-  Edit, ClipboardList, Wine, CreditCard, Bell, FileText, Search,
-} from 'lucide-react'
+  Edit, ClipboardList, Wine, CreditCard, Bell, FileText, Search } from 'lucide-react'
 import toast from 'react-hot-toast'
 import CustomSelect from '@/components/ui/CustomSelect'
 import TableMenuSelector from '../../components/TableMenuSelector'
+import { fetchWithAuth } from '@/lib/supabase'
 
-const API_BASE = import.meta.env.VITE_API_URL || 'https://api.axess.pro'
 const PUBLIC_TABLE_ORIGIN = 'https://axess.pro'
 
 function TableAssignConfirmModal({ title, message, confirmText, confirmColor = '#00C37A', onConfirm, onCancel }) {
@@ -18,16 +17,14 @@ function TableAssignConfirmModal({ title, message, confirmText, confirmColor = '
         position: 'fixed', inset: 0, zIndex: 10002,
         background: 'rgba(0,0,0,0.65)',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
-        padding: 20,
-      }}
+        padding: 20 }}
       onClick={(e) => { if (e.target === e.currentTarget) onCancel() }}
       role="presentation"
     >
       <div style={{
         background: 'var(--card)', borderRadius: 16,
         padding: 28, maxWidth: 380, width: '100%',
-        border: '1px solid var(--glass-border)', textAlign: 'center',
-      }}
+        border: '1px solid var(--glass-border)', textAlign: 'center' }}
       >
         <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 12 }}>
           <AlertTriangle size={36} strokeWidth={1.75} color="#F59E0B" aria-hidden />
@@ -42,8 +39,7 @@ function TableAssignConfirmModal({ title, message, confirmText, confirmColor = '
               flex: 1, minHeight: 44, borderRadius: 10,
               border: '1px solid var(--glass-border)',
               background: 'transparent', color: 'var(--text)',
-              fontSize: 15, cursor: 'pointer', WebkitTapHighlightColor: 'transparent',
-            }}
+              fontSize: 15, cursor: 'pointer', WebkitTapHighlightColor: 'transparent' }}
           >
             ביטול
           </button>
@@ -53,8 +49,7 @@ function TableAssignConfirmModal({ title, message, confirmText, confirmColor = '
             style={{
               flex: 1, minHeight: 44, borderRadius: 10, border: 'none',
               background: confirmColor, color: '#000',
-              fontSize: 15, fontWeight: 700, cursor: 'pointer', WebkitTapHighlightColor: 'transparent',
-            }}
+              fontSize: 15, fontWeight: 700, cursor: 'pointer', WebkitTapHighlightColor: 'transparent' }}
           >
             {confirmText}
           </button>
@@ -71,16 +66,14 @@ const STAFF_TEMPLATE = [
   { role: 'waitress', label: 'מלצרית' },
   { role: 'selector', label: 'סלקטורית' },
   { role: 'cashier', label: 'קופאית' },
-  { role: 'owner', label: 'בעלים' },
-]
+  { role: 'owner', label: 'בעלים' }]
 
 const STATUS_CONFIG = {
   reserved: { label: 'שמור', color: '#F59E0B', bg: 'rgba(245,158,11,0.15)' },
   pending_approval: { label: 'ממתין לאישור', color: '#8B5CF6', bg: 'rgba(139,92,246,0.15)' },
   active: { label: 'פעיל', color: '#3B82F6', bg: 'rgba(59,130,246,0.15)' },
   unpaid: { label: 'לא שולם', color: '#EF4444', bg: 'rgba(239,68,68,0.15)' },
-  closed: { label: 'סגור/שולם', color: '#6B7280', bg: 'rgba(107,114,128,0.15)' },
-}
+  closed: { label: 'סגור/שולם', color: '#6B7280', bg: 'rgba(107,114,128,0.15)' } }
 
 const TABLE_EDIT_TABS = [
   { id: 'details', label: 'פרטים', Icon: ClipboardList },
@@ -88,8 +81,7 @@ const TABLE_EDIT_TABS = [
   { id: 'account', label: 'חשבון', Icon: CreditCard },
   { id: 'requests', label: 'בקשות / אפסייל', Icon: Bell },
   { id: 'staff', label: 'צוות', Icon: Users },
-  { id: 'menu', label: 'תפריט', Icon: UtensilsCrossed },
-]
+  { id: 'menu', label: 'תפריט', Icon: UtensilsCrossed }]
 
 function parseMenuIncludedExtras(raw) {
   if (Array.isArray(raw)) return raw
@@ -200,8 +192,7 @@ const EDIT_FIELD_SEQUENCE = [
   'discount',
   'tip_amount',
   'promoter_name',
-  'promoter_commission_pct',
-]
+  'promoter_commission_pct']
 
 function getEditFieldValue(order, table, field) {
   if (field === 'table_number_display') {
@@ -233,7 +224,7 @@ function coerceOptimisticLocal(field, rawVal) {
     return Number.isFinite(n) ? n : 10
   }
   if (field === 'base_price' || field === 'discount' || field === 'tip_amount') {
-    const n = parseFloat(String(rawVal).replace(/[₪%\s,]/g, ''))
+    const n = parseFloat(String(rawVal).replace(/[₪%\s]/g, ''))
     return Number.isFinite(n) ? n : rawVal
   }
   if (field === 'extras_list') {
@@ -243,35 +234,30 @@ function coerceOptimisticLocal(field, rawVal) {
 }
 
 function TableEditDetails({
-  order, availableTables, staffList, promoters, authHeaders, eventId, businessId, editModalOpenId, onUpdate, onOpenStaffTab, loadData, onRequestDelete, templateTables, tableNameOptions, setTableNameOptions,
-}) {
+  order, availableTables, staffList, promoters, eventId, businessId, editModalOpenId, onUpdate, onOpenStaffTab, loadData, onRequestDelete, templateTables, tableNameOptions, setTableNameOptions }) {
   const [form, setForm] = useState({
     table_number: order.table_number != null ? String(order.table_number) : '',
     table_name: order.category || order.table_name || '',
     waitress_name: order.waitress_name || '',
     status: order.status || 'pending_approval',
     promoter_name: order.promoter_name || '',
-    promoter_commission_pct: order.promoter_commission_pct ?? 0,
-  })
+    promoter_commission_pct: order.promoter_commission_pct ?? 0 })
   const [saving, setSaving] = useState(false)
   const [tableNameOptionsState, setTableNameOptionsState] = useState([
-    'VIP', 'בר', 'טרס', 'מרכז', 'כניסה', 'פינה', 'גן', 'גג',
-  ])
+    'VIP', 'בר', 'טרס', 'מרכז', 'כניסה', 'פינה', 'גן', 'גג'])
   const [showAddTableName, setShowAddTableName] = useState(false)
   const [newTableNameInput, setNewTableNameInput] = useState('')
   const [showAddWaitress, setShowAddWaitress] = useState(false)
   const [newWaitress, setNewWaitress] = useState({
     name: '', last_name: '', phone: '',
     tables_assigned: [],
-    save_to_venue: true, save_to_event: true, wa_notifications: true,
-  })
+    save_to_venue: true, save_to_event: true, wa_notifications: true })
   const [showAddPromoter, setShowAddPromoter] = useState(false)
   const [newPromoter, setNewPromoter] = useState({
     name: '', phone: '',
     commission_type: 'percent',
     commission_value: 0,
-    save_to_venue: true, save_to_event: true, wa_notifications: false,
-  })
+    save_to_venue: true, save_to_event: true, wa_notifications: false })
 
   const save = async () => {
     setSaving(true)
@@ -279,22 +265,19 @@ function TableEditDetails({
       console.log('Saving table details:', {
         orderId: order.id,
         table_number_display: form.table_number,
-        form,
-      });
-      const res = await fetch(
-        `${API_BASE}/api/admin/events/${eventId}/table-orders/${order.id}`,
+        form });
+      const res = await fetchWithAuth(
+        `/api/admin/events/${eventId}/table-orders/${order.id}`,
         {
           method: 'PATCH',
-          headers: authHeaders(),
-          body: JSON.stringify({
+          
+          _raw: true, body: JSON.stringify({
             waitress_name: form.waitress_name,
             status: form.status,
             promoter_name: form.promoter_name,
             promoter_commission_pct: form.promoter_commission_pct,
             table_number_display: form.table_number,
-            category: form.table_name,
-          }),
-        },
+            category: form.table_name }) },
       )
       if (res.ok) {
         toast.success('פרטים נשמרו ✓')
@@ -325,8 +308,7 @@ function TableEditDetails({
             style={{
               flex: 1, minHeight: 48, padding: '12px 16px', borderRadius: 10,
               background: 'var(--glass)', border: '1px solid var(--glass-border)',
-              color: 'var(--text)', fontSize: 16, textAlign: 'right', boxSizing: 'border-box',
-            }}
+              color: 'var(--text)', fontSize: 16, textAlign: 'right', boxSizing: 'border-box' }}
           />
           <CustomSelect
             value={form.table_number}
@@ -337,8 +319,7 @@ function TableEditDetails({
               .sort((a, b) => Number(a.table_number) - Number(b.table_number))
               .map((t) => ({
                 value: t.table_number,
-                label: `${t.table_number}${t.table_name ? ` — ${t.table_name}` : ''}`,
-              }))}
+                label: `${t.table_number}${t.table_name ? ` — ${t.table_name}` : ''}` }))}
             menuStyle={{ maxHeight: 220, overflowY: 'auto' }}
             style={{ width: 160 }}
           />
@@ -347,8 +328,7 @@ function TableEditDetails({
           <div style={{
             padding: '10px 16px', borderRadius: 10,
             background: 'rgba(0,195,122,0.08)', border: '1px solid rgba(0,195,122,0.2)',
-            fontSize: 14, fontWeight: 700, color: '#00C37A', textAlign: 'right',
-          }}
+            fontSize: 14, fontWeight: 700, color: '#00C37A', textAlign: 'right' }}
           >
             שולחן
             {' '}
@@ -377,16 +357,14 @@ function TableEditDetails({
           searchable
           options={[
             ...(tableNameOptions || tableNameOptionsState).map((n) => ({ value: n, label: n })),
-            { value: '__add__', label: '+ הוסף חדש' },
-          ]}
+            { value: '__add__', label: '+ הוסף חדש' }]}
           menuStyle={{ maxHeight: 220, overflowY: 'auto' }}
         />
         {showAddTableName && (
           <div style={{
             marginTop: 8, padding: '12px', borderRadius: 10,
             background: 'var(--glass)', border: '1px solid var(--glass-border)',
-            display: 'flex', gap: 8,
-          }}
+            display: 'flex', gap: 8 }}
           >
             <button
               type="button"
@@ -404,8 +382,7 @@ function TableEditDetails({
               style={{
                 padding: '8px 16px', borderRadius: 8, background: '#00C37A',
                 border: 'none', color: '#000', fontSize: 14, fontWeight: 700, cursor: 'pointer',
-                minHeight: 44,
-              }}
+                minHeight: 44 }}
             >
               הוסף
             </button>
@@ -430,8 +407,7 @@ function TableEditDetails({
               style={{
                 flex: 1, minHeight: 44, padding: '10px 14px', borderRadius: 8,
                 background: 'var(--card)', border: '1px solid var(--glass-border)',
-                color: 'var(--text)', fontSize: 16, textAlign: 'right', boxSizing: 'border-box',
-              }}
+                color: 'var(--text)', fontSize: 16, textAlign: 'right', boxSizing: 'border-box' }}
             />
           </div>
         )}
@@ -453,15 +429,13 @@ function TableEditDetails({
           placeholder="בחר מלצרית..."
           options={[
             ...(staffList || []).filter((s) => s.role === 'waitress').map((s) => ({ value: s.name, label: s.name })),
-            { value: '__new__', label: '+ הוסף מלצרית חדשה' },
-          ]}
+            { value: '__new__', label: '+ הוסף מלצרית חדשה' }]}
           menuStyle={{ maxHeight: 220, overflowY: 'auto' }}
         />
         {showAddWaitress && (
           <div style={{
             marginTop: 12, padding: 16, borderRadius: 12,
-            background: 'var(--glass)', border: '1px solid var(--glass-border)',
-          }}
+            background: 'var(--glass)', border: '1px solid var(--glass-border)' }}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
               <button
@@ -476,8 +450,7 @@ function TableEditDetails({
             {[
               { field: 'name', placeholder: 'שם פרטי' },
               { field: 'last_name', placeholder: 'שם משפחה' },
-              { field: 'phone', placeholder: 'מספר נייד' },
-            ].map(({ field, placeholder }) => (
+              { field: 'phone', placeholder: 'מספר נייד' }].map(({ field, placeholder }) => (
               <input
                 key={field}
                 value={newWaitress[field]}
@@ -486,8 +459,7 @@ function TableEditDetails({
                 style={{
                   width: '100%', minHeight: 48, padding: '10px 14px', borderRadius: 8, marginBottom: 8,
                   background: 'var(--card)', border: '1px solid var(--glass-border)',
-                  color: 'var(--text)', fontSize: 16, textAlign: 'right', boxSizing: 'border-box',
-                }}
+                  color: 'var(--text)', fontSize: 16, textAlign: 'right', boxSizing: 'border-box' }}
               />
             ))}
             <div style={{ marginBottom: 8 }}>
@@ -513,8 +485,7 @@ function TableEditDetails({
                     <span key={t} style={{
                       padding: '4px 10px', borderRadius: 20, fontSize: 12,
                       background: 'rgba(0,195,122,0.1)', border: '1px solid rgba(0,195,122,0.3)',
-                      color: '#00C37A', display: 'flex', alignItems: 'center', gap: 6,
-                    }}
+                      color: '#00C37A', display: 'flex', alignItems: 'center', gap: 6 }}
                     >
                       {t}
                       <button
@@ -532,8 +503,7 @@ function TableEditDetails({
             {[
               { field: 'save_to_venue', label: 'שמור לצוות המקום' },
               { field: 'save_to_event', label: 'שמור לאירוע זה בלבד' },
-              { field: 'wa_notifications', label: 'קבל התראות WhatsApp' },
-            ].map(({ field, label }) => (
+              { field: 'wa_notifications', label: 'קבל התראות WhatsApp' }].map(({ field, label }) => (
               <label key={field} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, justifyContent: 'flex-end', cursor: 'pointer' }}>
                 <span style={{ fontSize: 13 }}>{label}</span>
                 <input
@@ -550,17 +520,15 @@ function TableEditDetails({
                 onClick={async () => {
                   if (!newWaitress.name) return
                   try {
-                    await fetch(`${API_BASE}/api/admin/events/${eventId}/table-staff`, {
+                    await fetchWithAuth(`/api/admin/events/${eventId}/table-staff`, {
                       method: 'POST',
-                      headers: authHeaders(),
-                      body: JSON.stringify({
+                      
+                      _raw: true, body: JSON.stringify({
                         name: `${newWaitress.name} ${newWaitress.last_name}`.trim(),
                         phone: newWaitress.phone,
                         role: 'waitress',
                         wa_notifications: newWaitress.wa_notifications,
-                        tables_assigned: newWaitress.tables_assigned,
-                      }),
-                    })
+                        tables_assigned: newWaitress.tables_assigned }) })
                     setForm((f) => ({ ...f, waitress_name: `${newWaitress.name} ${newWaitress.last_name}`.trim() }))
                     setShowAddWaitress(false)
                     toast.success('מלצרית נוספה ✓')
@@ -571,8 +539,7 @@ function TableEditDetails({
                 }}
                 style={{
                   flex: 1, minHeight: 48, borderRadius: 10, background: '#00C37A',
-                  border: 'none', color: '#000', fontSize: 14, fontWeight: 700, cursor: 'pointer',
-                }}
+                  border: 'none', color: '#000', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}
               >
                 שמור מלצרית
               </button>
@@ -582,8 +549,7 @@ function TableEditDetails({
               onClick={() => { setShowAddWaitress(false); onOpenStaffTab?.() }}
               style={{
                 width: '100%', minHeight: 48, marginTop: 8, padding: '8px 0', background: 'none',
-                border: 'none', color: '#00C37A', fontSize: 12, cursor: 'pointer', textDecoration: 'underline',
-              }}
+                border: 'none', color: '#00C37A', fontSize: 12, cursor: 'pointer', textDecoration: 'underline' }}
             >
               לניהול צוות מלא ←
             </button>
@@ -607,15 +573,13 @@ function TableEditDetails({
           placeholder="בחר יחצן..."
           options={[
             ...(promoters || []).map((p) => ({ value: p.name, label: p.name })),
-            { value: '__new__', label: '+ הוסף יחצן חדש' },
-          ]}
+            { value: '__new__', label: '+ הוסף יחצן חדש' }]}
           menuStyle={{ maxHeight: 220, overflowY: 'auto' }}
         />
         {showAddPromoter && (
           <div style={{
             marginTop: 12, padding: 16, borderRadius: 12,
-            background: 'var(--glass)', border: '1px solid var(--glass-border)',
-          }}
+            background: 'var(--glass)', border: '1px solid var(--glass-border)' }}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
               <button
@@ -629,8 +593,7 @@ function TableEditDetails({
             </div>
             {[
               { field: 'name', placeholder: 'שם מלא' },
-              { field: 'phone', placeholder: 'טלפון' },
-            ].map(({ field, placeholder }) => (
+              { field: 'phone', placeholder: 'טלפון' }].map(({ field, placeholder }) => (
               <input
                 key={field}
                 value={newPromoter[field]}
@@ -639,8 +602,7 @@ function TableEditDetails({
                 style={{
                   width: '100%', minHeight: 48, padding: '10px 14px', borderRadius: 8, marginBottom: 8,
                   background: 'var(--card)', border: '1px solid var(--glass-border)',
-                  color: 'var(--text)', fontSize: 16, textAlign: 'right', boxSizing: 'border-box',
-                }}
+                  color: 'var(--text)', fontSize: 16, textAlign: 'right', boxSizing: 'border-box' }}
               />
             ))}
             <div style={{ marginBottom: 8 }}>
@@ -648,8 +610,7 @@ function TableEditDetails({
               <div style={{ display: 'flex', gap: 8 }}>
                 {[
                   { value: 'percent', label: '% מהכרטיס' },
-                  { value: 'fixed', label: 'סכום קבוע לכרטיס' },
-                ].map((opt) => (
+                  { value: 'fixed', label: 'סכום קבוע לכרטיס' }].map((opt) => (
                   <button
                     key={opt.value}
                     type="button"
@@ -659,8 +620,7 @@ function TableEditDetails({
                       background: newPromoter.commission_type === opt.value ? 'rgba(0,195,122,0.1)' : 'var(--glass)',
                       border: `1px solid ${newPromoter.commission_type === opt.value ? 'rgba(0,195,122,0.3)' : 'var(--glass-border)'}`,
                       color: newPromoter.commission_type === opt.value ? '#00C37A' : 'var(--text)',
-                      cursor: 'pointer',
-                    }}
+                      cursor: 'pointer' }}
                   >
                     {opt.label}
                   </button>
@@ -675,14 +635,12 @@ function TableEditDetails({
               style={{
                 width: '100%', minHeight: 48, padding: '10px 14px', borderRadius: 8, marginBottom: 8,
                 background: 'var(--card)', border: '1px solid var(--glass-border)',
-                color: 'var(--text)', fontSize: 16, textAlign: 'right', boxSizing: 'border-box',
-              }}
+                color: 'var(--text)', fontSize: 16, textAlign: 'right', boxSizing: 'border-box' }}
             />
             {[
               { field: 'save_to_venue', label: 'שמור לצוות המקום' },
               { field: 'save_to_event', label: 'שמור לאירוע זה בלבד' },
-              { field: 'wa_notifications', label: 'קבל התראות WhatsApp' },
-            ].map(({ field, label }) => (
+              { field: 'wa_notifications', label: 'קבל התראות WhatsApp' }].map(({ field, label }) => (
               <label key={field} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, justifyContent: 'flex-end', cursor: 'pointer' }}>
                 <span style={{ fontSize: 13 }}>{label}</span>
                 <input
@@ -698,29 +656,25 @@ function TableEditDetails({
               onClick={async () => {
                 if (!newPromoter.name || !newPromoter.phone) return
                 try {
-                  const createRes = await fetch(`${API_BASE}/api/admin/promoters`, {
+                  const createRes = await fetchWithAuth(`/api/admin/promoters`, {
                     method: 'POST',
-                    headers: authHeaders(),
-                    body: JSON.stringify({
+                    
+                    _raw: true, body: JSON.stringify({
                       business_id: order.business_id,
                       name: newPromoter.name,
                       first_name: newPromoter.name.split(' ')[0] || newPromoter.name,
                       last_name: newPromoter.name.split(' ').slice(1).join(' ') || null,
-                      phone: newPromoter.phone,
-                    }),
-                  })
+                      phone: newPromoter.phone }) })
                   const created = await createRes.json()
                   if (!createRes.ok || !created?.id) throw new Error('create_failed')
                   if (newPromoter.save_to_event) {
-                    await fetch(`${API_BASE}/api/admin/events/${eventId}/promoters`, {
+                    await fetchWithAuth(`/api/admin/events/${eventId}/promoters`, {
                       method: 'POST',
-                      headers: authHeaders(),
-                      body: JSON.stringify({
+                      
+                      _raw: true, body: JSON.stringify({
                         promoter_id: created.id,
                         commission_type: newPromoter.commission_type === 'percent' ? 'pct' : 'fixed',
-                        commission_value: Number(newPromoter.commission_value) || 0,
-                      }),
-                    })
+                        commission_value: Number(newPromoter.commission_value) || 0 }) })
                   }
                   setForm((f) => ({ ...f, promoter_name: created.name || newPromoter.name }))
                   setShowAddPromoter(false)
@@ -732,8 +686,7 @@ function TableEditDetails({
               }}
               style={{
                 width: '100%', minHeight: 48, borderRadius: 10, background: '#00C37A',
-                border: 'none', color: '#000', fontSize: 14, fontWeight: 700, cursor: 'pointer', marginTop: 8,
-              }}
+                border: 'none', color: '#000', fontSize: 14, fontWeight: 700, cursor: 'pointer', marginTop: 8 }}
             >
               שמור יחצ"ן
             </button>
@@ -760,8 +713,7 @@ function TableEditDetails({
             { value: 'active', label: 'שולחן פעיל' },
             { value: 'cancelled', label: 'שולחן מבוטל' },
             { value: 'closed', label: 'שולחן הסתיים' },
-            { value: 'delete', label: '🗑️ מחק שולחן מרשימה' },
-          ]}
+            { value: 'delete', label: '🗑️ מחק שולחן מרשימה' }]}
           menuStyle={{ maxHeight: 240, overflowY: 'auto' }}
         />
       </div>
@@ -776,8 +728,7 @@ function TableEditDetails({
           cursor: saving ? 'not-allowed' : 'pointer',
           opacity: saving ? 0.6 : 1,
           marginTop: 80,
-          WebkitTapHighlightColor: 'transparent',
-        }}
+          WebkitTapHighlightColor: 'transparent' }}
       >
         {saving ? 'שומר...' : 'שמור פרטים'}
       </button>
@@ -785,7 +736,7 @@ function TableEditDetails({
   )
 }
 
-function TableEditGuests({ order, authHeaders, eventId, onUpdate }) {
+function TableEditGuests({ order, eventId, onUpdate }) {
   const guests = (() => {
     const g = order.guests
     if (!g) return []
@@ -804,19 +755,17 @@ function TableEditGuests({ order, authHeaders, eventId, onUpdate }) {
     customer_name: order.customer_name || '',
     customer_last_name: order.customer_last_name || '',
     customer_phone: order.customer_phone || '',
-    customer_email: order.customer_email || '',
-  })
+    customer_email: order.customer_email || '' })
 
   const save = async () => {
     setSaving(true)
     try {
-      const res = await fetch(
-        `${API_BASE}/api/admin/events/${eventId}/table-orders/${order.id}`,
+      const res = await fetchWithAuth(
+        `/api/admin/events/${eventId}/table-orders/${order.id}`,
         {
           method: 'PATCH',
-          headers: authHeaders(),
-          body: JSON.stringify({ guests: localGuests, guest_count: localGuests.length + 1 }),
-        },
+          
+          _raw: true, body: JSON.stringify({ guests: localGuests, guest_count: localGuests.length + 1 }) },
       )
       if (res.ok) {
         toast.success('חברי שולחן נשמרו ✓')
@@ -839,8 +788,7 @@ function TableEditGuests({ order, authHeaders, eventId, onUpdate }) {
       <div style={{
         background: 'rgba(0,195,122,0.08)',
         border: '1px solid rgba(0,195,122,0.2)',
-        borderRadius: 12, padding: '16px', marginBottom: 12,
-      }}
+        borderRadius: 12, padding: '16px', marginBottom: 12 }}
       >
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
           <div style={{ display: 'flex', gap: 8 }}>
@@ -850,8 +798,7 @@ function TableEditGuests({ order, authHeaders, eventId, onUpdate }) {
               style={{
                 padding: '6px 10px', borderRadius: 8, fontSize: 11,
                 background: 'rgba(0,195,122,0.1)', border: '1px solid rgba(0,195,122,0.3)',
-                color: '#00C37A', cursor: 'pointer',
-              }}
+                color: '#00C37A', cursor: 'pointer' }}
             >
               📱 QR
             </button>
@@ -863,8 +810,7 @@ function TableEditGuests({ order, authHeaders, eventId, onUpdate }) {
                 background: editingHost ? 'rgba(0,195,122,0.15)' : 'var(--glass)',
                 border: '1px solid var(--glass-border)',
                 color: editingHost ? '#00C37A' : 'var(--v2-gray-400)',
-                cursor: 'pointer',
-              }}
+                cursor: 'pointer' }}
             >
               {editingHost ? 'סגור' : 'ערוך'}
             </button>
@@ -878,8 +824,7 @@ function TableEditGuests({ order, authHeaders, eventId, onUpdate }) {
               { field: 'customer_name', placeholder: 'שם פרטי' },
               { field: 'customer_last_name', placeholder: 'שם משפחה' },
               { field: 'customer_phone', placeholder: 'טלפון' },
-              { field: 'customer_email', placeholder: 'מייל' },
-            ].map(({ field, placeholder }) => (
+              { field: 'customer_email', placeholder: 'מייל' }].map(({ field, placeholder }) => (
               <input
                 key={field}
                 value={hostForm[field]}
@@ -889,21 +834,19 @@ function TableEditGuests({ order, authHeaders, eventId, onUpdate }) {
                   padding: '10px 12px', borderRadius: 8,
                   background: 'var(--card)', border: '1px solid var(--glass-border)',
                   color: 'var(--text)', fontSize: 14, textAlign: 'right',
-                  boxSizing: 'border-box', width: '100%', minHeight: 44,
-                }}
+                  boxSizing: 'border-box', width: '100%', minHeight: 44 }}
               />
             ))}
             <button
               type="button"
               onClick={async () => {
                 try {
-                  const res = await fetch(
-                    `${API_BASE}/api/admin/events/${eventId}/table-orders/${order.id}`,
+                  const res = await fetchWithAuth(
+                    `/api/admin/events/${eventId}/table-orders/${order.id}`,
                     {
                       method: 'PATCH',
-                      headers: authHeaders(),
-                      body: JSON.stringify(hostForm),
-                    },
+                      
+                      _raw: true, body: JSON.stringify(hostForm) },
                   )
                   if (res.ok) {
                     toast.success('פרטי ראש שולחן נשמרו ✓')
@@ -917,8 +860,7 @@ function TableEditGuests({ order, authHeaders, eventId, onUpdate }) {
               style={{
                 gridColumn: '1 / -1', minHeight: 44, borderRadius: 10,
                 background: '#00C37A', border: 'none',
-                color: '#000', fontSize: 14, fontWeight: 700, cursor: 'pointer',
-              }}
+                color: '#000', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}
             >
               שמור פרטי ראש שולחן
             </button>
@@ -947,23 +889,21 @@ function TableEditGuests({ order, authHeaders, eventId, onUpdate }) {
             <span style={{
               display: 'inline-block', marginTop: 6,
               padding: '2px 10px', borderRadius: 20, fontSize: 11,
-              background: 'rgba(0,195,122,0.15)', color: '#00C37A',
-            }}
+              background: 'rgba(0,195,122,0.15)', color: '#00C37A' }}
             >
               חינם
             </span>
             <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
               <button type="button"
                 onClick={async () => {
-                  const res = await fetch(
-                    `${API_BASE}/api/admin/events/${eventId}/table-orders/${order.id}/checkin`,
+                  const res = await fetchWithAuth(
+                    `/api/admin/events/${eventId}/table-orders/${order.id}/checkin`,
                     {
                       method: 'PATCH',
-                      headers: authHeaders(),
-                      body: JSON.stringify({ guest_index: -1 }),
-                    }
+                      
+                      _raw: true, body: JSON.stringify({ guest_index: -1 }) }
                   );
-                  if (res.ok) { toast.success('סומן כהגיע ✓'); onUpdate({}); }
+                  if (res.ok) { toast.success('סומן כהגיע ✓'); onUpdate({ _raw: true }); }
                   else toast.error('שגיאה');
                 }}
                 style={{
@@ -971,30 +911,27 @@ function TableEditGuests({ order, authHeaders, eventId, onUpdate }) {
                   background: order.checked_in_at ? 'rgba(0,195,122,0.15)' : 'rgba(0,195,122,0.08)',
                   border: `1px solid ${order.checked_in_at ? 'rgba(0,195,122,0.4)' : 'rgba(0,195,122,0.2)'}`,
                   color: '#00C37A', cursor: 'pointer', fontWeight: 600,
-                  WebkitTapHighlightColor: 'transparent',
-                }}
+                  WebkitTapHighlightColor: 'transparent' }}
               >
                 {order.checked_in_at ? '✓ הגיע' : '○ סמן הגיע'}
               </button>
               {order.checked_in_at && (
                 <button type="button"
                   onClick={async () => {
-                    const res = await fetch(
-                      `${API_BASE}/api/admin/events/${eventId}/table-orders/${order.id}/checkin`,
+                    const res = await fetchWithAuth(
+                      `/api/admin/events/${eventId}/table-orders/${order.id}/checkin`,
                       {
                         method: 'PATCH',
-                        headers: authHeaders(),
-                        body: JSON.stringify({ guest_index: -1, undo: true }),
-                      }
+                        
+                        _raw: true, body: JSON.stringify({ guest_index: -1, undo: true }) }
                     );
-                    if (res.ok) { toast.success('סומן כטרם הגיע'); onUpdate({}); }
+                    if (res.ok) { toast.success('סומן כטרם הגיע'); onUpdate({ _raw: true }); }
                   }}
                   style={{
                     minHeight: 36, padding: '0 12px', borderRadius: 8, fontSize: 12,
                     background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)',
                     color: '#EF4444', cursor: 'pointer',
-                    WebkitTapHighlightColor: 'transparent',
-                  }}
+                    WebkitTapHighlightColor: 'transparent' }}
                 >
                   טרם הגיע
                 </button>
@@ -1009,8 +946,7 @@ function TableEditGuests({ order, authHeaders, eventId, onUpdate }) {
           key={i}
           style={{
             background: 'var(--glass)', border: '1px solid var(--glass-border)',
-            borderRadius: 12, padding: '16px',
-          }}
+            borderRadius: 12, padding: '16px' }}
         >
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
             <div style={{ display: 'flex', gap: 8 }}>
@@ -1020,8 +956,7 @@ function TableEditGuests({ order, authHeaders, eventId, onUpdate }) {
                 style={{
                   padding: '6px 10px', borderRadius: 8, fontSize: 11,
                   background: 'rgba(0,195,122,0.1)', border: '1px solid rgba(0,195,122,0.3)',
-                  color: '#00C37A', cursor: 'pointer', WebkitTapHighlightColor: 'transparent',
-                }}
+                  color: '#00C37A', cursor: 'pointer', WebkitTapHighlightColor: 'transparent' }}
               >
                 📱 QR
               </button>
@@ -1031,8 +966,7 @@ function TableEditGuests({ order, authHeaders, eventId, onUpdate }) {
                 style={{
                   padding: '6px 10px', borderRadius: 8, fontSize: 11,
                   background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)',
-                  color: '#EF4444', cursor: 'pointer', WebkitTapHighlightColor: 'transparent',
-                }}
+                  color: '#EF4444', cursor: 'pointer', WebkitTapHighlightColor: 'transparent' }}
               >
                 ✕
               </button>
@@ -1041,8 +975,7 @@ function TableEditGuests({ order, authHeaders, eventId, onUpdate }) {
               <span style={{
                 padding: '3px 10px', borderRadius: 20, fontSize: 11,
                 background: g.is_free ? 'rgba(0,195,122,0.15)' : 'rgba(255,255,255,0.1)',
-                color: g.is_free ? '#00C37A' : 'var(--v2-gray-400)',
-              }}
+                color: g.is_free ? '#00C37A' : 'var(--v2-gray-400)' }}
               >
                 {g.is_free ? 'חינם' : `₪${g.ticket_price || 0}`}
               </span>
@@ -1058,8 +991,7 @@ function TableEditGuests({ order, authHeaders, eventId, onUpdate }) {
               { field: 'first_name', placeholder: 'שם פרטי' },
               { field: 'last_name', placeholder: 'שם משפחה' },
               { field: 'phone', placeholder: 'טלפון' },
-              { field: 'email', placeholder: 'מייל' },
-            ].map(({ field, placeholder }) => (
+              { field: 'email', placeholder: 'מייל' }].map(({ field, placeholder }) => (
               <input
                 key={field}
                 value={g[field] || ''}
@@ -1071,8 +1003,7 @@ function TableEditGuests({ order, authHeaders, eventId, onUpdate }) {
                   padding: '10px 12px', borderRadius: 8,
                   background: 'var(--card)', border: '1px solid var(--glass-border)',
                   color: 'var(--text)', fontSize: 16, textAlign: 'right',
-                  boxSizing: 'border-box', width: '100%',
-                }}
+                  boxSizing: 'border-box', width: '100%' }}
               />
             ))}
           </div>
@@ -1096,23 +1027,21 @@ function TableEditGuests({ order, authHeaders, eventId, onUpdate }) {
                 style={{
                   width: 100, padding: '6px 10px', borderRadius: 8,
                   background: 'var(--card)', border: '1px solid var(--glass-border)',
-                  color: 'var(--text)', fontSize: 16, textAlign: 'right',
-                }}
+                  color: 'var(--text)', fontSize: 16, textAlign: 'right' }}
               />
             )}
           </div>
           <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
             <button type="button"
               onClick={async () => {
-                const res = await fetch(
-                  `${API_BASE}/api/admin/events/${eventId}/table-orders/${order.id}/checkin`,
+                const res = await fetchWithAuth(
+                  `/api/admin/events/${eventId}/table-orders/${order.id}/checkin`,
                   {
                     method: 'PATCH',
-                    headers: authHeaders(),
-                    body: JSON.stringify({ guest_index: i }),
-                  }
+                    
+                    _raw: true, body: JSON.stringify({ guest_index: i }) }
                 );
-                if (res.ok) { toast.success('סומן כהגיע ✓'); onUpdate({}); }
+                if (res.ok) { toast.success('סומן כהגיע ✓'); onUpdate({ _raw: true }); }
                 else toast.error('שגיאה');
               }}
               style={{
@@ -1120,30 +1049,27 @@ function TableEditGuests({ order, authHeaders, eventId, onUpdate }) {
                 background: g.checked_in ? 'rgba(0,195,122,0.15)' : 'rgba(0,195,122,0.08)',
                 border: `1px solid ${g.checked_in ? 'rgba(0,195,122,0.4)' : 'rgba(0,195,122,0.2)'}`,
                 color: '#00C37A', cursor: 'pointer', fontWeight: 600,
-                WebkitTapHighlightColor: 'transparent',
-              }}
+                WebkitTapHighlightColor: 'transparent' }}
             >
               {g.checked_in ? '✓ הגיע' : '○ סמן הגיע'}
             </button>
             {g.checked_in && (
               <button type="button"
                 onClick={async () => {
-                  const res = await fetch(
-                    `${API_BASE}/api/admin/events/${eventId}/table-orders/${order.id}/checkin`,
+                  const res = await fetchWithAuth(
+                    `/api/admin/events/${eventId}/table-orders/${order.id}/checkin`,
                     {
                       method: 'PATCH',
-                      headers: authHeaders(),
-                      body: JSON.stringify({ guest_index: i, undo: true }),
-                    }
+                      
+                      _raw: true, body: JSON.stringify({ guest_index: i, undo: true }) }
                   );
-                  if (res.ok) { toast.success('סומן כטרם הגיע'); onUpdate({}); }
+                  if (res.ok) { toast.success('סומן כטרם הגיע'); onUpdate({ _raw: true }); }
                 }}
                 style={{
                   minHeight: 36, padding: '0 12px', borderRadius: 8, fontSize: 12,
                   background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)',
                   color: '#EF4444', cursor: 'pointer',
-                  WebkitTapHighlightColor: 'transparent',
-                }}
+                  WebkitTapHighlightColor: 'transparent' }}
               >
                 טרם הגיע
               </button>
@@ -1155,14 +1081,12 @@ function TableEditGuests({ order, authHeaders, eventId, onUpdate }) {
       <button
         type="button"
         onClick={() => setLocalGuests((gs) => [...gs, {
-          first_name: '', last_name: '', phone: '', email: '', is_free: true,
-        }])}
+          first_name: '', last_name: '', phone: '', email: '', is_free: true }])}
         style={{
           minHeight: 44, borderRadius: 10,
           background: 'var(--glass)', border: '1px dashed var(--glass-border)',
           color: '#00C37A', fontSize: 14, cursor: 'pointer',
-          WebkitTapHighlightColor: 'transparent',
-        }}
+          WebkitTapHighlightColor: 'transparent' }}
       >
         + הוסף חבר שולחן
       </button>
@@ -1175,8 +1099,7 @@ function TableEditGuests({ order, authHeaders, eventId, onUpdate }) {
           minHeight: 48, borderRadius: 12, background: '#00C37A',
           border: 'none', color: '#000', fontSize: 15, fontWeight: 700,
           cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.6 : 1,
-          WebkitTapHighlightColor: 'transparent',
-        }}
+          WebkitTapHighlightColor: 'transparent' }}
       >
         {saving ? 'שומר...' : 'שמור חברי שולחן'}
       </button>
@@ -1184,7 +1107,7 @@ function TableEditGuests({ order, authHeaders, eventId, onUpdate }) {
   )
 }
 
-function TableEditOrder({ order, menuItems, authHeaders, eventId, onUpdate }) {
+function TableEditOrder({ order, menuItems, eventId, onUpdate }) {
   const [menuSearch, setMenuSearch] = useState('')
   const [selectedItem, setSelectedItem] = useState(null)
   const [drink, setDrink] = useState(order.drink_name || '')
@@ -1213,20 +1136,18 @@ function TableEditOrder({ order, menuItems, authHeaders, eventId, onUpdate }) {
   const save = async () => {
     setSaving(true)
     try {
-      const res = await fetch(
-        `${API_BASE}/api/admin/events/${eventId}/table-orders/${order.id}`,
+      const res = await fetchWithAuth(
+        `/api/admin/events/${eventId}/table-orders/${order.id}`,
         {
           method: 'PATCH',
-          headers: authHeaders(),
-          body: JSON.stringify({
+          
+          _raw: true, body: JSON.stringify({
             drink_name: drink,
             drink_quantity: quantity,
             extras_list: extras,
             base_price: price,
             discount,
-            total_amount: total,
-          }),
-        },
+            total_amount: total }) },
       )
       if (res.ok) {
         toast.success('הזמנה נשמרה ✓')
@@ -1255,8 +1176,7 @@ function TableEditOrder({ order, menuItems, authHeaders, eventId, onUpdate }) {
               borderRadius: 10, background: 'var(--glass)',
               border: '1px solid var(--glass-border)',
               color: 'var(--text)', fontSize: 15, textAlign: 'right',
-              boxSizing: 'border-box',
-            }}
+              boxSizing: 'border-box' }}
           />
           <Search size={16} color="#00C37A" style={{ position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
         </div>
@@ -1286,8 +1206,7 @@ function TableEditOrder({ order, menuItems, authHeaders, eventId, onUpdate }) {
                   padding: '10px 16px', borderRadius: 10, cursor: 'pointer',
                   background: selectedItem?.id === item.id ? 'rgba(0,195,122,0.1)' : 'var(--glass)',
                   border: `1px solid ${selectedItem?.id === item.id ? 'rgba(0,195,122,0.3)' : 'var(--glass-border)'}`,
-                  WebkitTapHighlightColor: 'transparent',
-                }}
+                  WebkitTapHighlightColor: 'transparent' }}
               >
                 <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                   <span style={{ fontSize: 14, color: '#00C37A', fontWeight: 700 }}>
@@ -1304,8 +1223,7 @@ function TableEditOrder({ order, menuItems, authHeaders, eventId, onUpdate }) {
                         }}
                         style={{
                           width: 28, height: 28, borderRadius: 6, background: 'var(--card)', border: '1px solid var(--glass-border)', color: 'var(--text)', cursor: 'pointer', fontSize: 16,
-                          WebkitTapHighlightColor: 'transparent',
-                        }}
+                          WebkitTapHighlightColor: 'transparent' }}
                       >
                         −
                       </button>
@@ -1318,8 +1236,7 @@ function TableEditOrder({ order, menuItems, authHeaders, eventId, onUpdate }) {
                         }}
                         style={{
                           width: 28, height: 28, borderRadius: 6, background: 'rgba(0,195,122,0.1)', border: '1px solid rgba(0,195,122,0.3)', color: '#00C37A', cursor: 'pointer', fontSize: 16,
-                          WebkitTapHighlightColor: 'transparent',
-                        }}
+                          WebkitTapHighlightColor: 'transparent' }}
                       >
                         +
                       </button>
@@ -1342,8 +1259,7 @@ function TableEditOrder({ order, menuItems, authHeaders, eventId, onUpdate }) {
             onClick={() => setQuantity((q) => Math.max(1, q - 1))}
             style={{
               width: 40, height: 40, borderRadius: 10, background: 'var(--glass)', border: '1px solid var(--glass-border)', color: 'var(--text)', fontSize: 20, cursor: 'pointer',
-              WebkitTapHighlightColor: 'transparent',
-            }}
+              WebkitTapHighlightColor: 'transparent' }}
           >
             −
           </button>
@@ -1353,8 +1269,7 @@ function TableEditOrder({ order, menuItems, authHeaders, eventId, onUpdate }) {
             onClick={() => setQuantity((q) => q + 1)}
             style={{
               width: 40, height: 40, borderRadius: 10, background: 'var(--glass)', border: '1px solid var(--glass-border)', color: '#00C37A', fontSize: 20, cursor: 'pointer',
-              WebkitTapHighlightColor: 'transparent',
-            }}
+              WebkitTapHighlightColor: 'transparent' }}
           >
             +
           </button>
@@ -1373,8 +1288,7 @@ function TableEditOrder({ order, menuItems, authHeaders, eventId, onUpdate }) {
                 key={item.id}
                 style={{
                   display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                  padding: '8px 0', borderBottom: '1px solid var(--glass-border)',
-                }}
+                  padding: '8px 0', borderBottom: '1px solid var(--glass-border)' }}
               >
                 <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                   <button
@@ -1386,8 +1300,7 @@ function TableEditOrder({ order, menuItems, authHeaders, eventId, onUpdate }) {
                     })}
                     style={{
                       width: 28, height: 28, borderRadius: 6, background: 'rgba(0,195,122,0.1)', border: '1px solid rgba(0,195,122,0.3)', color: '#00C37A', cursor: 'pointer', fontSize: 16,
-                      WebkitTapHighlightColor: 'transparent',
-                    }}
+                      WebkitTapHighlightColor: 'transparent' }}
                   >
                     +
                   </button>
@@ -1403,8 +1316,7 @@ function TableEditOrder({ order, menuItems, authHeaders, eventId, onUpdate }) {
                         })}
                         style={{
                           width: 28, height: 28, borderRadius: 6, background: 'var(--glass)', border: '1px solid var(--glass-border)', color: 'var(--text)', cursor: 'pointer', fontSize: 16,
-                          WebkitTapHighlightColor: 'transparent',
-                        }}
+                          WebkitTapHighlightColor: 'transparent' }}
                       >
                         −
                       </button>
@@ -1428,8 +1340,7 @@ function TableEditOrder({ order, menuItems, authHeaders, eventId, onUpdate }) {
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
         {[
           { label: 'מחיר בקבוק ₪', value: price, setter: setPrice },
-          { label: 'הנחה ₪', value: discount, setter: setDiscount },
-        ].map(({ label, value, setter }) => (
+          { label: 'הנחה ₪', value: discount, setter: setDiscount }].map(({ label, value, setter }) => (
           <div key={label}>
             <label style={{ fontSize: 12, color: 'var(--v2-gray-400)', display: 'block', marginBottom: 6, textAlign: 'right' }}>{label}</label>
             <input
@@ -1439,8 +1350,7 @@ function TableEditOrder({ order, menuItems, authHeaders, eventId, onUpdate }) {
               style={{
                 width: '100%', padding: '10px 12px', borderRadius: 10,
                 background: 'var(--glass)', border: '1px solid var(--glass-border)',
-                color: 'var(--text)', fontSize: 16, textAlign: 'right', boxSizing: 'border-box',
-              }}
+                color: 'var(--text)', fontSize: 16, textAlign: 'right', boxSizing: 'border-box' }}
             />
           </div>
         ))}
@@ -1449,8 +1359,7 @@ function TableEditOrder({ order, menuItems, authHeaders, eventId, onUpdate }) {
       <div style={{
         padding: '12px 16px', borderRadius: 10,
         background: 'rgba(0,195,122,0.08)', border: '1px solid rgba(0,195,122,0.2)',
-        display: 'flex', justifyContent: 'space-between',
-      }}
+        display: 'flex', justifyContent: 'space-between' }}
       >
         <span style={{ fontSize: 16, fontWeight: 800, color: '#00C37A' }}>
           ₪
@@ -1465,8 +1374,7 @@ function TableEditOrder({ order, menuItems, authHeaders, eventId, onUpdate }) {
         disabled={saving}
         style={{
           minHeight: 48, borderRadius: 12, background: '#00C37A', border: 'none', color: '#000', fontSize: 15, fontWeight: 700, cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.6 : 1,
-          WebkitTapHighlightColor: 'transparent',
-        }}
+          WebkitTapHighlightColor: 'transparent' }}
       >
         {saving ? 'שומר...' : 'שמור הזמנה'}
       </button>
@@ -1474,38 +1382,34 @@ function TableEditOrder({ order, menuItems, authHeaders, eventId, onUpdate }) {
   )
 }
 
-function TableEditPayment({ order, authHeaders, eventId, onUpdate }) {
+function TableEditPayment({ order, eventId, onUpdate }) {
   const payNorm = normalizePayments(order)
   const [form, setForm] = useState({
     payment_1_amount: payNorm[0]?.amount ?? 0,
     payment_1_method: payNorm[0]?.method || payNorm[0]?.type || 'axess',
     payment_2_amount: payNorm[1]?.amount ?? 0,
     payment_2_method: payNorm[1]?.method || payNorm[1]?.type || 'cash',
-    tip_amount: order.tip_amount || 0,
-  })
+    tip_amount: order.tip_amount || 0 })
   const [saving, setSaving] = useState(false)
 
   const PAYMENT_METHODS = [
     { value: 'axess', label: '💳 AXESS', color: '#00C37A' },
     { value: 'cash', label: '💵 מזומן', color: '#F59E0B' },
     { value: 'credit', label: '💳 אשראי קופה', color: '#8B5CF6' },
-    { value: 'transfer', label: '📱 העברה', color: '#3B82F6' },
-  ]
+    { value: 'transfer', label: '📱 העברה', color: '#3B82F6' }]
 
   const save = async () => {
     setSaving(true)
     try {
       const payments = [
         { amount: form.payment_1_amount, method: form.payment_1_method, type: form.payment_1_method },
-        ...(form.payment_2_amount > 0 ? [{ amount: form.payment_2_amount, method: form.payment_2_method, type: form.payment_2_method }] : []),
-      ]
-      const res = await fetch(
-        `${API_BASE}/api/admin/events/${eventId}/table-orders/${order.id}`,
+        ...(form.payment_2_amount > 0 ? [{ amount: form.payment_2_amount, method: form.payment_2_method, type: form.payment_2_method }] : [])]
+      const res = await fetchWithAuth(
+        `/api/admin/events/${eventId}/table-orders/${order.id}`,
         {
           method: 'PATCH',
-          headers: authHeaders(),
-          body: JSON.stringify({ payments, tip_amount: form.tip_amount }),
-        },
+          
+          _raw: true, body: JSON.stringify({ payments, tip_amount: form.tip_amount }) },
       )
       if (res.ok) {
         toast.success('תשלום נשמר ✓')
@@ -1522,14 +1426,12 @@ function TableEditPayment({ order, authHeaders, eventId, onUpdate }) {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       {[
         { label: 'תשלום 1', amountKey: 'payment_1_amount', methodKey: 'payment_1_method' },
-        { label: 'תשלום 2', amountKey: 'payment_2_amount', methodKey: 'payment_2_method' },
-      ].map(({ label, amountKey, methodKey }) => (
+        { label: 'תשלום 2', amountKey: 'payment_2_amount', methodKey: 'payment_2_method' }].map(({ label, amountKey, methodKey }) => (
         <div
           key={label}
           style={{
             background: 'var(--glass)', border: '1px solid var(--glass-border)',
-            borderRadius: 12, padding: 16,
-          }}
+            borderRadius: 12, padding: 16 }}
         >
           <p style={{ margin: '0 0 12px', fontSize: 13, fontWeight: 700, textAlign: 'right' }}>{label}</p>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 12 }}>
@@ -1541,8 +1443,7 @@ function TableEditPayment({ order, authHeaders, eventId, onUpdate }) {
               style={{
                 padding: '10px 12px', borderRadius: 8,
                 background: 'var(--card)', border: '1px solid var(--glass-border)',
-                color: 'var(--text)', fontSize: 16, textAlign: 'right', boxSizing: 'border-box',
-              }}
+                color: 'var(--text)', fontSize: 16, textAlign: 'right', boxSizing: 'border-box' }}
             />
           </div>
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
@@ -1557,8 +1458,7 @@ function TableEditPayment({ order, authHeaders, eventId, onUpdate }) {
                   border: `1px solid ${form[methodKey] === m.value ? m.color : 'var(--glass-border)'}`,
                   color: form[methodKey] === m.value ? m.color : 'var(--v2-gray-400)',
                   cursor: 'pointer',
-                  WebkitTapHighlightColor: 'transparent',
-                }}
+                  WebkitTapHighlightColor: 'transparent' }}
               >
                 {m.label}
               </button>
@@ -1578,8 +1478,7 @@ function TableEditPayment({ order, authHeaders, eventId, onUpdate }) {
           style={{
             width: '100%', padding: '10px 12px', borderRadius: 10,
             background: 'var(--glass)', border: '1px solid var(--glass-border)',
-            color: 'var(--text)', fontSize: 16, textAlign: 'right', boxSizing: 'border-box',
-          }}
+            color: 'var(--text)', fontSize: 16, textAlign: 'right', boxSizing: 'border-box' }}
         />
       </div>
 
@@ -1589,8 +1488,7 @@ function TableEditPayment({ order, authHeaders, eventId, onUpdate }) {
         disabled={saving}
         style={{
           minHeight: 48, borderRadius: 12, background: '#00C37A', border: 'none', color: '#000', fontSize: 15, fontWeight: 700, cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.6 : 1,
-          WebkitTapHighlightColor: 'transparent',
-        }}
+          WebkitTapHighlightColor: 'transparent' }}
       >
         {saving ? 'שומר...' : 'אשר תשלום'}
       </button>
@@ -1598,11 +1496,11 @@ function TableEditPayment({ order, authHeaders, eventId, onUpdate }) {
   )
 }
 
-function TransactionBlock({ transaction, index, onUpdate, eventId, orderId, authHeaders }) {
+function TransactionBlock({ transaction, index, onUpdate, eventId, orderId }) {
   const [showItems, setShowItems] = useState(true)
   const [showPayments, setShowPayments] = useState(false)
   const [showTips, setShowTips] = useState(false)
-  const hasContext = Boolean(onUpdate && eventId && orderId && authHeaders)
+  const hasContext = Boolean(onUpdate && eventId && orderId)
 
   const txTotal = transaction.total
   const txPaid = transaction.payments.reduce((s, p) => s + Number(p.amount || 0), 0)
@@ -1611,13 +1509,11 @@ function TransactionBlock({ transaction, index, onUpdate, eventId, orderId, auth
   return (
     <div style={{
       background: 'var(--glass)', border: '1px solid var(--glass-border)',
-      borderRadius: 12, padding: 16,
-    }}
+      borderRadius: 12, padding: 16 }}
     >
       <div style={{
         display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-        paddingBottom: 12, borderBottom: '1px solid var(--glass-border)', marginBottom: 12,
-      }}
+        paddingBottom: 12, borderBottom: '1px solid var(--glass-border)', marginBottom: 12 }}
       >
         <span style={{ fontSize: 16, fontWeight: 700, color: '#00C37A' }}>
           ₪{txTotal.toLocaleString()}
@@ -1630,8 +1526,7 @@ function TransactionBlock({ transaction, index, onUpdate, eventId, orderId, auth
           onClick={() => setShowItems((s) => !s)}
           style={{
             display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-            cursor: 'pointer', padding: '6px 0',
-          }}
+            cursor: 'pointer', padding: '6px 0' }}
           role="button"
           tabIndex={0}
           onKeyDown={(e) => {
@@ -1663,8 +1558,7 @@ function TransactionBlock({ transaction, index, onUpdate, eventId, orderId, auth
           onClick={() => setShowPayments((s) => !s)}
           style={{
             display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-            cursor: 'pointer', padding: '6px 0',
-          }}
+            cursor: 'pointer', padding: '6px 0' }}
           role="button"
           tabIndex={0}
           onKeyDown={(e) => {
@@ -1699,8 +1593,7 @@ function TransactionBlock({ transaction, index, onUpdate, eventId, orderId, auth
           onClick={() => setShowTips((s) => !s)}
           style={{
             display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-            cursor: 'pointer', padding: '6px 0',
-          }}
+            cursor: 'pointer', padding: '6px 0' }}
           role="button"
           tabIndex={0}
           onKeyDown={(e) => {
@@ -1728,7 +1621,7 @@ function TransactionBlock({ transaction, index, onUpdate, eventId, orderId, auth
   )
 }
 
-function TableEditAccount({ order, menuItems, authHeaders, eventId, onUpdate }) {
+function TableEditAccount({ order, menuItems, eventId, onUpdate }) {
   // ===== נתונים מה-DB =====
   const allItems = (() => {
     const items = order.items;
@@ -1752,7 +1645,7 @@ function TableEditAccount({ order, menuItems, authHeaders, eventId, onUpdate }) 
   })();
 
   // ===== קיבוץ עסקאות =====
-  const transactions = {};
+  const transactions = { _raw: true };
   allItems.forEach(item => {
     const txId = item.transaction_id || 'txn_legacy';
     if (!transactions[txId]) {
@@ -1806,8 +1699,7 @@ function TableEditAccount({ order, menuItems, authHeaders, eventId, onUpdate }) 
   })();
   const allPeople = [
     { name: `${order.customer_name || ''} ${order.customer_last_name || ''}`.trim(), is_host: true },
-    ...guests.map(g => ({ name: `${g.first_name || g.name || ''} ${g.last_name || ''}`.trim() })),
-  ];
+    ...guests.map(g => ({ name: `${g.first_name || g.name || ''} ${g.last_name || ''}`.trim() }))];
 
   // ===== State לעסקה חדשה/עריכה =====
   const [openTransaction, setOpenTransaction] = useState(null); // null | 'new' | txId (לעריכה)
@@ -1824,7 +1716,7 @@ function TableEditAccount({ order, menuItems, authHeaders, eventId, onUpdate }) 
   const [showMenuSelector, setShowMenuSelector] = useState(false);
   const [manualStep, setManualStep] = useState(1);
   const [drinkSearch, setDrinkSearch] = useState('');
-  const [menuForm, setMenuForm] = useState({ selected_drinks: [], extras_by_drink: {} });
+  const [menuForm, setMenuForm] = useState({ selected_drinks: [], extras_by_drink: { _raw: true } });
   const [interimSaving, setInterimSaving] = useState(false);
   const [deleteTransaction, setDeleteTransaction] = useState(null);
   const editTransactionRef = useRef(null);
@@ -1837,8 +1729,7 @@ function TableEditAccount({ order, menuItems, authHeaders, eventId, onUpdate }) 
     { value: 'cash', label: 'מזומן', color: '#F59E0B' },
     { value: 'bit', label: 'ביט', color: '#8B5CF6' },
     { value: 'credit', label: 'אשראי קופה', color: '#3B82F6' },
-    { value: 'transfer', label: 'העברה', color: '#EC4899' },
-  ];
+    { value: 'transfer', label: 'העברה', color: '#EC4899' }];
 
   // ===== פתיחת עסקה חדשה =====
   const openNewTransaction = () => {
@@ -1871,10 +1762,10 @@ function TableEditAccount({ order, menuItems, authHeaders, eventId, onUpdate }) 
 
       // 1. שמור פריטים
       for (const item of editingItems) {
-        await fetch(`${API_BASE}/api/admin/events/${eventId}/table-items`, {
+        await fetchWithAuth(`/api/admin/events/${eventId}/table-items`, {
           method: 'POST',
-          headers: authHeaders(),
-          body: JSON.stringify({
+          
+          _raw: true, body: JSON.stringify({
             table_order_id: order.id,
             menu_item_id: item.menu_item_id || null,
             name: item.name,
@@ -1882,9 +1773,7 @@ function TableEditAccount({ order, menuItems, authHeaders, eventId, onUpdate }) 
             price: item.price,
             total: item.price * item.quantity,
             is_upsell: item.is_upsell || false,
-            transaction_id: txId,
-          }),
-        });
+            transaction_id: txId }) });
       }
 
       // 2. שמור תשלומים + טיפ
@@ -1893,15 +1782,13 @@ function TableEditAccount({ order, menuItems, authHeaders, eventId, onUpdate }) 
         .map(p => ({
           ...p,
           transaction_id: txId,
-          timestamp: new Date().toISOString(),
-        }));
+          timestamp: new Date().toISOString() }));
 
       const newTipEntry = newTipAmount > 0 ? [{
         amount: newTipAmount,
         method: newTipMethod,
         transaction_id: txId,
-        created_at: new Date().toISOString(),
-      }] : [];
+        created_at: new Date().toISOString() }] : [];
 
       const currentDiscount = Number(order.discount || 0);
       const newTotalDiscount = currentDiscount + (newDiscountAmount || 0);
@@ -1910,8 +1797,7 @@ function TableEditAccount({ order, menuItems, authHeaders, eventId, onUpdate }) 
         amount: newDiscountAmount,
         approver: newDiscountApprover,
         note: newDiscountNote,
-        created_at: new Date().toISOString(),
-      } : null;
+        created_at: new Date().toISOString() } : null;
 
       let existingDiscountLog = [];
       const rawLog = order.discount_log;
@@ -1925,18 +1811,16 @@ function TableEditAccount({ order, menuItems, authHeaders, eventId, onUpdate }) 
         }
       }
 
-      await fetch(`${API_BASE}/api/admin/events/${eventId}/table-orders/${order.id}`, {
+      await fetchWithAuth(`/api/admin/events/${eventId}/table-orders/${order.id}`, {
         method: 'PATCH',
-        headers: authHeaders(),
-        body: JSON.stringify({
+        
+        _raw: true, body: JSON.stringify({
           payments: [...allPayments, ...newPayments],
           tip_amount: totalTip + newTipAmount,
           tip_payments: [...allTipPayments, ...newTipEntry],
           total_amount: totalOrdered + itemsTotal,
           discount: newTotalDiscount,
-          discount_log: discountEntry ? [...existingDiscountLog, discountEntry] : existingDiscountLog,
-        }),
-      });
+          discount_log: discountEntry ? [...existingDiscountLog, discountEntry] : existingDiscountLog }) });
 
       toast.success('עסקה נסגרה ✓');
       setOpenTransaction(null);
@@ -1947,7 +1831,7 @@ function TableEditAccount({ order, menuItems, authHeaders, eventId, onUpdate }) 
       setNewDiscountAmount(0);
       setNewDiscountApprover('');
       setNewDiscountNote('');
-      onUpdate({});
+      onUpdate({ _raw: true });
     } catch (e) {
       toast.error('שגיאה');
     } finally {
@@ -1959,14 +1843,12 @@ function TableEditAccount({ order, menuItems, authHeaders, eventId, onUpdate }) 
   const closeAccount = async () => {
     setFinalSaving(true);
     try {
-      await fetch(`${API_BASE}/api/admin/events/${eventId}/table-orders/${order.id}`, {
+      await fetchWithAuth(`/api/admin/events/${eventId}/table-orders/${order.id}`, {
         method: 'PATCH',
-        headers: authHeaders(),
-        body: JSON.stringify({
+        
+        _raw: true, body: JSON.stringify({
           status: 'closed',
-          closed_at: new Date().toISOString(),
-        }),
-      });
+          closed_at: new Date().toISOString() }) });
       toast.success('חשבון נסגר סופית ✓');
       onUpdate({ status: 'closed' });
     } catch { toast.error('שגיאה'); }
@@ -2014,8 +1896,7 @@ function TableEditAccount({ order, menuItems, authHeaders, eventId, onUpdate }) 
             setTimeout(() => {
               editTransactionRef.current?.scrollIntoView({
                 behavior: 'smooth',
-                block: 'start',
-              })
+                block: 'start' })
             }, 100)
           }}
           onDelete={() => setDeleteTransaction(tx)}
@@ -2029,8 +1910,7 @@ function TableEditAccount({ order, menuItems, authHeaders, eventId, onUpdate }) 
       {openTransaction === 'new' && (
         <div style={{
           background: 'var(--glass)', border: '2px solid rgba(0,195,122,0.4)',
-          borderRadius: 12, padding: 16,
-        }}>
+          borderRadius: 12, padding: 16 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
             <button type="button"
               onClick={() => {
@@ -2057,8 +1937,7 @@ function TableEditAccount({ order, menuItems, authHeaders, eventId, onUpdate }) 
                 width: '100%', minHeight: 48, borderRadius: 10,
                 background: 'rgba(0,195,122,0.1)', border: '1px solid rgba(0,195,122,0.3)',
                 color: '#00C37A', fontSize: 15, fontWeight: 700, cursor: 'pointer',
-                marginBottom: 12,
-              }}
+                marginBottom: 12 }}
             >+ הוסף פריטים מהתפריט</button>
           )}
 
@@ -2086,8 +1965,7 @@ function TableEditAccount({ order, menuItems, authHeaders, eventId, onUpdate }) 
                     style={{
                       flex: 1, minHeight: 44, borderRadius: 10,
                       background: 'rgba(59,130,246,0.1)', border: '1px solid rgba(59,130,246,0.3)',
-                      color: '#3B82F6', fontSize: 14, fontWeight: 700, cursor: 'pointer',
-                    }}
+                      color: '#3B82F6', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}
                   >המשך לתוספות →</button>
                 )}
 
@@ -2097,8 +1975,7 @@ function TableEditAccount({ order, menuItems, authHeaders, eventId, onUpdate }) 
                     style={{
                       flex: 1, minHeight: 44, borderRadius: 10,
                       background: 'var(--glass)', border: '1px solid var(--glass-border)',
-                      color: 'var(--text)', fontSize: 14, cursor: 'pointer',
-                    }}
+                      color: 'var(--text)', fontSize: 14, cursor: 'pointer' }}
                   >← הוסף עוד פריט</button>
                 )}
 
@@ -2111,22 +1988,20 @@ function TableEditAccount({ order, menuItems, authHeaders, eventId, onUpdate }) 
                         name: d.name,
                         quantity: d.quantity,
                         price: d.price,
-                        is_upsell: false,
-                      });
+                        is_upsell: false });
                     });
-                    Object.values(menuForm.extras_by_drink || {}).forEach(extras => {
-                      Object.values(extras || {}).forEach(e => {
+                    Object.values(menuForm.extras_by_drink || { _raw: true }).forEach(extras => {
+                      Object.values(extras || { _raw: true }).forEach(e => {
                         if (e.quantity > 0) newItems.push({
                           menu_item_id: e.id,
                           name: e.name,
                           quantity: e.quantity,
                           price: e.price || 0,
-                          is_upsell: true,
-                        });
+                          is_upsell: true });
                       });
                     });
                     setEditingItems(prev => [...prev, ...newItems]);
-                    setMenuForm({ selected_drinks: {}, extras_by_drink: {} });
+                    setMenuForm({ selected_drinks: { _raw: true }, extras_by_drink: { _raw: true } });
                     setManualStep(1);
                     setShowMenuSelector(false);
                     const total = [...editingItems, ...newItems].reduce((s, i) => s + (i.price * i.quantity), 0);
@@ -2140,8 +2015,7 @@ function TableEditAccount({ order, menuItems, authHeaders, eventId, onUpdate }) 
                     border: 'none',
                     color: selectedDrinks.length > 0 ? '#000' : 'var(--v2-gray-400)',
                     fontSize: 14, fontWeight: 700,
-                    cursor: selectedDrinks.length > 0 ? 'pointer' : 'not-allowed',
-                  }}
+                    cursor: selectedDrinks.length > 0 ? 'pointer' : 'not-allowed' }}
                 >הוסף לעסקה</button>
               </div>
             </div>
@@ -2154,8 +2028,7 @@ function TableEditAccount({ order, menuItems, authHeaders, eventId, onUpdate }) 
               {editingItems.map((item, i) => (
                 <div key={i} style={{
                   display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                  padding: '6px 0', borderBottom: '1px solid var(--glass-border)', fontSize: 13,
-                }}>
+                  padding: '6px 0', borderBottom: '1px solid var(--glass-border)', fontSize: 13 }}>
                   <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                     <button type="button"
                       onClick={() => setEditingItems(prev => prev.filter((_, j) => j !== i))}
@@ -2171,8 +2044,7 @@ function TableEditAccount({ order, menuItems, authHeaders, eventId, onUpdate }) 
               {currentTransactionDiscount > 0 && (
                 <div style={{
                   display: 'flex', justifyContent: 'space-between',
-                  padding: '6px 0', fontSize: 13,
-                }}
+                  padding: '6px 0', fontSize: 13 }}
                 >
                   <span style={{ color: '#F59E0B' }}>-₪{currentTransactionDiscount.toLocaleString()}</span>
                   <span style={{ color: 'var(--v2-gray-400)' }}>🏷️ הנחה בעסקה זו</span>
@@ -2181,8 +2053,7 @@ function TableEditAccount({ order, menuItems, authHeaders, eventId, onUpdate }) 
               <div style={{
                 display: 'flex', justifyContent: 'space-between',
                 padding: '8px 0', borderTop: '1px solid var(--glass-border)',
-                fontSize: 14, fontWeight: 700,
-              }}
+                fontSize: 14, fontWeight: 700 }}
               >
                 <span style={{ color: '#00C37A' }}>₪{currentTransactionTotal.toLocaleString()}</span>
                 <span>סה&quot;כ לתשלום בעסקה זו</span>
@@ -2191,8 +2062,7 @@ function TableEditAccount({ order, menuItems, authHeaders, eventId, onUpdate }) 
               {/* הנחה — אופציונלי */}
               <div style={{
                 background: 'var(--card)', border: '1px solid var(--glass-border)',
-                borderRadius: 10, padding: 12, marginBottom: 12,
-              }}
+                borderRadius: 10, padding: 12, marginBottom: 12 }}
               >
                 <p style={{ margin: '0 0 8px', fontSize: 13, fontWeight: 700, textAlign: 'right', color: '#EF4444' }}>
                   🏷️ הנחה (אופציונלי)
@@ -2207,8 +2077,7 @@ function TableEditAccount({ order, menuItems, authHeaders, eventId, onUpdate }) 
                       width: '100%', minHeight: 40, padding: '8px 10px', borderRadius: 8,
                       background: 'var(--glass)', border: '1px solid var(--glass-border)',
                       color: 'var(--text)', fontSize: 14, textAlign: 'right',
-                      boxSizing: 'border-box',
-                    }}
+                      boxSizing: 'border-box' }}
                   />
                   <input
                     type="text"
@@ -2219,8 +2088,7 @@ function TableEditAccount({ order, menuItems, authHeaders, eventId, onUpdate }) 
                       width: '100%', minHeight: 40, padding: '8px 10px', borderRadius: 8,
                       background: 'var(--glass)', border: '1px solid var(--glass-border)',
                       color: 'var(--text)', fontSize: 14, textAlign: 'right',
-                      boxSizing: 'border-box',
-                    }}
+                      boxSizing: 'border-box' }}
                   />
                   <input
                     type="text"
@@ -2231,8 +2099,7 @@ function TableEditAccount({ order, menuItems, authHeaders, eventId, onUpdate }) 
                       width: '100%', minHeight: 40, padding: '8px 10px', borderRadius: 8,
                       background: 'var(--glass)', border: '1px solid var(--glass-border)',
                       color: 'var(--text)', fontSize: 14, textAlign: 'right',
-                      boxSizing: 'border-box',
-                    }}
+                      boxSizing: 'border-box' }}
                   />
                 </div>
               </div>
@@ -2242,8 +2109,7 @@ function TableEditAccount({ order, menuItems, authHeaders, eventId, onUpdate }) 
                 style={{
                   width: '100%', minHeight: 36, borderRadius: 8, marginTop: 8,
                   background: 'transparent', border: '1px dashed var(--glass-border)',
-                  color: 'var(--v2-gray-400)', fontSize: 12, cursor: 'pointer',
-                }}
+                  color: 'var(--v2-gray-400)', fontSize: 12, cursor: 'pointer' }}
               >+ הוסף עוד פריט</button>
             </div>
           )}
@@ -2257,8 +2123,7 @@ function TableEditAccount({ order, menuItems, authHeaders, eventId, onUpdate }) 
                   {[
                     { value: 'single', label: 'ראש שולחן' },
                     { value: 'equal', label: 'חלוקה שווה' },
-                    { value: 'custom', label: 'חלוקה משתנה' },
-                  ].map(opt => (
+                    { value: 'custom', label: 'חלוקה משתנה' }].map(opt => (
                     <button key={opt.value} type="button"
                       onClick={() => initPayments(opt.value, currentTransactionTotal)}
                       style={{
@@ -2266,8 +2131,7 @@ function TableEditAccount({ order, menuItems, authHeaders, eventId, onUpdate }) 
                         background: paymentMode === opt.value ? 'rgba(0,195,122,0.1)' : 'var(--glass)',
                         border: `1px solid ${paymentMode === opt.value ? 'rgba(0,195,122,0.3)' : 'var(--glass-border)'}`,
                         color: paymentMode === opt.value ? '#00C37A' : 'var(--text)',
-                        cursor: 'pointer', fontWeight: paymentMode === opt.value ? 700 : 400,
-                      }}
+                        cursor: 'pointer', fontWeight: paymentMode === opt.value ? 700 : 400 }}
                     >{opt.label}</button>
                   ))}
                 </div>
@@ -2276,8 +2140,7 @@ function TableEditAccount({ order, menuItems, authHeaders, eventId, onUpdate }) 
               {localPayments.map((payment, i) => (
                 <div key={i} style={{
                   background: 'var(--card)', border: '1px solid var(--glass-border)',
-                  borderRadius: 10, padding: 12, marginBottom: 8,
-                }}>
+                  borderRadius: 10, padding: 12, marginBottom: 8 }}>
                   <p style={{ margin: '0 0 6px', fontSize: 12, fontWeight: 700, textAlign: 'right' }}>
                     {payment.person || `אדם ${i + 1}`}
                   </p>
@@ -2291,8 +2154,7 @@ function TableEditAccount({ order, menuItems, authHeaders, eventId, onUpdate }) 
                       background: 'var(--glass)', border: '1px solid var(--glass-border)',
                       color: 'var(--text)', fontSize: 14, textAlign: 'right',
                       boxSizing: 'border-box', marginBottom: 6,
-                      opacity: paymentMode === 'equal' ? 0.6 : 1,
-                    }} />
+                      opacity: paymentMode === 'equal' ? 0.6 : 1 }} />
                   <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
                     {PAYMENT_METHODS.map(m => (
                       <button key={m.value} type="button"
@@ -2304,8 +2166,7 @@ function TableEditAccount({ order, menuItems, authHeaders, eventId, onUpdate }) 
                           background: payment.method === m.value ? `${m.color}22` : 'var(--glass)',
                           border: `1px solid ${payment.method === m.value ? m.color : 'var(--glass-border)'}`,
                           color: payment.method === m.value ? m.color : 'var(--v2-gray-400)',
-                          cursor: 'pointer',
-                        }}
+                          cursor: 'pointer' }}
                       >{m.label}</button>
                     ))}
                   </div>
@@ -2315,8 +2176,7 @@ function TableEditAccount({ order, menuItems, authHeaders, eventId, onUpdate }) 
               {/* טיפ */}
               <div style={{
                 background: 'var(--card)', border: '1px solid var(--glass-border)',
-                borderRadius: 10, padding: 12, marginBottom: 12,
-              }}
+                borderRadius: 10, padding: 12, marginBottom: 12 }}
               >
                 <p style={{ margin: '0 0 8px', fontSize: 13, fontWeight: 700, textAlign: 'right', color: '#F59E0B' }}>
                   💵 טיפ (אופציונלי) — לא חלק מהחשבון
@@ -2330,8 +2190,7 @@ function TableEditAccount({ order, menuItems, authHeaders, eventId, onUpdate }) 
                     width: '100%', minHeight: 40, padding: '8px 10px', borderRadius: 8,
                     background: 'var(--glass)', border: '1px solid var(--glass-border)',
                     color: 'var(--text)', fontSize: 14, textAlign: 'right',
-                    boxSizing: 'border-box', marginBottom: 6,
-                  }}
+                    boxSizing: 'border-box', marginBottom: 6 }}
                 />
                 <div style={{ display: 'flex', gap: 6 }}>
                   {[{ value: 'cash', label: 'מזומן' }, { value: 'credit', label: 'אשראי' }].map((m) => (
@@ -2344,8 +2203,7 @@ function TableEditAccount({ order, menuItems, authHeaders, eventId, onUpdate }) 
                         background: newTipMethod === m.value ? 'rgba(245,158,11,0.1)' : 'var(--glass)',
                         border: `1px solid ${newTipMethod === m.value ? '#F59E0B' : 'var(--glass-border)'}`,
                         color: newTipMethod === m.value ? '#F59E0B' : 'var(--v2-gray-400)',
-                        cursor: 'pointer',
-                      }}
+                        cursor: 'pointer' }}
                     >
                       {m.label}
                     </button>
@@ -2360,8 +2218,7 @@ function TableEditAccount({ order, menuItems, authHeaders, eventId, onUpdate }) 
                   width: '100%', minHeight: 48, borderRadius: 10,
                   background: '#00C37A', border: 'none', color: '#000',
                   fontSize: 15, fontWeight: 800, cursor: 'pointer',
-                  opacity: interimSaving ? 0.6 : 1,
-                }}
+                  opacity: interimSaving ? 0.6 : 1 }}
               >
                 {interimSaving ? 'שומר...' : '✓ סגור עסקה'}
               </button>
@@ -2381,7 +2238,6 @@ function TableEditAccount({ order, menuItems, authHeaders, eventId, onUpdate }) 
               allTipPayments={allTipPayments}
               allPeople={allPeople}
               PAYMENT_METHODS={PAYMENT_METHODS}
-              authHeaders={authHeaders}
               eventId={eventId}
               orderId={order.id}
               onClose={() => setOpenTransaction(null)}
@@ -2398,8 +2254,7 @@ function TableEditAccount({ order, menuItems, authHeaders, eventId, onUpdate }) 
           style={{
             width: '100%', minHeight: 52, borderRadius: 12,
             background: 'rgba(0,195,122,0.1)', border: '1px dashed rgba(0,195,122,0.4)',
-            color: '#00C37A', fontSize: 15, fontWeight: 700, cursor: 'pointer',
-          }}
+            color: '#00C37A', fontSize: 15, fontWeight: 700, cursor: 'pointer' }}
         >
           + הוסף עסקה חדשה
         </button>
@@ -2410,8 +2265,7 @@ function TableEditAccount({ order, menuItems, authHeaders, eventId, onUpdate }) 
         <div style={{
           background: 'rgba(0,195,122,0.05)',
           border: '1px solid rgba(0,195,122,0.3)',
-          borderRadius: 12, padding: 16,
-        }}>
+          borderRadius: 12, padding: 16 }}>
           <p style={{ margin: '0 0 12px', fontSize: 15, fontWeight: 800, color: '#00C37A' }}>סיכום מאוחד</p>
 
           {/* סה"כ פריטים */}
@@ -2423,8 +2277,7 @@ function TableEditAccount({ order, menuItems, authHeaders, eventId, onUpdate }) 
               {closedTransactions.map((tx, idx) => tx.items.map((item, i) => (
                 <div key={`${tx.id}-${i}`} style={{
                   display: 'flex', justifyContent: 'space-between',
-                  padding: '4px 0', fontSize: 12, color: 'var(--v2-gray-400)',
-                }}>
+                  padding: '4px 0', fontSize: 12, color: 'var(--v2-gray-400)' }}>
                   <span>₪{Number(item.total || item.price * item.quantity).toLocaleString()}</span>
                   <span>עסקה {idx + 1} — {item.name} {item.quantity > 1 && `×${item.quantity}`}</span>
                 </div>
@@ -2441,8 +2294,7 @@ function TableEditAccount({ order, menuItems, authHeaders, eventId, onUpdate }) 
               {closedTransactions.map((tx, idx) => tx.payments.map((p, i) => (
                 <div key={`${tx.id}-p-${i}`} style={{
                   display: 'flex', justifyContent: 'space-between',
-                  padding: '4px 0', fontSize: 12, color: 'var(--v2-gray-400)',
-                }}>
+                  padding: '4px 0', fontSize: 12, color: 'var(--v2-gray-400)' }}>
                   <span style={{ color: '#00C37A' }}>₪{Number(p.amount).toLocaleString()}</span>
                   <span>עסקה {idx + 1} — {p.person} ({PAYMENT_METHODS.find(m => m.value === p.method)?.label || p.method})</span>
                 </div>
@@ -2459,8 +2311,7 @@ function TableEditAccount({ order, menuItems, authHeaders, eventId, onUpdate }) 
               {closedTransactions.map((tx, idx) => tx.tips.map((t, i) => (
                 <div key={`${tx.id}-t-${i}`} style={{
                   display: 'flex', justifyContent: 'space-between',
-                  padding: '4px 0', fontSize: 12, color: 'var(--v2-gray-400)',
-                }}>
+                  padding: '4px 0', fontSize: 12, color: 'var(--v2-gray-400)' }}>
                   <span style={{ color: '#F59E0B' }}>₪{Number(t.amount).toLocaleString()}</span>
                   <span>עסקה {idx + 1} — {t.method === 'cash' ? 'מזומן' : 'אשראי'}</span>
                 </div>
@@ -2481,8 +2332,7 @@ function TableEditAccount({ order, menuItems, authHeaders, eventId, onUpdate }) 
                     style={{
                       padding: '6px 8px', borderRadius: 6, marginBottom: 4,
                       background: 'rgba(239,68,68,0.05)', fontSize: 12,
-                      color: 'var(--v2-gray-400)', textAlign: 'right',
-                    }}
+                      color: 'var(--v2-gray-400)', textAlign: 'right' }}
                   >
                     <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                       <span style={{ color: '#EF4444' }}>-₪{Number(d.amount).toLocaleString()}</span>
@@ -2514,8 +2364,7 @@ function TableEditAccount({ order, menuItems, authHeaders, eventId, onUpdate }) 
             color: openTransaction === null ? '#fff' : 'var(--v2-gray-400)',
             fontSize: 15, fontWeight: 800,
             cursor: openTransaction === null ? 'pointer' : 'not-allowed',
-            opacity: finalSaving ? 0.6 : 1,
-          }}
+            opacity: finalSaving ? 0.6 : 1 }}
         >
           {finalSaving ? 'סוגר...' : '🔒 סגור חשבון סופי'}
         </button>
@@ -2524,13 +2373,11 @@ function TableEditAccount({ order, menuItems, authHeaders, eventId, onUpdate }) 
       {deleteTransaction && (
         <div style={{
           position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)',
-          zIndex: 3000, display: 'flex', alignItems: 'center', justifyContent: 'center',
-        }}
+          zIndex: 3000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
         >
           <div style={{
             background: 'var(--card)', borderRadius: 16, padding: 24,
-            width: '90%', maxWidth: 400, textAlign: 'right',
-          }}
+            width: '90%', maxWidth: 400, textAlign: 'right' }}
           >
             <p style={{ margin: '0 0 8px', fontSize: 16, fontWeight: 700 }}>
               האם למחוק עסקה {closedTransactions.findIndex(t => t.id === deleteTransaction.id) + 1}?
@@ -2544,38 +2391,34 @@ function TableEditAccount({ order, menuItems, authHeaders, eventId, onUpdate }) 
                 style={{
                   flex: 1, minHeight: 44, borderRadius: 10,
                   background: 'var(--glass)', border: '1px solid var(--glass-border)',
-                  color: 'var(--text)', fontSize: 14, cursor: 'pointer',
-                }}
+                  color: 'var(--text)', fontSize: 14, cursor: 'pointer' }}
               >ביטול</button>
               <button type="button"
                 onClick={async () => {
                   try {
                     for (const item of deleteTransaction.items) {
-                      await fetch(`${API_BASE}/api/admin/events/${eventId}/table-items/${item.id}`, {
-                        method: 'DELETE', headers: authHeaders(),
-                      });
+                      await fetchWithAuth(`/api/admin/events/${eventId}/table-items/${item.id}`, {
+                        method: 'DELETE', 
+                      _raw: true });
                     }
                     const otherPayments = allPayments.filter(p => (p.transaction_id || 'txn_legacy') !== deleteTransaction.id);
                     const otherTips = allTipPayments.filter(t => (t.transaction_id || 'txn_legacy') !== deleteTransaction.id);
-                    await fetch(`${API_BASE}/api/admin/events/${eventId}/table-orders/${order.id}`, {
-                      method: 'PATCH', headers: authHeaders(),
-                      body: JSON.stringify({
+                    await fetchWithAuth(`/api/admin/events/${eventId}/table-orders/${order.id}`, {
+                      method: 'PATCH', 
+                      _raw: true, body: JSON.stringify({
                         payments: otherPayments,
                         tip_payments: otherTips,
-                        tip_amount: otherTips.reduce((s, t) => s + Number(t.amount || 0), 0),
-                      }),
-                    });
+                        tip_amount: otherTips.reduce((s, t) => s + Number(t.amount || 0), 0) }) });
                     toast.success('עסקה נמחקה ✓');
                     if (openTransaction === deleteTransaction.id) setOpenTransaction(null);
                     setDeleteTransaction(null);
-                    onUpdate({});
+                    onUpdate({ _raw: true });
                   } catch { toast.error('שגיאה'); }
                 }}
                 style={{
                   flex: 2, minHeight: 44, borderRadius: 10,
                   background: '#EF4444', border: 'none',
-                  color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer',
-                }}
+                  color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}
               >🗑️ מחק עסקה</button>
             </div>
           </div>
@@ -2586,7 +2429,7 @@ function TableEditAccount({ order, menuItems, authHeaders, eventId, onUpdate }) 
   );
 }
 
-function EditTransactionBlock({ transaction, allPayments, allTipPayments, allPeople, PAYMENT_METHODS, authHeaders, eventId, orderId, onClose, onUpdate }) {
+function EditTransactionBlock({ transaction, allPayments, allTipPayments, allPeople, PAYMENT_METHODS, eventId, orderId, onClose, onUpdate }) {
   const [items, setItems] = useState(transaction.items.map(i => ({ ...i })));
   const [payments, setPayments] = useState(transaction.payments.map(p => ({ ...p })));
   const [tips, setTips] = useState(transaction.tips.map(t => ({ ...t })));
@@ -2619,8 +2462,7 @@ function EditTransactionBlock({ transaction, allPayments, allTipPayments, allPeo
       amount: newTipAmount,
       method: newTipMethod,
       transaction_id: transaction.id,
-      created_at: new Date().toISOString(),
-    }]);
+      created_at: new Date().toISOString() }]);
     setNewTipAmount(0);
   };
 
@@ -2631,22 +2473,20 @@ function EditTransactionBlock({ transaction, allPayments, allTipPayments, allPeo
       for (const origItem of transaction.items) {
         const stillExists = items.find(i => i.id === origItem.id);
         if (!stillExists) {
-          const r = await fetch(`${API_BASE}/api/admin/events/${eventId}/table-items/${origItem.id}`, {
-            method: 'DELETE', headers: authHeaders(),
-          });
+          const r = await fetchWithAuth(`/api/admin/events/${eventId}/table-items/${origItem.id}`, {
+            method: 'DELETE', 
+          _raw: true });
           if (!r.ok) {
             const err = await r.text();
             console.error('API error:', r.status, err);
           }
         } else if (stillExists.quantity !== origItem.quantity || stillExists.price !== origItem.price) {
-          const r = await fetch(`${API_BASE}/api/admin/events/${eventId}/table-items/${origItem.id}`, {
-            method: 'PATCH', headers: authHeaders(),
-            body: JSON.stringify({
+          const r = await fetchWithAuth(`/api/admin/events/${eventId}/table-items/${origItem.id}`, {
+            method: 'PATCH', 
+            _raw: true, body: JSON.stringify({
               quantity: Number(stillExists.quantity),
               price: Number(stillExists.price),
-              total: Number(stillExists.price) * Number(stillExists.quantity),
-            }),
-          });
+              total: Number(stillExists.price) * Number(stillExists.quantity) }) });
           if (!r.ok) {
             const err = await r.text();
             console.error('API error:', r.status, err);
@@ -2658,20 +2498,18 @@ function EditTransactionBlock({ transaction, allPayments, allTipPayments, allPeo
       const otherPayments = allPayments.filter(p => (p.transaction_id || 'txn_legacy') !== transaction.id);
       const otherTips = allTipPayments.filter(t => (t.transaction_id || 'txn_legacy') !== transaction.id);
 
-      const res = await fetch(`${API_BASE}/api/admin/events/${eventId}/table-orders/${orderId}`, {
-        method: 'PATCH', headers: authHeaders(),
-        body: JSON.stringify({
+      const res = await fetchWithAuth(`/api/admin/events/${eventId}/table-orders/${orderId}`, {
+        method: 'PATCH', 
+        _raw: true, body: JSON.stringify({
           payments: [...otherPayments, ...payments.filter(p => Number(p.amount) > 0)],
           tip_payments: [...otherTips, ...tips],
-          tip_amount: [...otherTips, ...tips].reduce((s, t) => s + Number(t.amount || 0), 0),
-        }),
-      });
+          tip_amount: [...otherTips, ...tips].reduce((s, t) => s + Number(t.amount || 0), 0) }) });
 
       if (res.ok) {
         const data = await res.json();
         console.log('save response:', data);
         toast.success('העסקה עודכנה ✓');
-        onUpdate({});
+        onUpdate({ _raw: true });
       } else {
         const errText = await res.text();
         console.error('save failed:', res.status, errText);
@@ -2688,8 +2526,7 @@ function EditTransactionBlock({ transaction, allPayments, allTipPayments, allPeo
     <div style={{
       background: 'rgba(59,130,246,0.05)',
       border: '2px solid rgba(59,130,246,0.4)',
-      borderRadius: 12, padding: 16,
-    }}>
+      borderRadius: 12, padding: 16 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
         <button type="button" onClick={onClose}
           style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--v2-gray-400)', fontSize: 18 }}
@@ -2704,8 +2541,7 @@ function EditTransactionBlock({ transaction, allPayments, allTipPayments, allPeo
           <div key={i} style={{
             display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8,
             padding: 8, borderRadius: 8, marginBottom: 4,
-            background: 'var(--card)', border: '1px solid var(--glass-border)',
-          }}>
+            background: 'var(--card)', border: '1px solid var(--glass-border)' }}>
             <button type="button"
               onClick={() => setItems(prev => prev.filter((_, j) => j !== i))}
               style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#EF4444', fontSize: 14 }}
@@ -2730,8 +2566,7 @@ function EditTransactionBlock({ transaction, allPayments, allTipPayments, allPeo
           {[
             { value: 'single', label: 'ראש שולחן' },
             { value: 'equal', label: 'חלוקה שווה' },
-            { value: 'custom', label: 'חלוקה משתנה' },
-          ].map(opt => (
+            { value: 'custom', label: 'חלוקה משתנה' }].map(opt => (
             <button key={opt.value} type="button"
               onClick={() => changePaymentMode(opt.value)}
               style={{
@@ -2739,8 +2574,7 @@ function EditTransactionBlock({ transaction, allPayments, allTipPayments, allPeo
                 background: paymentMode === opt.value ? 'rgba(59,130,246,0.1)' : 'var(--glass)',
                 border: `1px solid ${paymentMode === opt.value ? 'rgba(59,130,246,0.3)' : 'var(--glass-border)'}`,
                 color: paymentMode === opt.value ? '#3B82F6' : 'var(--text)',
-                cursor: 'pointer',
-              }}
+                cursor: 'pointer' }}
             >{opt.label}</button>
           ))}
         </div>
@@ -2752,8 +2586,7 @@ function EditTransactionBlock({ transaction, allPayments, allTipPayments, allPeo
         {payments.map((p, i) => (
           <div key={i} style={{
             background: 'var(--card)', border: '1px solid var(--glass-border)',
-            borderRadius: 8, padding: 10, marginBottom: 6,
-          }}>
+            borderRadius: 8, padding: 10, marginBottom: 6 }}>
             <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 6 }}>
               <button type="button"
                 onClick={() => setPayments(prev => prev.filter((_, j) => j !== i))}
@@ -2775,8 +2608,7 @@ function EditTransactionBlock({ transaction, allPayments, allTipPayments, allPeo
                     background: p.method === m.value ? `${m.color}22` : 'var(--glass)',
                     border: `1px solid ${p.method === m.value ? m.color : 'var(--glass-border)'}`,
                     color: p.method === m.value ? m.color : 'var(--v2-gray-400)',
-                    cursor: 'pointer',
-                  }}
+                    cursor: 'pointer' }}
                 >{m.label}</button>
               ))}
             </div>
@@ -2793,8 +2625,7 @@ function EditTransactionBlock({ transaction, allPayments, allTipPayments, allPeo
           <div key={i} style={{
             display: 'flex', gap: 8, alignItems: 'center',
             padding: 8, borderRadius: 8, marginBottom: 4,
-            background: 'var(--card)', border: '1px solid var(--glass-border)',
-          }}>
+            background: 'var(--card)', border: '1px solid var(--glass-border)' }}>
             <button type="button"
               onClick={() => setTips(prev => prev.filter((_, j) => j !== i))}
               style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#EF4444', fontSize: 14 }}
@@ -2811,8 +2642,7 @@ function EditTransactionBlock({ transaction, allPayments, allTipPayments, allPeo
         <div style={{
           display: 'flex', gap: 6, marginTop: 8,
           padding: 8, borderRadius: 8,
-          background: 'rgba(245,158,11,0.05)', border: '1px dashed rgba(245,158,11,0.3)',
-        }}>
+          background: 'rgba(245,158,11,0.05)', border: '1px dashed rgba(245,158,11,0.3)' }}>
           <input type="number" value={newTipAmount || ''}
             onChange={e => setNewTipAmount(Number(e.target.value))}
             placeholder="0"
@@ -2826,8 +2656,7 @@ function EditTransactionBlock({ transaction, allPayments, allTipPayments, allPeo
                 background: newTipMethod === m.value ? 'rgba(245,158,11,0.1)' : 'var(--glass)',
                 border: `1px solid ${newTipMethod === m.value ? '#F59E0B' : 'var(--glass-border)'}`,
                 color: newTipMethod === m.value ? '#F59E0B' : 'var(--v2-gray-400)',
-                cursor: 'pointer',
-              }}
+                cursor: 'pointer' }}
             >{m.label}</button>
           ))}
           <button type="button" onClick={addTip}
@@ -2838,8 +2667,7 @@ function EditTransactionBlock({ transaction, allPayments, allTipPayments, allPeo
               border: 'none',
               color: newTipAmount ? '#000' : 'var(--v2-gray-400)',
               cursor: newTipAmount ? 'pointer' : 'not-allowed',
-              fontWeight: 700,
-            }}
+              fontWeight: 700 }}
           >+</button>
         </div>
       </div>
@@ -2849,8 +2677,7 @@ function EditTransactionBlock({ transaction, allPayments, allTipPayments, allPeo
         padding: 10, borderRadius: 8, marginBottom: 12,
         background: balance === 0 ? 'rgba(0,195,122,0.1)' : 'rgba(239,68,68,0.1)',
         border: `1px solid ${balance === 0 ? 'rgba(0,195,122,0.3)' : 'rgba(239,68,68,0.3)'}`,
-        display: 'flex', justifyContent: 'space-between',
-      }}>
+        display: 'flex', justifyContent: 'space-between' }}>
         <span style={{ fontSize: 14, fontWeight: 700, color: balance === 0 ? '#00C37A' : '#EF4444' }}>
           ₪{Math.abs(balance).toLocaleString()}
         </span>
@@ -2864,16 +2691,14 @@ function EditTransactionBlock({ transaction, allPayments, allTipPayments, allPeo
           style={{
             flex: 1, minHeight: 44, borderRadius: 10,
             background: 'var(--glass)', border: '1px solid var(--glass-border)',
-            color: 'var(--v2-gray-400)', fontSize: 14, cursor: 'pointer',
-          }}
+            color: 'var(--v2-gray-400)', fontSize: 14, cursor: 'pointer' }}
         >ביטול</button>
         <button type="button" onClick={save} disabled={saving}
           style={{
             flex: 2, minHeight: 44, borderRadius: 10,
             background: '#3B82F6', border: 'none',
             color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer',
-            opacity: saving ? 0.6 : 1,
-          }}
+            opacity: saving ? 0.6 : 1 }}
         >{saving ? 'שומר...' : 'שמור שינויים'}</button>
       </div>
     </div>
@@ -2895,29 +2720,25 @@ function ClosedTransactionBlock({ transaction, index, PAYMENT_METHODS, onEdit, o
   return (
     <div style={{
       background: 'var(--glass)', border: '1px solid var(--glass-border)',
-      borderRadius: 12, padding: 16,
-    }}>
+      borderRadius: 12, padding: 16 }}>
       {/* כותרת עסקה + עריכה */}
       <div style={{
         display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-        paddingBottom: 10, borderBottom: '1px solid var(--glass-border)', marginBottom: 10,
-      }}>
+        paddingBottom: 10, borderBottom: '1px solid var(--glass-border)', marginBottom: 10 }}>
         <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
           <button type="button"
             onClick={onDelete}
             style={{
               padding: '4px 8px', borderRadius: 6, fontSize: 11,
               background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)',
-              color: '#EF4444', cursor: 'pointer',
-            }}
+              color: '#EF4444', cursor: 'pointer' }}
           >🗑️ מחק</button>
           <button type="button"
             onClick={onEdit}
             style={{
               padding: '4px 8px', borderRadius: 6, fontSize: 11,
               background: 'var(--glass)', border: '1px solid var(--glass-border)',
-              color: 'var(--v2-gray-400)', cursor: 'pointer',
-            }}
+              color: 'var(--v2-gray-400)', cursor: 'pointer' }}
           >✏️ עריכה</button>
           <span style={{ fontSize: 15, fontWeight: 800, color: '#00C37A' }}>
             ₪{txTotal.toLocaleString()}
@@ -2943,8 +2764,7 @@ function ClosedTransactionBlock({ transaction, index, PAYMENT_METHODS, onEdit, o
         {showItems && transaction.items.map((item, i) => (
           <div key={i} style={{
             display: 'flex', justifyContent: 'space-between',
-            padding: '4px 0', fontSize: 12, color: 'var(--v2-gray-400)',
-          }}>
+            padding: '4px 0', fontSize: 12, color: 'var(--v2-gray-400)' }}>
             <span style={{ color: '#00C37A' }}>₪{Number(item.total || item.price * item.quantity).toLocaleString()}</span>
             <span>{item.name} {item.quantity > 1 && `×${item.quantity}`}</span>
           </div>
@@ -2963,8 +2783,7 @@ function ClosedTransactionBlock({ transaction, index, PAYMENT_METHODS, onEdit, o
         {showPayments && transaction.payments.map((p, i) => (
           <div key={i} style={{
             display: 'flex', justifyContent: 'space-between',
-            padding: '4px 0', fontSize: 12, color: 'var(--v2-gray-400)',
-          }}>
+            padding: '4px 0', fontSize: 12, color: 'var(--v2-gray-400)' }}>
             <span style={{ color: '#00C37A' }}>₪{Number(p.amount).toLocaleString()}</span>
             <span>{p.person} — {PAYMENT_METHODS.find(m => m.value === p.method)?.label || p.method}</span>
           </div>
@@ -2983,8 +2802,7 @@ function ClosedTransactionBlock({ transaction, index, PAYMENT_METHODS, onEdit, o
         {showTips && transaction.tips.map((t, i) => (
           <div key={i} style={{
             display: 'flex', justifyContent: 'space-between',
-            padding: '4px 0', fontSize: 12, color: 'var(--v2-gray-400)',
-          }}>
+            padding: '4px 0', fontSize: 12, color: 'var(--v2-gray-400)' }}>
             <span style={{ color: '#F59E0B' }}>₪{Number(t.amount).toLocaleString()}</span>
             <span>{t.method === 'cash' ? 'מזומן' : 'אשראי'}</span>
           </div>
@@ -3003,8 +2821,7 @@ function ClosedTransactionBlock({ transaction, index, PAYMENT_METHODS, onEdit, o
               style={{
                 padding: '6px 8px', borderRadius: 6, marginBottom: 4,
                 background: 'rgba(239,68,68,0.05)', fontSize: 11,
-                color: 'var(--v2-gray-400)', textAlign: 'right',
-              }}
+                color: 'var(--v2-gray-400)', textAlign: 'right' }}
             >
               {d.approver && <div>אושר ע״י: {d.approver}</div>}
               {d.note && <div>הערה: {d.note}</div>}
@@ -3016,7 +2833,7 @@ function ClosedTransactionBlock({ transaction, index, PAYMENT_METHODS, onEdit, o
   );
 }
 
-function TableEditRequests({ order, menuItems, authHeaders, eventId, onUpdate, loadData }) {
+function TableEditRequests({ order, menuItems, eventId, onUpdate, loadData }) {
   const [requests, setRequests] = useState([])
   const [upsellItem, setUpsellItem] = useState('')
   const [upsellQty, setUpsellQty] = useState(1)
@@ -3029,9 +2846,7 @@ function TableEditRequests({ order, menuItems, authHeaders, eventId, onUpdate, l
 
   useEffect(() => {
     let cancelled = false
-    fetch(`${API_BASE}/api/admin/events/${eventId}/table-orders/${order.id}/service-requests`, {
-      headers: authHeaders(),
-    })
+    fetchWithAuth(`/api/admin/events/${eventId}/table-orders/${order.id}/service-requests`, { _raw: true })
       .then((r) => (r.ok ? r.json() : Promise.resolve({ requests: [] })))
       .then((d) => {
         if (!cancelled) setRequests(d.requests || [])
@@ -3040,29 +2855,27 @@ function TableEditRequests({ order, menuItems, authHeaders, eventId, onUpdate, l
         if (!cancelled) setRequests([])
       })
     return () => { cancelled = true }
-  }, [order.id, eventId, authHeaders])
+  }, [order.id, eventId])
 
   const addUpsell = async () => {
     if (!upsellItem) return
     setSaving(true)
     const item = menuItems.find((m) => m.id === upsellItem)
     try {
-      const res = await fetch(`${API_BASE}/api/admin/events/${eventId}/table-items`, {
+      const res = await fetchWithAuth(`/api/admin/events/${eventId}/table-items`, {
         method: 'POST',
-        headers: authHeaders(),
-        body: JSON.stringify({
+        
+        _raw: true, body: JSON.stringify({
           table_order_id: order.id,
           menu_item_id: upsellItem,
           name: item?.name,
           quantity: upsellQty,
           price: item?.price || 0,
           total: (item?.price || 0) * upsellQty,
-          is_upsell: true,
-        }),
-      })
+          is_upsell: true }) })
       if (res.ok) {
         toast.success('אפסייל נוסף ✓')
-        onUpdate({})
+        onUpdate({ _raw: true })
         loadData()
       } else toast.error('שגיאה')
     } catch {
@@ -3090,14 +2903,12 @@ function TableEditRequests({ order, menuItems, authHeaders, eventId, onUpdate, l
             style={{
               background: 'var(--glass)', border: '1px solid var(--glass-border)',
               borderRadius: 10, padding: '12px 16px', marginBottom: 8,
-              display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start',
-            }}
+              display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}
           >
             <span style={{
               padding: '3px 8px', borderRadius: 20, fontSize: 11,
               background: r.status === 'pending' ? 'rgba(245,158,11,0.15)' : 'rgba(0,195,122,0.15)',
-              color: r.status === 'pending' ? '#F59E0B' : '#00C37A',
-            }}
+              color: r.status === 'pending' ? '#F59E0B' : '#00C37A' }}
             >
               {r.status === 'pending' ? 'ממתין' : 'טופל'}
             </span>
@@ -3113,8 +2924,7 @@ function TableEditRequests({ order, menuItems, authHeaders, eventId, onUpdate, l
 
       <div style={{
         background: 'var(--glass)', border: '1px solid var(--glass-border)',
-        borderRadius: 12, padding: 16,
-      }}
+        borderRadius: 12, padding: 16 }}
       >
         <p style={{ margin: '0 0 12px', fontSize: 14, fontWeight: 700, textAlign: 'right', color: '#00C37A' }}>
           ➕ הוסף אפסייל
@@ -3129,8 +2939,7 @@ function TableEditRequests({ order, menuItems, authHeaders, eventId, onUpdate, l
               borderRadius: 10, background: 'var(--glass)',
               border: '1px solid var(--glass-border)',
               color: 'var(--text)', fontSize: 15, textAlign: 'right',
-              boxSizing: 'border-box',
-            }}
+              boxSizing: 'border-box' }}
           />
           <Search size={16} color="#00C37A" style={{ position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
         </div>
@@ -3152,8 +2961,7 @@ function TableEditRequests({ order, menuItems, authHeaders, eventId, onUpdate, l
                 padding: '10px 16px', borderRadius: 10, cursor: 'pointer',
                 background: upsellItem === mi.id ? 'rgba(0,195,122,0.1)' : 'var(--glass)',
                 border: `1px solid ${upsellItem === mi.id ? 'rgba(0,195,122,0.3)' : 'var(--glass-border)'}`,
-                WebkitTapHighlightColor: 'transparent',
-              }}
+                WebkitTapHighlightColor: 'transparent' }}
             >
               <span style={{ fontSize: 14, color: '#00C37A', fontWeight: 700 }}>
                 ₪
@@ -3172,8 +2980,7 @@ function TableEditRequests({ order, menuItems, authHeaders, eventId, onUpdate, l
               flex: 1, minHeight: 44, borderRadius: 10, background: upsellItem ? '#00C37A' : 'var(--glass)',
               border: 'none', color: upsellItem ? '#000' : 'var(--v2-gray-400)',
               fontSize: 14, fontWeight: 700, cursor: upsellItem ? 'pointer' : 'not-allowed',
-              WebkitTapHighlightColor: 'transparent',
-            }}
+              WebkitTapHighlightColor: 'transparent' }}
           >
             {saving ? 'מוסיף...' : '+ הוסף לחשבון'}
           </button>
@@ -3183,8 +2990,7 @@ function TableEditRequests({ order, menuItems, authHeaders, eventId, onUpdate, l
               onClick={() => setUpsellQty((q) => q + 1)}
               style={{
                 width: 36, height: 36, borderRadius: 8, background: 'var(--glass)', border: '1px solid var(--glass-border)', color: '#00C37A', cursor: 'pointer', fontSize: 18,
-                WebkitTapHighlightColor: 'transparent',
-              }}
+                WebkitTapHighlightColor: 'transparent' }}
             >
               +
             </button>
@@ -3194,8 +3000,7 @@ function TableEditRequests({ order, menuItems, authHeaders, eventId, onUpdate, l
               onClick={() => setUpsellQty((q) => Math.max(1, q - 1))}
               style={{
                 width: 36, height: 36, borderRadius: 8, background: 'var(--glass)', border: '1px solid var(--glass-border)', color: 'var(--text)', cursor: 'pointer', fontSize: 18,
-                WebkitTapHighlightColor: 'transparent',
-              }}
+                WebkitTapHighlightColor: 'transparent' }}
             >
               −
             </button>
@@ -3206,20 +3011,19 @@ function TableEditRequests({ order, menuItems, authHeaders, eventId, onUpdate, l
   )
 }
 
-function TableEditNotes({ order, authHeaders, eventId, onUpdate }) {
+function TableEditNotes({ order, eventId, onUpdate }) {
   const [notes, setNotes] = useState(order.notes || order.extras || '')
   const [saving, setSaving] = useState(false)
 
   const save = async () => {
     setSaving(true)
     try {
-      const res = await fetch(
-        `${API_BASE}/api/admin/events/${eventId}/table-orders/${order.id}`,
+      const res = await fetchWithAuth(
+        `/api/admin/events/${eventId}/table-orders/${order.id}`,
         {
           method: 'PATCH',
-          headers: authHeaders(),
-          body: JSON.stringify({ extras: notes }),
-        },
+          
+          _raw: true, body: JSON.stringify({ extras: notes }) },
       )
       if (res.ok) {
         toast.success('הערות נשמרו ✓')
@@ -3243,8 +3047,7 @@ function TableEditNotes({ order, authHeaders, eventId, onUpdate }) {
           width: '100%', padding: '16px', borderRadius: 12,
           background: 'var(--glass)', border: '1px solid var(--glass-border)',
           color: 'var(--text)', fontSize: 16, textAlign: 'right',
-          resize: 'vertical', boxSizing: 'border-box', fontFamily: 'inherit', lineHeight: 1.6,
-        }}
+          resize: 'vertical', boxSizing: 'border-box', fontFamily: 'inherit', lineHeight: 1.6 }}
       />
       <button
         type="button"
@@ -3252,8 +3055,7 @@ function TableEditNotes({ order, authHeaders, eventId, onUpdate }) {
         disabled={saving}
         style={{
           minHeight: 48, borderRadius: 12, background: '#00C37A', border: 'none', color: '#000', fontSize: 15, fontWeight: 700, cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.6 : 1,
-          WebkitTapHighlightColor: 'transparent',
-        }}
+          WebkitTapHighlightColor: 'transparent' }}
       >
         {saving ? 'שומר...' : 'שמור הערות'}
       </button>
@@ -3264,10 +3066,8 @@ function TableEditNotes({ order, authHeaders, eventId, onUpdate }) {
 export default function EventTables({
   eventId,
   businessId,
-  authHeaders,
   eventTitle,
-  eventDate,
-}) {
+  eventDate }) {
   const [tables, setTables] = useState([])
   const [tableOrders, setTableOrders] = useState([])
   const tableOrdersRef = useRef([])
@@ -3299,8 +3099,7 @@ export default function EventTables({
     price: '',
     unit: 'bottle',
     free_entries: 3,
-    free_extras: 5,
-  })
+    free_extras: 5 })
   const [editMenuItemId, setEditMenuItemId] = useState(null)
   const [editMenuPrice, setEditMenuPrice] = useState('')
   const [editingExtrasFor, setEditingExtrasFor] = useState(null)
@@ -3312,12 +3111,11 @@ export default function EventTables({
     tables_assigned: [],
     save_to_venue: true,
     save_to_event: true,
-    wa_notifications: true,
-  })
+    wa_notifications: true })
   const [showTemplateStaff, setShowTemplateStaff] = useState(false)
-  const [templateStaffData, setTemplateStaffData] = useState({})
+  const [templateStaffData, setTemplateStaffData] = useState({ _raw: true })
   const [editingStaffId, setEditingStaffId] = useState(null)
-  const [editStaffData, setEditStaffData] = useState({})
+  const [editStaffData, setEditStaffData] = useState({ _raw: true })
   const extrasMenuWrapRef = useRef(null)
   const suppressCellBlurSave = useRef(false)
   const [extrasDropdownDir, setExtrasDropdownDir] = useState('down')
@@ -3337,14 +3135,11 @@ export default function EventTables({
   const [confirmDeleteTable, setConfirmDeleteTable] = useState(false)
   const [templateTables, setTemplateTables] = useState([])
   const [tableNameOptions, setTableNameOptions] = useState([
-    'VIP', 'בר', 'טרס', 'מרכז', 'כניסה', 'פינה', 'גן', 'גג',
-  ])
+    'VIP', 'בר', 'טרס', 'מרכז', 'כניסה', 'פינה', 'גן', 'גג'])
 
   useEffect(() => {
     if (!businessId) return
-    fetch(`${API_BASE}/api/admin/business/${businessId}/templates`, {
-      headers: authHeaders(),
-    })
+    fetchWithAuth(`/api/admin/business/${businessId}/templates`, { _raw: true })
       .then((r) => r.json())
       .then((data) => {
         const template = (data.templates || []).find((t) =>
@@ -3355,22 +3150,20 @@ export default function EventTables({
         setTemplateTables(tables)
         setTableNameOptions(names)
       })
-      .catch(() => {})
-  }, [businessId, tableEditModal?.id, authHeaders])
+      .catch(() => { _raw: true })
+  }, [businessId, tableEditModal?.id])
 
   useEffect(() => {
     if (!eventId) return
-    fetch(`${API_BASE}/api/admin/events/${eventId}/tables`, { headers: authHeaders() })
+    fetchWithAuth(`/api/admin/events/${eventId}/tables`, { _raw: true })
       .then((r) => r.json())
       .then((d) => setAllTables(d.tables || d || []))
       .catch(() => setAllTables([]))
-  }, [eventId, authHeaders])
+  }, [eventId])
 
   useEffect(() => {
     if (!tableAssignModal || !eventId) return
-    fetch(`${API_BASE}/api/admin/events/${eventId}/tables`, {
-      headers: authHeaders(),
-    })
+    fetchWithAuth(`/api/admin/events/${eventId}/tables`, { _raw: true })
       .then((r) => r.json())
       .then((data) => {
         const raw = data.tables || data || []
@@ -3386,7 +3179,7 @@ export default function EventTables({
         setAvailableTables([])
         setSelectedTableId('')
       })
-  }, [tableAssignModal, eventId, authHeaders])
+  }, [tableAssignModal, eventId])
 
   useEffect(() => {
     if (openExtrasOrder == null) return
@@ -3407,11 +3200,10 @@ export default function EventTables({
         if (!acc[cat]) acc[cat] = []
         acc[cat].push({ value: m.id, label: `${m.name} — ₪${m.price}` })
         return acc
-      }, {})
+      }, { _raw: true })
     return Object.entries(grouped).flatMap(([cat, items]) => [
       { value: `__header_${cat}`, label: `── ${cat} ──`, disabled: true },
-      ...items,
-    ])
+      ...items])
   }, [menuItems])
 
   const uniqueMenuItems = useMemo(
@@ -3436,8 +3228,7 @@ export default function EventTables({
       { value: 'bar', label: 'בר' },
       { value: 'special', label: 'כניסה מיוחדת' },
       ...customCategories,
-      { value: '__new__', label: '+ קטגוריה חדשה' },
-    ],
+      { value: '__new__', label: '+ קטגוריה חדשה' }],
     [customCategories],
   )
 
@@ -3445,14 +3236,12 @@ export default function EventTables({
     if (!eventId || !businessId) return
     setLoading(true)
     try {
-      const hdrs = authHeaders()
-      const [t, o, m, s, p] = await Promise.all([
-        fetch(`${API_BASE}/api/admin/events/${eventId}/tables`, { headers: hdrs }).then((r) => r.json()),
-        fetch(`${API_BASE}/api/admin/events/${eventId}/table-orders`, { headers: hdrs }).then((r) => r.json()),
-        fetch(`${API_BASE}/api/admin/events/${eventId}/table-menu`, { headers: hdrs }).then((r) => r.json()),
-        fetch(`${API_BASE}/api/admin/events/${eventId}/table-staff`, { headers: hdrs }).then((r) => r.json()),
-        fetch(`${API_BASE}/api/admin/promoters?business_id=${businessId}`, { headers: hdrs }).then((r) => r.json()),
-      ])
+            const [t, o, m, s, p] = await Promise.all([
+        fetchWithAuth(`/api/admin/events/${eventId}/tables`, { _raw: true }).then((r) => r.json()),
+        fetchWithAuth(`/api/admin/events/${eventId}/table-orders`, { _raw: true }).then((r) => r.json()),
+        fetchWithAuth(`/api/admin/events/${eventId}/table-menu`, { _raw: true }).then((r) => r.json()),
+        fetchWithAuth(`/api/admin/events/${eventId}/table-staff`, { _raw: true }).then((r) => r.json()),
+        fetchWithAuth(`/api/admin/promoters?business_id=${businessId}`, { _raw: true }).then((r) => r.json())])
       setTables(t.tables || [])
       const nextOrders = (o.orders || []).map(normalizeOrderItems)
       setTableOrders(nextOrders)
@@ -3466,15 +3255,14 @@ export default function EventTables({
     } finally {
       setLoading(false)
     }
-  }, [eventId, businessId, authHeaders])
+  }, [eventId, businessId])
 
   const silentRefresh = useCallback(async () => {
     if (!eventId || !businessId) return
     try {
       const [ordersRes, menuRes] = await Promise.all([
-        fetch(`${API_BASE}/api/admin/events/${eventId}/table-orders`, { headers: authHeaders() }),
-        fetch(`${API_BASE}/api/admin/events/${eventId}/table-menu`, { headers: authHeaders() }),
-      ])
+        fetchWithAuth(`/api/admin/events/${eventId}/table-orders`, { _raw: true }),
+        fetchWithAuth(`/api/admin/events/${eventId}/table-menu`, { _raw: true })])
       if (ordersRes.ok) {
         const data = await ordersRes.json()
         const nextOrders = data.orders || []
@@ -3488,7 +3276,7 @@ export default function EventTables({
     } catch (e) {
       console.error('Silent refresh failed:', e)
     }
-  }, [eventId, businessId, authHeaders])
+  }, [eventId, businessId])
 
   useEffect(() => {
     loadData()
@@ -3513,7 +3301,7 @@ export default function EventTables({
     async (orderId, field, value) => {
       const payload = { [field]: value }
       if (field === 'base_price' || field === 'discount' || field === 'tip_amount') {
-        payload[field] = String(value).replace(/[₪%\s,]/g, '')
+        payload[field] = String(value).replace(/[₪%\s]/g, '')
       }
       if (field === 'promoter_commission_pct') {
         payload[field] = parseFloat(value) || 10
@@ -3540,36 +3328,34 @@ export default function EventTables({
       }
 
       try {
-        const res = await fetch(`${API_BASE}/api/admin/events/${eventId}/table-orders/${orderId}`, {
+        const res = await fetchWithAuth(`/api/admin/events/${eventId}/table-orders/${orderId}`, {
           method: 'PATCH',
-          headers: authHeaders(),
-          body: JSON.stringify(payload),
-        })
+          
+          _raw: true, body: JSON.stringify(payload) })
         if (!res.ok) throw new Error('fail')
       } catch (e) {
         loadData()
         toast.error('שגיאה בשמירה')
       }
     },
-    [eventId, authHeaders, loadData],
+    [eventId, loadData],
   )
 
   const patchOrder = useCallback(
     async (orderId, patch) => {
       setTableOrders((prev) => prev.map((o) => (o.id === orderId ? { ...o, ...patch } : o)))
       try {
-        const res = await fetch(`${API_BASE}/api/admin/events/${eventId}/table-orders/${orderId}`, {
+        const res = await fetchWithAuth(`/api/admin/events/${eventId}/table-orders/${orderId}`, {
           method: 'PATCH',
-          headers: authHeaders(),
-          body: JSON.stringify(patch),
-        })
+          
+          _raw: true, body: JSON.stringify(patch) })
         if (!res.ok) throw new Error('fail')
       } catch (e) {
         loadData()
         toast.error('שגיאה בשמירה')
       }
     },
-    [eventId, authHeaders, loadData],
+    [eventId, loadData],
   )
 
   if (loading) {
@@ -3626,8 +3412,7 @@ export default function EventTables({
           alignItems: 'center',
           marginBottom: 16,
           flexWrap: 'wrap',
-          gap: 12,
-        }}
+          gap: 12 }}
       >
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
           <div
@@ -3635,8 +3420,7 @@ export default function EventTables({
               display: 'flex',
               border: '1px solid var(--glass-border)',
               borderRadius: 8,
-              overflow: 'visible',
-            }}
+              overflow: 'visible' }}
           >
             <button
               type="button"
@@ -3650,8 +3434,7 @@ export default function EventTables({
                 fontSize: 13,
                 display: 'flex',
                 alignItems: 'center',
-                gap: 6,
-              }}
+                gap: 6 }}
             >
               <TableIcon size={14} />
               טבלה
@@ -3668,8 +3451,7 @@ export default function EventTables({
                 fontSize: 13,
                 display: 'flex',
                 alignItems: 'center',
-                gap: 6,
-              }}
+                gap: 6 }}
             >
               <Grid size={14} />
               מפה
@@ -3679,12 +3461,12 @@ export default function EventTables({
             <button
               type="button"
               onClick={async () => {
-                const res = await fetch(
-                  `${API_BASE}/api/admin/events/${eventId}/table-orders`,
+                const res = await fetchWithAuth(
+                  `/api/admin/events/${eventId}/table-orders`,
                   {
                     method: 'POST',
-                    headers: authHeaders(),
-                    body: JSON.stringify({
+                    
+                    _raw: true, body: JSON.stringify({
                       customer_name: 'ישראל',
                       customer_last_name: 'ישראלי',
                       customer_phone: '0501234567',
@@ -3692,13 +3474,10 @@ export default function EventTables({
                       guest_count: 3,
                       guests: [
                         { first_name: 'משה', last_name: 'כהן', phone: '0521234567', is_free: true },
-                        { first_name: 'שרה', last_name: 'לוי', phone: '0531234567', is_free: false, ticket_price: 50 },
-                      ],
+                        { first_name: 'שרה', last_name: 'לוי', phone: '0531234567', is_free: false, ticket_price: 50 }],
                       status: 'pending_approval',
                       total_amount: 0,
-                      source: 'manual',
-                    }),
-                  },
+                      source: 'manual' }) },
                 )
                 if (res.ok) {
                   toast.success('הזמנת בדיקה נוצרה ✓')
@@ -3711,8 +3490,7 @@ export default function EventTables({
                 padding: '6px 12px', borderRadius: 8, fontSize: 12,
                 background: 'rgba(245,158,11,0.1)',
                 border: '1px solid rgba(245,158,11,0.3)',
-                color: '#f59e0b', cursor: 'pointer',
-              }}
+                color: '#f59e0b', cursor: 'pointer' }}
             >
               🧪 הזמנת בדיקה
             </button>
@@ -3731,8 +3509,7 @@ export default function EventTables({
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
-              gap: 6,
-            }}
+              gap: 6 }}
           >
             <Plus size={14} />
             שולחן חדש
@@ -3746,8 +3523,7 @@ export default function EventTables({
           onChange={(v) => setTableFilter((f) => ({ ...f, category: v }))}
           options={[
             { value: 'all', label: 'שם/סוג שולחן' },
-            ...TABLE_CATEGORIES.filter((c) => c.value !== '__new__'),
-          ]}
+            ...TABLE_CATEGORIES.filter((c) => c.value !== '__new__')]}
           style={{ width: 150 }}
         />
         <CustomSelect
@@ -3755,8 +3531,7 @@ export default function EventTables({
           onChange={(v) => setTableFilter((f) => ({ ...f, status: v }))}
           options={[
             { value: 'all', label: 'כל הסטטוסים' },
-            ...Object.entries(STATUS_CONFIG).map(([v, { label }]) => ({ value: v, label })),
-          ]}
+            ...Object.entries(STATUS_CONFIG).map(([v, { label }]) => ({ value: v, label }))]}
           style={{ width: 140 }}
         />
         {tableRowHistory.length > 0 && (
@@ -3780,8 +3555,7 @@ export default function EventTables({
               fontSize: 13,
               display: 'flex',
               alignItems: 'center',
-              gap: 4,
-            }}
+              gap: 4 }}
           >
             <RotateCcw size={14} />
             ביטול (
@@ -3821,8 +3595,7 @@ export default function EventTables({
                   'העברה',
                   'טיפ',
                   'יחצ"ן',
-                  'עמלה %',
-                ].map((h) => (
+                  'עמלה %'].map((h) => (
                   <th
                     key={h}
                     title={h === 'כמות אנשים' || h === 'שם פרטי' ? 'לחץ לפרטי חברי השולחן' : undefined}
@@ -3833,8 +3606,7 @@ export default function EventTables({
                       whiteSpace: 'nowrap',
                       borderLeft: '1px solid var(--glass-border)',
                       fontSize: h === 'מס\' הזמנה' ? 12 : undefined,
-                      color: h === 'מס\' הזמנה' ? 'var(--v2-gray-400)' : undefined,
-                    }}
+                      color: h === 'מס\' הזמנה' ? 'var(--v2-gray-400)' : undefined }}
                   >
                     {h === 'כמות אנשים' ? 'כמות אנשים 👥' : h}
                   </th>
@@ -3851,8 +3623,7 @@ export default function EventTables({
                       style={{
                         borderBottom: '1px solid var(--glass-border)',
                         height: 44,
-                        background: 'transparent',
-                      }}
+                        background: 'transparent' }}
                     >
                       <td style={{ padding: 0, width: 130, minWidth: 130, height: 44, borderLeft: '1px solid var(--glass-border)', verticalAlign: 'stretch' }}>
                         <div style={{ display: 'flex', height: 44, alignItems: 'stretch' }}>
@@ -3868,8 +3639,7 @@ export default function EventTables({
                                 : order.status === 'active' ? '#00C37A'
                                   : order.status === 'cancelled' ? '#EF4444' : 'var(--v2-gray-400)',
                             borderLeft: '1px solid var(--glass-border)',
-                            whiteSpace: 'nowrap',
-                          }}
+                            whiteSpace: 'nowrap' }}
                           >
                             {order.status === 'pending_approval' ? 'ממתין'
                               : order.status === 'active' ? 'מאושר'
@@ -3891,8 +3661,7 @@ export default function EventTables({
                               width: 64, display: 'flex', alignItems: 'center', justifyContent: 'center',
                               gap: 6, cursor: 'pointer', padding: '0 8px',
                               background: 'rgba(0,195,122,0.06)',
-                              WebkitTapHighlightColor: 'transparent',
-                            }}
+                              WebkitTapHighlightColor: 'transparent' }}
                           >
                             <Users
                               size={14}
@@ -3925,8 +3694,7 @@ export default function EventTables({
                           height: 44,
                           borderLeft: '1px solid var(--glass-border)',
                           minWidth: 100,
-                          verticalAlign: 'middle',
-                        }}
+                          verticalAlign: 'middle' }}
                       >
                         <span style={{ fontSize: 12 }}>
                           {order.order_date
@@ -3937,8 +3705,7 @@ export default function EventTables({
 
                       <td style={{
                         padding: '0 10px', fontSize: 13, height: 44, borderLeft: '1px solid var(--glass-border)',
-                        minWidth: 70, verticalAlign: 'middle', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                      }}
+                        minWidth: 70, verticalAlign: 'middle', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
                       >
                         {table?.table_number ?? '—'}
                       </td>
@@ -3955,8 +3722,7 @@ export default function EventTables({
                           padding: '10px 12px',
                           textAlign: 'center',
                           borderLeft: '1px solid var(--glass-border)',
-                          minWidth: 80,
-                        }}
+                          minWidth: 80 }}
                       >
                         {order.guest_count ?? ((Array.isArray(order.guests) ? order.guests.length : 0) + 1)}
                       </td>
@@ -3969,30 +3735,26 @@ export default function EventTables({
                           padding: '10px 12px',
                           textAlign: 'right',
                           borderLeft: '1px solid var(--glass-border)',
-                          minWidth: 100,
-                        }}
+                          minWidth: 100 }}
                       >
                         {order.customer_name || '—'}
                       </td>
 
                       <td style={{
                         padding: '0 10px', fontSize: 13, height: 44, borderLeft: '1px solid var(--glass-border)',
-                        minWidth: 90, verticalAlign: 'middle', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                      }}
+                        minWidth: 90, verticalAlign: 'middle', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
                       >
                         {order.customer_last_name || '—'}
                       </td>
                       <td style={{
                         padding: '0 10px', fontSize: 13, height: 44, borderLeft: '1px solid var(--glass-border)',
-                        minWidth: 100, verticalAlign: 'middle', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                      }}
+                        minWidth: 100, verticalAlign: 'middle', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
                       >
                         {order.customer_phone || '—'}
                       </td>
                       <td style={{
                         padding: '0 10px', fontSize: 13, height: 44, borderLeft: '1px solid var(--glass-border)',
-                        minWidth: 120, verticalAlign: 'middle', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                      }}
+                        minWidth: 120, verticalAlign: 'middle', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
                       >
                         {order.customer_email || '—'}
                       </td>
@@ -4011,8 +3773,7 @@ export default function EventTables({
                       </td>
 
                       <td style={{
-                        padding: '0 10px', fontSize: 13, borderLeft: '1px solid var(--glass-border)', minWidth: 60, height: 44, verticalAlign: 'middle',
-                      }}
+                        padding: '0 10px', fontSize: 13, borderLeft: '1px solid var(--glass-border)', minWidth: 60, height: 44, verticalAlign: 'middle' }}
                       >
                         {(() => {
                           const items = Array.isArray(order.items) ? order.items : []
@@ -4036,8 +3797,7 @@ export default function EventTables({
 
                       <td style={{
                         padding: '0 10px', fontSize: 13, height: 44, borderLeft: '1px solid var(--glass-border)',
-                        minWidth: 70, verticalAlign: 'middle',
-                      }}
+                        minWidth: 70, verticalAlign: 'middle' }}
                       >
                         {(() => {
                           const total = orderLineTotal(order)
@@ -4047,8 +3807,7 @@ export default function EventTables({
 
                       <td style={{
                         padding: '0 10px', fontSize: 13, height: 44, borderLeft: '1px solid var(--glass-border)',
-                        minWidth: 60, verticalAlign: 'middle',
-                      }}
+                        minWidth: 60, verticalAlign: 'middle' }}
                       >
                         {order.discount != null && order.discount !== '' ? order.discount : '—'}
                       </td>
@@ -4059,8 +3818,7 @@ export default function EventTables({
                           borderLeft: '1px solid var(--glass-border)',
                           minWidth: 80,
                           fontWeight: 700,
-                          color: '#00C37A',
-                        }}
+                          color: '#00C37A' }}
                       >
                         {(() => {
                           const total = orderLineTotal(order)
@@ -4075,8 +3833,7 @@ export default function EventTables({
                         const cell = {
                           padding: '8px 10px',
                           borderLeft: '1px solid var(--glass-border)',
-                          minWidth: 130,
-                        }
+                          minWidth: 130 }
                         return (
                           <>
                             <td style={cell}>{pbm.cash > 0 ? `₪${pbm.cash.toLocaleString()}` : '—'}</td>
@@ -4090,8 +3847,7 @@ export default function EventTables({
 
                       <td style={{
                         padding: '0 10px', fontSize: 13, height: 44, borderLeft: '1px solid var(--glass-border)',
-                        minWidth: 70, verticalAlign: 'middle',
-                      }}
+                        minWidth: 70, verticalAlign: 'middle' }}
                       >
                         {order.tip_amount != null && order.tip_amount !== '' ? order.tip_amount : '—'}
                       </td>
@@ -4100,8 +3856,7 @@ export default function EventTables({
                         style={{
                           padding: '8px 10px',
                           borderLeft: '1px solid var(--glass-border)',
-                          minWidth: 100,
-                        }}
+                          minWidth: 100 }}
                       >
                         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                           <span style={{ fontSize: 12, flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -4126,8 +3881,7 @@ export default function EventTables({
                                 cursor: 'pointer',
                                 color: '#22C55E',
                                 padding: 0,
-                                flexShrink: 0,
-                              }}
+                                flexShrink: 0 }}
                             >
                               <MessageCircle size={12} color="#00C37A" />
                             </button>
@@ -4140,14 +3894,12 @@ export default function EventTables({
                           padding: '8px 10px',
                           borderLeft: '1px solid var(--glass-border)',
                           minWidth: 80,
-                          verticalAlign: 'middle',
-                        }}
+                          verticalAlign: 'middle' }}
                       >
                         <span
                           style={{
                             fontSize: 12,
-                            color: order.promoter_name ? '#F59E0B' : 'var(--v2-gray-400)',
-                          }}
+                            color: order.promoter_name ? '#F59E0B' : 'var(--v2-gray-400)' }}
                         >
                           {order.promoter_name ? (order.promoter_commission_pct ?? 10) : 0}
                           %
@@ -4180,8 +3932,7 @@ export default function EventTables({
                   fontWeight: 700,
                   fontSize: 13,
                   borderLeft: '1px solid var(--glass-border)',
-                  color: '#00C37A',
-                }}
+                  color: '#00C37A' }}
                 >
                   ₪
                   {filteredOrders.reduce((s, o) => s + orderLineTotal(o), 0).toLocaleString()}
@@ -4191,8 +3942,7 @@ export default function EventTables({
                   fontWeight: 700,
                   fontSize: 13,
                   borderLeft: '1px solid var(--glass-border)',
-                  color: '#EF4444',
-                }}
+                  color: '#EF4444' }}
                 >
                   ₪
                   {filteredOrders.reduce((s, o) => s + parseFloat(o.discount || 0), 0).toLocaleString()}
@@ -4224,8 +3974,7 @@ export default function EventTables({
                   fontWeight: 700,
                   fontSize: 13,
                   borderLeft: '1px solid var(--glass-border)',
-                  color: '#F59E0B',
-                }}
+                  color: '#F59E0B' }}
                 >
                   ₪
                   {filteredOrders.reduce((s, o) => s + Number(o.tip_amount || 0), 0).toLocaleString()}
@@ -4236,8 +3985,7 @@ export default function EventTables({
                   fontWeight: 700,
                   fontSize: 13,
                   borderLeft: '1px solid var(--glass-border)',
-                  color: '#8B5CF6',
-                }}
+                  color: '#8B5CF6' }}
                 >
                   ₪
                   {filteredOrders.reduce((s, o) => {
@@ -4257,8 +4005,7 @@ export default function EventTables({
           style={{
             display: 'grid',
             gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))',
-            gap: 12,
-          }}
+            gap: 12 }}
         >
           {tableOrders
             .filter((o) => tableFilter.category === 'all' || o.category === tableFilter.category)
@@ -4292,8 +4039,7 @@ export default function EventTables({
                   position: 'relative',
                   textAlign: 'center',
                   transition: 'background 0.1s ease',
-                  WebkitTapHighlightColor: 'transparent',
-                }}
+                  WebkitTapHighlightColor: 'transparent' }}
                 onMouseEnter={(e) => {
                   e.currentTarget.style.filter = 'brightness(1.06)'
                 }}
@@ -4316,8 +4062,7 @@ export default function EventTables({
                       fontWeight: 800,
                       display: 'flex',
                       alignItems: 'center',
-                      justifyContent: 'center',
-                    }}
+                      justifyContent: 'center' }}
                   >
                     !
                   </div>
@@ -4361,8 +4106,7 @@ export default function EventTables({
               alignItems: 'center',
               justifyContent: 'center',
               minHeight: 100,
-              opacity: 0.6,
-            }}
+              opacity: 0.6 }}
           >
             <Plus size={20} color="var(--v2-gray-400)" />
             <span style={{ fontSize: 11, color: 'var(--v2-gray-400)', marginTop: 4 }}>הוסף שולחן</span>
@@ -4373,13 +4117,11 @@ export default function EventTables({
       {showAddTableModal && (
         <div style={{
           position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)',
-          zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center',
-        }}
+          zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
         >
           <div style={{
             background: 'var(--card)', borderRadius: 16, padding: 24,
-            width: '90%', maxWidth: 400,
-          }}
+            width: '90%', maxWidth: 400 }}
           >
             <p style={{ margin: '0 0 16px', fontSize: 16, fontWeight: 700, textAlign: 'right' }}>
               בחר מספר שולחן
@@ -4401,36 +4143,32 @@ export default function EventTables({
                 style={{
                   flex: 1, minHeight: 44, borderRadius: 10,
                   background: 'var(--glass)', border: '1px solid var(--glass-border)',
-                  color: 'var(--text)', cursor: 'pointer',
-                }}
+                  color: 'var(--text)', cursor: 'pointer' }}
               >ביטול</button>
               <button type="button"
                 onClick={async () => {
                   if (!newTableNumber) return
                   try {
-                    const tableRes = await fetch(
-                      `${API_BASE}/api/admin/events/${eventId}/tables`,
+                    const tableRes = await fetchWithAuth(
+                      `/api/admin/events/${eventId}/tables`,
                       {
                         method: 'POST',
-                        headers: authHeaders(),
-                        body: JSON.stringify({ table_number: newTableNumber, capacity: 4 }),
-                      }
+                        
+                        _raw: true, body: JSON.stringify({ table_number: newTableNumber, capacity: 4 }) }
                     )
                     if (!tableRes.ok) { toast.error('שגיאה ביצירת שולחן'); return }
                     const tableData = await tableRes.json()
-                    await fetch(
-                      `${API_BASE}/api/admin/events/${eventId}/table-orders`,
+                    await fetchWithAuth(
+                      `/api/admin/events/${eventId}/table-orders`,
                       {
                         method: 'POST',
-                        headers: authHeaders(),
-                        body: JSON.stringify({
+                        
+                        _raw: true, body: JSON.stringify({
                           event_table_id: tableData.table?.id,
                           table_number: newTableNumber,
                           customer_name: 'לקוח חדש',
                           customer_phone: '-',
-                          status: 'pending_approval',
-                        }),
-                      }
+                          status: 'pending_approval' }) }
                     )
                     setShowAddTableModal(false)
                     setNewTableNumber('')
@@ -4441,8 +4179,7 @@ export default function EventTables({
                 style={{
                   flex: 2, minHeight: 44, borderRadius: 10,
                   background: '#00C37A', border: 'none',
-                  color: '#000', fontSize: 14, fontWeight: 700, cursor: 'pointer',
-                }}
+                  color: '#000', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}
               >הוסף שולחן</button>
             </div>
           </div>
@@ -4455,8 +4192,7 @@ export default function EventTables({
             position: 'fixed', inset: 0, zIndex: 1000,
             background: 'rgba(0,0,0,0.75)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            padding: 16,
-          }}
+            padding: 16 }}
           onClick={(e) => { if (e.target === e.currentTarget) setTableEditModal(null) }}
           role="presentation"
         >
@@ -4468,8 +4204,7 @@ export default function EventTables({
               maxHeight: '90vh',
               display: 'flex', flexDirection: 'column',
               border: '1px solid var(--glass-border)',
-              overflow: 'visible',
-            }}
+              overflow: 'visible' }}
             onClick={(e) => e.stopPropagation()}
             role="dialog"
             aria-modal="true"
@@ -4478,16 +4213,14 @@ export default function EventTables({
               padding: '20px 24px',
               borderBottom: '1px solid var(--glass-border)',
               display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start',
-              flexShrink: 0,
-            }}
+              flexShrink: 0 }}
             >
               <button
                 type="button"
                 onClick={() => setTableEditModal(null)}
                 style={{
                   background: 'none', border: 'none', cursor: 'pointer', color: 'var(--v2-gray-400)', fontSize: 20,
-                  WebkitTapHighlightColor: 'transparent',
-                }}
+                  WebkitTapHighlightColor: 'transparent' }}
               >
                 ✕
               </button>
@@ -4497,13 +4230,12 @@ export default function EventTables({
                     <button
                       type="button"
                       onClick={async () => {
-                        const res = await fetch(
-                          `${API_BASE}/api/admin/events/${eventId}/table-orders/${tableEditModal.id}`,
+                        const res = await fetchWithAuth(
+                          `/api/admin/events/${eventId}/table-orders/${tableEditModal.id}`,
                           {
                             method: 'PATCH',
-                            headers: authHeaders(),
-                            body: JSON.stringify({ status: 'active' }),
-                          },
+                            
+                            _raw: true, body: JSON.stringify({ status: 'active' }) },
                         )
                         if (res.ok) {
                           toast.success('ההזמנה אושרה! QR נשלח לכל חברי השולחן ✓')
@@ -4515,8 +4247,7 @@ export default function EventTables({
                         padding: '6px 16px', borderRadius: 20, fontSize: 12,
                         background: '#00C37A', border: 'none',
                         color: '#000', fontWeight: 700, cursor: 'pointer',
-                        WebkitTapHighlightColor: 'transparent',
-                      }}
+                        WebkitTapHighlightColor: 'transparent' }}
                     >
                       ✓ אשר הזמנה
                     </button>
@@ -4530,8 +4261,7 @@ export default function EventTables({
                     color:
                       tableEditModal.status === 'pending_approval' ? '#F59E0B'
                         : tableEditModal.status === 'active' ? '#00C37A'
-                          : tableEditModal.status === 'cancelled' ? '#EF4444' : 'var(--v2-gray-400)',
-                  }}
+                          : tableEditModal.status === 'cancelled' ? '#EF4444' : 'var(--v2-gray-400)' }}
                   >
                     {tableEditModal.status === 'pending_approval' ? 'ממתין לאישור'
                       : tableEditModal.status === 'active' ? 'מאושר'
@@ -4566,8 +4296,7 @@ export default function EventTables({
               borderBottom: '1px solid var(--glass-border)',
               flexShrink: 0, gap: 0,
               WebkitOverflowScrolling: 'touch',
-              scrollbarWidth: 'none',
-            }}
+              scrollbarWidth: 'none' }}
             >
               {TABLE_EDIT_TABS.map((tab) => {
                 const Icon = tab.Icon
@@ -4583,8 +4312,7 @@ export default function EventTables({
                       borderBottom: `2px solid ${tableEditTab === tab.id ? '#00C37A' : 'transparent'}`,
                       whiteSpace: 'nowrap', transition: 'all 0.15s',
                       WebkitTapHighlightColor: 'transparent',
-                      display: 'flex', alignItems: 'center', gap: 8,
-                    }}
+                      display: 'flex', alignItems: 'center', gap: 8 }}
                   >
                     <Icon size={16} strokeWidth={2} color={tableEditTab === tab.id ? '#00C37A' : 'var(--v2-gray-400)'} />
                     {tab.label}
@@ -4602,7 +4330,6 @@ export default function EventTables({
                   promoters={promoters}
                   onRequestDelete={() => setConfirmDeleteTable(true)}
                   onOpenStaffTab={() => setTableEditTab('staff')}
-                  authHeaders={authHeaders}
                   eventId={eventId}
                   businessId={businessId}
                   editModalOpenId={tableEditModal?.id}
@@ -4623,7 +4350,6 @@ export default function EventTables({
               {tableEditTab === 'guests' && (
                 <TableEditGuests
                   order={tableEditModal}
-                  authHeaders={authHeaders}
                   eventId={eventId}
                   onUpdate={(updated) => {
                     setTableEditModal((prev) => (prev ? { ...prev, ...updated } : prev))
@@ -4635,7 +4361,6 @@ export default function EventTables({
                 <TableEditAccount
                   order={tableEditModal}
                   menuItems={menuItems}
-                  authHeaders={authHeaders}
                   eventId={eventId}
                   onUpdate={async (updated) => {
                     setTableEditModal((prev) => ({ ...prev, ...updated }))
@@ -4652,7 +4377,6 @@ export default function EventTables({
                 <TableEditRequests
                   order={tableEditModal}
                   menuItems={menuItems}
-                  authHeaders={authHeaders}
                   eventId={eventId}
                   loadData={loadData}
                   onUpdate={(updated) => {
@@ -4664,7 +4388,6 @@ export default function EventTables({
               {tableEditTab === 'notes' && (
                 <TableEditNotes
                   order={tableEditModal}
-                  authHeaders={authHeaders}
                   eventId={eventId}
                   onUpdate={(updated) => {
                     setTableEditModal((prev) => (prev ? { ...prev, ...updated } : prev))
@@ -4682,8 +4405,7 @@ export default function EventTables({
                       { id: 'promoter', label: 'יחצ"נים' },
                       { id: 'bar', label: 'בר' },
                       { id: 'entrance', label: 'כניסות' },
-                      { id: 'scanner', label: 'סריקה' },
-                    ].map((tab) => (
+                      { id: 'scanner', label: 'סריקה' }].map((tab) => (
                       <button
                         key={tab.id}
                         type="button"
@@ -4695,8 +4417,7 @@ export default function EventTables({
                           border: `1px solid ${staffSubTab === tab.id ? 'rgba(0,195,122,0.3)' : 'var(--glass-border)'}`,
                           color: staffSubTab === tab.id ? '#00C37A' : 'var(--v2-gray-400)',
                           cursor: 'pointer', fontWeight: staffSubTab === tab.id ? 700 : 400,
-                          WebkitTapHighlightColor: 'transparent',
-                        }}
+                          WebkitTapHighlightColor: 'transparent' }}
                       >
                         {tab.label}
                       </button>
@@ -4721,8 +4442,7 @@ export default function EventTables({
                           alignItems: 'center',
                           gap: 10,
                           padding: '10px 0',
-                          borderBottom: '1px solid var(--glass-border)',
-                        }}
+                          borderBottom: '1px solid var(--glass-border)' }}
                       >
                         <div
                           style={{
@@ -4735,8 +4455,7 @@ export default function EventTables({
                             justifyContent: 'center',
                             color: '#00C37A',
                             fontWeight: 700,
-                            fontSize: 14,
-                          }}
+                            fontSize: 14 }}
                         >
                           {(member.name && member.name[0]) || '?'}
                         </div>
@@ -4754,8 +4473,7 @@ export default function EventTables({
                                 background: 'var(--glass)',
                                 color: 'var(--text)',
                                 padding: '0 8px',
-                                fontSize: 12,
-                              }}
+                                fontSize: 12 }}
                             />
                             <input
                               value={editStaffData.phone || ''}
@@ -4769,20 +4487,17 @@ export default function EventTables({
                                 background: 'var(--glass)',
                                 color: 'var(--text)',
                                 padding: '0 8px',
-                                fontSize: 12,
-                              }}
+                                fontSize: 12 }}
                             />
                             <button
                               type="button"
                               onClick={async () => {
-                                await fetch(`${API_BASE}/api/admin/events/${eventId}/table-staff/${member.id}`, {
+                                await fetchWithAuth(`/api/admin/events/${eventId}/table-staff/${member.id}`, {
                                   method: 'PATCH',
                                   headers: {
-                                    ...authHeaders(),
-                                    'Content-Type': 'application/json',
-                                  },
-                                  body: JSON.stringify(editStaffData),
-                                })
+                                    
+                                    'Content-Type': 'application/json' },
+                                  body: JSON.stringify(editStaffData) })
                                 setEditingStaffId(null)
                                 loadData()
                               }}
@@ -4795,8 +4510,7 @@ export default function EventTables({
                                 padding: '0 10px',
                                 fontSize: 12,
                                 fontWeight: 700,
-                                height: 30,
-                              }}
+                                height: 30 }}
                             >
                               שמור
                             </button>
@@ -4807,8 +4521,7 @@ export default function EventTables({
                                 background: 'none',
                                 border: 'none',
                                 cursor: 'pointer',
-                                color: 'var(--v2-gray-400)',
-                              }}
+                                color: 'var(--v2-gray-400)' }}
                             >
                               <X size={14} color="#00C37A" />
                             </button>
@@ -4868,10 +4581,10 @@ export default function EventTables({
                               <button
                                 type="button"
                                 onClick={async () => {
-                                  await fetch(`${API_BASE}/api/admin/events/${eventId}/table-staff/${member.id}`, {
+                                  await fetchWithAuth(`/api/admin/events/${eventId}/table-staff/${member.id}`, {
                                     method: 'DELETE',
-                                    headers: authHeaders(),
-                                  })
+                                    
+                                  _raw: true })
                                   loadData()
                                 }}
                                 style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#EF4444' }}
@@ -4908,8 +4621,7 @@ export default function EventTables({
                           color: '#00C37A',
                           fontWeight: 600,
                           fontSize: 13,
-                          cursor: 'pointer',
-                        }}
+                          cursor: 'pointer' }}
                       >
                         טען תבנית צוות מלאה
                       </button>
@@ -4922,8 +4634,7 @@ export default function EventTables({
                         marginTop: 16,
                         background: 'var(--glass)',
                         borderRadius: 10,
-                        padding: 16,
-                      }}
+                        padding: 16 }}
                     >
                       <p style={{ margin: '0 0 12px', fontSize: 13, fontWeight: 700 }}>מלא פרטי צוות:</p>
                       {STAFF_TEMPLATE.map((t) => (
@@ -4936,8 +4647,7 @@ export default function EventTables({
                               width: 110,
                               fontSize: 12,
                               color: 'var(--v2-gray-400)',
-                              flexShrink: 0,
-                            }}
+                              flexShrink: 0 }}
                           >
                             {t.label}
                           </span>
@@ -4946,8 +4656,7 @@ export default function EventTables({
                             onChange={(e) =>
                               setTemplateStaffData((prev) => ({
                                 ...prev,
-                                [t.role]: { ...prev[t.role], role: t.role, name: e.target.value },
-                              }))}
+                                [t.role]: { ...prev[t.role], role: t.role, name: e.target.value } }))}
                             placeholder="שם מלא"
                             style={{
                               flex: 1,
@@ -4957,16 +4666,14 @@ export default function EventTables({
                               background: 'var(--card)',
                               color: 'var(--text)',
                               padding: '0 8px',
-                              fontSize: 12,
-                            }}
+                              fontSize: 12 }}
                           />
                           <input
                             value={templateStaffData[t.role]?.phone || ''}
                             onChange={(e) =>
                               setTemplateStaffData((prev) => ({
                                 ...prev,
-                                [t.role]: { ...prev[t.role], role: t.role, phone: e.target.value },
-                              }))}
+                                [t.role]: { ...prev[t.role], role: t.role, phone: e.target.value } }))}
                             placeholder="טלפון WA"
                             style={{
                               flex: 1,
@@ -4976,8 +4683,7 @@ export default function EventTables({
                               background: 'var(--card)',
                               color: 'var(--text)',
                               padding: '0 8px',
-                              fontSize: 12,
-                            }}
+                              fontSize: 12 }}
                           />
                         </div>
                       ))}
@@ -4986,17 +4692,15 @@ export default function EventTables({
                         onClick={async () => {
                           const toAdd = Object.values(templateStaffData).filter((s) => s.name && s.phone)
                           for (const member of toAdd) {
-                            await fetch(`${API_BASE}/api/admin/events/${eventId}/table-staff`, {
+                            await fetchWithAuth(`/api/admin/events/${eventId}/table-staff`, {
                               method: 'POST',
-                              headers: authHeaders(),
-                              body: JSON.stringify({
+                              
+                              _raw: true, body: JSON.stringify({
                                 ...member,
                                 tables_assigned: [],
-                                wa_notifications: true,
-                              }),
-                            })
+                                wa_notifications: true }) })
                           }
-                          setTemplateStaffData({})
+                          setTemplateStaffData({ _raw: true })
                           setShowTemplateStaff(false)
                           loadData()
                           toast.success(`${toAdd.length} אנשי צוות נוספו!`)
@@ -5011,8 +4715,7 @@ export default function EventTables({
                           fontWeight: 700,
                           fontSize: 13,
                           cursor: 'pointer',
-                          marginTop: 8,
-                        }}
+                          marginTop: 8 }}
                       >
                         שמור צוות
                       </button>
@@ -5024,8 +4727,7 @@ export default function EventTables({
                     {[
                       { field: 'name', placeholder: 'שם פרטי' },
                       { field: 'last_name', placeholder: 'שם משפחה' },
-                      { field: 'phone', placeholder: 'מספר נייד' },
-                    ].map(({ field, placeholder }) => (
+                      { field: 'phone', placeholder: 'מספר נייד' }].map(({ field, placeholder }) => (
                       <input
                         key={field}
                         value={newStaff[field]}
@@ -5034,8 +4736,7 @@ export default function EventTables({
                         style={{
                           width: '100%', minHeight: 44, padding: '10px 14px', borderRadius: 8, marginBottom: 8,
                           background: 'var(--card)', border: '1px solid var(--glass-border)',
-                          color: 'var(--text)', fontSize: 16, textAlign: 'right', boxSizing: 'border-box',
-                        }}
+                          color: 'var(--text)', fontSize: 16, textAlign: 'right', boxSizing: 'border-box' }}
                       />
                     ))}
                     <div style={{ marginBottom: 8 }}>
@@ -5061,8 +4762,7 @@ export default function EventTables({
                             <span key={t} style={{
                               padding: '4px 10px', borderRadius: 20, fontSize: 12,
                               background: 'rgba(0,195,122,0.1)', border: '1px solid rgba(0,195,122,0.3)',
-                              color: '#00C37A', display: 'flex', alignItems: 'center', gap: 6,
-                            }}
+                              color: '#00C37A', display: 'flex', alignItems: 'center', gap: 6 }}
                             >
                               {t}
                               <button
@@ -5080,8 +4780,7 @@ export default function EventTables({
                     {[
                       { field: 'save_to_venue', label: 'שמור לצוות המקום' },
                       { field: 'save_to_event', label: 'שמור לאירוע זה בלבד' },
-                      { field: 'wa_notifications', label: 'קבל התראות WhatsApp' },
-                    ].map(({ field, label }) => (
+                      { field: 'wa_notifications', label: 'קבל התראות WhatsApp' }].map(({ field, label }) => (
                       <label key={field} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, justifyContent: 'flex-end', cursor: 'pointer' }}>
                         <span style={{ fontSize: 13 }}>{label}</span>
                         <input
@@ -5096,17 +4795,15 @@ export default function EventTables({
                       type="button"
                       onClick={async () => {
                         if (!newStaff.name?.trim() || !newStaff.phone?.trim()) return
-                        await fetch(`${API_BASE}/api/admin/events/${eventId}/table-staff`, {
+                        await fetchWithAuth(`/api/admin/events/${eventId}/table-staff`, {
                           method: 'POST',
-                          headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+                          _raw: true,
                           body: JSON.stringify({
                             name: `${newStaff.name} ${newStaff.last_name}`.trim(),
                             phone: newStaff.phone,
                             role: 'waitress',
                             tables_assigned: newStaff.tables_assigned,
-                            wa_notifications: newStaff.wa_notifications,
-                          }),
-                        })
+                            wa_notifications: newStaff.wa_notifications }) })
                         setNewStaff({
                           name: '',
                           last_name: '',
@@ -5114,8 +4811,7 @@ export default function EventTables({
                           tables_assigned: [],
                           save_to_venue: true,
                           save_to_event: true,
-                          wa_notifications: true,
-                        })
+                          wa_notifications: true })
                         loadData()
                         toast.success('מלצרית נוספה ✓')
                       }}
@@ -5128,8 +4824,7 @@ export default function EventTables({
                         color: '#000',
                         fontWeight: 700,
                         fontSize: 14,
-                        cursor: 'pointer',
-                      }}
+                        cursor: 'pointer' }}
                     >
                       הוסף לצוות
                     </button>
@@ -5154,8 +4849,7 @@ export default function EventTables({
                           background: 'var(--glass)',
                           color: 'var(--text)',
                           padding: '0 10px',
-                          fontSize: 13,
-                        }}
+                          fontSize: 13 }}
                       />
                       <input
                         value={newMenuItem.category}
@@ -5168,8 +4862,7 @@ export default function EventTables({
                           background: 'var(--glass)',
                           color: 'var(--text)',
                           padding: '0 10px',
-                          fontSize: 13,
-                        }}
+                          fontSize: 13 }}
                       />
                       <input
                         value={newMenuItem.price}
@@ -5183,8 +4876,7 @@ export default function EventTables({
                           background: 'var(--glass)',
                           color: 'var(--text)',
                           padding: '0 10px',
-                          fontSize: 13,
-                        }}
+                          fontSize: 13 }}
                       />
                       <div />
                       <div style={{ display: 'flex', gap: 6, gridColumn: '1 / -1' }}>
@@ -5194,8 +4886,7 @@ export default function EventTables({
                               fontSize: 11,
                               color: 'var(--v2-gray-400)',
                               display: 'block',
-                              marginBottom: 2,
-                            }}
+                              marginBottom: 2 }}
                           >
                             כניסות חינם לליטר
                           </label>
@@ -5213,8 +4904,7 @@ export default function EventTables({
                               color: 'var(--text)',
                               padding: '0 10px',
                               fontSize: 13,
-                              boxSizing: 'border-box',
-                            }}
+                              boxSizing: 'border-box' }}
                           />
                         </div>
                         <div style={{ flex: 1 }}>
@@ -5223,8 +4913,7 @@ export default function EventTables({
                               fontSize: 11,
                               color: 'var(--v2-gray-400)',
                               display: 'block',
-                              marginBottom: 2,
-                            }}
+                              marginBottom: 2 }}
                           >
                             תוספות חינם (אנרגי/מיצים)
                           </label>
@@ -5242,8 +4931,7 @@ export default function EventTables({
                               color: 'var(--text)',
                               padding: '0 10px',
                               fontSize: 13,
-                              boxSizing: 'border-box',
-                            }}
+                              boxSizing: 'border-box' }}
                           />
                         </div>
                       </div>
@@ -5252,19 +4940,17 @@ export default function EventTables({
                       type="button"
                       onClick={async () => {
                         if (!newMenuItem.name || !newMenuItem.price) return
-                        await fetch(`${API_BASE}/api/admin/events/${eventId}/table-menu`, {
+                        await fetchWithAuth(`/api/admin/events/${eventId}/table-menu`, {
                           method: 'POST',
-                          headers: authHeaders(),
-                          body: JSON.stringify(newMenuItem),
-                        })
+                          
+                          _raw: true, body: JSON.stringify(newMenuItem) })
                         setNewMenuItem({
                           name: '',
                           category: '',
                           price: '',
                           unit: 'bottle',
                           free_entries: 3,
-                          free_extras: 5,
-                        })
+                          free_extras: 5 })
                         loadData()
                       }}
                       style={{
@@ -5277,8 +4963,7 @@ export default function EventTables({
                         color: '#000',
                         fontWeight: 700,
                         fontSize: 14,
-                        cursor: 'pointer',
-                      }}
+                        cursor: 'pointer' }}
                     >
                       הוסף לתפריט
                     </button>
@@ -5303,8 +4988,7 @@ export default function EventTables({
                       display: 'flex',
                       alignItems: 'center',
                       gap: 6,
-                      marginBottom: 16,
-                    }}
+                      marginBottom: 16 }}
                   >
                     <Share2 size={14} color="#00C37A" />
                     שלח תפריט ללקוח
@@ -5316,8 +5000,7 @@ export default function EventTables({
                       gap: 6,
                       marginBottom: 16,
                       overflowX: 'auto',
-                      flexWrap: 'nowrap',
-                    }}
+                      flexWrap: 'nowrap' }}
                   >
                     {['all', ...new Set(uniqueMenuItems.map((m) => m.category).filter(Boolean))].map((cat) => (
                       <button
@@ -5332,8 +5015,7 @@ export default function EventTables({
                           whiteSpace: 'nowrap',
                           fontSize: 12,
                           background: menuFilter === cat ? 'var(--primary)' : 'var(--glass)',
-                          color: menuFilter === cat ? '#fff' : 'var(--text)',
-                        }}
+                          color: menuFilter === cat ? '#fff' : 'var(--text)' }}
                       >
                         {cat === 'all' ? 'הכל' : cat}
                       </button>
@@ -5345,7 +5027,7 @@ export default function EventTables({
                       const filtered = uniqueMenuItems.filter(
                         (m) => menuFilter === 'all' || m.category === menuFilter,
                       )
-                      const byCat = {}
+                      const byCat = { _raw: true }
                       for (const m of filtered) {
                         const c = m.category || 'אחר'
                         if (!byCat[c]) byCat[c] = []
@@ -5359,8 +5041,7 @@ export default function EventTables({
                               margin: '0 0 8px',
                               fontSize: 12,
                               fontWeight: 700,
-                              color: 'var(--v2-gray-400)',
-                            }}
+                              color: 'var(--v2-gray-400)' }}
                           >
                             {cat}
                           </p>
@@ -5375,8 +5056,7 @@ export default function EventTables({
                                   alignItems: 'center',
                                   gap: 8,
                                   padding: '8px 0',
-                                  borderBottom: '1px solid var(--glass-border)',
-                                }}
+                                  borderBottom: '1px solid var(--glass-border)' }}
                               >
                                 <div style={{ flex: 1 }}>
                                   <p style={{ margin: 0, fontSize: 13, fontWeight: 600 }}>{item.name}</p>
@@ -5395,21 +5075,19 @@ export default function EventTables({
                                     value={editMenuPrice}
                                     onChange={(e) => setEditMenuPrice(e.target.value)}
                                     onBlur={async () => {
-                                      await fetch(
-                                        `${API_BASE}/api/admin/events/${eventId}/table-menu/${item.id}`,
+                                      await fetchWithAuth(
+                                        `/api/admin/events/${eventId}/table-menu/${item.id}`,
                                         {
                                           method: 'PATCH',
-                                          headers: authHeaders(),
-                                          body: JSON.stringify({
+                                          
+                                          _raw: true, body: JSON.stringify({
                                             price: parseFloat(editMenuPrice),
                                             name: item.name,
                                             is_available: item.is_available,
                                             included_extras: parseMenuIncludedExtras(item.included_extras),
                                             free_entries: item.free_entries,
                                             free_extras: item.free_extras,
-                                            free_extras_type: item.free_extras_type,
-                                          }),
-                                        },
+                                            free_extras_type: item.free_extras_type }) },
                                       )
                                       setEditMenuItemId(null)
                                       loadData()
@@ -5423,8 +5101,7 @@ export default function EventTables({
                                       borderRadius: 4,
                                       padding: '2px 6px',
                                       color: 'var(--text)',
-                                      fontSize: 13,
-                                    }}
+                                      fontSize: 13 }}
                                   />
                                 ) : (
                                   <span
@@ -5453,8 +5130,7 @@ export default function EventTables({
                                     onClick={() =>
                                       setEditingExtrasFor({
                                         ...item,
-                                        included_extras: parseMenuIncludedExtras(item.included_extras),
-                                      })
+                                        included_extras: parseMenuIncludedExtras(item.included_extras) })
                                     }
                                     style={{
                                       background: 'none',
@@ -5462,8 +5138,7 @@ export default function EventTables({
                                       cursor: 'pointer',
                                       color: '#00C37A',
                                       fontSize: 12,
-                                      whiteSpace: 'nowrap',
-                                    }}
+                                      whiteSpace: 'nowrap' }}
                                   >
                                     🥤 {parseMenuIncludedExtras(item.included_extras).length} תוספות
                                   </button>
@@ -5471,18 +5146,17 @@ export default function EventTables({
                                 <button
                                   type="button"
                                   onClick={async () => {
-                                    await fetch(`${API_BASE}/api/admin/events/${eventId}/table-menu/${item.id}`, {
+                                    await fetchWithAuth(`/api/admin/events/${eventId}/table-menu/${item.id}`, {
                                       method: 'DELETE',
-                                      headers: authHeaders(),
-                                    })
+                                      
+                                    _raw: true })
                                     loadData()
                                   }}
                                   style={{
                                     background: 'none',
                                     border: 'none',
                                     cursor: 'pointer',
-                                    color: '#EF4444',
-                                  }}
+                                    color: '#EF4444' }}
                                 >
                                   <Trash2 size={14} />
                                 </button>
@@ -5505,10 +5179,10 @@ export default function EventTables({
           confirmText="מחק לצמיתות"
           confirmColor="#EF4444"
           onConfirm={async () => {
-            await fetch(`${API_BASE}/api/admin/events/${eventId}/table-orders/${tableEditModal.id}`, {
+            await fetchWithAuth(`/api/admin/events/${eventId}/table-orders/${tableEditModal.id}`, {
               method: 'DELETE',
-              headers: authHeaders(),
-            })
+              
+            _raw: true })
             setConfirmDeleteTable(false)
             setTableEditModal(null)
             await loadData?.()
@@ -5534,16 +5208,14 @@ export default function EventTables({
             style={{
               position: 'fixed', inset: 0, zIndex: 200,
               background: 'rgba(0,0,0,0.5)',
-              display: 'flex', alignItems: 'flex-end',
-            }}
+              display: 'flex', alignItems: 'flex-end' }}
             onClick={(e) => { if (e.target === e.currentTarget) setGuestsDrawer(null) }}
             role="presentation"
           >
             <div style={{
               width: '100%', maxWidth: 520, margin: '0 auto',
               background: 'var(--card)', borderRadius: '20px 20px 0 0',
-              padding: '24px 20px 32px', maxHeight: '80vh', overflowY: 'auto',
-            }}
+              padding: '24px 20px 32px', maxHeight: '80vh', overflowY: 'auto' }}
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
                 <h3 style={{ margin: 0, fontSize: 17, fontWeight: 700 }}>
@@ -5562,8 +5234,7 @@ export default function EventTables({
               <div style={{
                 background: 'rgba(0,195,122,0.08)',
                 border: '1px solid rgba(0,195,122,0.2)',
-                borderRadius: 12, padding: '12px 16px', marginBottom: 12,
-              }}
+                borderRadius: 12, padding: '12px 16px', marginBottom: 12 }}
               >
                 <p style={{ margin: '0 0 4px', fontSize: 11, color: '#00C37A', fontWeight: 600 }}>
                   👑 ראש שולחן
@@ -5590,8 +5261,7 @@ export default function EventTables({
                 <span style={{
                   display: 'inline-block', marginTop: 6,
                   padding: '2px 10px', borderRadius: 20, fontSize: 11,
-                  background: 'rgba(0,195,122,0.15)', color: '#00C37A',
-                }}
+                  background: 'rgba(0,195,122,0.15)', color: '#00C37A' }}
                 >
                   חינם
                 </span>
@@ -5604,8 +5274,7 @@ export default function EventTables({
                     style={{
                       background: 'var(--glass)', borderRadius: 12,
                       padding: '12px 16px', marginBottom: 8,
-                      border: '1px solid var(--glass-border)',
-                    }}
+                      border: '1px solid var(--glass-border)' }}
                   >
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                       <div>
@@ -5633,8 +5302,7 @@ export default function EventTables({
                         padding: '3px 10px', borderRadius: 20, fontSize: 11,
                         background: g.is_free ? 'rgba(0,195,122,0.15)' : 'rgba(255,255,255,0.1)',
                         color: g.is_free ? '#00C37A' : 'var(--v2-gray-400)',
-                        flexShrink: 0, marginRight: 8,
-                      }}
+                        flexShrink: 0, marginRight: 8 }}
                       >
                         {g.is_free ? 'חינם' : `₪${g.ticket_price || 0}`}
                       </span>
@@ -5651,8 +5319,7 @@ export default function EventTables({
                 marginTop: 16, padding: '12px 16px',
                 background: 'var(--glass)', borderRadius: 12,
                 border: '1px solid var(--glass-border)',
-                display: 'flex', justifyContent: 'space-between',
-              }}
+                display: 'flex', justifyContent: 'space-between' }}
               >
                 <span style={{ fontSize: 13, color: 'var(--v2-gray-400)' }}>
                   סה&quot;כ
@@ -5677,8 +5344,7 @@ export default function EventTables({
             position: 'fixed', inset: 0, zIndex: 1000,
             background: 'rgba(0,0,0,0.7)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            padding: 16,
-          }}
+            padding: 16 }}
           onClick={(e) => {
             if (e.target === e.currentTarget) {
               setTableAssignModal(null)
@@ -5691,13 +5357,11 @@ export default function EventTables({
           <div style={{
             background: 'var(--card)', borderRadius: 20,
             padding: 24, width: '100%', maxWidth: 420,
-            border: '1px solid var(--glass-border)',
-          }}
+            border: '1px solid var(--glass-border)' }}
           >
             <h3 style={{
               margin: '0 0 8px', fontSize: 17, fontWeight: 700, textAlign: 'right',
-              display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 8,
-            }}
+              display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 8 }}
             >
               הקצאת שולחן
               <Armchair size={22} strokeWidth={2} aria-hidden />
@@ -5713,8 +5377,7 @@ export default function EventTables({
             <div style={{ marginBottom: 20 }}>
               <span style={{
                 display: 'block', fontSize: 12,
-                color: 'var(--v2-gray-400)', marginBottom: 8, textAlign: 'right',
-              }}
+                color: 'var(--v2-gray-400)', marginBottom: 8, textAlign: 'right' }}
               >
                 בחר שולחן פנוי
               </span>
@@ -5726,8 +5389,7 @@ export default function EventTables({
                 <div style={{
                   display: 'grid',
                   gridTemplateColumns: 'repeat(auto-fill, minmax(70px, 1fr))',
-                  gap: 8, maxHeight: 240, overflowY: 'auto',
-                }}
+                  gap: 8, maxHeight: 240, overflowY: 'auto' }}
                 >
                   {availableTables.map((tbl) => (
                     <button
@@ -5743,8 +5405,7 @@ export default function EventTables({
                           ? 'rgba(0,195,122,0.4)' : 'var(--glass-border)'}`,
                         color: selectedTableId === tbl.id ? '#00C37A' : 'var(--text)',
                         cursor: 'pointer', textAlign: 'center',
-                        WebkitTapHighlightColor: 'transparent',
-                      }}
+                        WebkitTapHighlightColor: 'transparent' }}
                     >
                       <div style={{ fontSize: 16, fontWeight: 700 }}>
                         {tbl.table_number}
@@ -5777,8 +5438,7 @@ export default function EventTables({
                   cursor: selectedTableId ? 'pointer' : 'not-allowed',
                   opacity: assigning ? 0.6 : 1,
                   WebkitTapHighlightColor: 'transparent',
-                  display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-                }}
+                  display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
               >
                 {assigning ? 'מקצה...' : (
                   <><Check size={18} strokeWidth={2.5} aria-hidden /> אשר ושלח QR</>
@@ -5795,8 +5455,7 @@ export default function EventTables({
                   minHeight: 48, padding: '0 20px', borderRadius: 12,
                   background: 'var(--glass)', border: '1px solid var(--glass-border)',
                   color: 'var(--text)', fontSize: 14, cursor: 'pointer',
-                  WebkitTapHighlightColor: 'transparent',
-                }}
+                  WebkitTapHighlightColor: 'transparent' }}
               >
                 ביטול
               </button>
@@ -5820,16 +5479,14 @@ export default function EventTables({
             setAssigning(true)
             try {
               const selectedTable = availableTables.find((t) => t.id === selectedTableId)
-              const res = await fetch(
-                `${API_BASE}/api/admin/orders/${tableAssignModal.id}/approve-table`,
+              const res = await fetchWithAuth(
+                `/api/admin/orders/${tableAssignModal.id}/approve-table`,
                 {
                   method: 'POST',
-                  headers: authHeaders(),
-                  body: JSON.stringify({
+                  
+                  _raw: true, body: JSON.stringify({
                     table_id: selectedTableId,
-                    table_number: selectedTable?.table_number,
-                  }),
-                },
+                    table_number: selectedTable?.table_number }) },
               )
               if (res.ok) {
                 toast.success(`שולחן ${selectedTable?.table_number} הוקצה`)
@@ -5863,8 +5520,7 @@ export default function EventTables({
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            padding: 16,
-          }}
+            padding: 16 }}
           onClick={() => setEditingExtrasFor(null)}
         >
           <div
@@ -5876,8 +5532,7 @@ export default function EventTables({
               width: '100%',
               border: '1px solid var(--glass-border)',
               maxHeight: '85vh',
-              overflowY: 'auto',
-            }}
+              overflowY: 'auto' }}
             onClick={(e) => e.stopPropagation()}
           >
             <h4 style={{ margin: '0 0 12px', fontSize: 16, fontWeight: 800 }}>
@@ -5902,8 +5557,7 @@ export default function EventTables({
                     background: 'var(--glass)',
                     border: '1px solid var(--glass-border)',
                     color: 'var(--text)',
-                    textAlign: 'center',
-                  }}
+                    textAlign: 'center' }}
                 />
               </div>
               <div>
@@ -5921,8 +5575,7 @@ export default function EventTables({
                     background: 'var(--glass)',
                     border: '1px solid var(--glass-border)',
                     color: 'var(--text)',
-                    textAlign: 'center',
-                  }}
+                    textAlign: 'center' }}
                 />
               </div>
             </div>
@@ -5958,8 +5611,7 @@ export default function EventTables({
                         display: 'flex',
                         justifyContent: 'space-between',
                         alignItems: 'center',
-                        fontSize: 14,
-                      }}
+                        fontSize: 14 }}
                     >
                       <span>{extra.name}</span>
                       <span>{isIncluded ? '✅' : '⬜'}</span>
@@ -5979,29 +5631,26 @@ export default function EventTables({
                   background: 'none',
                   color: 'var(--text)',
                   fontWeight: 600,
-                  cursor: 'pointer',
-                }}
+                  cursor: 'pointer' }}
               >
                 ביטול
               </button>
               <button
                 type="button"
                 onClick={async () => {
-                  await fetch(
-                    `${API_BASE}/api/admin/events/${eventId}/table-menu/${editingExtrasFor.id}`,
+                  await fetchWithAuth(
+                    `/api/admin/events/${eventId}/table-menu/${editingExtrasFor.id}`,
                     {
                       method: 'PATCH',
-                      headers: authHeaders(),
-                      body: JSON.stringify({
+                      
+                      _raw: true, body: JSON.stringify({
                         price: editingExtrasFor.price,
                         name: editingExtrasFor.name,
                         is_available: editingExtrasFor.is_available,
                         included_extras: editingExtrasFor.included_extras || [],
                         free_entries: editingExtrasFor.free_entries,
                         free_extras: editingExtrasFor.free_extras,
-                        free_extras_type: editingExtrasFor.free_extras_type,
-                      }),
-                    },
+                        free_extras_type: editingExtrasFor.free_extras_type }) },
                   )
                   setEditingExtrasFor(null)
                   loadData()
@@ -6014,8 +5663,7 @@ export default function EventTables({
                   background: '#00C37A',
                   color: '#000',
                   fontWeight: 800,
-                  cursor: 'pointer',
-                }}
+                  cursor: 'pointer' }}
               >
                 שמור
               </button>
@@ -6034,8 +5682,7 @@ export default function EventTables({
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            padding: 16,
-          }}
+            padding: 16 }}
         >
           <div
             style={{
@@ -6045,8 +5692,7 @@ export default function EventTables({
               maxWidth: 400,
               width: '100%',
               border: '1px solid var(--glass-border)',
-              position: 'relative',
-            }}
+              position: 'relative' }}
           >
             <button
               type="button"
@@ -6058,8 +5704,7 @@ export default function EventTables({
                 background: 'none',
                 border: 'none',
                 cursor: 'pointer',
-                color: 'var(--v2-gray-400)',
-              }}
+                color: 'var(--v2-gray-400)' }}
             >
               <X size={20} />
             </button>
@@ -6086,8 +5731,7 @@ export default function EventTables({
                   background: '#00C37A',
                   color: '#000',
                   fontWeight: 700,
-                  cursor: 'pointer',
-                }}
+                  cursor: 'pointer' }}
               >
                 העתק קישור QR ללקוח
               </button>
@@ -6106,8 +5750,7 @@ export default function EventTables({
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            padding: 16,
-          }}
+            padding: 16 }}
         >
           <div
             style={{
@@ -6117,8 +5760,7 @@ export default function EventTables({
               maxWidth: 420,
               width: '100%',
               border: '1px solid var(--glass-border)',
-              position: 'relative',
-            }}
+              position: 'relative' }}
           >
             <button
               type="button"
@@ -6130,8 +5772,7 @@ export default function EventTables({
                 background: 'none',
                 border: 'none',
                 cursor: 'pointer',
-                color: 'var(--v2-gray-400)',
-              }}
+                color: 'var(--v2-gray-400)' }}
             >
               <X size={20} />
             </button>
@@ -6146,8 +5787,7 @@ export default function EventTables({
                     padding: 12,
                     background: 'var(--glass)',
                     borderRadius: 8,
-                    marginBottom: 12,
-                  }}
+                    marginBottom: 12 }}
                 >
                   {`${PUBLIC_TABLE_ORIGIN}/table/${showQR.qr_token}`}
                 </code>
@@ -6165,8 +5805,7 @@ export default function EventTables({
                     background: '#00C37A',
                     color: '#000',
                     fontWeight: 700,
-                    cursor: 'pointer',
-                  }}
+                    cursor: 'pointer' }}
                 >
                   העתק קישור
                 </button>
