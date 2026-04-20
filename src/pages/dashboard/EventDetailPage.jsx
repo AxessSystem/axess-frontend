@@ -15,8 +15,8 @@ import EventTables from './EventTables'
 import TemplatesTab from './TemplatesTab'
 import { exportToExcel, exportEventReport, exportAudienceToExcel } from '@/utils/exportExcel'
 import { copyToClipboard } from '@/utils/clipboard'
+import { fetchWithAuth } from '@/lib/supabase'
 
-const API_BASE = import.meta.env.VITE_API_URL || 'https://api.axess.pro'
 const PUBLIC_WEBVIEW_ORIGIN = 'https://axess.pro'
 
 const EXPENSE_CATEGORIES = [
@@ -134,12 +134,12 @@ function MenuBuilderModal({ businessId, onClose }) {
     setSaving(true)
     try {
       const items = categories.flatMap(c => c.items.filter(i => i.name).map(i => ({ name: i.name, price: i.price, description: i.description, category: c.name || null })))
-      const res = await fetch(`${API_BASE}/api/admin/menus`, {
+      const res = await fetchWithAuth(`/api/admin/menus`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ business_id: businessId, name: name.trim(), items }),
+        _raw: true,
       })
-      const data = await res.json()
+      const data = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(data.error || 'שגיאה')
       toast.success('התפריט נשמר')
       onClose()
@@ -188,12 +188,10 @@ function LayoutBuilderModal({ businessId, onClose }) {
 
   const handleSave = (cfg) => {
     if (!name.trim()) { toast.error('הזן שם לסקיצה'); return }
-    fetch(`${API_BASE}/api/admin/layouts`, {
+    fetchWithAuth(`/api/admin/layouts`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ business_id: businessId, name: name.trim(), template_type: cfg.template_type || 'theater', config: cfg }),
     })
-      .then(r => r.json())
       .then(data => {
         if (data.error) throw new Error(data.error)
         toast.success('הסקיצה נשמרה')
@@ -869,18 +867,17 @@ export default function EventDetailPage() {
 
   const loadData = useCallback(() => {
     if (!id || !businessId) return Promise.resolve()
-    const hdrs = authHeaders()
     return Promise.all([
-      fetch(`${API_BASE}/api/admin/events/${id}`, { headers: hdrs }).then((r) => (r.ok ? r.json() : null)),
-      fetch(`${API_BASE}/api/admin/events/${id}/orders`, { headers: hdrs }).then((r) => (r.ok ? r.json() : [])),
-      fetch(`${API_BASE}/api/w/analytics-by-business`, { headers: hdrs }).then((r) => (r.ok ? r.json() : { stats: [] })),
-      fetch(`${API_BASE}/api/webview/settings`, { headers: hdrs }).then((r) => (r.ok ? r.json() : {})),
-      fetch(`${API_BASE}/api/admin/events/${id}/interests`, { headers: hdrs }).then((r) => (r.ok ? r.json() : { interests: [] })),
-      fetch(`${API_BASE}/api/admin/events/${id}/channels`, { headers: hdrs }).then((r) => (r.ok ? r.json() : { channels: [] })),
-      fetch(`${API_BASE}/api/admin/events/${id}/financials`, { headers: hdrs }).then((r) => (r.ok ? r.json() : {
+      fetchWithAuth(`/api/admin/events/${id}`, { _raw: true }).then((r) => (r.ok ? r.json() : null)),
+      fetchWithAuth(`/api/admin/events/${id}/orders`, { _raw: true }).then((r) => (r.ok ? r.json() : [])),
+      fetchWithAuth(`/api/w/analytics-by-business`, { _raw: true }).then((r) => (r.ok ? r.json() : { stats: [] })),
+      fetchWithAuth(`/api/webview/settings`, { _raw: true }).then((r) => (r.ok ? r.json() : {})),
+      fetchWithAuth(`/api/admin/events/${id}/interests`, { _raw: true }).then((r) => (r.ok ? r.json() : { interests: [] })),
+      fetchWithAuth(`/api/admin/events/${id}/channels`, { _raw: true }).then((r) => (r.ok ? r.json() : { channels: [] })),
+      fetchWithAuth(`/api/admin/events/${id}/financials`, { _raw: true }).then((r) => (r.ok ? r.json() : {
         expenses: [], revenues: [], crowd_stats: [], axess_revenue: null,
       })),
-      fetch(`${API_BASE}/api/admin/vendors`, { headers: hdrs }).then((r) => (r.ok ? r.json() : { vendors: [] })),
+      fetchWithAuth(`/api/admin/vendors`, { _raw: true }).then((r) => (r.ok ? r.json() : { vendors: [] })),
     ]).then(([ev, ord, waData, webSettings, intData, chData, finData, vendData]) => {
       setEvent(ev && !ev.error ? ev : null)
       setOrders(Array.isArray(ord) ? ord : ord.orders || [])
@@ -945,8 +942,8 @@ export default function EventDetailPage() {
 
   useEffect(() => {
     if (!id) return
-    fetch(`${API_BASE}/api/admin/events/${id}/promoters`, { headers: authHeaders() })
-      .then((r) => r.json())
+    fetchWithAuth(`/api/admin/events/${id}/promoters`, { _raw: true })
+      .then((r) => (r.ok ? r.json() : []))
       .then((d) => setEventPromoters(Array.isArray(d) ? d : (d.promoters || [])))
       .catch(() => {})
   }, [id, authHeaders])
@@ -960,8 +957,8 @@ export default function EventDetailPage() {
 
   useEffect(() => {
     if (!showShareReport || !id) return
-    fetch(`${API_BASE}/api/admin/events/${id}/shares`, { headers: authHeaders() })
-      .then((r) => r.json())
+    fetchWithAuth(`/api/admin/events/${id}/shares`, { _raw: true })
+      .then((r) => (r.ok ? r.json() : { shares: [] }))
       .then((d) => setShareLinks(d.shares?.map((s) => ({
         ...s,
         url: `${window.location.origin}/shared/event/${id}/${s.token}`,
@@ -972,16 +969,16 @@ export default function EventDetailPage() {
   useEffect(() => {
     if (!businessId) return
     Promise.all([
-      fetch(`${API_BASE}/api/admin/menus?business_id=${businessId}`, { headers: authHeaders() })
+      fetchWithAuth(`/api/admin/menus?business_id=${businessId}`, { _raw: true })
         .then((r) => (r.ok ? r.json() : [])),
-      fetch(`${API_BASE}/api/admin/layouts?business_id=${businessId}`, { headers: authHeaders() })
+      fetchWithAuth(`/api/admin/layouts?business_id=${businessId}`, { _raw: true })
         .then((r) => (r.ok ? r.json() : [])),
     ]).then(([m, l]) => { setMenus(m); setLayouts(l) }).catch(() => {})
   }, [businessId, authHeaders])
 
   useEffect(() => {
     if (!id || !businessId) return
-    fetch(`${API_BASE}/api/admin/events/${id}/links`, { headers: authHeaders() })
+    fetchWithAuth(`/api/admin/events/${id}/links`, { _raw: true })
       .then((r) => (r.ok ? r.json() : { linked_menu_ids: [], linked_layout_ids: [] }))
       .then((d) => setMenuSketchForm({
         linked_menu_ids: (d.linked_menu_ids || []).map(String),
@@ -992,10 +989,10 @@ export default function EventDetailPage() {
 
   const approveOrder = async (orderId) => {
     try {
-      const r = await fetch(`${API_BASE}/api/admin/orders/${orderId}/approve`, {
+      const r = await fetchWithAuth(`/api/admin/orders/${orderId}/approve`, {
         method: 'POST',
-        headers: { ...authHeaders() },
         body: JSON.stringify({ approved_by: 'dashboard' }),
+        _raw: true,
       })
       if (!r.ok) throw new Error()
       toast.success('אושר')
@@ -1007,9 +1004,9 @@ export default function EventDetailPage() {
 
   const cancelOrder = async (orderId) => {
     try {
-      const r = await fetch(`${API_BASE}/api/admin/orders/${orderId}/reject`, {
+      const r = await fetchWithAuth(`/api/admin/orders/${orderId}/reject`, {
         method: 'POST',
-        headers: authHeaders(),
+        _raw: true,
       })
       if (!r.ok) throw new Error()
       toast.success('בוטל')
@@ -1040,7 +1037,7 @@ export default function EventDetailPage() {
   const handleResendQR = async (order) => {
     try {
       if (!businessId) return
-      const r = await fetch(`${API_BASE}/api/validators?business_id=${encodeURIComponent(businessId)}`, { headers: authHeaders() })
+      const r = await fetchWithAuth(`/api/validators?business_id=${encodeURIComponent(businessId)}`, { _raw: true })
       if (!r.ok) throw new Error()
       const d = await r.json()
       const row = (d.validators || []).find((v) => String(v.id) === String(order.id))
@@ -1603,8 +1600,8 @@ export default function EventDetailPage() {
                               title="הסר מאירוע"
                               onClick={() => {
                                 if (!window.confirm(`להסיר את ${p.promoter_name || p.name} מהאירוע?`)) return;
-                                fetch(`${API_BASE}/api/admin/events/${id}/promoters/${p.id}`, {
-                                  method: 'DELETE', headers: authHeaders()
+                                fetchWithAuth(`/api/admin/events/${id}/promoters/${p.id}`, {
+                                  method: 'DELETE', _raw: true
                                 }).then(() => setEventPromoters(prev => prev.filter(ep => ep.id !== p.id)));
                               }}
                               style={{ width: 28, height: 28, borderRadius: 6, border: 'none', background: 'rgba(239,68,68,0.1)', color: '#EF4444', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
@@ -1877,14 +1874,11 @@ export default function EventDetailPage() {
                                           type="button"
                                           onClick={async () => {
                                             try {
-                                              const res = await fetch(
-                                                `${API_BASE}/api/admin/events/${id}/table-orders/${order.event_table_order_id}/checkin`,
-                                                {
-                                                  method: 'PATCH',
-                                                  headers: authHeaders(),
-                                                  body: JSON.stringify({ guest_index: i }),
-                                                }
-                                              );
+                                              const res = await fetchWithAuth(`/api/admin/events/${id}/table-orders/${order.event_table_order_id}/checkin`, {
+                                                method: 'PATCH',
+                                                body: JSON.stringify({ guest_index: i }),
+                                                _raw: true,
+                                              });
                                               if (res.ok) {
                                                 toast.success('סומן כהגיע ✓');
                                                 loadData();
@@ -2292,30 +2286,30 @@ export default function EventDetailPage() {
                             }
                             let payloadVal = v
                             if (field === 'amount') payloadVal = parseFloat(v) || 0
-                            await fetch(`${API_BASE}/api/admin/events/${id}/revenues/${rev.id}`, {
+                            await fetchWithAuth(`/api/admin/events/${id}/revenues/${rev.id}`, {
                               method: 'PATCH',
-                              headers: authHeaders(),
                               body: JSON.stringify({ [field]: payloadVal }),
+                              _raw: true,
                             })
                             loadData()
                           }}
                           onDelete={async () => {
-                            await fetch(`${API_BASE}/api/admin/events/${id}/revenues/${rev.id}`, {
+                            await fetchWithAuth(`/api/admin/events/${id}/revenues/${rev.id}`, {
                               method: 'DELETE',
-                              headers: authHeaders(),
+                              _raw: true,
                             })
                             loadData()
                           }}
                           onDuplicate={async () => {
-                            await fetch(`${API_BASE}/api/admin/events/${id}/revenues`, {
+                            await fetchWithAuth(`/api/admin/events/${id}/revenues`, {
                               method: 'POST',
-                              headers: authHeaders(),
                               body: JSON.stringify({
                                 source: rev.source,
                                 label: rev.label,
                                 amount: rev.amount,
                                 notes: rev.notes,
                               }),
+                              _raw: true,
                             })
                             loadData()
                           }}
@@ -2453,16 +2447,16 @@ export default function EventDetailPage() {
                                   invoice_type: 'none',
                                   [field]: payloadVal,
                                 }
-                                await fetch(`${API_BASE}/api/admin/events/${id}/expenses`, {
+                                await fetchWithAuth(`/api/admin/events/${id}/expenses`, {
                                   method: 'POST',
-                                  headers: authHeaders(),
                                   body: JSON.stringify(body),
+                                  _raw: true,
                                 })
                               } else {
-                                await fetch(`${API_BASE}/api/admin/events/${id}/expenses/${exp.id}`, {
+                                await fetchWithAuth(`/api/admin/events/${id}/expenses/${exp.id}`, {
                                   method: 'PATCH',
-                                  headers: authHeaders(),
                                   body: JSON.stringify({ [field]: payloadVal }),
+                                  _raw: true,
                                 })
                               }
                               loadData()
@@ -2486,9 +2480,9 @@ export default function EventDetailPage() {
                                 return
                               }
                               saveToHistory()
-                              await fetch(`${API_BASE}/api/admin/events/${id}/expenses/${exp.id}`, {
+                              await fetchWithAuth(`/api/admin/events/${id}/expenses/${exp.id}`, {
                                 method: 'DELETE',
-                                headers: authHeaders(),
+                                _raw: true,
                               })
                               loadData()
                             }}
@@ -2498,9 +2492,8 @@ export default function EventDetailPage() {
                             }}
                             onDuplicate={async () => {
                               saveToHistory()
-                              await fetch(`${API_BASE}/api/admin/events/${id}/expenses`, {
+                              await fetchWithAuth(`/api/admin/events/${id}/expenses`, {
                                 method: 'POST',
-                                headers: authHeaders(),
                                 body: JSON.stringify({
                                   category: exp.category,
                                   item_name: exp.item_name || '',
@@ -2510,16 +2503,17 @@ export default function EventDetailPage() {
                                   vat_mode: exp.vat_mode || 'included',
                                   invoice_type: exp.invoice_type || 'none',
                                 }),
+                                _raw: true,
                               })
                               loadData()
                             }}
                             onApplyDateToAll={async (date) => {
                               saveToHistory()
                               for (const expense of financials.expenses) {
-                                await fetch(`${API_BASE}/api/admin/events/${id}/expenses/${expense.id}`, {
+                                await fetchWithAuth(`/api/admin/events/${id}/expenses/${expense.id}`, {
                                   method: 'PATCH',
-                                  headers: authHeaders(),
                                   body: JSON.stringify({ expense_date: date }),
+                                  _raw: true,
                                 })
                               }
                               loadData()
@@ -2807,14 +2801,14 @@ export default function EventDetailPage() {
                         type="button"
                         disabled={!newShareForm.name}
                         onClick={async () => {
-                          const res = await fetch(`${API_BASE}/api/admin/events/${id}/shares`, {
+                          const res = await fetchWithAuth(`/api/admin/events/${id}/shares`, {
                             method: 'POST',
-                            headers: authHeaders(),
                             body: JSON.stringify({
                               name: newShareForm.name,
                               permission: newShareForm.permission,
                               expires_days: newShareForm.expires_days,
                             }),
+                            _raw: true,
                           })
                           if (!res.ok) {
                             toast.error('יצירת הלינק נכשלה')
@@ -2884,9 +2878,9 @@ export default function EventDetailPage() {
                               type="button"
                               onClick={async (e) => {
                                 e.stopPropagation()
-                                await fetch(`${API_BASE}/api/admin/events/${id}/shares/${link.id}`, {
+                                await fetchWithAuth(`/api/admin/events/${id}/shares/${link.id}`, {
                                   method: 'DELETE',
-                                  headers: authHeaders(),
+                                  _raw: true,
                                 })
                                 setShareLinks((prev) => prev.filter((l) => l.id !== link.id))
                               }}
@@ -3007,8 +3001,8 @@ export default function EventDetailPage() {
                       <button
                         type="button"
                         onClick={async () => {
-                          const r = await fetch(`${API_BASE}/api/admin/events/${id}/expenses`, {
-                            method: 'POST', headers: authHeaders(),
+                          const r = await fetchWithAuth(`/api/admin/events/${id}/expenses`, {
+                            method: 'POST',
                             body: JSON.stringify({
                               category: expenseForm.category,
                               item_name: expenseForm.item_name,
@@ -3018,6 +3012,7 @@ export default function EventDetailPage() {
                               payment_status: expenseForm.payment_status,
                               invoice_number: expenseForm.invoice_number || null,
                             }),
+                            _raw: true,
                           })
                           if (!r.ok) {
                             toast.error('שמירה נכשלה')
@@ -3193,9 +3188,8 @@ export default function EventDetailPage() {
                             toast.error('בחר או הזן קטגוריה')
                             return
                           }
-                          const r = await fetch(`${API_BASE}/api/admin/vendors`, {
+                          const r = await fetchWithAuth(`/api/admin/vendors`, {
                             method: 'POST',
-                            headers: authHeaders(),
                             body: JSON.stringify({
                               name: vendorForm.name.trim(),
                               category,
@@ -3210,6 +3204,7 @@ export default function EventDetailPage() {
                                 price: parseFloat(it.price) || 0,
                               })),
                             }),
+                            _raw: true,
                           })
                           if (!r.ok) {
                             toast.error('שמירת ספק נכשלה')
@@ -3282,13 +3277,14 @@ export default function EventDetailPage() {
                       <button
                         type="button"
                         onClick={async () => {
-                          const r = await fetch(`${API_BASE}/api/admin/events/${id}/revenues`, {
-                            method: 'POST', headers: authHeaders(),
+                          const r = await fetchWithAuth(`/api/admin/events/${id}/revenues`, {
+                            method: 'POST',
                             body: JSON.stringify({
                               source: revenueForm.source,
                               label: revenueForm.label,
                               amount: parseFloat(revenueForm.amount) || 0,
                             }),
+                            _raw: true,
                           })
                           if (!r.ok) {
                             toast.error('שמירה נכשלה')
@@ -3349,14 +3345,15 @@ export default function EventDetailPage() {
                       <button
                         type="button"
                         onClick={async () => {
-                          const r = await fetch(`${API_BASE}/api/admin/events/${id}/crowd`, {
-                            method: 'POST', headers: authHeaders(),
+                          const r = await fetchWithAuth(`/api/admin/events/${id}/crowd`, {
+                            method: 'POST',
                             body: JSON.stringify({
                               entries: parseInt(crowdForm.entries, 10) || 0,
                               exits: parseInt(crowdForm.exits, 10) || 0,
                               simultaneous: parseInt(crowdForm.simultaneous, 10) || 0,
                               is_peak: crowdForm.is_peak,
                             }),
+                            _raw: true,
                           })
                           if (!r.ok) {
                             toast.error('שמירה נכשלה')
@@ -3386,7 +3383,6 @@ export default function EventDetailPage() {
             eventDate={event?.date}
             businessId={businessId}
             authHeaders={authHeaders}
-            session={session}
           />
         )}
 
@@ -3394,7 +3390,6 @@ export default function EventDetailPage() {
           <TemplatesTab
             eventId={id}
             businessId={businessId}
-            authHeaders={authHeaders}
           />
         )}
 
@@ -3769,15 +3764,15 @@ export default function EventDetailPage() {
                       type="button"
                       disabled={!importChannelLabel || importRows.length === 0 || !columnMap.phone}
                       onClick={async () => {
-                        const res = await fetch(`${API_BASE}/api/admin/events/${id}/channels/import`, {
+                        const res = await fetchWithAuth(`/api/admin/events/${id}/channels/import`, {
                           method: 'POST',
-                          headers: authHeaders(),
                           body: JSON.stringify({
                             channel_label: importChannelLabel,
                             channel_name: 'import',
                             orders: importRows,
                             column_map: columnMap,
                           }),
+                          _raw: true,
                         })
                         const data = await res.json().catch(() => ({}))
                         if (!res.ok) {
@@ -3862,15 +3857,15 @@ export default function EventDetailPage() {
                       type="button"
                       disabled={!manualChannelLabel.trim()}
                       onClick={async () => {
-                        const res = await fetch(`${API_BASE}/api/admin/events/${id}/channels`, {
+                        const res = await fetchWithAuth(`/api/admin/events/${id}/channels`, {
                           method: 'POST',
-                          headers: authHeaders(),
                           body: JSON.stringify({
                             channel_label: manualChannelLabel.trim(),
                             channel_name: 'custom',
                             total_sold: parseInt(manualChannelSold, 10) || 0,
                             total_revenue: parseFloat(manualChannelRevenue) || 0,
                           }),
+                          _raw: true,
                         })
                         if (!res.ok) {
                           toast.error('שגיאה בשמירה')
@@ -4030,10 +4025,10 @@ export default function EventDetailPage() {
                 onChange={async (val) => {
                   if (!val || !id) return
                   try {
-                    const r = await fetch(`${API_BASE}/api/admin/events/${id}/menus`, {
+                    const r = await fetchWithAuth(`/api/admin/events/${id}/menus`, {
                       method: 'POST',
-                      headers: authHeaders(),
                       body: JSON.stringify({ menu_id: val }),
+                      _raw: true,
                     })
                     if (!r.ok) throw new Error()
                     setMenuSketchForm((f) => ({ ...f, linked_menu_ids: [...new Set([...(f.linked_menu_ids || []), String(val)])] }))
@@ -4064,9 +4059,9 @@ export default function EventDetailPage() {
                           onClick={async () => {
                             if (!id) return
                             try {
-                              const r = await fetch(`${API_BASE}/api/admin/events/${id}/menus/${encodeURIComponent(menuId)}`, {
+                              const r = await fetchWithAuth(`/api/admin/events/${id}/menus/${encodeURIComponent(menuId)}`, {
                                 method: 'DELETE',
-                                headers: authHeaders(),
+                                _raw: true,
                               })
                               if (!r.ok) throw new Error()
                               setMenuSketchForm((f) => ({ ...f, linked_menu_ids: (f.linked_menu_ids || []).filter(x => String(x) !== String(menuId)) }))
@@ -4093,10 +4088,10 @@ export default function EventDetailPage() {
                 onChange={async (val) => {
                   if (!val || !id) return
                   try {
-                    const r = await fetch(`${API_BASE}/api/admin/events/${id}/layouts`, {
+                    const r = await fetchWithAuth(`/api/admin/events/${id}/layouts`, {
                       method: 'POST',
-                      headers: authHeaders(),
                       body: JSON.stringify({ venue_layout_id: val }),
+                      _raw: true,
                     })
                     if (!r.ok) throw new Error()
                     setMenuSketchForm((f) => ({ ...f, linked_layout_ids: [...new Set([...(f.linked_layout_ids || []), String(val)])] }))
@@ -4127,9 +4122,9 @@ export default function EventDetailPage() {
                           onClick={async () => {
                             if (!id) return
                             try {
-                              const r = await fetch(`${API_BASE}/api/admin/events/${id}/layouts/${encodeURIComponent(layoutId)}`, {
+                              const r = await fetchWithAuth(`/api/admin/events/${id}/layouts/${encodeURIComponent(layoutId)}`, {
                                 method: 'DELETE',
-                                headers: authHeaders(),
+                                _raw: true,
                               })
                               if (!r.ok) throw new Error()
                               setMenuSketchForm((f) => ({ ...f, linked_layout_ids: (f.linked_layout_ids || []).filter(x => String(x) !== String(layoutId)) }))
@@ -4158,7 +4153,7 @@ export default function EventDetailPage() {
           onClose={() => {
             setMenuBuilderOpen(false)
             if (!businessId) return
-            fetch(`${API_BASE}/api/admin/menus?business_id=${businessId}`, { headers: authHeaders() })
+            fetchWithAuth(`/api/admin/menus?business_id=${businessId}`, { _raw: true })
               .then((r) => (r.ok ? r.json() : []))
               .then(setMenus)
           }}
@@ -4170,7 +4165,7 @@ export default function EventDetailPage() {
           onClose={() => {
             setLayoutBuilderOpen(false)
             if (!businessId) return
-            fetch(`${API_BASE}/api/admin/layouts?business_id=${businessId}`, { headers: authHeaders() })
+            fetchWithAuth(`/api/admin/layouts?business_id=${businessId}`, { _raw: true })
               .then((r) => (r.ok ? r.json() : []))
               .then(setLayouts)
           }}
