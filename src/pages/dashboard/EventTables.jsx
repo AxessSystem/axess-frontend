@@ -3200,7 +3200,7 @@ export default function EventTables({
         if (!acc[cat]) acc[cat] = []
         acc[cat].push({ value: m.id, label: `${m.name} — ₪${m.price}` })
         return acc
-      }, { _raw: true })
+      }, {})
     return Object.entries(grouped).flatMap(([cat, items]) => [
       { value: `__header_${cat}`, label: `── ${cat} ──`, disabled: true },
       ...items])
