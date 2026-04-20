@@ -435,10 +435,7 @@ export default function DashboardClientLayout() {
   useEffect(() => {
     if (!session?.access_token || !businessId) return
     const fetchInboxUnread = () => {
-      fetch(`${API_BASE}/api/inbox/unread-count`, {
-        headers: { Authorization: `Bearer ${session.access_token}`, 'X-Business-Id': businessId },
-      })
-        .then(r => r.json())
+      fetchWithAuth(`/api/inbox/unread-count`)
         .then(data => setInboxUnreadCount(data?.count ?? 0))
         .catch(() => {})
     }
@@ -465,10 +462,9 @@ export default function DashboardClientLayout() {
       } catch (_) {}
     }
     const pollNotifications = () => {
-      const headers = { Authorization: `Bearer ${session.access_token}`, 'X-Business-Id': businessId }
       Promise.all([
-        fetch(`${API_BASE}/api/notifications/unread-count`, { headers }).then(r => r.json()).then(d => d?.count ?? 0).catch(() => 0),
-        fetch(`${API_BASE}/api/notifications?limit=5`, { headers }).then(r => r.json()).then(d => Array.isArray(d) ? d : []).catch(() => []),
+        fetchWithAuth(`/api/notifications/unread-count`).then(d => d?.count ?? 0).catch(() => 0),
+        fetchWithAuth(`/api/notifications?limit=5`).then(d => Array.isArray(d) ? d : []).catch(() => []),
       ]).then(([count, list]) => {
         setNotificationsUnreadCount(count)
         setRecentNotifications(list)
@@ -517,19 +513,18 @@ export default function DashboardClientLayout() {
 
   useEffect(() => {
     if (!businessId) return
-    fetchWithAuth(`${API_BASE}/api/admin/business-config?business_id=${businessId}`)
-      .then(r => r.ok ? r.json() : null)
+    fetchWithAuth(`/api/admin/business-config?business_id=${businessId}`)
       .then(setBusinessConfig)
       .catch(() => setBusinessConfig(null))
   }, [businessId])
 
   useEffect(() => {
+    if (!businessId) return
     const type = businessConfig?.type_key || 'all'
-    fetchWithAuth(`${API_BASE}/api/system-notices?business_type=${type}`)
-      .then(r => r.ok ? r.json() : [])
-      .then(setSystemNotices)
+    fetchWithAuth(`/api/system-notices?business_type=${type}`)
+      .then(data => setSystemNotices(Array.isArray(data) ? data : []))
       .catch(() => setSystemNotices([]))
-  }, [businessConfig?.type_key])
+  }, [businessConfig?.type_key, businessId])
 
   const dismissNotice = (id) => {
     setDismissedNotices(prev => {
