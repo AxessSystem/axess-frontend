@@ -8,7 +8,7 @@ import EmptyState from '@/components/ui/EmptyState'
 import ImportModal from '@/components/ui/ImportModal'
 import ExportButton from '@/components/ui/ExportButton'
 import { api } from '@/services/api'
-import { fetchWithAuth, supabase } from '@/lib/supabase'
+import { fetchWithAuth } from '@/lib/supabase'
 import { useAuth } from '@/contexts/AuthContext'
 import { useRequirePermission } from '@/hooks/useRequirePermission'
 import toast from 'react-hot-toast'
@@ -146,7 +146,6 @@ function CustomerProfileDrawer({ open, onClose, masterRecipientId, businessId, o
   const cancelEdit = () => setIsEditing(false)
   const saveProfile = async () => {
     if (!profile?.id || !businessId || !session?.access_token) return
-    const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}`, 'X-Business-Id': businessId }
     const body = { business_id: businessId }
     if (editForm.first_name !== undefined) body.first_name = editForm.first_name
     if (editForm.last_name !== undefined) body.last_name = editForm.last_name
@@ -155,9 +154,13 @@ function CustomerProfileDrawer({ open, onClose, masterRecipientId, businessId, o
     if (editForm.birth_date !== undefined) body.birth_date = editForm.birth_date || null
     if (editForm.id_number !== undefined) body.id_number = editForm.id_number
     try {
-      const r = await fetchWithAuth(`${API_BASE}/api/admin/recipients/${profile.id}/profile`, { method: 'PATCH', headers, body: JSON.stringify(body) })
-      const data = await r.json().catch(() => ({}))
-      if (!r.ok) throw new Error(data.message || data.error || `HTTP ${r.status}`)
+      const data = await fetchWithAuth(
+        `/api/admin/recipients/${profile.id}/profile`,
+        { method: 'PATCH', body: JSON.stringify(body) }
+      ).catch(() => ({}))
+      if (!data || data.error) throw new Error(
+        data?.message || data?.error || 'שגיאה בעדכון'
+      )
       setIsEditing(false)
       refetch()
       onTagUpdate?.()
@@ -537,17 +540,6 @@ export default function Audiences() {
     return () => window.removeEventListener('resize', check)
   }, [])
 
-  const h = () => {
-    const headers = { 'Content-Type': 'application/json', 'X-Business-Id': businessId || '' }
-    if (session?.access_token) headers['Authorization'] = `Bearer ${session.access_token}`
-    return headers
-  }
-
-  const onUnauthorized = async () => {
-    await supabase.auth.signOut()
-    navigate('/login')
-  }
-
   const {
     data: recipientsData,
     error: recipientsError,
@@ -557,11 +549,8 @@ export default function Audiences() {
     queryKey: ['recipients', businessId],
     queryFn: () =>
       fetchWithAuth(
-        `${API_BASE}/api/admin/recipients`,
-        { headers: h() },
-        session,
-        onUnauthorized
-      ).then(r => r.json()),
+        `/api/admin/recipients`
+      ),
     staleTime: 1000 * 60 * 3,
     enabled: !!businessId && !!session?.access_token,
   })
@@ -570,11 +559,8 @@ export default function Audiences() {
     queryKey: ['segments', businessId],
     queryFn: () =>
       fetchWithAuth(
-        `${API_BASE}/api/admin/segments`,
-        { headers: h() },
-        session,
-        onUnauthorized
-      ).then(r => r.json()),
+        `/api/admin/segments`
+      ),
     staleTime: 1000 * 60 * 5,
     enabled: !!businessId && !!session?.access_token,
   })
@@ -583,11 +569,8 @@ export default function Audiences() {
     queryKey: ['campaigns', businessId],
     queryFn: () =>
       fetchWithAuth(
-        `${API_BASE}/api/admin/campaigns?limit=100&business_id=${businessId}`,
-        { headers: h() },
-        session,
-        onUnauthorized
-      ).then(r => r.json()),
+        `/api/admin/campaigns?limit=100&business_id=${businessId}`
+      ),
     staleTime: 1000 * 60 * 3,
     enabled: !!businessId && !!session?.access_token,
   })
@@ -596,11 +579,8 @@ export default function Audiences() {
     queryKey: ['events', businessId],
     queryFn: () =>
       fetchWithAuth(
-        `${API_BASE}/api/admin/recipients/events-list?business_id=${businessId}`,
-        { headers: h() },
-        session,
-        onUnauthorized
-      ).then(r => r.json()),
+        `/api/admin/recipients/events-list?business_id=${businessId}`
+      ),
     staleTime: 1000 * 60 * 5,
     enabled: !!businessId && !!session?.access_token,
   })
@@ -658,16 +638,13 @@ export default function Audiences() {
     const payload = { filter: segment.id, business_id: businessId }
     if (segment.id === 'live') payload.liveHours = liveHours
     const r = await fetchWithAuth(
-      `${API_BASE}/api/admin/segments/historical`,
+      `/api/admin/segments/historical`,
       {
         method: 'POST',
-        headers: h(),
         body: JSON.stringify(payload),
-      },
-      session,
-      onUnauthorized,
+      }
     )
-    const data = r.ok ? await r.json() : {}
+    const data = r || {}
     setRecipients(data?.recipients || [])
     setPage(1)
     setLoading(false)
@@ -679,12 +656,10 @@ export default function Audiences() {
     setActiveSegment(seg.id)
     const headers = { Authorization: `Bearer ${session.access_token}`, 'X-Business-Id': businessId }
     const r = await fetchWithAuth(
-      `${API_BASE}/api/admin/segments/${seg.id}/run`,
+      `/api/admin/segments/${seg.id}/run`,
       { method: 'POST', headers },
-      session,
-      onUnauthorized,
     )
-    const data = r.ok ? await r.json() : {}
+    const data = r || {}
     setRecipients(data?.recipients || [])
     setPage(1)
     setLoading(false)
@@ -694,16 +669,13 @@ export default function Audiences() {
     if (!nlQuery.trim() || !businessId || !session?.access_token) return
     setLoading(true)
     const r = await fetchWithAuth(
-      `${API_BASE}/api/admin/segments/ai`,
+      `/api/admin/segments/ai`,
       {
         method: 'POST',
-        headers: h(),
         body: JSON.stringify({ query: nlQuery }),
-      },
-      session,
-      onUnauthorized,
+      }
     )
-    const data = r.ok ? await r.json() : {}
+    const data = r || {}
     setRecipients(data?.recipients || [])
     setLastWhereClause(data?.whereClause || '')
     setPage(1)
@@ -721,15 +693,12 @@ export default function Audiences() {
     const results = await Promise.all(
       selectedEvents.map(ev =>
         fetchWithAuth(
-          `${API_BASE}/api/admin/segments/historical`,
+          `/api/admin/segments/historical`,
           {
             method: 'POST',
-            headers: h(),
             body: JSON.stringify({ filter: 'by_event', eventTitle: ev, business_id: businessId }),
           },
-          session,
-          onUnauthorized,
-        ).then(r => r.ok ? r.json() : {})
+        ).catch(() => ({}))
       )
     )
     const byPhone = {}
@@ -768,14 +737,14 @@ export default function Audiences() {
 
   const deleteSegment = async (id) => {
     try {
-      const r = await fetchWithAuth(`${API_BASE}/api/audiences/segments/${id}`, { method: 'DELETE', headers: h() }, session, onUnauthorized)
-      if (!r.ok) {
-        const data = await r.json().catch(() => ({}))
-        throw new Error(data.error || `HTTP ${r.status}`)
-      }
+      await fetchWithAuth(
+        `/api/audiences/segments/${id}`,
+        { method: 'DELETE' }
+      )
       queryClient.invalidateQueries({ queryKey: ['segments', businessId] })
-      const segRes = await fetchWithAuth(`${API_BASE}/api/admin/segments`, { headers: h() }, session, onUnauthorized)
-      const segData = segRes.ok ? await segRes.json() : {}
+      const segData = await fetchWithAuth(
+        `/api/admin/segments`
+      ).catch(() => ({}))
       setSegments({ presets: PRESET_SEGMENTS, saved: segData?.saved || [] })
       toast.success('סגמנט נמחק')
     } catch (e) {
@@ -1222,7 +1191,7 @@ export default function Audiences() {
               setLoading(true)
               const r = await fetch(`${API_BASE}/api/admin/segments/historical`, {
                 method: 'POST',
-                headers: h(),
+                  headers: { 'Content-Type': 'application/json', 'X-Business-Id': businessId || '', ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}) },
                 body: JSON.stringify({ filter: 'by_campaign', campaignId: selectedCampaign, campaignFilter, business_id: businessId }),
               })
               const d = r.ok ? await r.json() : {}
@@ -1272,20 +1241,15 @@ export default function Audiences() {
               className="btn-primary"
               onClick={async () => {
                 await fetchWithAuth(
-                  `${API_BASE}/api/admin/segments`,
-                  { method: 'POST', headers: h(), body: JSON.stringify({ name: saveName, whereClause: lastWhereClause, createdBy: 'ai', description: nlQuery }) },
-                  session,
-                  onUnauthorized,
+                  `/api/admin/segments`,
+                  { method: 'POST', body: JSON.stringify({ name: saveName, whereClause: lastWhereClause, createdBy: 'ai', description: nlQuery }) },
                 )
                 setShowSaveModal(false)
                 setSaveName('')
                 const r = await fetchWithAuth(
-                  `${API_BASE}/api/admin/segments`,
-                  { headers: h() },
-                  session,
-                  onUnauthorized,
+                  `/api/admin/segments`,
                 )
-                const d = r.ok ? await r.json() : {}
+                const d = r || {}
                 setSegments({ presets: PRESET_SEGMENTS, saved: d?.saved || [] })
               }}
             >
@@ -1398,7 +1362,7 @@ export default function Audiences() {
             <div style={{ position: 'relative', flexShrink: 0 }}>
               <button
                 type="button"
-                onClick={async () => { setShowFlowDropdown(!showFlowDropdown); if (!showFlowDropdown && session?.access_token && businessId) { const r = await fetch(`${API_BASE}/api/whatsapp/flows`, { headers: { Authorization: `Bearer ${session.access_token}`, 'X-Business-Id': businessId } }); const d = r.ok ? await r.json() : {}; setFlowsList((d.flows || []).filter(x => x.meta_status === 'PUBLISHED')); } }}
+                onClick={async () => { setShowFlowDropdown(!showFlowDropdown); if (!showFlowDropdown && session?.access_token && businessId) { const d = await fetchWithAuth(`/api/whatsapp/flows`).catch(() => ({})); setFlowsList((d.flows || []).filter(x => x.meta_status === 'PUBLISHED')); } }}
                 style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 16px', borderRadius: 'var(--radius-md)', fontSize: 13, fontWeight: 500, whiteSpace: 'nowrap', border: 'none', cursor: 'pointer', transition: 'all 0.2s', background: 'transparent', color: 'var(--v2-gray-400)' }}
                 onMouseEnter={e => e.currentTarget.style.color = '#ffffff'}
                 onMouseLeave={e => e.currentTarget.style.color = 'var(--v2-gray-400)'}
@@ -1416,9 +1380,10 @@ export default function Audiences() {
                         if (!phones.length) { toast.error('אין נמענים בסגמנט'); return }
                         setFlowSendBusy(true)
                         try {
-                          const r = await fetch(`${API_BASE}/api/whatsapp/flows/${flow.id}/send`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}`, 'X-Business-Id': businessId }, body: JSON.stringify({ recipient_phones: phones }) })
-                          const data = await r.json().catch(() => ({}))
-                          if (!r.ok) throw new Error(data.error || 'שגיאה')
+                          const data = await fetchWithAuth(
+                            `/api/whatsapp/flows/${flow.id}/send`,
+                            { method: 'POST', body: JSON.stringify({ recipient_phones: phones }) }
+                          )
                           const ok = (data.results || []).filter(x => x.success).length
                           toast.success(`Flow נשלח ל-${ok}/${phones.length} נמענים`)
                         } catch (e) { toast.error(e.message || 'שגיאה בשליחה') }
@@ -1577,10 +1542,9 @@ export default function Audiences() {
                 }
                 try {
                   const r = await fetchWithAuth(
-                    `${API_BASE}/api/audiences/segments`,
+                    `/api/audiences/segments`,
                     {
                       method: 'POST',
-                      headers: h(),
                       body: JSON.stringify({
                         name: segmentName.trim(),
                         filters: activeFilters,
@@ -1588,17 +1552,13 @@ export default function Audiences() {
                         business_id: businessId,
                       }),
                     },
-                    session,
-                    onUnauthorized,
                   )
-                  const data = await r.json().catch(() => ({}))
-                  if (!r.ok) throw new Error(data.message || data.error || `HTTP ${r.status}`)
+                  const data = r || {}
                   setShowSaveSegment(false)
                   setSegmentName('')
                   toast.success('סגמנט נשמר!')
                   queryClient.invalidateQueries({ queryKey: ['segments', businessId] })
-                  const segRes = await fetchWithAuth(`${API_BASE}/api/admin/segments`, { headers: h() }, session, onUnauthorized)
-                  const segData = segRes.ok ? await segRes.json() : {}
+                  const segData = await fetchWithAuth(`/api/admin/segments`).catch(() => ({}))
                   setSegments({ presets: PRESET_SEGMENTS, saved: segData?.saved || [] })
                 } catch (e) {
                   toast.error(e.message || 'שגיאה בשמירה')
@@ -1668,17 +1628,13 @@ export default function Audiences() {
                 try {
                   const endpoint = bulkTagMode === 'add' ? '/api/admin/recipients/bulk-tags' : '/api/admin/recipients/bulk-tags-remove'
                   const r = await fetchWithAuth(
-                    `${API_BASE}${endpoint}`,
+                    `${endpoint}`,
                     {
                       method: 'PATCH',
-                      headers: h(),
                       body: JSON.stringify({ tag: tagVal, recipient_ids: ids, business_id: businessId }),
                     },
-                    session,
-                    onUnauthorized,
                   )
-                  const data = await r.json().catch(() => ({}))
-                  if (!r.ok) throw new Error(data.message || data.error || `HTTP ${r.status}`)
+                  const data = r || {}
                   setShowBulkTagModal(false)
                   setBulkTag('')
                   setBulkTagToRemove('')

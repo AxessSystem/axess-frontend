@@ -4,6 +4,7 @@ import {
   BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, Legend,
 } from 'recharts'
 import { useAuth } from '@/contexts/AuthContext'
+import { fetchWithAuth } from '@/lib/supabase'
 import { Copy, MousePointerClick, Users, Eye, Link2, KeyRound, Plus } from 'lucide-react'
 import toast from 'react-hot-toast'
 import CustomSelect from '@/components/ui/CustomSelect'
@@ -21,9 +22,6 @@ function copyText(text, msg = 'הועתק') {
  */
 export default function PixelDashboard() {
   const { session } = useAuth()
-  const headers = session?.access_token
-    ? { Authorization: `Bearer ${session.access_token}`, 'Content-Type': 'application/json' }
-    : {}
   const qc = useQueryClient()
 
   const [selectedBizId, setSelectedBizId] = useState('')
@@ -34,12 +32,7 @@ export default function PixelDashboard() {
   const { data: businesses = [] } = useQuery({
     queryKey: ['axess-admin-businesses-pixel'],
     queryFn: () =>
-      fetch(`${API_BASE}/api/axess-admin/businesses`, {
-        headers: { Authorization: `Bearer ${session.access_token}` },
-      }).then((r) => {
-        if (!r.ok) throw new Error('unauthorized')
-        return r.json()
-      }),
+      fetchWithAuth(`/api/axess-admin/businesses`),
     enabled: !!session?.access_token,
   })
 
@@ -49,37 +42,26 @@ export default function PixelDashboard() {
   const { data: statsData, isLoading: statsLoading } = useQuery({
     queryKey: ['pixel-stats', citySlug, session?.access_token],
     queryFn: () =>
-      fetch(`${API_BASE}/api/pixel/stats/${encodeURIComponent(citySlug)}`, {
-        headers: { Authorization: `Bearer ${session.access_token}` },
-      }).then((r) => {
-        if (!r.ok) throw new Error('stats')
-        return r.json()
-      }),
+      fetchWithAuth(
+        `/api/pixel/stats/${encodeURIComponent(citySlug)}`
+      ),
     enabled: !!session?.access_token && !!citySlug,
   })
 
   const { data: partners = [] } = useQuery({
     queryKey: ['pixel-partners', selectedBizId, session?.access_token],
     queryFn: () =>
-      fetch(`${API_BASE}/api/pixel/partners?business_id=${encodeURIComponent(selectedBizId)}`, {
-        headers: { Authorization: `Bearer ${session.access_token}` },
-      }).then((r) => {
-        if (!r.ok) throw new Error('partners')
-        return r.json()
-      }),
+      fetchWithAuth(
+        `/api/pixel/partners?business_id=${encodeURIComponent(selectedBizId)}`
+      ),
     enabled: !!session?.access_token && !!selectedBizId,
   })
 
   const createPartner = useMutation({
     mutationFn: (body) =>
-      fetch(`${API_BASE}/api/pixel/partners`, {
+      fetchWithAuth(`/api/pixel/partners`, {
         method: 'POST',
-        headers,
         body: JSON.stringify(body),
-      }).then(async (r) => {
-        const j = await r.json().catch(() => ({}))
-        if (!r.ok) throw new Error(j.error || 'שגיאה')
-        return j
       }),
     onSuccess: (row) => {
       qc.invalidateQueries({ queryKey: ['pixel-partners', selectedBizId] })
