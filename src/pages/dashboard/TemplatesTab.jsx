@@ -2,8 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react'
 import { Users, UtensilsCrossed, LayoutGrid, Megaphone, Store, Receipt, Save, ChevronDown, ChevronUp, Pencil, Trash2, Search, Plus, X, Copy } from 'lucide-react'
 import toast from 'react-hot-toast'
 import CustomSelect from '@/components/ui/CustomSelect'
-
-const API_BASE = import.meta.env.VITE_API_URL || 'https://api.axess.pro'
+import { fetchWithAuth } from '@/lib/supabase'
 
 const TEMPLATE_TYPES = [
   { id: 'staff', label: 'הצוות שלי', desc: 'שמור את הצוות הקבוע שלך', icon: 'users' },
@@ -102,7 +101,7 @@ function pickActiveRowId(list, businessId) {
   return list[0].id
 }
 
-export default function TemplatesTab({ eventId, businessId, authHeaders }) {
+export default function TemplatesTab({ eventId, businessId }) {
   const [allTemplates, setAllTemplates] = useState([])
   const [activeRowIdByType, setActiveRowIdByType] = useState({})
   const [expanded, setExpanded] = useState(null)
@@ -137,7 +136,7 @@ export default function TemplatesTab({ eventId, businessId, authHeaders }) {
   useEffect(() => {
     if (!eventId || !businessId) return
     let cancelled = false
-    fetch(`${API_BASE}/api/admin/events/${eventId}`, { headers: authHeaders() })
+    fetchWithAuth(`/api/admin/events/${eventId}`, { _raw: true })
       .then((r) => (r.ok ? r.json() : null))
       .then((ev) => {
         if (cancelled || !ev || ev.error) return
@@ -145,7 +144,7 @@ export default function TemplatesTab({ eventId, businessId, authHeaders }) {
       })
       .catch(() => {})
     return () => { cancelled = true }
-  }, [eventId, businessId, authHeaders])
+  }, [eventId, businessId])
 
   const templatesByType = useMemo(() => {
     const m = {}
@@ -165,8 +164,9 @@ export default function TemplatesTab({ eventId, businessId, authHeaders }) {
 
   const loadTemplates = async () => {
     try {
-      const res = await fetch(`${API_BASE}/api/admin/business/${businessId}/templates`, { headers: authHeaders() })
-      const data = await res.json()
+      const data = await fetchWithAuth(`/api/admin/business/${businessId}/templates`)
+        .catch(() => null)
+      if (!data) return
       const list = data.templates || []
       setAllTemplates(list)
       const next = {}
@@ -203,10 +203,10 @@ export default function TemplatesTab({ eventId, businessId, authHeaders }) {
       const useTid = row && !row.is_system && String(row.business_id) === String(businessId)
       const payload = { template_type: templateType, source_event_id: eventId }
       if (useTid && rid) payload.template_id = rid
-      const res = await fetch(`${API_BASE}/api/admin/business/${businessId}/templates`, {
+      const res = await fetchWithAuth(`/api/admin/business/${businessId}/templates`, {
         method: 'POST',
-        headers: authHeaders(),
         body: JSON.stringify(payload),
+        _raw: true,
       })
       const data = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(data.error || data.message || 'שגיאה')
@@ -233,9 +233,8 @@ export default function TemplatesTab({ eventId, businessId, authHeaders }) {
   const handleTemplateUpdate = async (type, newData) => {
     const rid = activeRowIdByType[type]
     setAllTemplates((prev) => prev.map((row) => (row.id === rid ? { ...row, template_data: newData } : row)))
-    await fetch(`${API_BASE}/api/admin/business/${businessId}/templates/${type}`, {
+    await fetchWithAuth(`/api/admin/business/${businessId}/templates/${type}`, {
       method: 'PATCH',
-      headers: authHeaders(),
       body: JSON.stringify(rowPatchBody(type, newData)),
     })
   }
@@ -247,10 +246,10 @@ export default function TemplatesTab({ eventId, businessId, authHeaders }) {
   }
 
   const upgradeTemplate = async (templateType) => {
-    const res = await fetch(`${API_BASE}/api/admin/business/${businessId}/templates/upgrade`, {
+    const res = await fetchWithAuth(`/api/admin/business/${businessId}/templates/upgrade`, {
       method: 'POST',
-      headers: authHeaders(),
       body: JSON.stringify({ template_type: templateType }),
+      _raw: true,
     })
     const data = await res.json().catch(() => ({}))
     if (!res.ok) throw new Error(data.error || data.message || 'שגיאה')
@@ -352,10 +351,10 @@ export default function TemplatesTab({ eventId, businessId, authHeaders }) {
                 type="button"
                 onClick={async () => {
                   try {
-                    const res = await fetch(`${API_BASE}/api/admin/business/${businessId}/templates/duplicate`, {
+                    const res = await fetchWithAuth(`/api/admin/business/${businessId}/templates/duplicate`, {
                       method: 'POST',
-                      headers: authHeaders(),
                       body: JSON.stringify({ template_id: duplicateModal.templateId, new_name: duplicateModal.name.trim() || 'עותק' }),
+                      _raw: true,
                     })
                     const data = await res.json().catch(() => ({}))
                     if (!res.ok) throw new Error(data.error || 'שגיאה')
@@ -493,9 +492,8 @@ export default function TemplatesTab({ eventId, businessId, authHeaders }) {
                             menuItems
                               .filter((item) => item.menu_item_key)
                               .map((item) =>
-                                fetch(`${API_BASE}/api/admin/events/${eventId}/table-menu/override`, {
+                                fetchWithAuth(`/api/admin/events/${eventId}/table-menu/override`, {
                                   method: 'POST',
-                                  headers: authHeaders(),
                                   body: JSON.stringify({
                                     menu_item_key: item.menu_item_key,
                                     price: item.price,
@@ -552,7 +550,6 @@ export default function TemplatesTab({ eventId, businessId, authHeaders }) {
                   onUpdate={(newData) => handleTemplateUpdate(t.id, newData)}
                   eventId={eventId}
                   businessId={businessId}
-                  authHeaders={authHeaders}
                   requestConfirm={requestConfirm}
                   eventSlug={eventSlug}
                 />
@@ -571,17 +568,17 @@ export default function TemplatesTab({ eventId, businessId, authHeaders }) {
   )
 }
 
-function TemplateContent({ type, data, onUpdate, eventId, businessId, authHeaders, requestConfirm, eventSlug }) {
-  if (type === 'staff') return <StaffTemplate data={data} onUpdate={onUpdate} eventId={eventId} businessId={businessId} authHeaders={authHeaders} requestConfirm={requestConfirm} />
-  if (type === 'menu') return <MenuTemplate data={data} onUpdate={onUpdate} eventId={eventId} businessId={businessId} authHeaders={authHeaders} requestConfirm={requestConfirm} />
-  if (type === 'tables') return <TablesTemplate data={data} onUpdate={onUpdate} businessId={businessId} authHeaders={authHeaders} />
-  if (type === 'promoters') return <PromotersTemplate key="promoters" data={data} onUpdate={onUpdate} businessId={businessId} authHeaders={authHeaders} eventSlug={eventSlug} />
-  if (type === 'vendors') return <VendorsTemplate data={data} onUpdate={onUpdate} eventId={eventId} businessId={businessId} authHeaders={authHeaders} />
-  if (type === 'expenses') return <ExpensesTemplate data={data} onUpdate={onUpdate} eventId={eventId} businessId={businessId} authHeaders={authHeaders} requestConfirm={requestConfirm} />
+function TemplateContent({ type, data, onUpdate, eventId, businessId, requestConfirm, eventSlug }) {
+  if (type === 'staff') return <StaffTemplate data={data} onUpdate={onUpdate} eventId={eventId} businessId={businessId} requestConfirm={requestConfirm} />
+  if (type === 'menu') return <MenuTemplate data={data} onUpdate={onUpdate} eventId={eventId} businessId={businessId} requestConfirm={requestConfirm} />
+  if (type === 'tables') return <TablesTemplate data={data} onUpdate={onUpdate} businessId={businessId} />
+  if (type === 'promoters') return <PromotersTemplate key="promoters" data={data} onUpdate={onUpdate} businessId={businessId} eventSlug={eventSlug} />
+  if (type === 'vendors') return <VendorsTemplate data={data} onUpdate={onUpdate} eventId={eventId} businessId={businessId} />
+  if (type === 'expenses') return <ExpensesTemplate data={data} onUpdate={onUpdate} eventId={eventId} businessId={businessId} requestConfirm={requestConfirm} />
   return null
 }
 
-function StaffTemplate({ data, onUpdate, eventId, businessId, authHeaders, requestConfirm }) {
+function StaffTemplate({ data, onUpdate, eventId, businessId, requestConfirm }) {
   const [staff, setStaff] = useState(data?.staff || [])
   const [showAdd, setShowAdd] = useState(false)
   const [newMember, setNewMember] = useState({
@@ -614,16 +611,15 @@ function StaffTemplate({ data, onUpdate, eventId, businessId, authHeaders, reque
   }, [data])
 
   useEffect(() => {
-    if (!businessId || !authHeaders) return
-    fetch(`${API_BASE}/api/admin/events?business_id=${businessId}`, { headers: authHeaders() })
-      .then((r) => r.json())
+    if (!businessId) return
+    fetchWithAuth(`/api/admin/events?business_id=${businessId}`)
       .then((d) => setAllEvents(Array.isArray(d) ? d : []))
+      .catch(() => {})
   }, [businessId])
 
   useEffect(() => {
-    if (!sourceEventId || !authHeaders) return
-    fetch(`${API_BASE}/api/admin/events/${sourceEventId}/table-staff`, { headers: authHeaders() })
-      .then((r) => r.json())
+    if (!sourceEventId) return
+    fetchWithAuth(`/api/admin/events/${sourceEventId}/table-staff`)
       .then((d) => {
         const dbStaff = d.staff || []
         if (dbStaff.length > 0) setStaff(dbStaff)
@@ -899,9 +895,8 @@ function StaffTemplate({ data, onUpdate, eventId, businessId, authHeaders, reque
               const roleStr = Array.isArray(member.roles) && member.roles.length
                 ? member.roles.join(' + ')
                 : member.role
-              await fetch(`${API_BASE}/api/admin/events/${eventId}/table-staff`, {
+              await fetchWithAuth(`/api/admin/events/${eventId}/table-staff`, {
                 method: 'POST',
-                headers: authHeaders(),
                 body: JSON.stringify({ name: member.name, phone: member.phone, role: roleStr, wa_notifications: true }),
               }).catch(() => {})
             }
@@ -916,7 +911,7 @@ function StaffTemplate({ data, onUpdate, eventId, businessId, authHeaders, reque
   )
 }
 
-function MenuTemplate({ data, onUpdate, eventId, businessId, authHeaders, requestConfirm }) {
+function MenuTemplate({ data, onUpdate, eventId, businessId, requestConfirm }) {
   const [menu, setMenu] = useState(data?.menu || [])
   const [search, setSearch] = useState('')
   const [editingItem, setEditingItem] = useState(null)
@@ -945,9 +940,7 @@ function MenuTemplate({ data, onUpdate, eventId, businessId, authHeaders, reques
     if (!businessId || !eventId) return
     if ((data?.menu || []).length > 0) return
     let cancelled = false
-    const hdrs = authHeaders()
-    fetch(`${API_BASE}/api/admin/events/${eventId}/table-menu`, { headers: hdrs })
-      .then((r) => r.json())
+    fetchWithAuth(`/api/admin/events/${eventId}/table-menu`)
       .then((d) => {
         if (cancelled) return
         if (d.menu?.length > 0) {
@@ -1238,9 +1231,8 @@ function MenuTemplate({ data, onUpdate, eventId, businessId, authHeaders, reques
           onClick={() => {
             requestConfirm('לייבא תפריט מהתבנית לאירוע זה?', async () => {
               for (const item of menu) {
-                await fetch(`${API_BASE}/api/admin/events/${eventId}/table-menu`, {
+                await fetchWithAuth(`/api/admin/events/${eventId}/table-menu`, {
                   method: 'POST',
-                  headers: authHeaders(),
                   body: JSON.stringify({
                     name: item.name,
                     category: item.category,
@@ -1327,7 +1319,7 @@ function MenuTemplate({ data, onUpdate, eventId, businessId, authHeaders, reques
   )
 }
 
-function TablesTemplate({ data, onUpdate, businessId, authHeaders }) {
+function TablesTemplate({ data, onUpdate, businessId }) {
   const DEFAULT_TABLE_NAMES = ['VIP', 'בר', 'רגיל', 'DJ Booth']
   const DEFAULT_TABLE_SERIES = ['100-110', '200-210', '300-310', '400-410', '500-510']
   const [templateData, setTemplateData] = useState({
@@ -1348,8 +1340,7 @@ function TablesTemplate({ data, onUpdate, businessId, authHeaders }) {
 
   useEffect(() => {
     if (!businessId) return
-    fetch(`${API_BASE}/api/admin/business/${businessId}/templates`, { headers: authHeaders() })
-      .then((r) => r.json())
+    fetchWithAuth(`/api/admin/business/${businessId}/templates`)
       .then((payload) => {
         const templates = payload.templates || []
         const tablesTemplate = templates.find((t) => t.template_type === 'tables' && (t.is_default || t.is_system))
@@ -1366,7 +1357,7 @@ function TablesTemplate({ data, onUpdate, businessId, authHeaders }) {
         }
       })
       .catch(() => {})
-  }, [businessId, authHeaders])
+  }, [businessId])
 
   const saveTablesTemplate = async () => {
     const tables = []
@@ -1387,20 +1378,17 @@ function TablesTemplate({ data, onUpdate, businessId, authHeaders }) {
       }
     }
 
-    const res = await fetch(
-      `${API_BASE}/api/admin/business/${businessId}/templates/tables`,
-      {
-        method: 'PATCH',
-        headers: authHeaders(),
-        body: JSON.stringify({
-          template_data: {
-            table_names: templateData.table_names || [],
-            table_series: templateData.table_series || [],
-            tables,
-          },
-        }),
-      }
-    )
+    const res = await fetchWithAuth(`/api/admin/business/${businessId}/templates/tables`, {
+      method: 'PATCH',
+      body: JSON.stringify({
+        template_data: {
+          table_names: templateData.table_names || [],
+          table_series: templateData.table_series || [],
+          tables,
+        },
+      }),
+      _raw: true,
+    })
     if (res.ok) {
       onUpdate({
         table_names: templateData.table_names || [],
@@ -1565,7 +1553,7 @@ function waDigits(phone) {
   return d
 }
 
-function PromotersTemplate({ data: _data, onUpdate: _onUpdate, businessId, authHeaders, eventSlug }) {
+function PromotersTemplate({ data: _data, onUpdate: _onUpdate, businessId, eventSlug }) {
   const [promoters, setPromoters] = useState([])
   const [showAdd, setShowAdd] = useState(false)
   const [loading, setLoading] = useState(true)
@@ -1596,15 +1584,14 @@ function PromotersTemplate({ data: _data, onUpdate: _onUpdate, businessId, authH
   useEffect(() => {
     console.log('[promoters] businessId:', businessId)
     if (!businessId) return
-    fetch(`${API_BASE}/api/admin/promoters?business_id=${businessId}`, { headers: authHeaders() })
-      .then((r) => r.json())
+    fetchWithAuth(`/api/admin/promoters?business_id=${businessId}`)
       .then((d) => {
         const list = Array.isArray(d) ? d : (d.promoters || [])
         setPromoters(list)
         setLoading(false)
       })
       .catch(() => setLoading(false))
-  }, [businessId, authHeaders])
+  }, [businessId])
 
   const generateCode = () => Math.random().toString(36).substring(2, 10).toUpperCase()
 
@@ -1864,10 +1851,10 @@ function PromotersTemplate({ data: _data, onUpdate: _onUpdate, businessId, authH
                     ticket_commission_n: tctype === 'fixed_per_n' ? (parseInt(newPromoter.ticket_commission_n, 10) || 0) : null,
                   }
                   try {
-                    const res = await fetch(`${API_BASE}/api/admin/promoters`, {
+                    const res = await fetchWithAuth(`/api/admin/promoters`, {
                       method: 'POST',
-                      headers: authHeaders(),
                       body: JSON.stringify(payload),
+                      _raw: true,
                     })
                     const d = await res.json().catch(() => ({}))
                     if (!res.ok) {
@@ -1904,7 +1891,7 @@ function PromotersTemplate({ data: _data, onUpdate: _onUpdate, businessId, authH
   )
 }
 
-function VendorsTemplate({ data: _data, onUpdate: _onUpdate, eventId: _eventId, businessId, authHeaders }) {
+function VendorsTemplate({ data: _data, onUpdate: _onUpdate, eventId: _eventId, businessId }) {
   const [vendors, setVendors] = useState([])
   const [loading, setLoading] = useState(true)
   const [showAddVendor, setShowAddVendor] = useState(false)
@@ -1925,14 +1912,14 @@ function VendorsTemplate({ data: _data, onUpdate: _onUpdate, eventId: _eventId, 
   const loadVendors = useCallback(() => {
     if (!businessId) return Promise.resolve()
     setLoading(true)
-    return fetch(`${API_BASE}/api/admin/vendors`, { headers: authHeaders() })
-      .then((r) => (r.ok ? r.json() : { vendors: [] }))
-      .then((d) => {
-        setVendors(Array.isArray(d.vendors) ? d.vendors : [])
+    return fetchWithAuth(`/api/admin/vendors`, { _raw: true })
+      .then(async (r) => {
+        const data = r.ok ? await r.json() : { vendors: [] }
+        setVendors(Array.isArray(data.vendors) ? data.vendors : [])
       })
       .catch(() => setVendors([]))
       .finally(() => setLoading(false))
-  }, [businessId, authHeaders])
+  }, [businessId])
 
   useEffect(() => {
     loadVendors()
@@ -2137,9 +2124,8 @@ function VendorsTemplate({ data: _data, onUpdate: _onUpdate, eventId: _eventId, 
                     toast.error('בחר או הזן קטגוריה')
                     return
                   }
-                  const r = await fetch(`${API_BASE}/api/admin/vendors`, {
+                  const r = await fetchWithAuth(`/api/admin/vendors`, {
                     method: 'POST',
-                    headers: authHeaders(),
                     body: JSON.stringify({
                       name: vendorForm.name.trim(),
                       category,
@@ -2154,6 +2140,7 @@ function VendorsTemplate({ data: _data, onUpdate: _onUpdate, eventId: _eventId, 
                         price: parseFloat(it.price) || 0,
                       })),
                     }),
+                    _raw: true,
                   })
                   if (!r.ok) {
                     toast.error('שמירת ספק נכשלה')
@@ -2188,7 +2175,7 @@ function VendorsTemplate({ data: _data, onUpdate: _onUpdate, eventId: _eventId, 
   )
 }
 
-function ExpensesTemplate({ data, onUpdate, eventId, businessId: _businessId, authHeaders, requestConfirm }) {
+function ExpensesTemplate({ data, onUpdate, eventId, businessId: _businessId, requestConfirm }) {
   const [categories, setCategories] = useState(
     data?.categories || ['אמנים', 'ציוד', 'שמע ותאורה', 'אבטחה', 'שיווק', 'מקום', 'כיבוד', 'אחר'],
   )
