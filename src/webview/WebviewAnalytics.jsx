@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { BarChart3 } from 'lucide-react'
+import { fetchWithAuth } from '@/lib/supabase'
 
 const cardStyle = {
   background: 'var(--v2-dark-3)',
@@ -15,26 +16,20 @@ const sectionH2 = {
   marginBottom: 16,
 }
 
-export default function WebviewAnalyticsTab({ businessId, authHeaders }) {
+export default function WebviewAnalyticsTab({ businessId }) {
   const [stats, setStats] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
-  const API_BASE = import.meta.env.VITE_API_URL || 'https://api.axess.pro'
-
   useEffect(() => {
-    if (!businessId || !authHeaders) return
+    if (!businessId) return
     setLoading(true)
     setError(null)
-    fetch(`${API_BASE}/api/w/analytics-by-business`, { headers: authHeaders() })
-      .then((r) => {
-        if (!r.ok) throw new Error('שגיאה בטעינה')
-        return r.json()
-      })
+    fetchWithAuth('/api/w/analytics-by-business')
       .then((data) => setStats(data.stats || []))
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false))
-  }, [businessId, authHeaders])
+  }, [businessId])
 
   if (loading) {
     return (

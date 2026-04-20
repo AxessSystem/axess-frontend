@@ -6,10 +6,9 @@ import { useQuery } from '@tanstack/react-query'
 import { useAuth } from '@/contexts/AuthContext'
 import { useRequirePermission } from '@/hooks/useRequirePermission'
 import WebviewAnalytics from '@/webview/WebviewAnalytics'
-import { fetchWithAuth, supabase } from '@/lib/supabase'
+import { fetchWithAuth } from '@/lib/supabase'
 import CustomSelect from '@/components/ui/CustomSelect'
 
-const API_BASE = import.meta.env.VITE_API_URL || 'https://api.axess.pro'
 const SMS_LINK_BASE = import.meta.env.VITE_SMS_LINK_BASE || 'https://axss.me'
 
 const MODAL_CLOSE_X = {
@@ -97,13 +96,13 @@ function LinksTab({ businessId }) {
 
   useEffect(() => {
     if (businessId) {
-      fetch(`${API_BASE}/api/admin/business-links?business_id=${businessId}`).then(r => r.ok ? r.json() : []).then(setLinks).catch(() => [])
+      fetchWithAuth(`/api/admin/business-links?business_id=${businessId}`).then(setLinks).catch(() => [])
     }
   }, [businessId])
 
   useEffect(() => {
     if (modalOpen && businessId) {
-      fetch(`${API_BASE}/api/admin/events?business_id=${businessId}`).then(r => r.ok ? r.json() : []).then(e => setEvents(Array.isArray(e) ? e : [])).catch(() => [])
+      fetchWithAuth(`/api/admin/events?business_id=${businessId}`).then(e => setEvents(Array.isArray(e) ? e : [])).catch(() => [])
     }
   }, [modalOpen, businessId])
 
@@ -114,9 +113,7 @@ function LinksTab({ businessId }) {
       const body = { business_id: businessId, label: label.trim(), destination_type: destType }
       if (destType === 'event_page' && destId) body.destination_id = destId
       if (destType === 'external_url') body.metadata = { url: externalUrl }
-      const r = await fetch(`${API_BASE}/api/admin/business-links`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
-      const data = await r.json()
-      if (!r.ok) throw new Error(data.error || 'שגיאה')
+      const data = await fetchWithAuth('/api/admin/business-links', { method: 'POST', body: JSON.stringify(body) })
       setCreatedLink(data)
       setLinks(prev => [{ ...data, label: label.trim(), destination_type: destType, clicks: 0 }, ...prev])
       setLabel('')
@@ -252,26 +249,10 @@ function WhatsAppTab({ businessId, session }) {
   const [openLibCategoryDropdown, setOpenLibCategoryDropdown] = useState(false)
   const [openLibBusinessTypeDropdown, setOpenLibBusinessTypeDropdown] = useState(false)
 
-  const authHeaders = () => ({
-    'Content-Type': 'application/json',
-    'Authorization': `Bearer ${session?.access_token}`,
-    'X-Business-Id': businessId,
-  })
-
-  const onUnauthorized = async () => {
-    await supabase.auth.signOut()
-    window.location.href = '/login'
-  }
-
   const { data: waStatusData, error: waStatusError, isLoading: waStatusLoading } = useQuery({
     queryKey: ['whatsappStatus', businessId],
     queryFn: () =>
-      fetchWithAuth(
-        `${API_BASE}/api/whatsapp/status`,
-        { headers: authHeaders() },
-        session,
-        onUnauthorized,
-      ).then(r => r.json()),
+      fetchWithAuth('/api/whatsapp/status'),
     staleTime: 1000 * 60 * 2,
     enabled: !!businessId && !!session?.access_token,
   })
@@ -294,7 +275,7 @@ function WhatsAppTab({ businessId, session }) {
 
   useEffect(() => {
     if (waTab === 'templates' && businessId && session?.access_token) {
-      fetch(`${API_BASE}/api/whatsapp/templates`, { headers: authHeaders() }).then(r => r.ok ? r.json() : {}).then(d => setTemplates(d.templates || [])).catch(() => setTemplates([]))
+      fetchWithAuth('/api/whatsapp/templates').then(d => setTemplates(d.templates || [])).catch(() => setTemplates([]))
     }
   }, [waTab, businessId, session?.access_token])
 
@@ -303,8 +284,7 @@ function WhatsAppTab({ businessId, session }) {
       const q = new URLSearchParams()
       if (libCategory) q.set('category', libCategory)
       if (libBusinessType) q.set('business_type', libBusinessType)
-      fetch(`${API_BASE}/api/whatsapp/template-library?${q}`, { headers: authHeaders() })
-        .then(r => r.ok ? r.json() : {})
+      fetchWithAuth(`/api/whatsapp/template-library?${q}`)
         .then(d => setLibraryTemplates(d.templates || []))
         .catch(() => setLibraryTemplates([]))
     }
@@ -312,14 +292,14 @@ function WhatsAppTab({ businessId, session }) {
 
   useEffect(() => {
     if (waTab === 'rules' && businessId && session?.access_token) {
-      fetch(`${API_BASE}/api/inbox/routing-rules`, { headers: authHeaders() }).then(r => r.ok ? r.json() : {}).then(d => setRules(d.rules || [])).catch(() => setRules([]))
-      fetch(`${API_BASE}/api/staff?business_id=${businessId}`, { headers: authHeaders() }).then(r => r.ok ? r.json() : []).then(setStaff).catch(() => [])
+      fetchWithAuth('/api/inbox/routing-rules').then(d => setRules(d.rules || [])).catch(() => setRules([]))
+      fetchWithAuth(`/api/staff?business_id=${businessId}`).then(setStaff).catch(() => [])
     }
   }, [waTab, businessId, session?.access_token])
 
   useEffect(() => {
     if (waTab === 'flows' && businessId && session?.access_token) {
-      fetch(`${API_BASE}/api/whatsapp/flows`, { headers: authHeaders() }).then(r => r.ok ? r.json() : {}).then(d => setFlows(d.flows || [])).catch(() => setFlows([]))
+      fetchWithAuth('/api/whatsapp/flows').then(d => setFlows(d.flows || [])).catch(() => setFlows([]))
     }
   }, [waTab, businessId, session?.access_token])
 
@@ -330,8 +310,8 @@ function WhatsAppTab({ businessId, session }) {
     }
     setConnecting(true)
     try {
-      const r = await fetch(`${API_BASE}/api/whatsapp/connect`, {
-        method: 'POST', headers: authHeaders(), body: JSON.stringify({
+      const data = await fetchWithAuth('/api/whatsapp/connect', {
+        method: 'POST', body: JSON.stringify({
           phone_number_id: connectForm.phone_number_id,
           waba_id: connectForm.waba_id,
           access_token: connectForm.access_token,
@@ -340,8 +320,6 @@ function WhatsAppTab({ businessId, session }) {
           is_sandbox: connectForm.is_sandbox,
         }),
       })
-      const data = await r.json()
-      if (!r.ok) throw new Error(data.error || 'שגיאה')
       toast.success('חיבור הושלם בהצלחה')
       setStatus({ ...status, connected: true, display_name: data.display_name, business_phone_number: data.business_phone_number })
     } catch (e) { toast.error(e.message) }
@@ -350,22 +328,20 @@ function WhatsAppTab({ businessId, session }) {
 
   const handleDisconnect = async () => {
     try {
-      const r = await fetch(`${API_BASE}/api/whatsapp/disconnect`, { method: 'DELETE', headers: authHeaders() })
+      const r = await fetchWithAuth('/api/whatsapp/disconnect', { method: 'DELETE', _raw: true })
       if (r.ok) { setStatus(null); toast.success('החשבון נותק') }
     } catch (e) { toast.error(e.message) }
   }
 
   const handleAddRule = async () => {
     try {
-      const r = await fetch(`${API_BASE}/api/inbox/routing-rules`, {
-        method: 'POST', headers: authHeaders(), body: JSON.stringify({
+      const data = await fetchWithAuth('/api/inbox/routing-rules', {
+        method: 'POST', body: JSON.stringify({
           ...ruleForm,
           target_agent_id: ruleForm.target_agent_id || null,
           rule_order: rules.length,
         }),
       })
-      const data = await r.json()
-      if (!r.ok) throw new Error(data.error || 'שגיאה')
       setRules([...rules, data.rule])
       setRuleModal(false)
       setRuleForm({ rule_type: 'keyword', match_value: '', channel: 'both', action: 'queue_general', target_agent_id: '', target_department: '', bot_reply_text: '', is_active: true })
@@ -506,9 +482,8 @@ function WhatsAppTab({ businessId, session }) {
                         onClick={async () => {
                           setAdoptBusy(t.id)
                           try {
-                            const r = await fetch(`${API_BASE}/api/whatsapp/template-library/${t.id}/adopt`, { method: 'POST', headers: authHeaders(), body: JSON.stringify({}) })
-                            const data = await r.json()
-                            if (!r.ok) throw new Error(data.error || 'שגיאה')
+                            const data = await fetchWithAuth(`/api/whatsapp/template-library/${t.id}/adopt`, { method: 'POST', body: JSON.stringify({}) }).catch(() => ({}))
+                            if (!data?.template?.id) throw new Error(data.error || 'שגיאה')
                             setTemplates(prev => [{ id: data.template?.id, template_name: data.template?.template_name, meta_status: data.template?.meta_status }, ...prev])
                             toast.success('התבנית נוספה ונשלחה לאישור Meta')
                           } catch (e) {
@@ -584,10 +559,10 @@ function WhatsAppTab({ businessId, session }) {
                 </div>
                 <div style={{ display: 'flex', gap: 8 }}>
                   {f.meta_status === 'DRAFT' && (
-                    <button onClick={async () => { try { await fetch(`${API_BASE}/api/whatsapp/flows/${f.id}/publish`, { method: 'POST', headers: authHeaders() }); setFlows(prev => prev.map(x => x.id === f.id ? { ...x, meta_status: 'PUBLISHED' } : x)); toast.success('פורסם'); } catch (e) { toast.error(e.message); } }} style={{ padding: '6px 12px', background: 'var(--v2-primary)', color: 'var(--v2-dark)', border: 'none', borderRadius: 8, fontWeight: 600, cursor: 'pointer', fontSize: 12 }}>פרסם</button>
+                    <button onClick={async () => { try { await fetchWithAuth(`/api/whatsapp/flows/${f.id}/publish`, { method: 'POST' }).catch(() => {}); setFlows(prev => prev.map(x => x.id === f.id ? { ...x, meta_status: 'PUBLISHED' } : x)); toast.success('פורסם'); } catch (e) { toast.error(e.message); } }} style={{ padding: '6px 12px', background: 'var(--v2-primary)', color: 'var(--v2-dark)', border: 'none', borderRadius: 8, fontWeight: 600, cursor: 'pointer', fontSize: 12 }}>פרסם</button>
                   )}
                   <button onClick={() => setFlowSendModal(f)} style={{ padding: '6px 12px', background: 'rgba(37,99,235,0.2)', color: '#60a5fa', border: '1px solid rgba(37,99,235,0.4)', borderRadius: 8, cursor: 'pointer', fontSize: 12 }}>שלח ללקוחות</button>
-                  <button onClick={async () => { if (!confirm('למחוק את ה-Flow?')) return; try { await fetch(`${API_BASE}/api/whatsapp/flows/${f.id}`, { method: 'DELETE', headers: authHeaders() }); setFlows(prev => prev.filter(x => x.id !== f.id)); toast.success('נמחק'); } catch (e) { toast.error(e.message); } }} style={{ padding: '6px 12px', background: 'transparent', color: '#EF4444', border: '1px solid rgba(239,68,68,0.5)', borderRadius: 8, cursor: 'pointer', fontSize: 12 }}>מחק</button>
+                  <button onClick={async () => { if (!confirm('למחוק את ה-Flow?')) return; try { await fetchWithAuth(`/api/whatsapp/flows/${f.id}`, { method: 'DELETE' }).catch(() => {}); setFlows(prev => prev.filter(x => x.id !== f.id)); toast.success('נמחק'); } catch (e) { toast.error(e.message); } }} style={{ padding: '6px 12px', background: 'transparent', color: '#EF4444', border: '1px solid rgba(239,68,68,0.5)', borderRadius: 8, cursor: 'pointer', fontSize: 12 }}>מחק</button>
                 </div>
               </div>
             ))}
@@ -642,12 +617,11 @@ function WhatsAppTab({ businessId, session }) {
                       <button type="button" disabled={flowCreateBusy || !flowCreateParams.business_name?.trim()} className="btn-primary" onClick={async () => {
                         setFlowCreateBusy(true); setFlowCreateError(null)
                         try {
-                          const r = await fetch(`${API_BASE}/api/whatsapp/flows`, { method: 'POST', headers: authHeaders(), body: JSON.stringify({ flow_type: flowCreateType, params: { ...flowCreateParams, business_name: flowCreateParams.business_name || 'העסק' }, display_name: flowCreateDisplayName || undefined }) })
-                          const data = await r.json().catch(() => ({}))
-                          if (!r.ok) throw new Error(data.error || 'שגיאה ביצירת Flow')
+                          const data = await fetchWithAuth(`/api/whatsapp/flows`, { method: 'POST', body: JSON.stringify({ flow_type: flowCreateType, params: { ...flowCreateParams, business_name: flowCreateParams.business_name || 'העסק' }, display_name: flowCreateDisplayName || undefined }) }).catch(() => ({}))
+                          if (!data?.flow?.id) throw new Error(data.error || 'שגיאה ביצירת Flow')
                           const flowId = data.flow?.id
                           if (flowId) {
-                            const r2 = await fetch(`${API_BASE}/api/whatsapp/flows/${flowId}/publish`, { method: 'POST', headers: authHeaders() })
+                            const r2 = await fetchWithAuth(`/api/whatsapp/flows/${flowId}/publish`, { method: 'POST', _raw: true })
                             if (!r2.ok) { setFlowCreateError('נוצר אך פרסום נכשל'); setFlowCreateBusy(false); return }
                           }
                           setFlows(prev => [{ ...data.flow, meta_status: 'PUBLISHED' }, ...prev])
@@ -691,9 +665,8 @@ function WhatsAppTab({ businessId, session }) {
                     setFlowSendBusy(true)
                     const phones = flowSendPhones.split(/[\n,]+/).map(p => p.trim()).filter(Boolean)
                     try {
-                      const r = await fetch(`${API_BASE}/api/whatsapp/flows/${flowSendModal.id}/send`, { method: 'POST', headers: authHeaders(), body: JSON.stringify({ recipient_phones: phones, template_name: flowSendTemplate || 'flow_invite', flow_cta_text: flowSendCta || undefined }) })
-                      const data = await r.json().catch(() => ({}))
-                      if (!r.ok) throw new Error(data.error || 'שגיאה')
+                      const data = await fetchWithAuth(`/api/whatsapp/flows/${flowSendModal.id}/send`, { method: 'POST', body: JSON.stringify({ recipient_phones: phones, template_name: flowSendTemplate || 'flow_invite', flow_cta_text: flowSendCta || undefined }) }).catch(() => ({}))
+                      if (!data?.results) throw new Error(data.error || 'שגיאה')
                       const ok = (data.results || []).filter(x => x.success).length
                       toast.success(`נשלח ל-${ok}/${phones.length} נמענים`)
                       setFlowSendModal(null); setFlowSendPhones('')
@@ -789,7 +762,7 @@ function BusinessTypeTab({ businessId, config, onConfigChange }) {
   const [savingFeatures, setSavingFeatures] = useState(false)
 
   useEffect(() => {
-    fetch(`${API_BASE}/api/business-types`).then(r => r.ok ? r.json() : []).then(setBusinessTypes).catch(() => [])
+    fetchWithAuth('/api/business-types').then(setBusinessTypes).catch(() => [])
   }, [])
 
   useEffect(() => {
@@ -800,10 +773,10 @@ function BusinessTypeTab({ businessId, config, onConfigChange }) {
     if (!businessId || !selectedType) return
     setSavingType(true)
     try {
-      const r = await fetch(`${API_BASE}/api/admin/businesses/${businessId}/type`, {
+      const r = await fetchWithAuth(`/api/admin/businesses/${businessId}/type`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ business_type: selectedType.type_key, business_sub_type: selectedSubType || null }),
+        _raw: true,
       })
       if (!r.ok) throw new Error()
       const data = await r.json()
@@ -823,10 +796,10 @@ function BusinessTypeTab({ businessId, config, onConfigChange }) {
     if (!businessId) return
     setSavingFeatures(true)
     try {
-      const r = await fetch(`${API_BASE}/api/admin/businesses/${businessId}/features`, {
+      const r = await fetchWithAuth(`/api/admin/businesses/${businessId}/features`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ features_config: featuresOverride }),
+        _raw: true,
       })
       if (!r.ok) throw new Error()
       const data = await r.json()
@@ -976,8 +949,7 @@ export default function Settings() {
 
   useEffect(() => {
     if (activeTab === 'businesstype' && businessId) {
-      fetch(`${API_BASE}/api/admin/business-config?business_id=${businessId}`)
-        .then(r => r.ok ? r.json() : null)
+      fetchWithAuth(`/api/admin/business-config?business_id=${businessId}`)
         .then(setBusinessConfig)
         .catch(() => setBusinessConfig(null))
     }
@@ -985,8 +957,7 @@ export default function Settings() {
 
   useEffect(() => {
     if (activeTab === 'payments' && businessId) {
-      fetch(`${API_BASE}/api/stripe/status/${businessId}`)
-        .then(r => r.ok ? r.json() : {})
+      fetchWithAuth(`/api/stripe/status/${businessId}`)
         .then(data => {
           setStripeStatus(data)
           setServiceFee(data.service_fee_percent ?? 0)
@@ -998,13 +969,10 @@ export default function Settings() {
   const handleStripeConnect = async () => {
     setStripeLoading(true)
     try {
-      const res = await fetch(`${API_BASE}/api/stripe/connect`, {
+      const data = await fetchWithAuth('/api/stripe/connect', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ business_id: businessId, email: businessForm.email }),
       })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'שגיאה')
       if (data.onboardingUrl) window.location.href = data.onboardingUrl
     } catch (err) {
       toast.error(err.message || 'שגיאה')
@@ -1016,13 +984,10 @@ export default function Settings() {
   const handleSaveServiceFee = async () => {
     setStripeLoading(true)
     try {
-      const res = await fetch(`${API_BASE}/api/stripe/service-fee`, {
+      const data = await fetchWithAuth('/api/stripe/service-fee', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ business_id: businessId, service_fee_percent: serviceFee }),
       })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'שגיאה')
       setStripeStatus(s => ({ ...s, service_fee_percent: data.service_fee_percent }))
       toast.success('עמלת התפעול נשמרה')
     } catch (err) {
@@ -1145,11 +1110,6 @@ export default function Settings() {
       {activeTab === 'webview_analytics' && (
         <WebviewAnalytics
           businessId={businessId}
-          authHeaders={() => ({
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${session?.access_token}`,
-            'X-Business-Id': businessId,
-          })}
         />
       )}
 
