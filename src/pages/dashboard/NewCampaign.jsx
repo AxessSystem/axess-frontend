@@ -10,8 +10,8 @@ import {
 } from 'lucide-react'
 import StepIndicator from '@/components/ui/StepIndicator'
 import CustomSelect from '@/components/ui/CustomSelect'
+import { fetchWithAuth } from '@/lib/supabase'
 
-const API_BASE = import.meta.env.VITE_API_URL || 'https://api.axess.pro'
 const FRONTEND_URL = import.meta.env.VITE_FRONTEND_URL || window.location.origin
 const STEPS = ['העלאה', 'נמענים', 'ערוץ', 'הודעה', 'תזמון', 'Text Lead', 'Validator', 'שליחה']
 const MAX_CHARS = 201
@@ -44,7 +44,11 @@ function StepUpload({ onNext, data, setData, businessId }) {
   const fileRef = useRef(null)
 
   useEffect(() => {
-    if (businessId) fetch(`${API_BASE}/api/admin/events?business_id=${businessId}`).then(r => r.ok ? r.json() : []).then(setEvents).catch(() => [])
+    if (businessId) {
+      fetchWithAuth(`/api/admin/events?business_id=${businessId}`)
+        .catch(() => [])
+        .then(data => setEvents(Array.isArray(data) ? data : []))
+    }
   }, [businessId])
 
   const handleFile = (file) => {
@@ -600,7 +604,7 @@ function StepValidator({ onNext, onPrev, data, setData }) {
 }
 
 /* ── Step 7: Summary ── */
-function StepSummary({ onPrev, data, onSubmit, selectedEvent, businessId, authHeaders }) {
+function StepSummary({ onPrev, data, onSubmit, selectedEvent, businessId }) {
   const [sending, setSending] = useState(false)
   const [done, setDone] = useState(false)
   const [error, setError] = useState('')
@@ -622,10 +626,6 @@ function StepSummary({ onPrev, data, onSubmit, selectedEvent, businessId, authHe
         setSending(false)
         return
       }
-    }
-    if (!authHeaders) {
-      setError('לא מחובר — התחבר למערכת')
-      return
     }
     setSending(true)
     setError('')
@@ -659,29 +659,23 @@ function StepSummary({ onPrev, data, onSubmit, selectedEvent, businessId, authHe
         whatsapp_template_name: data.whatsappTemplateName || null,
         whatsapp_template_variables: data.whatsappTemplateVars || {},
       }
-      const createUrl = `${API_BASE}/api/admin/campaigns`
-      const createHeaders = authHeaders()
+      const createUrl = '/api/admin/campaigns'
+      const createHeaders = 'via fetchWithAuth'
       console.log('[handleSend] POST create — URL:', createUrl, 'headers:', createHeaders, 'body:', createBody)
-      const createRes = await fetch(createUrl, {
-        method: 'POST',
-        headers: createHeaders,
-        body: JSON.stringify(createBody),
-      })
-      const createData = await createRes.json().catch(() => ({}))
-      console.log('[handleSend] POST create — status:', createRes.status, 'response:', createData)
-      if (!createRes.ok) {
-        throw new Error(createData.error || 'שגיאה ביצירת קמפיין')
-      }
+      const createData = await fetchWithAuth(
+        '/api/admin/campaigns',
+        { method: 'POST', body: JSON.stringify(createBody) },
+      )
+      console.log('[handleSend] POST create — status:', 200, 'response:', createData)
       const campaignId = createData.id
-      const sendUrl = `${API_BASE}/api/admin/campaigns/${campaignId}/send`
+      const sendUrl = `/api/admin/campaigns/${campaignId}/send`
       const sendBody = {}
-      const sendHeaders = authHeaders()
+      const sendHeaders = 'via fetchWithAuth'
       console.log('[handleSend] POST send — URL:', sendUrl, 'headers:', sendHeaders, 'body:', sendBody)
-      const sendRes = await fetch(sendUrl, {
-        method: 'POST',
-        headers: sendHeaders,
-        body: JSON.stringify(sendBody),
-      })
+      const sendRes = await fetchWithAuth(
+        `/api/admin/campaigns/${campaignId}/send`,
+        { method: 'POST', body: JSON.stringify(sendBody), _raw: true },
+      )
       const sendData = await sendRes.json().catch(() => ({}))
       console.log('[handleSend] POST send — status:', sendRes.status, 'response:', sendData)
       if (sendRes.status === 402) {
@@ -781,7 +775,7 @@ export default function NewCampaign() {
   const campaignAllowed = useRequirePermission('can_create_campaigns')
   const navigate = useNavigate()
   const location = useLocation()
-  const { session, businessId } = useAuth()
+  const { businessId } = useAuth()
   const [step, setStep] = useState(1)
   const [data, setData] = useState({ scheduleType: 'now', validatorEnabled: false, channel: 'sms' })
   const effectiveBusinessId = businessId
@@ -822,13 +816,21 @@ export default function NewCampaign() {
     }
   }, [])
 
-  const authHeaders = () => {
-    const h = { 'Content-Type': 'application/json', 'X-Business-Id': effectiveBusinessId }
-    if (session?.access_token) h['Authorization'] = `Bearer ${session.access_token}`
-    return h
-  }
-  useEffect(() => { if (effectiveBusinessId) fetch(`${API_BASE}/api/admin/events?business_id=${effectiveBusinessId}`).then(r => r.ok ? r.json() : []).then(setEvents).catch(() => []) }, [effectiveBusinessId])
-  useEffect(() => { if (effectiveBusinessId && session?.access_token) fetch(`${API_BASE}/api/whatsapp/status`, { headers: { 'Authorization': `Bearer ${session.access_token}`, 'X-Business-Id': effectiveBusinessId } }).then(r => r.ok ? r.json() : {}).then(s => setWaConnected(!!s?.connected)).catch(() => setWaConnected(false)) }, [effectiveBusinessId, session?.access_token])
+  useEffect(() => {
+    if (effectiveBusinessId) {
+      fetchWithAuth(`/api/admin/events?business_id=${effectiveBusinessId}`)
+        .catch(() => [])
+        .then(data => setEvents(Array.isArray(data) ? data : []))
+    }
+  }, [effectiveBusinessId])
+  useEffect(() => {
+    if (effectiveBusinessId) {
+      fetchWithAuth(`/api/whatsapp/status`, { _raw: true })
+        .then(r => r.ok ? r.json() : {})
+        .then(s => setWaConnected(!!s?.connected))
+        .catch(() => setWaConnected(false))
+    }
+  }, [effectiveBusinessId])
   const selectedEvent = data.selectedEventId ? events.find(e => e.id === data.selectedEventId) : null
 
   const next = () => setStep(s => Math.min(s + 1, 8))
@@ -857,7 +859,7 @@ export default function NewCampaign() {
             {step === 5 && <StepSchedule onNext={next} onPrev={prev} data={data} setData={setData} />}
             {step === 6 && <StepTextLead onNext={next} onPrev={prev} data={data} setData={setData} />}
             {step === 7 && <StepValidator onNext={next} onPrev={prev} data={data} setData={setData} />}
-            {step === 8 && <StepSummary onPrev={prev} data={data} onSubmit={() => navigate('/dashboard')} selectedEvent={selectedEvent} businessId={effectiveBusinessId} authHeaders={authHeaders} />}
+            {step === 8 && <StepSummary onPrev={prev} data={data} onSubmit={() => navigate('/dashboard')} selectedEvent={selectedEvent} businessId={effectiveBusinessId} />}
           </motion.div>
         </AnimatePresence>
       </div>
