@@ -1,1 +1,66 @@
-export { apiFetch as fetchWithAuth } from './apiClient';
+import { supabase } from '@/lib/supabase'
+import { getValidSession, safeRefresh } from '@/lib/authCore'
+
+const BASE = import.meta.env.VITE_API_URL || 'https://api.axess.pro'
+
+export async function fetchWithAuth(url, options = {}, retries = 2) {
+  // Resolve full URL if path only (starts with /)
+  const fullUrl = url.startsWith('http') ? url : `${BASE}${url}`
+
+  let session = await getValidSession(supabase)
+
+  const impersonateRaw = sessionStorage.getItem('axess_impersonate')
+  let businessId = null
+  if (impersonateRaw) {
+    try { businessId = JSON.parse(impersonateRaw)?.business?.id } catch {}
+  }
+  if (!businessId) {
+    businessId = session?.user?.user_metadata?.business_id
+  }
+
+  const buildConfig = (sess) => ({
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...(sess?.access_token
+        ? { Authorization: `Bearer ${sess.access_token}` }
+        : {}),
+      ...(businessId ? { 'X-Business-Id': businessId } : {}),
+      ...options.headers,
+    },
+  })
+
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      const res = await fetch(fullUrl, buildConfig(session))
+
+      if (res.status === 401 && attempt === 0) {
+        session = await safeRefresh(supabase)
+        if (session?.access_token) continue
+      }
+
+      if (!res.ok) {
+        const errBody = await res.json().catch(() => ({}))
+        throw new Error(errBody.message || `HTTP ${res.status}`)
+      }
+
+      // Return raw Response if caller expects it (non-JSON mode)
+      if (options._raw) return res
+
+      return await res.json()
+
+    } catch (err) {
+      const isLast = attempt === retries
+      const isNetwork =
+        err instanceof TypeError && err.message === 'Failed to fetch'
+      if (isNetwork && !isLast) {
+        await new Promise(r => setTimeout(r, 1000 * (attempt + 1)))
+        continue
+      }
+      if (isLast) {
+        console.error(`[fetchWithAuth] ${url}:`, err.message)
+        throw err
+      }
+    }
+  }
+}
