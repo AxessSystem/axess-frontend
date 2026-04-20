@@ -23,8 +23,8 @@ import toast from 'react-hot-toast'
 import Badge from '@/components/ui/Badge'
 import EmptyState from '@/components/ui/EmptyState'
 import CustomSelect from '@/components/ui/CustomSelect'
+import { fetchWithAuth } from '@/lib/supabase'
 
-const API_BASE = import.meta.env.VITE_API_URL || 'https://api.axess.pro'
 
 const TYPE_CONFIG = {
   event: { icon: <Ticket size={18} />, color: '#3B82F6', label: 'אירוע' },
@@ -210,7 +210,7 @@ function QRModal({ validator, onClose }) {
 
 export default function Validators() {
   const validatorsAllowed = useRequirePermission('can_manage_events')
-  const { session, businessId } = useAuth()
+  const { businessId } = useAuth()
   const [validators, setValidators] = useState([])
   const [listLoading, setListLoading] = useState(true)
   const [templates, setTemplates] = useState([])
@@ -245,39 +245,28 @@ export default function Validators() {
     single_use: true,
   })
 
-  const authHeaders = useCallback(
-    () => ({
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${session?.access_token}`,
-      'X-Business-Id': businessId,
-    }),
-    [session, businessId]
-  )
-
   const loadValidators = useCallback(() => {
-    if (!businessId || !session?.access_token) {
+    if (!businessId) {
       setValidators([])
       setListLoading(false)
       return
     }
     setListLoading(true)
-    fetch(`${API_BASE.replace(/\/$/, '')}/api/validators?business_id=${encodeURIComponent(businessId)}`, {
-      headers: authHeaders(),
-    })
+    fetchWithAuth(`/api/validators?business_id=${encodeURIComponent(businessId)}`, { _raw: true })
       .then((r) => (r.ok ? r.json() : Promise.resolve({ validators: [] })))
       .then((d) => setValidators(d.validators || []))
       .catch(() => setValidators([]))
       .finally(() => setListLoading(false))
-  }, [businessId, session?.access_token, authHeaders])
+  }, [businessId])
 
   const loadTemplates = useCallback(async () => {
-    if (!businessId || !session?.access_token) {
+    if (!businessId) {
       setTemplates([])
       return
     }
     setTemplatesLoading(true)
     try {
-      const r = await fetch(`${API_BASE.replace(/\/$/, '')}/api/validator-templates`, { headers: authHeaders() })
+      const r = await fetchWithAuth('/api/validator-templates', { _raw: true })
       const d = r.ok ? await r.json() : { templates: [] }
       setTemplates(d.templates || [])
     } catch {
@@ -285,7 +274,7 @@ export default function Validators() {
     } finally {
       setTemplatesLoading(false)
     }
-  }, [businessId, session?.access_token, authHeaders])
+  }, [businessId])
 
   useEffect(() => {
     loadValidators()
@@ -296,14 +285,12 @@ export default function Validators() {
   }, [loadTemplates])
 
   useEffect(() => {
-    if (!showSend || !businessId || !session?.access_token) return
-    fetch(`${API_BASE.replace(/\/$/, '')}/api/audiences?business_id=${encodeURIComponent(businessId)}`, {
-      headers: authHeaders(),
-    })
+    if (!showSend || !businessId) return
+    fetchWithAuth(`/api/audiences?business_id=${encodeURIComponent(businessId)}`, { _raw: true })
       .then((r) => (r.ok ? r.json() : { audiences: [] }))
       .then((d) => setAudiences(d.audiences || []))
       .catch(() => setAudiences([]))
-  }, [showSend, businessId, session?.access_token, authHeaders])
+  }, [showSend, businessId])
 
   const filtered = (activeTab === 'תבניות' ? templates : validators).filter((v) => {
     if (activeTab === 'תבניות') {
@@ -990,14 +977,11 @@ export default function Validators() {
                       return
                     }
                     for (const audienceId of selectedAudiences) {
-                      const r = await fetch(
-                        `${API_BASE.replace(/\/$/, '')}/api/validator-templates/${sendTemplate.id}/send`,
-                        {
-                          method: 'POST',
-                          headers: authHeaders(),
-                          body: JSON.stringify({ audience_id: audienceId, channel: sendChannel }),
-                        }
-                      )
+                      const r = await fetchWithAuth(`/api/validator-templates/${sendTemplate.id}/send`, {
+                        method: 'POST',
+                        body: JSON.stringify({ audience_id: audienceId, channel: sendChannel }),
+                        _raw: true,
+                      })
                       const d = await r.json().catch(() => ({}))
                       if (!r.ok) {
                         toast.error(d.error || 'שגיאה בשליחה')
@@ -1006,14 +990,11 @@ export default function Validators() {
                       totalCreated += d.created ?? 0
                     }
                   } else {
-                    const r = await fetch(
-                      `${API_BASE.replace(/\/$/, '')}/api/validator-templates/${sendTemplate.id}/send`,
-                      {
-                        method: 'POST',
-                        headers: authHeaders(),
-                        body: JSON.stringify({ phone_numbers: numbers, channel: sendChannel }),
-                      }
-                    )
+                    const r = await fetchWithAuth(`/api/validator-templates/${sendTemplate.id}/send`, {
+                      method: 'POST',
+                      body: JSON.stringify({ phone_numbers: numbers, channel: sendChannel }),
+                      _raw: true,
+                    })
                     const d = await r.json().catch(() => ({}))
                     if (!r.ok) {
                       toast.error(d.error || 'שגיאה בשליחה')
@@ -1280,25 +1261,22 @@ export default function Validators() {
                     editForm.type === 'custom' ? (editForm.customType || '').trim() || null : null
                   setEditSaving(true)
                   try {
-                    const res = await fetch(
-                      `${API_BASE.replace(/\/$/, '')}/api/validator-templates/${editForm.id}`,
-                      {
-                        method: 'PATCH',
-                        headers: authHeaders(),
-                        body: JSON.stringify({
-                          name: editForm.name,
-                          type: typePayload,
-                          custom_type_name,
-                          display_config,
-                          channels: editForm.channels?.length ? editForm.channels : ['whatsapp'],
-                          max_uses: editForm.max_uses,
-                          expires_at: expiresAtVal,
-                          binding_type: editForm.binding_type,
-                          binding_id: editForm.binding_id || null,
-                          redemption_config,
-                        }),
-                      }
-                    )
+                    const res = await fetchWithAuth(`/api/validator-templates/${editForm.id}`, {
+                      method: 'PATCH',
+                      body: JSON.stringify({
+                        name: editForm.name,
+                        type: typePayload,
+                        custom_type_name,
+                        display_config,
+                        channels: editForm.channels?.length ? editForm.channels : ['whatsapp'],
+                        max_uses: editForm.max_uses,
+                        expires_at: expiresAtVal,
+                        binding_type: editForm.binding_type,
+                        binding_id: editForm.binding_id || null,
+                        redemption_config,
+                      }),
+                      _raw: true,
+                    })
                     const data = await res.json().catch(() => ({}))
                     if (!res.ok) {
                       toast.error(data.error || 'שגיאה בעדכון')
@@ -1571,9 +1549,8 @@ export default function Validators() {
                   const typePayload = form.type === 'custom' ? 'custom' : form.type
                   const custom_type_name =
                     form.type === 'custom' ? (form.customType || '').trim() || null : null
-                  const res = await fetch(`${API_BASE.replace(/\/$/, '')}/api/validator-templates`, {
+                  const res = await fetchWithAuth('/api/validator-templates', {
                     method: 'POST',
-                    headers: authHeaders(),
                     body: JSON.stringify({
                       name: form.name,
                       type: typePayload,
@@ -1587,6 +1564,7 @@ export default function Validators() {
                       binding_id: form.binding_id || null,
                       redemption_config,
                     }),
+                    _raw: true,
                   })
                   const data = await res.json().catch(() => ({}))
                   if (res.ok && data.template) {

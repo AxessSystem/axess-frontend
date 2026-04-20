@@ -14,8 +14,8 @@ import toast from 'react-hot-toast'
 import Tooltip from '../../components/ui/Tooltip'
 import CustomSelect from '@/components/ui/CustomSelect'
 import EventEditModal from './EventEditModal'
+import { fetchWithAuth } from '@/lib/supabase'
 
-const API_BASE = import.meta.env.VITE_API_URL || 'https://api.axess.pro'
 const FRONTEND_URL = import.meta.env.VITE_FRONTEND_URL || window.location.origin
 
 const MODAL_CLOSE_X = {
@@ -95,7 +95,7 @@ function FloorStatusModal({ event, onClose }) {
   const [updating, setUpdating] = useState(false)
 
   useEffect(() => {
-    fetch(`${API_BASE}/api/admin/events/${event.id}/floor-status`)
+    fetchWithAuth(`/api/admin/events/${event.id}/floor-status`, { _raw: true })
       .then(r => r.ok ? r.json() : { seats: [], bookings: [] })
       .then(d => { setData(d); setLoading(false) })
       .catch(() => setLoading(false))
@@ -104,13 +104,13 @@ function FloorStatusModal({ event, onClose }) {
   const updateStatus = async (bookingId, status) => {
     setUpdating(true)
     try {
-      const r = await fetch(`${API_BASE}/api/admin/table-bookings/${bookingId}/status`, {
+      const r = await fetchWithAuth(`/api/admin/table-bookings/${bookingId}/status`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status }),
+        _raw: true,
       })
       if (!r.ok) throw new Error('שגיאה')
-      const d = await fetch(`${API_BASE}/api/admin/events/${event.id}/floor-status`).then(res => res.json())
+      const d = await fetchWithAuth(`/api/admin/events/${event.id}/floor-status`).catch(() => ({}))
       setData(d)
       setSelectedSeat(null)
       toast.success('עודכן')
@@ -197,12 +197,6 @@ function FloorStatusModal({ event, onClose }) {
 }
 
 function PromotersModal({ event, businessId, onClose, embedded }) {
-  const { session } = useAuth()
-  const authHeaders = useCallback(() => ({
-    'Content-Type': 'application/json',
-    'Authorization': `Bearer ${session?.access_token}`,
-    'X-Business-Id': businessId
-  }), [session, businessId])
   const [promoters, setPromoters] = useState([])
   const [eventPromoters, setEventPromoters] = useState([])
   const [loading, setLoading] = useState(true)
@@ -223,15 +217,15 @@ function PromotersModal({ event, businessId, onClose, embedded }) {
 
   useEffect(() => {
     Promise.all([
-      fetch(`${API_BASE}/api/admin/promoters?business_id=${businessId}`).then(r => r.ok ? r.json() : []),
-      fetch(`${API_BASE}/api/admin/events/${event.id}/promoters`).then(r => r.ok ? r.json() : []),
-      fetch(`${API_BASE}/api/admin/events?business_id=${businessId}`, { headers: authHeaders() }).then(r => r.ok ? r.json() : []),
+      fetchWithAuth(`/api/admin/promoters?business_id=${businessId}`, { _raw: true }).then(r => r.ok ? r.json() : []),
+      fetchWithAuth(`/api/admin/events/${event.id}/promoters`, { _raw: true }).then(r => r.ok ? r.json() : []),
+      fetchWithAuth(`/api/admin/events?business_id=${businessId}`, { _raw: true }).then(r => r.ok ? r.json() : []),
     ]).then(([p, ep, ev]) => { setPromoters(p); setEventPromoters(ep); setEvents(ev); setLoading(false) }).catch(() => setLoading(false))
-  }, [event.id, businessId, authHeaders])
+  }, [event.id, businessId])
 
   const refreshPromoters = () => {
-    fetch(`${API_BASE}/api/admin/events/${event.id}/promoters`).then(r => r.ok ? r.json() : []).then(setEventPromoters)
-    fetch(`${API_BASE}/api/admin/promoters?business_id=${businessId}`).then(r => r.ok ? r.json() : []).then(setPromoters)
+    fetchWithAuth(`/api/admin/events/${event.id}/promoters`, { _raw: true }).then(r => r.ok ? r.json() : []).then(setEventPromoters)
+    fetchWithAuth(`/api/admin/promoters?business_id=${businessId}`, { _raw: true }).then(r => r.ok ? r.json() : []).then(setPromoters)
   }
 
   const copyLink = (ep) => {
@@ -241,7 +235,7 @@ function PromotersModal({ event, businessId, onClose, embedded }) {
 
   const openStats = (ep) => {
     setStatsModal(ep)
-    fetch(`${API_BASE}/api/admin/events/${event.id}/promoters/${ep.promoter_id}/stats`)
+    fetchWithAuth(`/api/admin/events/${event.id}/promoters/${ep.promoter_id}/stats`, { _raw: true })
       .then(r => r.ok ? r.json() : null)
       .then(setStatsData)
   }
@@ -249,13 +243,10 @@ function PromotersModal({ event, businessId, onClose, embedded }) {
   const handleAddPromoter = async () => {
     if (!selPromoterId) return
     try {
-      const res = await fetch(`${API_BASE}/api/admin/events/${event.id}/promoters`, {
+      const data = await fetchWithAuth(`/api/admin/events/${event.id}/promoters`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ promoter_id: selPromoterId, commission_type: commissionType, commission_value: parseFloat(commissionValue) || 0, max_tickets: maxTickets ? parseInt(maxTickets, 10) : null }),
       })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'שגיאה')
       toast.success('היחצ"ן נוסף לאירוע')
       setAddOpen(false)
       setSelPromoterId('')
@@ -266,7 +257,7 @@ function PromotersModal({ event, businessId, onClose, embedded }) {
   const handleRemove = async (ep) => {
     if (!confirm('הסר את היחצ"ן מאירוע זה?')) return
     try {
-      const res = await fetch(`${API_BASE}/api/admin/events/${event.id}/promoters/${ep.id}`, { method: 'DELETE' })
+      const res = await fetchWithAuth(`/api/admin/events/${event.id}/promoters/${ep.id}`, { method: 'DELETE', _raw: true })
       if (!res.ok) throw new Error('שגיאה')
       toast.success('הוסר')
       refreshPromoters()
@@ -276,13 +267,10 @@ function PromotersModal({ event, businessId, onClose, embedded }) {
   const handleDuplicate = async (ep, targetEventId) => {
     if (!targetEventId) return
     try {
-      const res = await fetch(`${API_BASE}/api/admin/promoters/${ep.promoter_id}/duplicate`, {
+      const data = await fetchWithAuth(`/api/admin/promoters/${ep.promoter_id}/duplicate`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ target_event_id: targetEventId }),
       })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'שגיאה')
       toast.success('שוכפל לאירוע')
       refreshPromoters()
     } catch (e) { toast.error(e.message || 'שגיאה') }
@@ -291,10 +279,10 @@ function PromotersModal({ event, businessId, onClose, embedded }) {
   const handleMarkPaid = async () => {
     if (!statsModal) return
     try {
-      const res = await fetch(`${API_BASE}/api/admin/promoters/mark-paid`, {
+      const res = await fetchWithAuth(`/api/admin/promoters/mark-paid`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ event_promoter_id: statsModal.id }),
+        _raw: true,
       })
       if (!res.ok) throw new Error('שגיאה')
       toast.success('סומן כשולם')
@@ -306,13 +294,10 @@ function PromotersModal({ event, businessId, onClose, embedded }) {
   const handleCreatePromoter = async () => {
     if (!newPromoterName.trim()) return
     try {
-      const res = await fetch(`${API_BASE}/api/admin/promoters`, {
+      const data = await fetchWithAuth('/api/admin/promoters', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ business_id: businessId, name: newPromoterName.trim(), phone: newPromoterPhone || null, email: newPromoterEmail || null, instagram: newPromoterInstagram || null }),
       })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'שגיאה')
       toast.success('יחצ"ן נוצר')
       setCreatePromoterOpen(false)
       setNewPromoterName('')
@@ -484,11 +469,11 @@ function EventDetailDrawer({ event, businessId, onClose, onEdit, onRefresh, init
   useEffect(() => {
     if (!event?.id) return
     Promise.all([
-      fetch(`${API_BASE}/api/admin/events/${event.id}/analytics`).then(r => r.ok ? r.json() : null),
-      fetch(`${API_BASE}/api/admin/events/${event.id}/campaigns`).then(r => r.ok ? r.json() : []),
-      fetch(`${API_BASE}/api/admin/events/${event.id}/staff`).then(r => r.ok ? r.json() : []),
-      fetch(`${API_BASE}/api/admin/events/${event.id}/promoters`).then(r => r.ok ? r.json() : []),
-      fetch(`${API_BASE}/api/admin/events/${event.id}/pending-approvals`).then(r => r.ok ? r.json() : []),
+      fetchWithAuth(`/api/admin/events/${event.id}/analytics`, { _raw: true }).then(r => r.ok ? r.json() : null),
+      fetchWithAuth(`/api/admin/events/${event.id}/campaigns`, { _raw: true }).then(r => r.ok ? r.json() : []),
+      fetchWithAuth(`/api/admin/events/${event.id}/staff`, { _raw: true }).then(r => r.ok ? r.json() : []),
+      fetchWithAuth(`/api/admin/events/${event.id}/promoters`, { _raw: true }).then(r => r.ok ? r.json() : []),
+      fetchWithAuth(`/api/admin/events/${event.id}/pending-approvals`, { _raw: true }).then(r => r.ok ? r.json() : []),
     ]).then(([a, c, s, p, pend]) => {
       setAnalytics(a); setCampaigns(Array.isArray(c) ? c : []); setEventStaff(Array.isArray(s) ? s : []); setEventPromoters(Array.isArray(p) ? p : []);
       setPendingApprovals(Array.isArray(pend) ? pend : []);
@@ -497,33 +482,33 @@ function EventDetailDrawer({ event, businessId, onClose, onEdit, onRefresh, init
 
   useEffect(() => {
     if (addStaffOpen && businessId) {
-      fetch(`${API_BASE}/api/staff?business_id=${businessId}`).then(r => r.ok ? r.json() : []).then(setStaffList).catch(() => setStaffList([]))
+      fetchWithAuth(`/api/staff?business_id=${businessId}`, { _raw: true }).then(r => r.ok ? r.json() : []).then(setStaffList).catch(() => setStaffList([]))
     }
   }, [addStaffOpen, businessId])
 
   const addStaff = async () => {
     if (!selStaffId) return
     try {
-      const r = await fetch(`${API_BASE}/api/admin/events/${event.id}/staff`, {
+      const r = await fetchWithAuth(`/api/admin/events/${event.id}/staff`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ business_member_id: selStaffId, role_override: STAFF_ROLES.find(r => r.id === selRoleId)?.label || selRoleId }),
+        _raw: true,
       })
       if (!r.ok) throw new Error((await r.json()).error || 'שגיאה')
       toast.success('חבר צוות נוסף')
       setAddStaffOpen(false)
       setSelStaffId('')
       setSelRoleId('')
-      fetch(`${API_BASE}/api/admin/events/${event.id}/staff`).then(r => r.ok ? r.json() : []).then(setEventStaff)
+      fetchWithAuth(`/api/admin/events/${event.id}/staff`, { _raw: true }).then(r => r.ok ? r.json() : []).then(setEventStaff)
     } catch (e) { toast.error(e.message) }
   }
 
   const removeStaff = async (memberId) => {
     try {
-      const r = await fetch(`${API_BASE}/api/admin/events/${event.id}/staff/${memberId}`, { method: 'DELETE' })
+      const r = await fetchWithAuth(`/api/admin/events/${event.id}/staff/${memberId}`, { method: 'DELETE', _raw: true })
       if (!r.ok) throw new Error('שגיאה')
       toast.success('הוסר מאירוע')
-      fetch(`${API_BASE}/api/admin/events/${event.id}/staff`).then(r => r.ok ? r.json() : []).then(setEventStaff)
+      fetchWithAuth(`/api/admin/events/${event.id}/staff`, { _raw: true }).then(r => r.ok ? r.json() : []).then(setEventStaff)
     } catch (e) { toast.error(e.message) }
   }
 
@@ -603,8 +588,8 @@ function EventDetailDrawer({ event, businessId, onClose, onEdit, onRefresh, init
                         <div style={{ fontSize: 12, color: 'var(--v2-gray-400)' }}>{o.created_at ? new Date(o.created_at).toLocaleString('he-IL') : ''}</div>
                       </div>
                       <div style={{ display: 'flex', gap: 8 }}>
-                        <button onClick={async () => { try { const r = await fetch(`${API_BASE}/api/admin/orders/${o.id}/approve`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ approved_by: 'dashboard' }) }); if (!r.ok) throw new Error(); const pend = await fetch(`${API_BASE}/api/admin/events/${event.id}/pending-approvals`).then(res => res.json()); setPendingApprovals(pend); toast.success('אושר'); onRefresh?.(); } catch (e) { toast.error('שגיאה') } }} style={{ padding: '6px 12px', background: 'var(--v2-primary)', color: 'var(--v2-dark)', border: 'none', borderRadius: 8, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}><CheckCircle size={14} color="var(--v2-dark)" /> אשר</button>
-                        <button onClick={async () => { try { const r = await fetch(`${API_BASE}/api/admin/orders/${o.id}/reject`, { method: 'POST' }); if (!r.ok) throw new Error(); const pend = await fetch(`${API_BASE}/api/admin/events/${event.id}/pending-approvals`).then(res => res.json()); setPendingApprovals(pend); toast.success('נדחה'); onRefresh?.(); } catch (e) { toast.error('שגיאה') } }} style={{ padding: '6px 12px', background: 'transparent', border: '1px solid #ef4444', color: '#ef4444', borderRadius: 8, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}><XCircle size={14} color="#ef4444" /> דחה</button>
+                        <button onClick={async () => { try { const r = await fetchWithAuth(`/api/admin/orders/${o.id}/approve`, { method: 'POST', body: JSON.stringify({ approved_by: 'dashboard' }), _raw: true }); if (!r.ok) throw new Error(); const pend = await fetchWithAuth(`/api/admin/events/${event.id}/pending-approvals`, { _raw: true }).then(res => res.json()); setPendingApprovals(pend); toast.success('אושר'); onRefresh?.(); } catch (e) { toast.error('שגיאה') } }} style={{ padding: '6px 12px', background: 'var(--v2-primary)', color: 'var(--v2-dark)', border: 'none', borderRadius: 8, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}><CheckCircle size={14} color="var(--v2-dark)" /> אשר</button>
+                        <button onClick={async () => { try { const r = await fetchWithAuth(`/api/admin/orders/${o.id}/reject`, { method: 'POST', _raw: true }); if (!r.ok) throw new Error(); const pend = await fetchWithAuth(`/api/admin/events/${event.id}/pending-approvals`, { _raw: true }).then(res => res.json()); setPendingApprovals(pend); toast.success('נדחה'); onRefresh?.(); } catch (e) { toast.error('שגיאה') } }} style={{ padding: '6px 12px', background: 'transparent', border: '1px solid #ef4444', color: '#ef4444', borderRadius: 8, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}><XCircle size={14} color="#ef4444" /> דחה</button>
                       </div>
                     </div>
                   ))}
@@ -730,22 +715,17 @@ export default function Events() {
   const [searchLoading, setSearchLoading] = useState(false)
   const [showSearchResults, setShowSearchResults] = useState(false)
   const searchRef = useRef(null)
-  const { session, businessId } = useAuth()
-  const authHeaders = useCallback(() => ({
-    'Content-Type': 'application/json',
-    'Authorization': `Bearer ${session?.access_token}`,
-    'X-Business-Id': businessId
-  }), [session, businessId])
+  const { businessId } = useAuth()
   const loadEvents = useCallback(() => {
     if (!businessId) return
-    fetch(`${API_BASE}/api/admin/events?business_id=${businessId}`, { headers: authHeaders() })
+    fetchWithAuth(`/api/admin/events?business_id=${businessId}`, { _raw: true })
       .then((r) => (r.ok ? r.json() : []))
       .then((data) => {
         setEvents(data)
         setLoading(false)
       })
       .catch(() => setLoading(false))
-  }, [businessId, authHeaders])
+  }, [businessId])
   const [staffModalEvent, setStaffModalEvent] = useState(null)
   const [promotersModalEvent, setPromotersModalEvent] = useState(null)
   const [detailEvent, setDetailEvent] = useState(null)
@@ -770,11 +750,7 @@ export default function Events() {
     const timer = setTimeout(async () => {
       setSearchLoading(true)
       try {
-        const res = await fetch(
-          `${API_BASE}/api/admin/events/search?q=${encodeURIComponent(searchQuery)}`,
-          { headers: authHeaders() }
-        )
-        const data = await res.json()
+        const data = await fetchWithAuth(`/api/admin/events/search?q=${encodeURIComponent(searchQuery)}`).catch(() => ({}))
         setSearchResults(data.events || [])
         setShowSearchResults(true)
       } catch (err) {
@@ -784,7 +760,7 @@ export default function Events() {
       }
     }, 200)
     return () => clearTimeout(timer)
-  }, [searchQuery, authHeaders])
+  }, [searchQuery])
 
   useEffect(() => {
     const onDown = (e) => {
@@ -861,9 +837,7 @@ export default function Events() {
 
   const handleDuplicate = async (ev) => {
     try {
-      const res = await fetch(`${API_BASE}/api/admin/events/${ev.id}/duplicate`, { method: 'POST' })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'שגיאה')
+      const data = await fetchWithAuth(`/api/admin/events/${ev.id}/duplicate`, { method: 'POST' })
       setEvents(prev => [data, ...prev])
       toast.success('האירוע שוכפל')
     } catch (err) {
@@ -876,7 +850,7 @@ export default function Events() {
     setNewTokenResult(null)
     setNewTokenLabel('')
     try {
-      const r = await fetch(`${API_BASE}/api/admin/events/${ev.id}/staff-tokens`)
+      const r = await fetchWithAuth(`/api/admin/events/${ev.id}/staff-tokens`, { _raw: true })
       const data = r.ok ? await r.json() : []
       setStaffTokens(Array.isArray(data) ? data : [])
     } catch {
@@ -887,13 +861,10 @@ export default function Events() {
   const addStaffToken = async () => {
     if (!staffModalEvent) return
     try {
-      const r = await fetch(`${API_BASE}/api/admin/events/${staffModalEvent.id}/staff-tokens`, {
+      const data = await fetchWithAuth(`/api/admin/events/${staffModalEvent.id}/staff-tokens`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ label: newTokenLabel || 'עמדת סריקה' }),
       })
-      const data = await r.json()
-      if (!r.ok) throw new Error(data.error || 'שגיאה')
       setNewTokenResult({ token: data.token, scan_url: data.scan_url })
       setStaffTokens(prev => [...prev, { token: data.token, label: newTokenLabel || 'עמדת סריקה', scans_count: 0 }])
       toast.success('עמדת סריקה נוצרה')
@@ -1292,11 +1263,11 @@ export default function Events() {
                         onClick={async (e) => {
                           e.stopPropagation()
                           try {
-                            const res = await fetch(`${API_BASE}/api/admin/events/${ev.id}/publish`, {
+                            const res = await fetchWithAuth(`/api/admin/events/${ev.id}/publish`, {
                               method: 'POST',
-                              headers: authHeaders(),
+                              _raw: true,
                             })
-                            const data = await res.json()
+                            const data = await res.json().catch(() => ({}))
                             if (res.ok) {
                               toast.success('האירוע פורסם בהצלחה!')
                               loadEvents()
@@ -1346,9 +1317,9 @@ export default function Events() {
                       <button
                         type="button"
                         onClick={async () => {
-                          const res = await fetch(`${API_BASE}/api/admin/events/${ev.id}/restore`, {
+                          const res = await fetchWithAuth(`/api/admin/events/${ev.id}/restore`, {
                             method: 'PATCH',
-                            headers: authHeaders(),
+                            _raw: true,
                           })
                           if (res.ok) {
                             loadEvents()
@@ -1457,7 +1428,6 @@ export default function Events() {
           onSave={() => {
             loadEvents()
           }}
-          authHeaders={authHeaders}
           businessId={businessId}
         />
       )}
@@ -1471,7 +1441,7 @@ export default function Events() {
           initialTab={detailEventTab}
           onClose={() => { setDetailEvent(null); setDetailEventTab('overview') }}
           onEdit={(ev) => { setDetailEvent(null); setDetailEventTab('overview'); setEditModalEvent(ev) }}
-          onRefresh={() => fetch(`${API_BASE}/api/admin/events?business_id=${businessId}`).then(r => r.ok ? r.json() : []).then(setEvents)}
+          onRefresh={() => fetchWithAuth(`/api/admin/events?business_id=${businessId}`, { _raw: true }).then(r => r.ok ? r.json() : []).then(setEvents)}
         />
       )}
 
@@ -1495,9 +1465,9 @@ export default function Events() {
             const ev = cancelConfirmEvent
             setCancelConfirmEvent(null)
             try {
-              const res = await fetch(`${API_BASE}/api/admin/events/${ev.id}/cancel`, {
+              const res = await fetchWithAuth(`/api/admin/events/${ev.id}/cancel`, {
                 method: 'PATCH',
-                headers: authHeaders(),
+                _raw: true,
               })
               if (!res.ok) {
                 toast.error('לא ניתן לבטל את האירוע')
@@ -1523,9 +1493,9 @@ export default function Events() {
             const ev = deleteDraftConfirm
             setDeleteDraftConfirm(null)
             try {
-              const res = await fetch(`${API_BASE}/api/admin/events/${ev.id}`, {
+              const res = await fetchWithAuth(`/api/admin/events/${ev.id}`, {
                 method: 'DELETE',
-                headers: authHeaders(),
+                _raw: true,
               })
               const data = await res.json().catch(() => ({}))
               if (res.ok) {

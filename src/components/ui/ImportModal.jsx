@@ -2,8 +2,8 @@ import { useState, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Upload, X, FileText, Check, ArrowRight, Download, AlertTriangle, XCircle } from 'lucide-react'
 import CustomSelect from '@/components/ui/CustomSelect'
+import { fetchWithAuth } from '@/lib/supabase'
 
-const API_BASE = import.meta.env.VITE_API_URL || 'https://api.axess.pro'
 const MAP_OPTIONS = [
   { value: 'phone', label: 'טלפון' },
   { value: 'first_name', label: 'שם פרטי' },
@@ -84,9 +84,11 @@ export default function ImportModal({ isOpen, onClose, businessId, onImportDone 
       const fd = new FormData()
       fd.append('file', file)
       fd.append('business_id', businessId)
-      const res = await fetch(`${API_BASE}/api/admin/import/preview`, {
+      const res = await fetchWithAuth('/api/admin/import/preview', {
         method: 'POST',
         body: fd,
+        headers: {},
+        _raw: true,
       })
       const text = await res.text()
       if (!res.ok) {
@@ -119,9 +121,8 @@ export default function ImportModal({ isOpen, onClose, businessId, onImportDone 
         binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunkSize))
       }
       const base64 = btoa(binary)
-      const res = await fetch(`${API_BASE}/api/admin/import/confirm`, {
+      const res = await fetchWithAuth('/api/admin/import/confirm', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           business_id: businessId,
           file_data: base64,
@@ -129,6 +130,7 @@ export default function ImportModal({ isOpen, onClose, businessId, onImportDone 
           filename: file.name,
           force_reimport: forceReimport,
         }),
+        _raw: true,
       })
       const text = await res.text()
       let data = {}
