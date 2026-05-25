@@ -48,6 +48,7 @@ const ClientLayout   = lazy(() => import('@/pages/dashboard/Layout'))
 const Overview       = lazy(() => import('@/pages/dashboard/Overview'))
 const NewCampaign    = lazy(() => import('@/pages/dashboard/NewCampaign'))
 const Audiences      = lazy(() => import('@/pages/dashboard/Audiences'))
+const ContactPage    = lazy(() => import('@/pages/dashboard/ContactPage'))
 const Reports        = lazy(() => import('@/pages/dashboard/Reports'))
 const ValidatorsPage = lazy(() => import('@/pages/dashboard/Validators'))
 const EventsPage     = lazy(() => import('@/pages/dashboard/Events'))
@@ -230,6 +231,7 @@ export default function App() {
               <Route index element={<Overview />} />
               <Route path="new-campaign" element={<NewCampaign />} />
               <Route path="audiences" element={<Audiences />} />
+              <Route path="contacts/:id" element={<ContactPage />} />
               <Route path="events/new" element={<EventEditorPage />} />
               <Route path="events/:id/edit" element={<EventEditorPage />} />
               <Route path="events/:id" element={<EventDetailPage />} />
