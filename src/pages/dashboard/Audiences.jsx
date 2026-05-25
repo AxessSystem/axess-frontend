@@ -1428,7 +1428,13 @@ export default function Audiences() {
             {paginated.map((r, i) => (
               <motion.div key={r.id || r.phone || i} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.03 }}
                 style={{ background: 'var(--v2-dark-3)', border: '1px solid var(--glass-border)', borderRadius: 'var(--radius-lg)', padding: '18px', cursor: 'pointer' }}
-                onClick={() => navigate(`/dashboard/contacts/${String(r.master_recipient_id || r.id)}`)}
+                onClick={() => {
+                  const contactId = String(r.master_recipient_id || r.id)
+                  const recipientIds = filtered.map((rec) => String(rec.master_recipient_id || rec.id)).filter(Boolean)
+                  navigate(`/dashboard/contacts/${contactId}`, {
+                    state: { ids: recipientIds, current: contactId },
+                  })
+                }}
               >
                 <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
                   <div style={{ width: 44, height: 44, borderRadius: 'var(--radius-md)', background: 'rgba(0,195,122,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>

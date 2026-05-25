@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowRight, Phone, Loader2, Plus, X } from 'lucide-react'
+import { useParams, useNavigate, useLocation } from 'react-router-dom'
+import { Phone, Loader2, Plus, X } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { api } from '@/services/api'
 import { fetchWithAuth } from '@/lib/supabase'
@@ -74,7 +74,13 @@ function initialsFrom(profile) {
 export default function ContactPage() {
   const { id } = useParams()
   const navigate = useNavigate()
+  const location = useLocation()
   const { businessId, session } = useAuth()
+
+  const ids = location.state?.ids || []
+  const currentIndex = ids.indexOf(id)
+  const prevId = currentIndex > 0 ? ids[currentIndex - 1] : null
+  const nextId = currentIndex < ids.length - 1 ? ids[currentIndex + 1] : null
 
   const [profile, setProfile] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -685,14 +691,60 @@ export default function ContactPage() {
         }}
       >
         <div className="contact-header-inner" style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-          <button
-            type="button"
-            onClick={() => navigate('/dashboard/audiences')}
-            style={{ ...btnBase, background: 'transparent', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: 6, padding: '8px 12px' }}
-          >
-            <ArrowRight size={18} />
-            חזרה לקהלים
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <button
+              type="button"
+              onClick={() => navigate('/dashboard/audiences')}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)', fontSize: 13, WebkitTapHighlightColor: 'transparent' }}
+            >
+              ← קהלים
+            </button>
+
+            {ids.length > 0 && (
+              <>
+                <div style={{ display: 'flex', gap: 4 }}>
+                  <button
+                    type="button"
+                    onClick={() => prevId && navigate(`/dashboard/contacts/${prevId}`, { state: location.state })}
+                    disabled={!prevId}
+                    style={{
+                      background: 'none',
+                      border: '1px solid var(--border)',
+                      borderRadius: 6,
+                      padding: '4px 8px',
+                      cursor: prevId ? 'pointer' : 'not-allowed',
+                      opacity: prevId ? 1 : 0.3,
+                      fontSize: 16,
+                      WebkitTapHighlightColor: 'transparent',
+                    }}
+                  >
+                    ›
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => nextId && navigate(`/dashboard/contacts/${nextId}`, { state: location.state })}
+                    disabled={!nextId}
+                    style={{
+                      background: 'none',
+                      border: '1px solid var(--border)',
+                      borderRadius: 6,
+                      padding: '4px 8px',
+                      cursor: nextId ? 'pointer' : 'not-allowed',
+                      opacity: nextId ? 1 : 0.3,
+                      fontSize: 16,
+                      WebkitTapHighlightColor: 'transparent',
+                    }}
+                  >
+                    ‹
+                  </button>
+                </div>
+
+                <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
+                  {currentIndex >= 0 ? currentIndex + 1 : '—'} / {ids.length}
+                </span>
+              </>
+            )}
+          </div>
 
           {profile && !loading && (
             <>
