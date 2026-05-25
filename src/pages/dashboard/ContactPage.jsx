@@ -160,18 +160,32 @@ export default function ContactPage() {
     : '—'
 
   const patchProfile = async (body) => {
-    if (!profile?.id || !businessId || !session?.access_token) return
+    if (!profile?.id || !businessId || !session?.access_token) {
+      toast.error('חסרים פרטי זיהוי')
+      return
+    }
     setSaving(true)
     try {
+      const controller = new AbortController()
+      const timeout = setTimeout(() => controller.abort(), 10000)
       const data = await fetchWithAuth(`/api/admin/recipients/${profile.id}/profile`, {
         method: 'PATCH',
         body: JSON.stringify({ business_id: businessId, ...body }),
+        signal: controller.signal,
       })
-      if (!data || data.error) throw new Error(data?.message || data?.error || 'שגיאה בעדכון')
-      toast.success('נשמר בהצלחה')
-      await loadProfile()
+      clearTimeout(timeout)
+      if (data?.id || data?.success || data?.phone) {
+        setProfile((prev) => (prev ? { ...prev, ...body } : prev))
+        toast.success('נשמר בהצלחה')
+      } else {
+        toast.error(data?.error || 'שגיאה בעדכון')
+      }
     } catch (e) {
-      toast.error(e.message || 'שגיאה בעדכון')
+      if (e.name === 'AbortError') {
+        toast.error('הבקשה נכשלה — timeout')
+      } else {
+        toast.error(e.message || 'שגיאה בעדכון')
+      }
     } finally {
       setSaving(false)
     }
