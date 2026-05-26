@@ -40,17 +40,20 @@ export async function fetchWithAuth(url, options = {}, retries = 2) {
     console.warn('[fetchWithAuth] proceeding without businessId')
   }
 
-  const buildConfig = (sess) => ({
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(sess?.access_token
-        ? { Authorization: `Bearer ${sess.access_token}` }
-        : {}),
-      ...(businessId ? { 'X-Business-Id': businessId } : {}),
-      ...options.headers,
-    },
-  })
+  const buildConfig = (sess) => {
+    const isFormData = options.body instanceof FormData
+    return {
+      ...options,
+      headers: {
+        ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
+        ...(sess?.access_token
+          ? { Authorization: `Bearer ${sess.access_token}` }
+          : {}),
+        ...(businessId ? { 'X-Business-Id': businessId } : {}),
+        ...options.headers,
+      },
+    }
+  }
 
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {
