@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -519,6 +519,9 @@ export default function Audiences() {
   const [saveName, setSaveName] = useState('')
   const [lastWhereClause, setLastWhereClause] = useState('')
   const [search, setSearch] = useState('')
+  const [searchResults, setSearchResults] = useState(null)
+  const [searching, setSearching] = useState(false)
+  const searchTimeout = useRef(null)
   const [activeTag, setActiveTag] = useState('הכל')
   const [genderFilter, setGenderFilter] = useState('all')
   const [ageMin, setAgeMin] = useState('')
@@ -793,9 +796,20 @@ export default function Audiences() {
     navigate('/dashboard/new-campaign')
   }
 
-  const filtered = recipients
+  const baseList = searchResults !== null ? searchResults : recipients
+
+  const filtered = baseList
     .filter((r) => {
-      const matchSearch = !search || (r.name && String(r.name).includes(search)) || (r.phone && String(r.phone).includes(search))
+      if (searchResults !== null) return true
+      if (search.trim()) {
+        const s = search.toLowerCase()
+        const name = (r.name || '').toLowerCase()
+        const phone = (r.phone || '')
+        if (!name.includes(s) && !phone.includes(s)) return false
+      }
+      return true
+    })
+    .filter((r) => {
       const effectiveTag = tagFilter || (activeTag !== 'הכל' ? activeTag : '')
       const matchTag = !effectiveTag || (Array.isArray(r.tags) && r.tags.includes(effectiveTag))
       const matchGender = !genderFilter || genderFilter === 'all' || String(r.gender || '') === genderFilter
@@ -811,7 +825,7 @@ export default function Audiences() {
         }
       }
       const matchCity = !cityFilter || (r.city && String(r.city).includes(String(cityFilter).trim()))
-      return matchSearch && matchTag && matchGender && matchAge && matchCity
+      return matchTag && matchGender && matchAge && matchCity
     })
     .filter((r) => {
       if (contactTypeFilter.length === 0) return true
@@ -1299,7 +1313,53 @@ export default function Audiences() {
           {/* Row 1: search + הכל */}
           <div className="audience-search-row" style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center' }}>
             <div className="audience-search-row-1" style={{ flex: '1 1 200px', minWidth: 0, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-              <input placeholder="🔍 חפש לפי שם או טלפון..." className="form-input input" style={{ flex: 1, minWidth: 180, fontSize: '13px' }} value={search} onChange={e => { setSearch(e.target.value); setPage(1) }} />
+              <div style={{ position: 'relative', flex: 1, minWidth: 180 }}>
+                <input
+                  placeholder="🔍 חפש לפי שם או טלפון..."
+                  className="form-input input"
+                  style={{ width: '100%', fontSize: '13px' }}
+                  value={search}
+                  onChange={e => {
+                    const val = e.target.value
+                    setSearch(val)
+                    setPage(1)
+
+                    if (searchTimeout.current) clearTimeout(searchTimeout.current)
+
+                    if (val.trim().length < 2) {
+                      setSearchResults(null)
+                      return
+                    }
+
+                    searchTimeout.current = setTimeout(async () => {
+                      setSearching(true)
+                      try {
+                        const results = await fetchWithAuth(
+                          `/api/admin/recipients/search?q=${encodeURIComponent(val.trim())}`
+                        )
+                        if (Array.isArray(results)) setSearchResults(results)
+                      } catch (err) {
+                        console.error('search error:', err)
+                      } finally {
+                        setSearching(false)
+                      }
+                    }, 300)
+                  }}
+                />
+                {searching && (
+                  <span style={{
+                    position: 'absolute',
+                    left: '12px',
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    fontSize: '12px',
+                    color: 'var(--text-secondary)',
+                  }}
+                  >
+                    מחפש...
+                  </span>
+                )}
+              </div>
               <button className={activeTag === 'הכל' ? 'btn-primary' : 'btn-ghost'} onClick={() => { setActiveTag('הכל'); setTagFilter(''); setPage(1) }}>הכל</button>
             </div>
           </div>
