@@ -153,17 +153,20 @@ export default function ContactTypesModal({ businessId, fetchWithAuth, onClose }
               />
               <input
                 value={newForm.label}
-                onChange={e => setNewForm(p => ({ ...p, label: e.target.value }))}
+                onChange={e => {
+                  const label = e.target.value
+                  const value = label.toLowerCase()
+                    .replace(/\s+/g, '_')
+                    .replace(/[^a-z0-9_א-ת]/g, '')
+                    .trim()
+                  const next = { label, emoji: newForm.emoji, value }
+                  console.log('[ContactTypesModal] newForm:', next)
+                  setNewForm(next)
+                }}
                 placeholder="שם סוג הקשר"
                 style={{ flex: 1, background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: '6px', padding: '6px 10px', color: 'var(--text)', direction: 'rtl' }}
               />
             </div>
-            <input
-              value={newForm.value}
-              onChange={e => setNewForm(p => ({ ...p, value: e.target.value.toLowerCase().replace(/\s+/g, '_') }))}
-              placeholder="מזהה (באנגלית, למשל: wedding_planner)"
-              style={{ width: '100%', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: '6px', padding: '6px 10px', color: 'var(--text)', direction: 'ltr', marginBottom: '8px' }}
-            />
             <div style={{ display: 'flex', gap: '8px' }}>
               <button type="button" onClick={addNew} disabled={saving || !newForm.label || !newForm.value}
                 style={{ flex: 1, background: '#00C37A', border: 'none', borderRadius: '8px', padding: '8px', color: '#fff', cursor: 'pointer', fontSize: '14px' }}>
