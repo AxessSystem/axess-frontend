@@ -489,6 +489,11 @@ export default function Audiences() {
   const { session, businessId } = useAuth()
   const queryClient = useQueryClient()
 
+  const savedAudiencesState = (() => {
+    try { return JSON.parse(sessionStorage.getItem('audiences_state') || '{}') }
+    catch { return {} }
+  })()
+
   useEffect(() => {
     console.log('[Audiences] businessId:', businessId)
   }, [businessId])
@@ -505,8 +510,8 @@ export default function Audiences() {
     return businessId
   }, [businessId])
 
-  const [activeSegment, setActiveSegment] = useState('all')
-  const [activeCategory, setActiveCategory] = useState('all_cat')
+  const [activeSegment, setActiveSegment] = useState(savedAudiencesState.activeSegment || 'all')
+  const [activeCategory, setActiveCategory] = useState(savedAudiencesState.activeCategory || 'all_cat')
   const [selectedSegments, setSelectedSegments] = useState([])
   const [recipients, setRecipients] = useState([])
   const [segments, setSegments] = useState({ presets: PRESET_SEGMENTS, saved: [] })
@@ -518,11 +523,21 @@ export default function Audiences() {
   const [showSaveModal, setShowSaveModal] = useState(false)
   const [saveName, setSaveName] = useState('')
   const [lastWhereClause, setLastWhereClause] = useState('')
-  const [search, setSearch] = useState('')
-  const [searchResults, setSearchResults] = useState(null)
+  const [search, setSearch] = useState(savedAudiencesState.search || '')
+  const [searchResults, setSearchResults] = useState(savedAudiencesState.searchResults ?? null)
   const [searching, setSearching] = useState(false)
   const searchTimeout = useRef(null)
-  const [activeTag, setActiveTag] = useState('הכל')
+  const [searchScope, setSearchScope] = useState(savedAudiencesState.searchScope || {
+    name: true,
+    phone: true,
+    tags: true,
+    notes: true,
+    contact_types: true,
+    segments: false,
+  })
+  const [searchScopeOpen, setSearchScopeOpen] = useState(false)
+  const [scopeSegments, setScopeSegments] = useState(savedAudiencesState.scopeSegments || [])
+  const [activeTag, setActiveTag] = useState(savedAudiencesState.activeTag || 'הכל')
   const [genderFilter, setGenderFilter] = useState('all')
   const [ageMin, setAgeMin] = useState('')
   const [ageMax, setAgeMax] = useState('')
@@ -551,7 +566,7 @@ export default function Audiences() {
   const [events, setEvents] = useState([])
   const [selectedEvents, setSelectedEvents] = useState([])
   const [eventSearch, setEventSearch] = useState('')
-  const [page, setPage] = useState(1)
+  const [page, setPage] = useState(savedAudiencesState.page || 1)
   const [isMobile, setIsMobile] = useState(typeof window !== 'undefined' && window.innerWidth <= 768)
 
   const [selectedIds, setSelectedIds] = useState(new Set())
@@ -559,7 +574,7 @@ export default function Audiences() {
   const [showContactTypesModal, setShowContactTypesModal] = useState(false)
   const [quickEditRecipient, setQuickEditRecipient] = useState(null)
   const [contactTypes, setContactTypes] = useState([])
-  const [contactTypeFilter, setContactTypeFilter] = useState([])
+  const [contactTypeFilter, setContactTypeFilter] = useState(savedAudiencesState.contactTypeFilter || [])
   const [bulkField, setBulkField] = useState({ tags: [], contact_types: [], segment: '' })
   const [showBulkEditPanel, setShowBulkEditPanel] = useState(false)
 
@@ -628,12 +643,29 @@ export default function Audiences() {
   }, [businessId, session?.access_token, recipientsLoading])
 
   useEffect(() => {
-    if (recipientsData) {
+    if (!recipientsData) return
+    if (activeSegment === 'all') {
       console.log('[Audiences] recipients loaded:', recipientsData?.recipients?.length ?? 0)
       setRecipients(recipientsData?.recipients || [])
       setLoadError(null)
     }
-  }, [recipientsData])
+  }, [recipientsData, activeSegment])
+
+  useEffect(() => {
+    try {
+      sessionStorage.setItem('audiences_state', JSON.stringify({
+        search,
+        activeTag,
+        contactTypeFilter,
+        activeSegment,
+        activeCategory,
+        page,
+        searchResults,
+        searchScope,
+        scopeSegments,
+      }))
+    } catch {}
+  }, [search, activeTag, contactTypeFilter, activeSegment, activeCategory, page, searchResults, searchScope, scopeSegments])
 
   useEffect(() => {
     if (recipientsError) {
@@ -1125,6 +1157,27 @@ export default function Audiences() {
                   </button>
                   <button
                     type="button"
+                    onClick={async () => {
+                      await runSaved(seg)
+                      setTimeout(() => {
+                        document.getElementById('recipients-grid')?.scrollIntoView({ behavior: 'smooth' })
+                      }, 500)
+                    }}
+                    style={{
+                      padding: '6px 14px',
+                      borderRadius: '8px',
+                      fontSize: '13px',
+                      border: '1px solid #00C37A',
+                      background: '#00C37A20',
+                      color: '#00C37A',
+                      cursor: 'pointer',
+                      WebkitTapHighlightColor: 'transparent',
+                    }}
+                  >
+                    הצג קהל
+                  </button>
+                  <button
+                    type="button"
                     onClick={() => sendToSegment(seg)}
                     style={{
                       padding: '6px 12px',
@@ -1313,51 +1366,151 @@ export default function Audiences() {
           {/* Row 1: search + הכל */}
           <div className="audience-search-row" style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center' }}>
             <div className="audience-search-row-1" style={{ flex: '1 1 200px', minWidth: 0, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-              <div style={{ position: 'relative', flex: 1, minWidth: 180 }}>
-                <input
-                  placeholder="🔍 חפש לפי שם או טלפון..."
-                  className="form-input input"
-                  style={{ width: '100%', fontSize: '13px' }}
-                  value={search}
-                  onChange={e => {
-                    const val = e.target.value
-                    setSearch(val)
-                    setPage(1)
-
-                    if (searchTimeout.current) clearTimeout(searchTimeout.current)
-
-                    if (val.trim().length < 2) {
-                      setSearchResults(null)
-                      return
-                    }
-
-                    searchTimeout.current = setTimeout(async () => {
-                      setSearching(true)
-                      try {
-                        const results = await fetchWithAuth(
-                          `/api/admin/recipients/search?q=${encodeURIComponent(val.trim())}`
-                        )
-                        if (Array.isArray(results)) setSearchResults(results)
-                      } catch (err) {
-                        console.error('search error:', err)
-                      } finally {
-                        setSearching(false)
-                      }
-                    }, 300)
-                  }}
-                />
-                {searching && (
-                  <span style={{
-                    position: 'absolute',
-                    left: '12px',
-                    top: '50%',
-                    transform: 'translateY(-50%)',
-                    fontSize: '12px',
-                    color: 'var(--text-secondary)',
+              {/* שורת חיפוש חכמה */}
+              <div style={{ position: 'relative', marginBottom: '12px', flex: 1, minWidth: 180 }}>
+                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                  <div style={{ flex: 1, position: 'relative' }}>
+                    <span style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)', fontSize: '16px' }}>🔍</span>
+                    <input
+                      id="audiences-search-input"
+                      value={search}
+                      onChange={e => {
+                        const val = e.target.value
+                        setSearch(val)
+                        setPage(1)
+                        if (searchTimeout.current) clearTimeout(searchTimeout.current)
+                        if (val.trim().length < 2) {
+                          setSearchResults(null)
+                          return
+                        }
+                        searchTimeout.current = setTimeout(async () => {
+                          setSearching(true)
+                          try {
+                            const params = new URLSearchParams({ q: val.trim() })
+                            if (!searchScope.name) params.append('skip_name', '1')
+                            if (!searchScope.phone) params.append('skip_phone', '1')
+                            if (!searchScope.tags) params.append('skip_tags', '1')
+                            if (!searchScope.notes) params.append('skip_notes', '1')
+                            if (!searchScope.contact_types) params.append('skip_contact_types', '1')
+                            if (scopeSegments.length > 0) params.append('segment_ids', scopeSegments.join(','))
+                            const results = await fetchWithAuth(`/api/admin/recipients/search?${params}`)
+                            if (Array.isArray(results)) setSearchResults(results)
+                          } catch (err) {
+                            console.error('search error:', err)
+                          } finally {
+                            setSearching(false)
+                          }
+                        }, 300)
+                      }}
+                      placeholder="חפש..."
+                      style={{
+                        width: '100%', padding: '10px 40px 10px 12px',
+                        background: 'var(--bg)', border: '1px solid var(--border)',
+                        borderRadius: '10px', color: 'var(--text)', fontSize: '14px',
+                        direction: 'rtl',
+                      }}
+                    />
+                    {searching && (
+                      <span style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', fontSize: '11px', color: 'var(--text-secondary)' }}>
+                        מחפש...
+                      </span>
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setSearchScopeOpen(p => !p)}
+                    style={{
+                      padding: '10px 14px', borderRadius: '10px', fontSize: '13px',
+                      border: `1px solid ${searchScopeOpen ? '#00C37A' : 'var(--border)'}`,
+                      background: searchScopeOpen ? '#00C37A20' : 'var(--bg)',
+                      color: searchScopeOpen ? '#00C37A' : 'var(--text-secondary)',
+                      cursor: 'pointer', whiteSpace: 'nowrap',
+                      WebkitTapHighlightColor: 'transparent',
+                    }}
+                  >
+                    {Object.values(searchScope).every(Boolean) ? 'בכולם ▼' : 'מסונן ▼'}
+                  </button>
+                </div>
+                {searchScopeOpen && (
+                  <div style={{
+                    position: 'absolute', top: '100%', left: 0, right: 0,
+                    background: 'var(--card)', border: '1px solid var(--border)',
+                    borderRadius: '12px', padding: '12px', zIndex: 100,
+                    marginTop: '4px', boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
                   }}
                   >
-                    מחפש...
-                  </span>
+                    <p style={{ fontSize: '11px', color: 'var(--text-secondary)', margin: '0 0 8px', fontWeight: 600 }}>חפש ב:</p>
+                    {[
+                      { key: 'name', label: '👤 שם ופרטים' },
+                      { key: 'phone', label: '📱 טלפון' },
+                      { key: 'tags', label: '🏷️ תגיות' },
+                      { key: 'notes', label: '📝 הערות פנימיות' },
+                      { key: 'contact_types', label: '🎯 סוגי קשר' },
+                      { key: 'segments', label: '📁 סגמנטים שמורים' },
+                    ].map(item => (
+                      <div key={item.key}>
+                        <label style={{
+                          display: 'flex', alignItems: 'center', gap: '8px',
+                          padding: '6px 4px', cursor: 'pointer', fontSize: '13px',
+                          color: 'var(--text)',
+                        }}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={searchScope[item.key]}
+                            onChange={e => setSearchScope(p => ({ ...p, [item.key]: e.target.checked }))}
+                            style={{ accentColor: '#00C37A', width: '16px', height: '16px' }}
+                          />
+                          {item.label}
+                        </label>
+                        {item.key === 'segments' && searchScope.segments && (
+                          <div style={{ marginRight: '24px', marginBottom: '4px' }}>
+                            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '4px', cursor: 'pointer', fontSize: '12px', color: '#00C37A' }}>
+                              <input
+                                type="checkbox"
+                                checked={scopeSegments.length === (segments?.saved?.length || 0) && (segments?.saved?.length || 0) > 0}
+                                onChange={e => setScopeSegments(
+                                  e.target.checked
+                                    ? (segments?.saved || []).map(s => s.id)
+                                    : []
+                                )}
+                                style={{ accentColor: '#00C37A', width: '14px', height: '14px' }}
+                              />
+                              בחר הכל
+                            </label>
+                            {(segments?.saved || []).map(s => (
+                              <label key={s.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '4px', cursor: 'pointer', fontSize: '12px', color: 'var(--text)' }}>
+                                <input
+                                  type="checkbox"
+                                  checked={scopeSegments.includes(s.id)}
+                                  onChange={e => setScopeSegments(prev =>
+                                    e.target.checked
+                                      ? [...prev, s.id]
+                                      : prev.filter(id => id !== s.id)
+                                  )}
+                                  style={{ accentColor: '#00C37A', width: '14px', height: '14px' }}
+                                />
+                                {s.name}
+                                <span style={{ fontSize: '10px', color: 'var(--text-secondary)' }}>
+                                  ({s.count || '?'})
+                                </span>
+                              </label>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSearchScope({ name: true, phone: true, tags: true, notes: true, contact_types: true, segments: false })
+                        setScopeSegments([])
+                      }}
+                      style={{ marginTop: '8px', width: '100%', padding: '6px', borderRadius: '8px', border: '1px solid var(--border)', background: 'transparent', color: 'var(--text-secondary)', cursor: 'pointer', fontSize: '12px' }}
+                    >
+                      איפוס לברירת מחדל
+                    </button>
+                  </div>
                 )}
               </div>
               <button className={activeTag === 'הכל' ? 'btn-primary' : 'btn-ghost'} onClick={() => { setActiveTag('הכל'); setTagFilter(''); setPage(1) }}>הכל</button>
@@ -1590,7 +1743,7 @@ export default function Audiences() {
               </button>
             </div>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 14, padding: '16px' }}>
+          <div id="recipients-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 14, padding: '16px' }}>
             {paginated.map((r, i) => (
               <motion.div key={r.id || r.phone || i} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.03 }}
                 className="recipient-card"
