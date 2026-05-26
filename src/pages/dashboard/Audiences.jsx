@@ -857,7 +857,6 @@ export default function Audiences() {
 
       <style>{`
         @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-        .recipient-card:hover .quick-edit-btn { opacity: 1 !important; }
         .audience-search-row-spacer { display: none; }
         .segment-chip .segment-chip-tooltip {
           position: absolute;
@@ -1550,30 +1549,6 @@ export default function Audiences() {
                   })
                 }}
               >
-                {!selectMode && (
-                  <button
-                    type="button"
-                    onClick={async e => {
-                      e.stopPropagation()
-                      try {
-                        const data = await fetchWithAuth(`/api/admin/customer-profile/${r.id}?business_id=${businessId}`)
-                        setQuickEditRecipient({ ...r, ...data, id: r.id, tags: data.tags || r.tags || [] })
-                      } catch {
-                        setQuickEditRecipient(r)
-                      }
-                    }}
-                    style={{
-                      position: 'absolute', top: '10px', left: '44px',
-                      background: 'var(--bg)', border: '1px solid var(--border)',
-                      borderRadius: '6px', padding: '4px 6px', cursor: 'pointer',
-                      color: 'var(--text-secondary)', opacity: 0,
-                      transition: 'opacity 0.2s'
-                    }}
-                    className="quick-edit-btn"
-                  >
-                    ✏️
-                  </button>
-                )}
                 {selectMode && (
                   <div style={{
                     position: 'absolute', top: '10px', left: '10px',
@@ -1591,7 +1566,27 @@ export default function Audiences() {
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-                      <div style={{ fontSize: 14, fontWeight: 600, color: '#ffffff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.name || '—'}</div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 14, fontWeight: 600, color: '#ffffff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.name || '—'}</div>
+                        {!selectMode && (
+                          <span
+                            role="button"
+                            tabIndex={0}
+                            onClick={e => { e.stopPropagation(); setQuickEditRecipient(r) }}
+                            onKeyDown={e => { if (e.key === 'Enter') { e.stopPropagation(); setQuickEditRecipient(r) } }}
+                            style={{
+                              fontSize: '11px',
+                              color: '#00C37A',
+                              cursor: 'pointer',
+                              display: 'block',
+                              marginTop: '2px',
+                              WebkitTapHighlightColor: 'transparent',
+                            }}
+                          >
+                            עריכה מהירה
+                          </span>
+                        )}
+                      </div>
                       <EngagementScore score={r.axess_data?.engagement_score ?? r.score} size={40} />
                     </div>
                     <div style={{ fontSize: 12, color: 'var(--v2-gray-400)', marginTop: 2 }}><Phone size={11} /> {r.phone}</div>
@@ -1897,6 +1892,11 @@ export default function Audiences() {
           onClose={() => setQuickEditRecipient(null)}
           onSaved={(updated) => {
             setRecipients(prev => prev.map(r => r.id === updated.id ? { ...r, ...updated } : r))
+            setQuickEditRecipient(null)
+            queryClient.invalidateQueries({ queryKey: ['recipients', businessId] })
+          }}
+          onDeleted={(deletedId) => {
+            setRecipients(prev => prev.filter(r => r.id !== deletedId))
             setQuickEditRecipient(null)
             queryClient.invalidateQueries({ queryKey: ['recipients', businessId] })
           }}
