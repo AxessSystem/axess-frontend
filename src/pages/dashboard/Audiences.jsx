@@ -13,6 +13,8 @@ import { useAuth } from '@/contexts/AuthContext'
 import { useRequirePermission } from '@/hooks/useRequirePermission'
 import toast from 'react-hot-toast'
 import CustomSelect from '@/components/ui/CustomSelect'
+import ContactTypesModal from '@/components/ui/ContactTypesModal'
+import QuickEditDrawer from '@/components/ui/QuickEditDrawer'
 
 const API_BASE = import.meta.env.VITE_API_URL || 'https://api.axess.pro'
 
@@ -533,6 +535,15 @@ export default function Audiences() {
   const [page, setPage] = useState(1)
   const [isMobile, setIsMobile] = useState(typeof window !== 'undefined' && window.innerWidth <= 768)
 
+  const [selectedIds, setSelectedIds] = useState(new Set())
+  const [selectMode, setSelectMode] = useState(false)
+  const [showContactTypesModal, setShowContactTypesModal] = useState(false)
+  const [quickEditRecipient, setQuickEditRecipient] = useState(null)
+  const [contactTypes, setContactTypes] = useState([])
+  const [contactTypeFilter, setContactTypeFilter] = useState([])
+  const [bulkField, setBulkField] = useState({ tags: [], contact_types: [], segment: '' })
+  const [showBulkEditPanel, setShowBulkEditPanel] = useState(false)
+
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth <= 768)
     check()
@@ -592,6 +603,9 @@ export default function Audiences() {
       return
     }
     setLoadingRecipients(recipientsLoading)
+    fetchWithAuth(`/api/admin/contact-types?business_id=${businessId}`)
+      .then(d => Array.isArray(d) && setContactTypes(d))
+      .catch(() => {})
   }, [businessId, session?.access_token, recipientsLoading])
 
   useEffect(() => {
@@ -783,6 +797,10 @@ export default function Audiences() {
       const matchCity = !cityFilter || (r.city && String(r.city).includes(String(cityFilter).trim()))
       return matchSearch && matchTag && matchGender && matchAge && matchCity
     })
+    .filter((r) => {
+      if (contactTypeFilter.length === 0) return true
+      return contactTypeFilter.every(ct => (r.contact_types || []).includes(ct))
+    })
     .sort((a, b) => {
       if (sortBy === 'score') return (b.score || 0) - (a.score || 0)
       if (sortBy === 'campaigns') return (b.campaigns || 0) - (a.campaigns || 0)
@@ -823,6 +841,7 @@ export default function Audiences() {
 
       <style>{`
         @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        .recipient-card:hover .quick-edit-btn { opacity: 1 !important; }
         .audience-search-row-spacer { display: none; }
         .segment-chip .segment-chip-tooltip {
           position: absolute;
@@ -1424,18 +1443,132 @@ export default function Audiences() {
           <EmptyState icon="🔍" title="לא נמצאו אנשי קשר" description="נסה לשנות את מונחי החיפוש או הסנן" />
         ) : (
           <>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '0 16px 12px', flexWrap: 'wrap' }}>
+            <button
+              type="button"
+              onClick={() => { setSelectMode(p => !p); setSelectedIds(new Set()) }}
+              style={{
+                padding: '7px 14px', borderRadius: '8px', fontSize: '13px', cursor: 'pointer',
+                border: `1px solid ${selectMode ? '#00C37A' : 'var(--border)'}`,
+                background: selectMode ? '#00C37A20' : 'transparent',
+                color: selectMode ? '#00C37A' : 'var(--text-secondary)',
+                WebkitTapHighlightColor: 'transparent'
+              }}
+            >
+              {selectMode ? `✓ נבחרו ${selectedIds.size}` : 'בחר'}
+            </button>
+            {selectMode && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => setSelectedIds(new Set(filtered.map(r => r.id)))}
+                  style={{ padding: '7px 14px', borderRadius: '8px', fontSize: '13px', cursor: 'pointer', border: '1px solid var(--border)', background: 'transparent', color: 'var(--text-secondary)' }}
+                >
+                  בחר הכל ({filtered.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSelectedIds(new Set())}
+                  style={{ padding: '7px 14px', borderRadius: '8px', fontSize: '13px', cursor: 'pointer', border: '1px solid var(--border)', background: 'transparent', color: 'var(--text-secondary)' }}
+                >
+                  בטל הכל
+                </button>
+                {selectedIds.size > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setShowBulkEditPanel(true)}
+                    style={{ padding: '7px 14px', borderRadius: '8px', fontSize: '13px', cursor: 'pointer', border: 'none', background: '#00C37A', color: '#fff' }}
+                  >
+                    ערוך {selectedIds.size} נבחרים
+                  </button>
+                )}
+              </>
+            )}
+            <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginRight: 'auto' }}>
+              {contactTypes.slice(0, 6).map(ct => {
+                const active = contactTypeFilter.includes(ct.value)
+                return (
+                  <button
+                    key={ct.value}
+                    type="button"
+                    onClick={() => setContactTypeFilter(p =>
+                      active ? p.filter(v => v !== ct.value) : [...p, ct.value]
+                    )}
+                    style={{
+                      padding: '5px 10px', borderRadius: '20px', fontSize: '12px', cursor: 'pointer',
+                      border: `1px solid ${active ? '#00C37A' : 'var(--border)'}`,
+                      background: active ? '#00C37A20' : 'transparent',
+                      color: active ? '#00C37A' : 'var(--text-secondary)',
+                      WebkitTapHighlightColor: 'transparent'
+                    }}
+                  >
+                    {ct.emoji} {ct.label}
+                  </button>
+                )
+              })}
+              <button
+                type="button"
+                onClick={() => setShowContactTypesModal(true)}
+                style={{ padding: '5px 10px', borderRadius: '20px', fontSize: '12px', cursor: 'pointer', border: '1px solid var(--border)', background: 'transparent', color: 'var(--text-secondary)' }}
+              >
+                ⚙️ ערוך סוגים
+              </button>
+            </div>
+          </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 14, padding: '16px' }}>
             {paginated.map((r, i) => (
               <motion.div key={r.id || r.phone || i} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.03 }}
-                style={{ background: 'var(--v2-dark-3)', border: '1px solid var(--glass-border)', borderRadius: 'var(--radius-lg)', padding: '18px', cursor: 'pointer' }}
+                className="recipient-card"
+                style={{ position: 'relative', background: 'var(--v2-dark-3)', border: '1px solid var(--glass-border)', borderRadius: 'var(--radius-lg)', padding: '18px', cursor: 'pointer' }}
                 onClick={() => {
-                  const contactId = String(r.master_recipient_id || r.id)
-                  const recipientIds = filtered.map((rec) => String(rec.master_recipient_id || rec.id)).filter(Boolean)
-                  navigate(`/dashboard/contacts/${contactId}`, {
-                    state: { ids: recipientIds, current: contactId },
+                  if (selectMode) {
+                    setSelectedIds(prev => {
+                      const next = new Set(prev)
+                      next.has(r.id) ? next.delete(r.id) : next.add(r.id)
+                      return next
+                    })
+                    return
+                  }
+                  navigate(`/dashboard/contacts/${r.id}`, {
+                    state: { ids: filtered.map(x => x.id), current: r.id },
                   })
                 }}
               >
+                {!selectMode && (
+                  <button
+                    type="button"
+                    onClick={async e => {
+                      e.stopPropagation()
+                      try {
+                        const data = await fetchWithAuth(`/api/admin/customer-profile/${r.id}?business_id=${businessId}`)
+                        setQuickEditRecipient({ ...r, ...data, id: r.id, tags: data.tags || r.tags || [] })
+                      } catch {
+                        setQuickEditRecipient(r)
+                      }
+                    }}
+                    style={{
+                      position: 'absolute', top: '10px', left: '10px',
+                      background: 'var(--bg)', border: '1px solid var(--border)',
+                      borderRadius: '6px', padding: '4px 6px', cursor: 'pointer',
+                      color: 'var(--text-secondary)', opacity: 0,
+                      transition: 'opacity 0.2s'
+                    }}
+                    className="quick-edit-btn"
+                  >
+                    ✏️
+                  </button>
+                )}
+                {selectMode && (
+                  <div style={{
+                    position: 'absolute', top: '10px', left: '10px',
+                    width: '20px', height: '20px', borderRadius: '4px',
+                    border: `2px solid ${selectedIds.has(r.id) ? '#00C37A' : 'var(--border)'}`,
+                    background: selectedIds.has(r.id) ? '#00C37A' : 'transparent',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center'
+                  }}>
+                    {selectedIds.has(r.id) && <span style={{ color: '#fff', fontSize: '12px' }}>✓</span>}
+                  </div>
+                )}
                 <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
                   <div style={{ width: 44, height: 44, borderRadius: 'var(--radius-md)', background: 'rgba(0,195,122,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                     <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--v2-primary)' }}>{(r.name || '—').charAt(0)}</span>
@@ -1656,6 +1789,103 @@ export default function Audiences() {
         </div>
         )
       })()}
+
+      {showBulkEditPanel && selectedIds.size > 0 && (
+        <div style={{
+          position: 'fixed', bottom: 0, right: 0, left: 0,
+          background: 'var(--card)', borderTop: '1px solid var(--border)',
+          padding: '16px 20px', zIndex: 800,
+          display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap',
+          direction: 'rtl', boxShadow: '0 -4px 20px rgba(0,0,0,0.1)'
+        }}>
+          <span style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text)' }}>
+            {selectedIds.size} נבחרים
+          </span>
+          <div style={{ display: 'flex', gap: '6px' }}>
+            <input
+              placeholder="הוסף תגית לנבחרים..."
+              value={bulkField.tags[0] || ''}
+              onChange={e => setBulkField(p => ({ ...p, tags: [e.target.value] }))}
+              onKeyDown={async e => {
+                if (e.key !== 'Enter' || !bulkField.tags[0]) return
+                const ids = [...selectedIds]
+                await fetchWithAuth('/api/admin/recipients/bulk-tags', {
+                  method: 'PATCH',
+                  body: JSON.stringify({ business_id: businessId, recipient_ids: ids, tag: bulkField.tags[0] })
+                }).catch(() => {})
+                setBulkField(p => ({ ...p, tags: [] }))
+                setSelectedIds(new Set())
+                setSelectMode(false)
+                setShowBulkEditPanel(false)
+                queryClient.invalidateQueries({ queryKey: ['recipients', businessId] })
+              }}
+              style={{ padding: '7px 12px', borderRadius: '8px', border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)', fontSize: '13px', direction: 'rtl', width: '160px' }}
+            />
+            <span style={{ fontSize: '12px', color: 'var(--text-secondary)', alignSelf: 'center' }}>Enter לאישור</span>
+          </div>
+          <select
+            value=""
+            onChange={async e => {
+              const ct = e.target.value
+              if (!ct) return
+              const ids = [...selectedIds]
+              await Promise.all(ids.map(id => {
+                const rec = recipients.find(x => x.id === id)
+                const merged = [...new Set([...(rec?.contact_types || []), ct])]
+                return fetchWithAuth(`/api/admin/recipients/${id}/profile`, {
+                  method: 'PATCH',
+                  body: JSON.stringify({ business_id: businessId, contact_types: merged })
+                }).catch(() => {})
+              }))
+              setSelectedIds(new Set())
+              setSelectMode(false)
+              setShowBulkEditPanel(false)
+              queryClient.invalidateQueries({ queryKey: ['recipients', businessId] })
+            }}
+            style={{ padding: '7px 12px', borderRadius: '8px', border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)', fontSize: '13px' }}
+          >
+            <option value="">סוג קשר לנבחרים...</option>
+            {contactTypes.map(ct => (
+              <option key={ct.value} value={ct.value}>{ct.emoji} {ct.label}</option>
+            ))}
+          </select>
+          <button
+            type="button"
+            onClick={() => { setShowBulkEditPanel(false); setSelectedIds(new Set()); setSelectMode(false) }}
+            style={{ marginRight: 'auto', padding: '7px 14px', borderRadius: '8px', border: '1px solid var(--border)', background: 'transparent', color: 'var(--text-secondary)', cursor: 'pointer', fontSize: '13px' }}
+          >
+            ביטול
+          </button>
+        </div>
+      )}
+
+      {showContactTypesModal && (
+        <ContactTypesModal
+          businessId={businessId}
+          fetchWithAuth={fetchWithAuth}
+          onClose={() => {
+            setShowContactTypesModal(false)
+            fetchWithAuth(`/api/admin/contact-types?business_id=${businessId}`)
+              .then(d => Array.isArray(d) && setContactTypes(d))
+              .catch(() => {})
+          }}
+        />
+      )}
+
+      {quickEditRecipient && (
+        <QuickEditDrawer
+          recipient={quickEditRecipient}
+          businessId={businessId}
+          fetchWithAuth={fetchWithAuth}
+          contactTypes={contactTypes}
+          onClose={() => setQuickEditRecipient(null)}
+          onSaved={(updated) => {
+            setRecipients(prev => prev.map(r => r.id === updated.id ? { ...r, ...updated } : r))
+            setQuickEditRecipient(null)
+            queryClient.invalidateQueries({ queryKey: ['recipients', businessId] })
+          }}
+        />
+      )}
 
       <CustomerProfileDrawer open={!!selectedCustomerId} onClose={() => setSelectedCustomerId(null)} masterRecipientId={selectedCustomerId} businessId={businessId} onTagUpdate={() => queryClient.invalidateQueries({ queryKey: ['recipients', businessId] })} />
       <ImportModal isOpen={importOpen} onClose={() => setImportOpen(false)} businessId={businessId} onImportDone={() => { queryClient.invalidateQueries({ queryKey: ['recipients', businessId] }) }} />
