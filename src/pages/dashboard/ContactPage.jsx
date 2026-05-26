@@ -99,6 +99,10 @@ export default function ContactPage() {
     id_number: '',
     instagram_url: '',
     subscribed: '',
+    contact_types: [],
+    internal_notes: '',
+    vendor_type: '',
+    organizer_type: '',
   })
 
   const [socialForm, setSocialForm] = useState({
@@ -111,6 +115,14 @@ export default function ContactPage() {
 
   const [newTag, setNewTag] = useState('')
   const [showTagInput, setShowTagInput] = useState(false)
+  const [contactTypes, setContactTypes] = useState([])
+
+  useEffect(() => {
+    if (!businessId || !session?.access_token) return
+    fetchWithAuth(`/api/admin/contact-types?business_id=${businessId}`)
+      .then((data) => Array.isArray(data) && setContactTypes(data))
+      .catch(() => {})
+  }, [businessId, session?.access_token])
 
   useEffect(() => {
     const onResize = () => setIsMobile(window.innerWidth < 768)
@@ -137,6 +149,10 @@ export default function ContactPage() {
           id_number: data.id_number || '',
           instagram_url: cd.instagram_url || '',
           subscribed: cd.subscribed != null ? String(cd.subscribed) : '',
+          contact_types: Array.isArray(data.contact_types) ? data.contact_types : [],
+          internal_notes: data.internal_notes || '',
+          vendor_type: data.vendor_type || '',
+          organizer_type: data.organizer_type || '',
         })
         setSocialForm({
           avatar_url: data.avatar_url || '',
@@ -212,6 +228,10 @@ export default function ContactPage() {
       city: overviewForm.city,
       id_number: overviewForm.id_number,
       custom_data,
+      contact_types: overviewForm.contact_types || [],
+      internal_notes: overviewForm.internal_notes || null,
+      vendor_type: overviewForm.vendor_type || null,
+      organizer_type: overviewForm.organizer_type || null,
     })
   }
 
@@ -431,6 +451,94 @@ export default function ContactPage() {
             <div>
               <label style={labelStyle}>עיר</label>
               <input className="form-input input" style={inputStyle} value={overviewForm.city} onChange={(e) => setOverviewForm((f) => ({ ...f, city: e.target.value }))} />
+            </div>
+            <div style={{ gridColumn: isMobile ? 'auto' : '1 / -1' }}>
+              <label style={{ fontSize: '12px', color: 'var(--text-secondary)', display: 'block', marginBottom: '8px' }}>
+                סוגי קשר
+              </label>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                {contactTypes.map((type) => {
+                  const selected = (overviewForm.contact_types || []).includes(type.value)
+                  return (
+                    <button
+                      key={type.value}
+                      type="button"
+                      onClick={() => {
+                        const current = overviewForm.contact_types || []
+                        setOverviewForm((prev) => ({
+                          ...prev,
+                          contact_types: selected
+                            ? current.filter((t) => t !== type.value)
+                            : [...current, type.value],
+                        }))
+                      }}
+                      style={{
+                        padding: '6px 12px',
+                        borderRadius: '20px',
+                        border: `1px solid ${selected ? '#00C37A' : 'var(--border)'}`,
+                        background: selected ? '#00C37A20' : 'transparent',
+                        color: selected ? '#00C37A' : 'var(--text-secondary)',
+                        cursor: 'pointer',
+                        fontSize: '13px',
+                        WebkitTapHighlightColor: 'transparent',
+                      }}
+                    >
+                      {type.emoji} {type.label}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+            {(overviewForm.contact_types || []).includes('vendor') && (
+              <div style={{ gridColumn: isMobile ? 'auto' : '1 / -1' }}>
+                <label style={{ fontSize: '12px', color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>
+                  סוג ספק
+                </label>
+                <input
+                  value={overviewForm.vendor_type || ''}
+                  onChange={(e) => setOverviewForm((prev) => ({ ...prev, vendor_type: e.target.value }))}
+                  placeholder="אטרקציות / קייטרינג / צילום..."
+                  className="form-input input"
+                  style={{ ...inputStyle, direction: 'rtl' }}
+                />
+              </div>
+            )}
+            {(overviewForm.contact_types || []).includes('organizer') && (
+              <div style={{ gridColumn: isMobile ? 'auto' : '1 / -1' }}>
+                <label style={{ fontSize: '12px', color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>
+                  סוג אירועים
+                </label>
+                <input
+                  value={overviewForm.organizer_type || ''}
+                  onChange={(e) => setOverviewForm((prev) => ({ ...prev, organizer_type: e.target.value }))}
+                  placeholder="חתונות / בר מצוות / מסיבות..."
+                  className="form-input input"
+                  style={{ ...inputStyle, direction: 'rtl' }}
+                />
+              </div>
+            )}
+            <div style={{ gridColumn: isMobile ? 'auto' : '1 / -1' }}>
+              <label style={{ fontSize: '12px', color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>
+                הערות פנימיות
+              </label>
+              <textarea
+                value={overviewForm.internal_notes || ''}
+                onChange={(e) => setOverviewForm((prev) => ({ ...prev, internal_notes: e.target.value }))}
+                placeholder="הערות שרק אתה רואה..."
+                rows={3}
+                style={{
+                  width: '100%',
+                  background: 'var(--bg)',
+                  border: '1px solid var(--border)',
+                  borderRadius: '8px',
+                  padding: '10px 12px',
+                  color: 'var(--text)',
+                  fontSize: '14px',
+                  resize: 'vertical',
+                  fontFamily: 'inherit',
+                  direction: 'rtl',
+                }}
+              />
             </div>
             <div>
               <label style={labelStyle}>ת.ז.</label>
