@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -488,6 +488,22 @@ export default function Audiences() {
   const navigate = useNavigate()
   const { session, businessId } = useAuth()
   const queryClient = useQueryClient()
+
+  useEffect(() => {
+    console.log('[Audiences] businessId:', businessId)
+  }, [businessId])
+
+  // אותו business_id ש-fetchWithAuth שולח ב-X-Business-Id (כולל impersonate)
+  const apiBusinessId = useMemo(() => {
+    try {
+      const raw = sessionStorage.getItem('axess_impersonate')
+      if (raw) {
+        const id = JSON.parse(raw)?.business?.id
+        if (id) return id
+      }
+    } catch {}
+    return businessId
+  }, [businessId])
 
   const [activeSegment, setActiveSegment] = useState('all')
   const [activeCategory, setActiveCategory] = useState('all_cat')
@@ -1859,13 +1875,13 @@ export default function Audiences() {
         </div>
       )}
 
-      {showContactTypesModal && (
+      {showContactTypesModal && apiBusinessId && (
         <ContactTypesModal
-          businessId={businessId}
+          businessId={apiBusinessId}
           fetchWithAuth={fetchWithAuth}
           onClose={() => {
             setShowContactTypesModal(false)
-            fetchWithAuth(`/api/admin/contact-types?business_id=${businessId}`)
+            fetchWithAuth(`/api/admin/contact-types?business_id=${apiBusinessId}`)
               .then(d => Array.isArray(d) && setContactTypes(d))
               .catch(() => {})
           }}
