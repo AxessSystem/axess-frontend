@@ -1547,7 +1547,7 @@ export default function Audiences() {
                       }
                     }}
                     style={{
-                      position: 'absolute', top: '10px', left: '10px',
+                      position: 'absolute', top: '10px', left: '44px',
                       background: 'var(--bg)', border: '1px solid var(--border)',
                       borderRadius: '6px', padding: '4px 6px', cursor: 'pointer',
                       color: 'var(--text-secondary)', opacity: 0,

@@ -14,7 +14,10 @@ export default function ContactTypesModal({ businessId, fetchWithAuth, onClose }
       .then(d => Array.isArray(d) && setTypes(d))
       .catch(() => {})
 
-  useEffect(() => { load() }, [])
+  useEffect(() => {
+    console.log('ContactTypesModal businessId:', businessId)
+    load()
+  }, [])
 
   const startEdit = (t) => {
     setEditingId(t.id)
@@ -41,14 +44,35 @@ export default function ContactTypesModal({ businessId, fetchWithAuth, onClose }
   const addNew = async () => {
     if (!newForm.label || !newForm.value) return
     setSaving(true)
-    await fetchWithAuth('/api/admin/contact-types', {
-      method: 'POST',
-      body: JSON.stringify({ ...newForm, business_id: businessId })
-    }).catch(() => {})
-    setNewForm({ label: '', emoji: '', value: '' })
-    setAdding(false)
-    await load()
-    setSaving(false)
+    try {
+      console.log('adding:', {
+        label: newForm.label.trim(),
+        emoji: newForm.emoji.trim() || null,
+        value: newForm.value.toLowerCase().replace(/\s+/g, '_').trim(),
+        business_id: businessId,
+      })
+      const result = await fetchWithAuth('/api/admin/contact-types', {
+        method: 'POST',
+        body: JSON.stringify({
+          label: newForm.label.trim(),
+          emoji: newForm.emoji.trim() || null,
+          value: newForm.value.toLowerCase().replace(/\s+/g, '_').trim(),
+          business_id: businessId,
+        }),
+      })
+      if (result?.error) {
+        alert(result.error)
+        return
+      }
+      setNewForm({ label: '', emoji: '', value: '' })
+      setAdding(false)
+      await load()
+    } catch (e) {
+      console.error('addNew error:', e)
+      alert(e.message || 'שגיאה בהוספה')
+    } finally {
+      setSaving(false)
+    }
   }
 
   return (
