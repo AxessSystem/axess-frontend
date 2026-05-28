@@ -1164,7 +1164,29 @@ export default function Audiences() {
                     onClick={async () => {
                       setSearchResults(null)
 
-                      if (seg.type === 'saved_audience' || seg.filters) {
+                      const filters = seg.filters || {}
+
+                      if (filters.recipient_ids && filters.recipient_ids.length > 0) {
+                        const segmentRecipients = recipients.filter(r =>
+                          filters.recipient_ids.includes(r.id)
+                        )
+                        if (segmentRecipients.length > 0) {
+                          setSearchResults(segmentRecipients)
+                        } else {
+                          setLoading(true)
+                          try {
+                            const result = await fetchWithAuth(
+                              `/api/admin/recipients/search?ids=${filters.recipient_ids.slice(0, 500).join(',')}`
+                            )
+                            if (Array.isArray(result)) setSearchResults(result)
+                          } catch (e) {
+                            console.error('segment load error:', e)
+                          } finally {
+                            setLoading(false)
+                          }
+                        }
+                        setActiveSegment(seg.id)
+                      } else if (filters.gender || filters.age_min || filters.age_max || filters.city || filters.tags || filters.search) {
                         applySegmentFilters(seg)
                         setActiveSegment(seg.id)
                       } else {
@@ -1914,6 +1936,7 @@ export default function Audiences() {
                   ...(cityFilter ? { city: cityFilter } : {}),
                   ...(tagFilter ? { tags: [tagFilter] } : (activeTag !== 'הכל' ? { tags: [activeTag] } : {})),
                   ...(search ? { search: search } : {}),
+                  recipient_ids: filtered.map(r => r.id),
                 }
                 try {
                   const r = await fetchWithAuth(
@@ -1923,7 +1946,7 @@ export default function Audiences() {
                       body: JSON.stringify({
                         name: segmentName.trim(),
                         filters: activeFilters,
-                        recipient_count: recipients.length,
+                        recipient_count: filtered.length,
                         business_id: businessId,
                       }),
                     },

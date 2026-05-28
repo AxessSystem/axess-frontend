@@ -4,13 +4,14 @@ import toast from 'react-hot-toast'
 import CustomSelect from '@/components/ui/CustomSelect'
 
 export default function QuickEditDrawer({ recipient, businessId, fetchWithAuth, contactTypes, onClose, onSaved, onDeleted }) {
-  const nameParts = (recipient?.name || '').trim().split(/\s+/)
   const [form, setForm] = useState({
-    first_name: recipient?.first_name || nameParts[0] || '',
-    last_name: recipient?.last_name || nameParts.slice(1).join(' ') || '',
+    first_name: recipient?.first_name ||
+      (recipient?.name ? recipient.name.split(' ')[0] : ''),
+    last_name: recipient?.last_name ||
+      (recipient?.name ? recipient.name.split(' ').slice(1).join(' ') : ''),
     phone: recipient?.phone || '',
     gender: recipient?.gender || '',
-    birth_date: recipient?.birth_date ? String(recipient.birth_date).slice(0, 10) : '',
+    birth_date: recipient?.birth_date || '',
     tags: recipient?.tags || [],
     contact_types: recipient?.contact_types || [],
     internal_notes: recipient?.internal_notes || '',
@@ -21,8 +22,12 @@ export default function QuickEditDrawer({ recipient, businessId, fetchWithAuth, 
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
 
   const save = async () => {
+    console.log('[QuickEdit] saving:', { id: recipient?.id, first_name: form.first_name, last_name: form.last_name })
     setSaving(true)
     setSaveError('')
+
+    let profileOk = false
+
     try {
       await fetchWithAuth(`/api/admin/recipients/${recipient.id}/profile`, {
         method: 'PATCH',
@@ -37,20 +42,30 @@ export default function QuickEditDrawer({ recipient, businessId, fetchWithAuth, 
           internal_notes: form.internal_notes,
         }),
       })
+      profileOk = true
+      console.log('[QuickEdit] profile saved ok')
+    } catch (e) {
+      console.error('[QuickEdit] profile error:', e.message)
+      setSaveError('שגיאה בשמירת פרטים: ' + e.message)
+      toast.error('שגיאה בשמירת פרטים')
+    }
+
+    try {
       await fetchWithAuth(`/api/admin/recipients/${recipient.id}/tags`, {
         method: 'PATCH',
         body: JSON.stringify({ business_id: businessId, tags: form.tags }),
       })
+      console.log('[QuickEdit] tags saved ok')
+    } catch (e) {
+      console.error('[QuickEdit] tags error:', e.message)
+    }
+
+    if (profileOk) {
       onSaved({ ...recipient, ...form })
       onClose()
-    } catch (e) {
-      console.error('save error:', e)
-      const msg = e.message || 'שגיאה בשמירה'
-      setSaveError(msg)
-      toast.error('שגיאה בשמירה')
-    } finally {
-      setSaving(false)
     }
+
+    setSaving(false)
   }
 
   const addTag = () => {
