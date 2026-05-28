@@ -15,6 +15,7 @@ import toast from 'react-hot-toast'
 import CustomSelect from '@/components/ui/CustomSelect'
 import ContactTypesModal from '@/components/ui/ContactTypesModal'
 import QuickEditDrawer from '@/components/ui/QuickEditDrawer'
+import RecipientsTable from '@/components/ui/RecipientsTable'
 
 const API_BASE = import.meta.env.VITE_API_URL || 'https://api.axess.pro'
 
@@ -577,6 +578,14 @@ export default function Audiences() {
   const [contactTypeFilter, setContactTypeFilter] = useState(savedAudiencesState.contactTypeFilter || [])
   const [bulkField, setBulkField] = useState({ tags: [], contact_types: [], segment: '' })
   const [showBulkEditPanel, setShowBulkEditPanel] = useState(false)
+  const [viewMode, setViewMode] = useState(
+    localStorage.getItem('audiences_view') || 'cards',
+  )
+
+  const switchView = (mode) => {
+    setViewMode(mode)
+    localStorage.setItem('audiences_view', mode)
+  }
 
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth <= 768)
@@ -1706,6 +1715,34 @@ export default function Audiences() {
         ) : (
           <>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '0 16px 12px', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', gap: '4px', background: 'var(--bg)', borderRadius: '8px', padding: '3px' }}>
+              <button
+                type="button"
+                onClick={() => switchView('cards')}
+                style={{
+                  padding: '6px 12px', borderRadius: '6px', border: 'none',
+                  background: viewMode === 'cards' ? 'var(--card)' : 'transparent',
+                  color: viewMode === 'cards' ? 'var(--text)' : 'var(--text-secondary)',
+                  cursor: 'pointer', fontSize: '13px',
+                  boxShadow: viewMode === 'cards' ? '0 1px 4px rgba(0,0,0,0.1)' : 'none',
+                }}
+              >
+                ⊞ כרטיסיות
+              </button>
+              <button
+                type="button"
+                onClick={() => switchView('table')}
+                style={{
+                  padding: '6px 12px', borderRadius: '6px', border: 'none',
+                  background: viewMode === 'table' ? 'var(--card)' : 'transparent',
+                  color: viewMode === 'table' ? 'var(--text)' : 'var(--text-secondary)',
+                  cursor: 'pointer', fontSize: '13px',
+                  boxShadow: viewMode === 'table' ? '0 1px 4px rgba(0,0,0,0.1)' : 'none',
+                }}
+              >
+                ≡ טבלה
+              </button>
+            </div>
             <button
               type="button"
               onClick={() => { setSelectMode(p => !p); setSelectedIds(new Set()) }}
@@ -1777,6 +1814,7 @@ export default function Audiences() {
               </button>
             </div>
           </div>
+          {viewMode === 'cards' ? (
           <div id="recipients-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 14, padding: '16px' }}>
             {paginated.map((r, i) => (
               <motion.div key={r.id || r.phone || i} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.03 }}
@@ -1861,8 +1899,21 @@ export default function Audiences() {
               </motion.div>
             ))}
           </div>
+          ) : (
+          <div id="recipients-grid">
+            <RecipientsTable
+              recipients={filtered}
+              contactTypes={contactTypes}
+              onQuickEdit={r => setQuickEditRecipient(r)}
+              onDelete={r => setQuickEditRecipient(r)}
+              onNavigate={id => navigate(`/dashboard/contacts/${id}`, {
+                state: { ids: filtered.map(x => x.id), current: id },
+              })}
+            />
+          </div>
+          )}
 
-          {totalPages > 1 && (
+          {viewMode === 'cards' && totalPages > 1 && (
             <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px', padding: '12px' }}>
               <button disabled={page === 1} onClick={() => setPage(p => p - 1)} style={{ padding: '6px 12px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)', background: page === 1 ? 'rgba(255,255,255,0.04)' : 'transparent', color: 'var(--text-secondary)', cursor: page === 1 ? 'not-allowed' : 'pointer' }}>הקודם</button>
               <span style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>{page} / {totalPages}</span>
