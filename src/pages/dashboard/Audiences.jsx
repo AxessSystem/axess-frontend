@@ -15,6 +15,7 @@ import toast from 'react-hot-toast'
 import CustomSelect from '@/components/ui/CustomSelect'
 import ContactTypesModal from '@/components/ui/ContactTypesModal'
 import QuickEditDrawer from '@/components/ui/QuickEditDrawer'
+import { ErrorBoundary } from 'react-error-boundary'
 import RecipientsTable from '@/components/ui/RecipientsTable'
 
 const API_BASE = import.meta.env.VITE_API_URL || 'https://api.axess.pro'
@@ -578,7 +579,11 @@ export default function Audiences() {
   const [contactTypeFilter, setContactTypeFilter] = useState(savedAudiencesState.contactTypeFilter || [])
   const [bulkField, setBulkField] = useState({ tags: [], contact_types: [], segment: '' })
   const [showBulkEditPanel, setShowBulkEditPanel] = useState(false)
+  if (typeof localStorage !== 'undefined') {
+    localStorage.removeItem('audiences_view')
+  }
   const [viewMode, setViewMode] = useState(
+    localStorage.getItem('audiences_view') === 'table' ? 'cards' :
     localStorage.getItem('audiences_view') || 'cards',
   )
 
@@ -1899,18 +1904,31 @@ export default function Audiences() {
               </motion.div>
             ))}
           </div>
-          ) : (
-          <div id="recipients-grid">
-            <RecipientsTable
-              recipients={filtered}
-              contactTypes={contactTypes}
-              onQuickEdit={r => setQuickEditRecipient(r)}
-              onDelete={r => setQuickEditRecipient(r)}
-              onNavigate={id => navigate(`/dashboard/contacts/${id}`, {
-                state: { ids: filtered.map(x => x.id), current: id },
-              })}
-            />
-          </div>
+          ) : null}
+
+          {viewMode === 'table' && (
+            <ErrorBoundary
+              fallback={(
+                <div style={{ padding: '20px', color: '#ef4444', textAlign: 'center' }}>
+                  שגיאה בטעינת הטבלה — עובר לתצוגת כרטיסיות
+                </div>
+              )}
+              onError={() => {
+                setTimeout(() => switchView('cards'), 1000)
+              }}
+            >
+              <div id="recipients-grid">
+                <RecipientsTable
+                  recipients={filtered.slice(0, 100)}
+                  contactTypes={contactTypes || []}
+                  onQuickEdit={r => setQuickEditRecipient(r)}
+                  onDelete={r => setQuickEditRecipient(r)}
+                  onNavigate={id => navigate(`/dashboard/contacts/${id}`, {
+                    state: { ids: filtered.map(x => x.id), current: id },
+                  })}
+                />
+              </div>
+            </ErrorBoundary>
           )}
 
           {viewMode === 'cards' && totalPages > 1 && (
