@@ -1936,7 +1936,15 @@ export default function Audiences() {
                   ...(cityFilter ? { city: cityFilter } : {}),
                   ...(tagFilter ? { tags: [tagFilter] } : (activeTag !== 'הכל' ? { tags: [activeTag] } : {})),
                   ...(search ? { search: search } : {}),
-                  recipient_ids: filtered.map(r => r.id),
+                }
+                const segmentPayload = {
+                  name: segmentName.trim(),
+                  filters: {
+                    ...activeFilters,
+                    recipient_ids: filtered.map(r => r.id),
+                  },
+                  count: filtered.length,
+                  type: 'saved_audience',
                 }
                 try {
                   const r = await fetchWithAuth(
@@ -1944,9 +1952,9 @@ export default function Audiences() {
                     {
                       method: 'POST',
                       body: JSON.stringify({
-                        name: segmentName.trim(),
-                        filters: activeFilters,
-                        recipient_count: filtered.length,
+                        name: segmentPayload.name,
+                        filters: segmentPayload.filters,
+                        recipient_count: segmentPayload.count,
                         business_id: businessId,
                       }),
                     },
