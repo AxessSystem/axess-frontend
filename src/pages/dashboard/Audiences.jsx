@@ -644,9 +644,9 @@ export default function Audiences() {
 
   useEffect(() => {
     if (!recipientsData) return
-    if (activeSegment === 'all') {
+    if (activeSegment === 'all' || !activeSegment) {
       console.log('[Audiences] recipients loaded:', recipientsData?.recipients?.length ?? 0)
-      setRecipients(recipientsData?.recipients || [])
+      setRecipients(recipientsData?.recipients || recipientsData || [])
       setLoadError(null)
     }
   }, [recipientsData, activeSegment])
@@ -719,15 +719,19 @@ export default function Audiences() {
     if (!businessId || !session?.access_token) return
     setLoading(true)
     setActiveSegment(seg.id)
-    const headers = { Authorization: `Bearer ${session.access_token}`, 'X-Business-Id': businessId }
-    const r = await fetchWithAuth(
-      `/api/admin/segments/${seg.id}/run`,
-      { method: 'POST', headers },
-    )
-    const data = r || {}
-    setRecipients(data?.recipients || [])
-    setPage(1)
-    setLoading(false)
+    try {
+      const r = await fetchWithAuth(
+        `/api/admin/segments/${seg.id}/run`,
+        { method: 'POST' },
+      )
+      const data = r || {}
+      setRecipients(data?.recipients || [])
+      setPage(1)
+    } catch (e) {
+      console.error('[runSaved]', e.message)
+    } finally {
+      setLoading(false)
+    }
   }
 
   const runAI = async () => {
@@ -1158,10 +1162,18 @@ export default function Audiences() {
                   <button
                     type="button"
                     onClick={async () => {
-                      await runSaved(seg)
+                      setSearchResults(null)
+
+                      if (seg.type === 'saved_audience' || seg.filters) {
+                        applySegmentFilters(seg)
+                        setActiveSegment(seg.id)
+                      } else {
+                        await runSaved(seg)
+                      }
+
                       setTimeout(() => {
                         document.getElementById('recipients-grid')?.scrollIntoView({ behavior: 'smooth' })
-                      }, 500)
+                      }, 600)
                     }}
                     style={{
                       padding: '6px 14px',
@@ -2104,7 +2116,18 @@ export default function Audiences() {
           contactTypes={contactTypes}
           onClose={() => setQuickEditRecipient(null)}
           onSaved={(updated) => {
-            setRecipients(prev => prev.map(r => r.id === updated.id ? { ...r, ...updated } : r))
+            const updatedWithName = {
+              ...updated,
+              name: `${updated.first_name || ''} ${updated.last_name || ''}`.trim(),
+            }
+            setRecipients(prev => prev.map(r =>
+              r.id === updatedWithName.id ? { ...r, ...updatedWithName } : r
+            ))
+            if (searchResults !== null) {
+              setSearchResults(prev => prev.map(r =>
+                r.id === updatedWithName.id ? { ...r, ...updatedWithName } : r
+              ))
+            }
             setQuickEditRecipient(null)
             queryClient.invalidateQueries({ queryKey: ['recipients', businessId] })
           }}

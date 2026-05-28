@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { X } from 'lucide-react'
+import toast from 'react-hot-toast'
 import CustomSelect from '@/components/ui/CustomSelect'
 
 export default function QuickEditDrawer({ recipient, businessId, fetchWithAuth, contactTypes, onClose, onSaved, onDeleted }) {
@@ -16,10 +17,12 @@ export default function QuickEditDrawer({ recipient, businessId, fetchWithAuth, 
   })
   const [newTag, setNewTag] = useState('')
   const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState('')
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
 
   const save = async () => {
     setSaving(true)
+    setSaveError('')
     try {
       await fetchWithAuth(`/api/admin/recipients/${recipient.id}/profile`, {
         method: 'PATCH',
@@ -41,7 +44,10 @@ export default function QuickEditDrawer({ recipient, businessId, fetchWithAuth, 
       onSaved({ ...recipient, ...form })
       onClose()
     } catch (e) {
-      console.error(e)
+      console.error('save error:', e)
+      const msg = e.message || 'שגיאה בשמירה'
+      setSaveError(msg)
+      toast.error('שגיאה בשמירה')
     } finally {
       setSaving(false)
     }
@@ -197,6 +203,11 @@ export default function QuickEditDrawer({ recipient, businessId, fetchWithAuth, 
           style={{ width: '100%', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: '8px', padding: '10px 12px', color: 'var(--text)', fontSize: '14px', resize: 'vertical', fontFamily: 'inherit', direction: 'rtl', marginBottom: '20px' }}
         />
 
+        {saveError && (
+          <p style={{ color: '#ef4444', fontSize: '13px', textAlign: 'center', marginBottom: '8px' }}>
+            {saveError}
+          </p>
+        )}
         <button
           type="button"
           onClick={save}
