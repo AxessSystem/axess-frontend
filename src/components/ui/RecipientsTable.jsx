@@ -3,6 +3,7 @@ import {
   getCoreRowModel,
   getSortedRowModel,
   getFilteredRowModel,
+  getPaginationRowModel,
   flexRender,
 } from '@tanstack/react-table'
 import { useState, useMemo, useRef, useEffect } from 'react'
@@ -19,6 +20,8 @@ export default function RecipientsTable({
   const [columnFilters, setColumnFilters] = useState([])
   const [openFilterCol, setOpenFilterCol] = useState(null)
   const filterRef = useRef(null)
+  const [tablePageIndex, setTablePageIndex] = useState(0)
+  const TABLE_PAGE_SIZE = 100
 
   useEffect(() => {
     const handler = (e) => {
@@ -78,6 +81,16 @@ export default function RecipientsTable({
       accessorKey: 'phone',
       header: 'טלפון',
       size: 130,
+      cell: ({ getValue }) => (
+        <span style={{ fontSize: '13px', direction: 'ltr', display: 'block' }}>
+          {getValue() || '—'}
+        </span>
+      ),
+    },
+    {
+      accessorKey: 'email',
+      header: 'אימייל',
+      size: 180,
       cell: ({ getValue }) => (
         <span style={{ fontSize: '13px', direction: 'ltr', display: 'block' }}>
           {getValue() || '—'}
@@ -275,12 +288,23 @@ export default function RecipientsTable({
   const table = useReactTable({
     data: recipients,
     columns,
-    state: { sorting, columnFilters },
+    state: {
+      sorting,
+      columnFilters,
+      pagination: { pageIndex: tablePageIndex, pageSize: TABLE_PAGE_SIZE },
+    },
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
+    onPaginationChange: updater => {
+      const next = typeof updater === 'function'
+        ? updater({ pageIndex: tablePageIndex, pageSize: TABLE_PAGE_SIZE })
+        : updater
+      setTablePageIndex(next.pageIndex)
+    },
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
     enableRowSelection: true,
   })
 
@@ -497,6 +521,56 @@ export default function RecipientsTable({
           אין תוצאות
         </div>
       )}
+
+      <div style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        padding: '12px 16px', borderTop: '1px solid var(--border)',
+        direction: 'rtl', flexWrap: 'wrap', gap: '8px',
+      }}
+      >
+        <span style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
+          {table.getFilteredRowModel().rows.length} רשומות סה&quot;כ
+          {table.getSelectedRowModel().rows.length > 0 &&
+            ` | ${table.getSelectedRowModel().rows.length} נבחרו`}
+        </span>
+        <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+          <button
+            type="button"
+            onClick={() => setTablePageIndex(0)}
+            disabled={!table.getCanPreviousPage()}
+            style={{ padding: '5px 10px', borderRadius: '6px', border: '1px solid var(--border)', background: 'transparent', cursor: table.getCanPreviousPage() ? 'pointer' : 'not-allowed', opacity: table.getCanPreviousPage() ? 1 : 0.4, color: 'var(--text)', fontSize: '13px' }}
+          >
+            «
+          </button>
+          <button
+            type="button"
+            onClick={() => setTablePageIndex(p => p - 1)}
+            disabled={!table.getCanPreviousPage()}
+            style={{ padding: '5px 10px', borderRadius: '6px', border: '1px solid var(--border)', background: 'transparent', cursor: table.getCanPreviousPage() ? 'pointer' : 'not-allowed', opacity: table.getCanPreviousPage() ? 1 : 0.4, color: 'var(--text)', fontSize: '13px' }}
+          >
+            ‹ הקודם
+          </button>
+          <span style={{ fontSize: '13px', color: 'var(--text)' }}>
+            {tablePageIndex + 1} / {table.getPageCount()}
+          </span>
+          <button
+            type="button"
+            onClick={() => setTablePageIndex(p => p + 1)}
+            disabled={!table.getCanNextPage()}
+            style={{ padding: '5px 10px', borderRadius: '6px', border: '1px solid var(--border)', background: 'transparent', cursor: table.getCanNextPage() ? 'pointer' : 'not-allowed', opacity: table.getCanNextPage() ? 1 : 0.4, color: 'var(--text)', fontSize: '13px' }}
+          >
+            הבא ›
+          </button>
+          <button
+            type="button"
+            onClick={() => setTablePageIndex(table.getPageCount() - 1)}
+            disabled={!table.getCanNextPage()}
+            style={{ padding: '5px 10px', borderRadius: '6px', border: '1px solid var(--border)', background: 'transparent', cursor: table.getCanNextPage() ? 'pointer' : 'not-allowed', opacity: table.getCanNextPage() ? 1 : 0.4, color: 'var(--text)', fontSize: '13px' }}
+          >
+            »
+          </button>
+        </div>
+      </div>
     </div>
   )
 }

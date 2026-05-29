@@ -577,7 +577,7 @@ export default function Audiences() {
   const [quickEditRecipient, setQuickEditRecipient] = useState(null)
   const [contactTypes, setContactTypes] = useState([])
   const [contactTypeFilter, setContactTypeFilter] = useState(savedAudiencesState.contactTypeFilter || [])
-  const [bulkField, setBulkField] = useState({ tags: [], contact_types: [], segment: '' })
+  const [bulkField, setBulkField] = useState({ tags: [], contact_types: [], segment: '', newTag: '', removeTag: '' })
   const [showBulkEditPanel, setShowBulkEditPanel] = useState(false)
   if (typeof localStorage !== 'undefined') {
     localStorage.removeItem('audiences_view')
@@ -860,6 +860,26 @@ export default function Audiences() {
     setSearch('')
     setPage(1)
     refreshRecipients()
+  }
+
+  const bulkUpdate = async (action, value) => {
+    const ids = [...selectedIds]
+    if (ids.length === 0) return
+
+    try {
+      const result = await fetchWithAuth('/api/admin/recipients/bulk-update', {
+        method: 'POST',
+        body: JSON.stringify({ ids, action, value, business_id: businessId }),
+      })
+      console.log(`[bulk] ${action} על ${result.affected} רשומות`)
+    } catch (e) {
+      console.error('[bulk] שגיאה:', e.message)
+    } finally {
+      setSelectedIds(new Set())
+      setSelectMode(false)
+      setShowBulkEditPanel(false)
+      resetToAll()
+    }
   }
 
   const baseList = searchResults !== null ? searchResults : recipients
@@ -1975,7 +1995,7 @@ export default function Audiences() {
             >
               <div id="recipients-grid">
                 <RecipientsTable
-                  recipients={filtered.slice(0, 100)}
+                  recipients={filtered}
                   contactTypes={contactTypes || []}
                   onQuickEdit={r => setQuickEditRecipient(r)}
                   onDelete={r => setQuickEditRecipient(r)}
@@ -2185,69 +2205,144 @@ export default function Audiences() {
       {showBulkEditPanel && selectedIds.size > 0 && (
         <div style={{
           position: 'fixed', bottom: 0, right: 0, left: 0,
-          background: 'var(--card)', borderTop: '1px solid var(--border)',
+          background: 'var(--card)', borderTop: '2px solid #00C37A',
           padding: '16px 20px', zIndex: 800,
-          display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap',
-          direction: 'rtl', boxShadow: '0 -4px 20px rgba(0,0,0,0.1)'
-        }}>
-          <span style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text)' }}>
-            {selectedIds.size} נבחרים
-          </span>
-          <div style={{ display: 'flex', gap: '6px' }}>
-            <input
-              placeholder="הוסף תגית לנבחרים..."
-              value={bulkField.tags[0] || ''}
-              onChange={e => setBulkField(p => ({ ...p, tags: [e.target.value] }))}
-              onKeyDown={async e => {
-                if (e.key !== 'Enter' || !bulkField.tags[0]) return
-                const ids = [...selectedIds]
-                await fetchWithAuth('/api/admin/recipients/bulk-tags', {
-                  method: 'PATCH',
-                  body: JSON.stringify({ business_id: businessId, recipient_ids: ids, tag: bulkField.tags[0] })
-                }).catch(() => {})
-                setBulkField(p => ({ ...p, tags: [] }))
+          direction: 'rtl', boxShadow: '0 -4px 20px rgba(0,0,0,0.15)',
+        }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+
+            <span style={{ fontSize: '14px', fontWeight: 600, color: '#00C37A' }}>
+              {selectedIds.size} נבחרו
+            </span>
+
+            <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+              <input
+                placeholder="הוסף תגית..."
+                value={bulkField.newTag || ''}
+                onChange={e => setBulkField(p => ({ ...p, newTag: e.target.value }))}
+                onKeyDown={async e => {
+                  if (e.key !== 'Enter' || !bulkField.newTag?.trim()) return
+                  await bulkUpdate('add_tag', bulkField.newTag.trim())
+                  setBulkField(p => ({ ...p, newTag: '' }))
+                }}
+                style={{
+                  padding: '7px 12px', borderRadius: '8px',
+                  border: '1px solid var(--border)', background: 'var(--bg)',
+                  color: 'var(--text)', fontSize: '13px', direction: 'rtl', width: '140px',
+                }}
+              />
+              <button
+                type="button"
+                onClick={async () => {
+                  if (!bulkField.newTag?.trim()) return
+                  await bulkUpdate('add_tag', bulkField.newTag.trim())
+                  setBulkField(p => ({ ...p, newTag: '' }))
+                }}
+                style={{ padding: '7px 12px', borderRadius: '8px', border: 'none', background: '#00C37A', color: '#fff', cursor: 'pointer', fontSize: '13px' }}
+              >
+                + תגית
+              </button>
+            </div>
+
+            <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+              <input
+                placeholder="הסר תגית..."
+                value={bulkField.removeTag || ''}
+                onChange={e => setBulkField(p => ({ ...p, removeTag: e.target.value }))}
+                onKeyDown={async e => {
+                  if (e.key !== 'Enter' || !bulkField.removeTag?.trim()) return
+                  await bulkUpdate('remove_tag', bulkField.removeTag.trim())
+                  setBulkField(p => ({ ...p, removeTag: '' }))
+                }}
+                style={{
+                  padding: '7px 12px', borderRadius: '8px',
+                  border: '1px solid var(--border)', background: 'var(--bg)',
+                  color: 'var(--text)', fontSize: '13px', direction: 'rtl', width: '140px',
+                }}
+              />
+              <button
+                type="button"
+                onClick={async () => {
+                  if (!bulkField.removeTag?.trim()) return
+                  await bulkUpdate('remove_tag', bulkField.removeTag.trim())
+                  setBulkField(p => ({ ...p, removeTag: '' }))
+                }}
+                style={{ padding: '7px 12px', borderRadius: '8px', border: '1px solid #ef4444', background: 'transparent', color: '#ef4444', cursor: 'pointer', fontSize: '13px' }}
+              >
+                - תגית
+              </button>
+            </div>
+
+            <select
+              value=""
+              onChange={async e => {
+                if (!e.target.value) return
+                await bulkUpdate('add_contact_type', e.target.value)
+              }}
+              style={{
+                padding: '7px 12px', borderRadius: '8px',
+                border: '1px solid var(--border)', background: 'var(--bg)',
+                color: 'var(--text)', fontSize: '13px', cursor: 'pointer',
+              }}
+            >
+              <option value="">+ סוג קשר</option>
+              {contactTypes.map(ct => (
+                <option key={ct.value} value={ct.value}>{ct.emoji} {ct.label}</option>
+              ))}
+            </select>
+
+            <select
+              value=""
+              onChange={async e => {
+                if (!e.target.value) return
+                await bulkUpdate('set_segment', e.target.value)
+              }}
+              style={{
+                padding: '7px 12px', borderRadius: '8px',
+                border: '1px solid var(--border)', background: 'var(--bg)',
+                color: 'var(--text)', fontSize: '13px', cursor: 'pointer',
+              }}
+            >
+              <option value="">שנה סגמנט</option>
+              <option value="general">general</option>
+              <option value="vip">VIP</option>
+              <option value="loyal">לקוח קבוע</option>
+              <option value="new">חדש</option>
+              <option value="review">לבדיקה</option>
+            </select>
+
+            <button
+              type="button"
+              onClick={async () => {
+                if (!window.confirm(`למחוק ${selectedIds.size} אנשי קשר?`)) return
+                await bulkUpdate('delete', null)
+              }}
+              style={{
+                padding: '7px 14px', borderRadius: '8px',
+                border: '1px solid #ef4444', background: 'transparent',
+                color: '#ef4444', cursor: 'pointer', fontSize: '13px',
+              }}
+            >
+              🗑 מחק נבחרים
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setShowBulkEditPanel(false)
                 setSelectedIds(new Set())
                 setSelectMode(false)
-                setShowBulkEditPanel(false)
-                queryClient.invalidateQueries({ queryKey: ['recipients', businessId] })
               }}
-              style={{ padding: '7px 12px', borderRadius: '8px', border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)', fontSize: '13px', direction: 'rtl', width: '160px' }}
-            />
-            <span style={{ fontSize: '12px', color: 'var(--text-secondary)', alignSelf: 'center' }}>Enter לאישור</span>
+              style={{
+                marginRight: 'auto', padding: '7px 14px', borderRadius: '8px',
+                border: '1px solid var(--border)', background: 'transparent',
+                color: 'var(--text-secondary)', cursor: 'pointer', fontSize: '13px',
+              }}
+            >
+              ביטול
+            </button>
           </div>
-          <select
-            value=""
-            onChange={async e => {
-              const ct = e.target.value
-              if (!ct) return
-              const ids = [...selectedIds]
-              await Promise.all(ids.map(id => {
-                const rec = recipients.find(x => x.id === id)
-                const merged = [...new Set([...(rec?.contact_types || []), ct])]
-                return fetchWithAuth(`/api/admin/recipients/${id}/profile`, {
-                  method: 'PATCH',
-                  body: JSON.stringify({ business_id: businessId, contact_types: merged })
-                }).catch(() => {})
-              }))
-              setSelectedIds(new Set())
-              setSelectMode(false)
-              setShowBulkEditPanel(false)
-              queryClient.invalidateQueries({ queryKey: ['recipients', businessId] })
-            }}
-            style={{ padding: '7px 12px', borderRadius: '8px', border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)', fontSize: '13px' }}
-          >
-            <option value="">סוג קשר לנבחרים...</option>
-            {contactTypes.map(ct => (
-              <option key={ct.value} value={ct.value}>{ct.emoji} {ct.label}</option>
-            ))}
-          </select>
-          <button
-            type="button"
-            onClick={() => { setShowBulkEditPanel(false); setSelectedIds(new Set()); setSelectMode(false) }}
-            style={{ marginRight: 'auto', padding: '7px 14px', borderRadius: '8px', border: '1px solid var(--border)', background: 'transparent', color: 'var(--text-secondary)', cursor: 'pointer', fontSize: '13px' }}
-          >
-            ביטול
-          </button>
         </div>
       )}
 
