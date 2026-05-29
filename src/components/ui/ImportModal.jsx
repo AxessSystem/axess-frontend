@@ -29,7 +29,7 @@ const MAP_OPTIONS = [
   { value: 'skip', label: 'דלג על עמודה זו' },
 ]
 
-export default function ImportModal({ isOpen, onClose, businessId, onImportDone }) {
+export default function ImportModal({ isOpen, onClose, businessId, onImportDone, contactTypes = [] }) {
   const [step, setStep] = useState(1)
   const [file, setFile] = useState(null)
   const [preview, setPreview] = useState(null)
@@ -43,6 +43,7 @@ export default function ImportModal({ isOpen, onClose, businessId, onImportDone 
   const [inlineWarning, setInlineWarning] = useState(null)
   const [importEventTitle, setImportEventTitle] = useState('')
   const [importEventDate, setImportEventDate] = useState('')
+  const [importContactTypes, setImportContactTypes] = useState([])
   const fileRef = useRef()
 
   const reset = () => {
@@ -58,6 +59,7 @@ export default function ImportModal({ isOpen, onClose, businessId, onImportDone 
     setInlineWarning(null)
     setImportEventTitle('')
     setImportEventDate('')
+    setImportContactTypes([])
   }
 
   const handleClose = () => {
@@ -143,6 +145,7 @@ export default function ImportModal({ isOpen, onClose, businessId, onImportDone 
           force_reimport: forceReimport,
           import_event_title: importEventTitle.trim() || file.name.replace(/\.[^/.]+$/, ''),
           import_event_date: importEventDate || null,
+          import_contact_types: importContactTypes,
         }),
         _raw: true,
       })
@@ -293,6 +296,37 @@ export default function ImportModal({ isOpen, onClose, businessId, onImportDone 
                         }}
                       />
                     </div>
+
+                    {contactTypes.length > 0 && (
+                      <div style={{ marginBottom: '16px' }}>
+                        <label style={{ fontSize: '13px', color: 'var(--text-secondary)', display: 'block', marginBottom: '8px', fontWeight: 600 }}>
+                          סוגי קשר לכל הרשימה (אופציונלי)
+                        </label>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                          {contactTypes.map(ct => {
+                            const selected = (importContactTypes || []).includes(ct.value)
+                            return (
+                              <button
+                                key={ct.value}
+                                type="button"
+                                onClick={() => setImportContactTypes(prev =>
+                                  selected ? prev.filter(v => v !== ct.value) : [...prev, ct.value]
+                                )}
+                                style={{
+                                  padding: '5px 10px', borderRadius: '20px', fontSize: '12px',
+                                  border: `1px solid ${selected ? '#00C37A' : 'var(--border)'}`,
+                                  background: selected ? '#00C37A20' : 'transparent',
+                                  color: selected ? '#00C37A' : 'var(--text-secondary)',
+                                  cursor: 'pointer', WebkitTapHighlightColor: 'transparent',
+                                }}
+                              >
+                                {ct.emoji} {ct.label}
+                              </button>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
                 {file && (

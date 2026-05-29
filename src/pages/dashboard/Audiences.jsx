@@ -2471,7 +2471,13 @@ export default function Audiences() {
       )}
 
       <CustomerProfileDrawer open={!!selectedCustomerId} onClose={() => setSelectedCustomerId(null)} masterRecipientId={selectedCustomerId} businessId={businessId} onTagUpdate={() => queryClient.invalidateQueries({ queryKey: ['recipients', businessId] })} />
-      <ImportModal isOpen={importOpen} onClose={() => setImportOpen(false)} businessId={businessId} onImportDone={() => { queryClient.invalidateQueries({ queryKey: ['recipients', businessId] }) }} />
+      <ImportModal
+        isOpen={importOpen}
+        onClose={() => setImportOpen(false)}
+        businessId={businessId}
+        contactTypes={contactTypes}
+        onImportDone={() => { queryClient.invalidateQueries({ queryKey: ['recipients', businessId] }) }}
+      />
     </div>
   )
 }
