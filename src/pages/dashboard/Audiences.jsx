@@ -582,6 +582,8 @@ export default function Audiences() {
     removeTag: '',
     contactType: '',
     segment: '',
+    eventTitle: '',
+    eventDate: '',
   })
   const [showBulkEditPanel, setShowBulkEditPanel] = useState(false)
   if (typeof localStorage !== 'undefined') {
@@ -2343,6 +2345,49 @@ export default function Audiences() {
                   style={{ padding: '7px 12px', borderRadius: '8px', border: 'none', background: '#00C37A', color: '#fff', cursor: 'pointer', fontSize: '13px' }}
                 >
                   החל
+                </button>
+              )}
+            </div>
+
+            <div style={{ display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap' }}>
+              <input
+                value={bulkField.eventTitle}
+                onChange={e => setBulkField(p => ({ ...p, eventTitle: e.target.value }))}
+                placeholder="שם אירוע לשיוך..."
+                style={{
+                  padding: '7px 12px', borderRadius: '8px',
+                  border: '1px solid var(--border)', background: 'var(--bg)',
+                  color: 'var(--text)', fontSize: '13px', direction: 'rtl', width: '160px',
+                }}
+              />
+              <input
+                type="date"
+                value={bulkField.eventDate}
+                onChange={e => setBulkField(p => ({ ...p, eventDate: e.target.value }))}
+                style={{
+                  padding: '7px 12px', borderRadius: '8px',
+                  border: '1px solid var(--border)', background: 'var(--bg)',
+                  color: 'var(--text)', fontSize: '13px', width: '140px',
+                }}
+              />
+              {bulkField.eventTitle && (
+                <button
+                  type="button"
+                  onClick={async () => {
+                    await bulkUpdate('add_event', {
+                      event_title: bulkField.eventTitle,
+                      event_date: bulkField.eventDate || null,
+                      source: 'manual',
+                    })
+                    setBulkField(p => ({ ...p, eventTitle: '', eventDate: '' }))
+                  }}
+                  style={{
+                    padding: '7px 12px', borderRadius: '8px',
+                    border: 'none', background: '#00C37A',
+                    color: '#fff', cursor: 'pointer', fontSize: '13px',
+                  }}
+                >
+                  שייך לאירוע
                 </button>
               )}
             </div>

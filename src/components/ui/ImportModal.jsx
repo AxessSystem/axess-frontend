@@ -41,6 +41,8 @@ export default function ImportModal({ isOpen, onClose, businessId, onImportDone 
   const [duplicateFileWarning, setDuplicateFileWarning] = useState(null)
   const [inlineError, setInlineError] = useState(null)
   const [inlineWarning, setInlineWarning] = useState(null)
+  const [importEventTitle, setImportEventTitle] = useState('')
+  const [importEventDate, setImportEventDate] = useState('')
   const fileRef = useRef()
 
   const reset = () => {
@@ -54,6 +56,8 @@ export default function ImportModal({ isOpen, onClose, businessId, onImportDone 
     setDuplicateFileWarning(null)
     setInlineError(null)
     setInlineWarning(null)
+    setImportEventTitle('')
+    setImportEventDate('')
   }
 
   const handleClose = () => {
@@ -65,6 +69,10 @@ export default function ImportModal({ isOpen, onClose, businessId, onImportDone 
     if (!f) return
     setFile(f)
     setPreview(null)
+    if (!importEventTitle) {
+      const nameWithoutExt = f.name.replace(/\.[^/.]+$/, '')
+      setImportEventTitle(nameWithoutExt)
+    }
   }
 
   const parseApiError = (text, fallback) => {
@@ -78,6 +86,10 @@ export default function ImportModal({ isOpen, onClose, businessId, onImportDone 
 
   const handleAnalyze = async () => {
     if (!file || !businessId) return
+    if (!importEventTitle.trim()) {
+      setInlineError('נא להזין שם לרשימה לפני הניתוח')
+      return
+    }
     setInlineError(null)
     setImporting(true)
     try {
@@ -129,6 +141,8 @@ export default function ImportModal({ isOpen, onClose, businessId, onImportDone 
           column_mapping: columnMapping,
           filename: file.name,
           force_reimport: forceReimport,
+          import_event_title: importEventTitle.trim() || file.name.replace(/\.[^/.]+$/, ''),
+          import_event_date: importEventDate || null,
         }),
         _raw: true,
       })
@@ -240,6 +254,45 @@ export default function ImportModal({ isOpen, onClose, businessId, onImportDone 
                   }}>
                     <XCircle size={20} style={{ flexShrink: 0 }} />
                     {inlineError}
+                  </div>
+                )}
+                {file && step === 1 && (
+                  <div style={{ marginTop: '20px', direction: 'rtl' }}>
+                    <div style={{ marginBottom: '16px' }}>
+                      <label style={{ fontSize: '13px', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px', fontWeight: 600 }}>
+                        שם האירוע / הרשימה *
+                      </label>
+                      <input
+                        value={importEventTitle}
+                        onChange={e => setImportEventTitle(e.target.value)}
+                        placeholder="למשל: שקט 20.1 / אנשי קשר ארז"
+                        style={{
+                          width: '100%', padding: '10px 12px',
+                          background: 'var(--bg)', border: '1px solid var(--border)',
+                          borderRadius: '8px', color: 'var(--text)',
+                          fontSize: '14px', direction: 'rtl',
+                        }}
+                      />
+                      <p style={{ fontSize: '11px', color: 'var(--text-secondary)', margin: '4px 0 0' }}>
+                        יופיע בהיסטוריית האירועים של כל נמען ברשימה
+                      </p>
+                    </div>
+
+                    <div style={{ marginBottom: '16px' }}>
+                      <label style={{ fontSize: '13px', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px', fontWeight: 600 }}>
+                        תאריך (אופציונלי)
+                      </label>
+                      <input
+                        type="date"
+                        value={importEventDate}
+                        onChange={e => setImportEventDate(e.target.value)}
+                        style={{
+                          width: '100%', padding: '10px 12px',
+                          background: 'var(--bg)', border: '1px solid var(--border)',
+                          borderRadius: '8px', color: 'var(--text)', fontSize: '14px',
+                        }}
+                      />
+                    </div>
                   </div>
                 )}
                 {file && (
