@@ -15,6 +15,8 @@ export default function RecipientsTable({
   onDelete,
   onNavigate,
   contactTypes = [],
+  selectedIds = new Set(),
+  onSelectionChange,
 }) {
   const [sorting, setSorting] = useState([])
   const [columnFilters, setColumnFilters] = useState([])
@@ -285,13 +287,23 @@ export default function RecipientsTable({
     },
   ], [contactTypes, onQuickEdit, onDelete, onNavigate])
 
+  const rowSelection = useMemo(() => {
+    const sel = {}
+    recipients.forEach((r) => {
+      if (selectedIds.has(r.id)) sel[r.id] = true
+    })
+    return sel
+  }, [selectedIds, recipients])
+
   const table = useReactTable({
     data: recipients,
+    getRowId: row => row.id,
     columns,
     state: {
       sorting,
       columnFilters,
       pagination: { pageIndex: tablePageIndex, pageSize: TABLE_PAGE_SIZE },
+      rowSelection,
     },
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
@@ -300,6 +312,13 @@ export default function RecipientsTable({
         ? updater({ pageIndex: tablePageIndex, pageSize: TABLE_PAGE_SIZE })
         : updater
       setTablePageIndex(next.pageIndex)
+    },
+    onRowSelectionChange: (updater) => {
+      const newSel = typeof updater === 'function' ? updater(rowSelection) : updater
+      const newSelectedIds = new Set(
+        Object.keys(newSel).filter(id => newSel[id]),
+      )
+      onSelectionChange?.(newSelectedIds)
     },
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
@@ -320,28 +339,6 @@ export default function RecipientsTable({
 
   return (
     <div style={{ position: 'relative', overflowX: 'auto', direction: 'rtl' }}>
-      {table.getSelectedRowModel().rows.length > 0 && (
-        <div style={{
-          position: 'sticky', top: 0, zIndex: 10,
-          background: '#00C37A', color: '#fff',
-          padding: '8px 16px', fontSize: '13px', fontWeight: 600,
-          display: 'flex', alignItems: 'center', gap: '12px',
-        }}
-        >
-          נבחרו {table.getSelectedRowModel().rows.length} שורות
-          <button
-            type="button"
-            onClick={() => table.resetRowSelection()}
-            style={{
-              background: 'rgba(255,255,255,0.2)', border: 'none', borderRadius: '6px',
-              padding: '4px 10px', color: '#fff', cursor: 'pointer', fontSize: '12px',
-            }}
-          >
-            בטל בחירה
-          </button>
-        </div>
-      )}
-
       <table style={{
         width: '100%', borderCollapse: 'collapse',
         fontSize: '14px', direction: 'rtl',
@@ -530,8 +527,7 @@ export default function RecipientsTable({
       >
         <span style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
           {table.getFilteredRowModel().rows.length} רשומות סה&quot;כ
-          {table.getSelectedRowModel().rows.length > 0 &&
-            ` | ${table.getSelectedRowModel().rows.length} נבחרו`}
+          {selectedIds.size > 0 && ` | ${selectedIds.size} נבחרו`}
         </span>
         <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
           <button

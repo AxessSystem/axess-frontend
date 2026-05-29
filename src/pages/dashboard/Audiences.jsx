@@ -577,7 +577,12 @@ export default function Audiences() {
   const [quickEditRecipient, setQuickEditRecipient] = useState(null)
   const [contactTypes, setContactTypes] = useState([])
   const [contactTypeFilter, setContactTypeFilter] = useState(savedAudiencesState.contactTypeFilter || [])
-  const [bulkField, setBulkField] = useState({ tags: [], contact_types: [], segment: '', newTag: '', removeTag: '' })
+  const [bulkField, setBulkField] = useState({
+    newTag: '',
+    removeTag: '',
+    contactType: '',
+    segment: '',
+  })
   const [showBulkEditPanel, setShowBulkEditPanel] = useState(false)
   if (typeof localStorage !== 'undefined') {
     localStorage.removeItem('audiences_view')
@@ -590,6 +595,12 @@ export default function Audiences() {
   const switchView = (mode) => {
     setViewMode(mode)
     localStorage.setItem('audiences_view', mode)
+    if (mode === 'table') {
+      setSelectMode(true)
+    } else {
+      setSelectMode(false)
+      setSelectedIds(new Set())
+    }
   }
 
   useEffect(() => {
@@ -1810,7 +1821,7 @@ export default function Audiences() {
             >
               {selectMode ? `✓ נבחרו ${selectedIds.size}` : 'בחר'}
             </button>
-            {selectMode && (
+            {(selectMode || viewMode === 'table') && (
               <>
                 <button
                   type="button"
@@ -1997,6 +2008,8 @@ export default function Audiences() {
                 <RecipientsTable
                   recipients={filtered}
                   contactTypes={contactTypes || []}
+                  selectedIds={selectedIds}
+                  onSelectionChange={newSelectedIds => setSelectedIds(newSelectedIds)}
                   onQuickEdit={r => setQuickEditRecipient(r)}
                   onDelete={r => setQuickEditRecipient(r)}
                   onNavigate={id => navigate(`/dashboard/contacts/${id}`, {
@@ -2202,7 +2215,7 @@ export default function Audiences() {
         )
       })()}
 
-      {showBulkEditPanel && selectedIds.size > 0 && (
+      {selectedIds.size > 0 && (showBulkEditPanel || viewMode === 'table') && (
         <div style={{
           position: 'fixed', bottom: 0, right: 0, left: 0,
           background: 'var(--card)', borderTop: '2px solid #00C37A',
@@ -2274,43 +2287,65 @@ export default function Audiences() {
               </button>
             </div>
 
-            <select
-              value=""
-              onChange={async e => {
-                if (!e.target.value) return
-                await bulkUpdate('add_contact_type', e.target.value)
-              }}
-              style={{
-                padding: '7px 12px', borderRadius: '8px',
-                border: '1px solid var(--border)', background: 'var(--bg)',
-                color: 'var(--text)', fontSize: '13px', cursor: 'pointer',
-              }}
-            >
-              <option value="">+ סוג קשר</option>
-              {contactTypes.map(ct => (
-                <option key={ct.value} value={ct.value}>{ct.emoji} {ct.label}</option>
-              ))}
-            </select>
+            <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+              <select
+                value={bulkField.contactType || ''}
+                onChange={e => setBulkField(p => ({ ...p, contactType: e.target.value }))}
+                style={{
+                  padding: '7px 12px', borderRadius: '8px',
+                  border: '1px solid var(--border)', background: 'var(--bg)',
+                  color: 'var(--text)', fontSize: '13px', cursor: 'pointer',
+                }}
+              >
+                <option value="">+ סוג קשר</option>
+                {contactTypes.map(ct => (
+                  <option key={ct.value} value={ct.value}>{ct.emoji} {ct.label}</option>
+                ))}
+              </select>
+              {bulkField.contactType && (
+                <button
+                  type="button"
+                  onClick={async () => {
+                    await bulkUpdate('add_contact_type', bulkField.contactType)
+                    setBulkField(p => ({ ...p, contactType: '' }))
+                  }}
+                  style={{ padding: '7px 12px', borderRadius: '8px', border: 'none', background: '#00C37A', color: '#fff', cursor: 'pointer', fontSize: '13px' }}
+                >
+                  החל
+                </button>
+              )}
+            </div>
 
-            <select
-              value=""
-              onChange={async e => {
-                if (!e.target.value) return
-                await bulkUpdate('set_segment', e.target.value)
-              }}
-              style={{
-                padding: '7px 12px', borderRadius: '8px',
-                border: '1px solid var(--border)', background: 'var(--bg)',
-                color: 'var(--text)', fontSize: '13px', cursor: 'pointer',
-              }}
-            >
-              <option value="">שנה סגמנט</option>
-              <option value="general">general</option>
-              <option value="vip">VIP</option>
-              <option value="loyal">לקוח קבוע</option>
-              <option value="new">חדש</option>
-              <option value="review">לבדיקה</option>
-            </select>
+            <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+              <select
+                value={bulkField.segment || ''}
+                onChange={e => setBulkField(p => ({ ...p, segment: e.target.value }))}
+                style={{
+                  padding: '7px 12px', borderRadius: '8px',
+                  border: '1px solid var(--border)', background: 'var(--bg)',
+                  color: 'var(--text)', fontSize: '13px', cursor: 'pointer',
+                }}
+              >
+                <option value="">שנה סגמנט</option>
+                <option value="general">general</option>
+                <option value="vip">VIP</option>
+                <option value="loyal">לקוח קבוע</option>
+                <option value="new">חדש</option>
+                <option value="review">לבדיקה</option>
+              </select>
+              {bulkField.segment && (
+                <button
+                  type="button"
+                  onClick={async () => {
+                    await bulkUpdate('set_segment', bulkField.segment)
+                    setBulkField(p => ({ ...p, segment: '' }))
+                  }}
+                  style={{ padding: '7px 12px', borderRadius: '8px', border: 'none', background: '#00C37A', color: '#fff', cursor: 'pointer', fontSize: '13px' }}
+                >
+                  החל
+                </button>
+              )}
+            </div>
 
             <button
               type="button"
