@@ -846,6 +846,22 @@ export default function Audiences() {
     navigate('/dashboard/new-campaign')
   }
 
+  const resetToAll = () => {
+    setSearchResults(null)
+    setActiveSegment('all')
+    setActiveCategory('all_cat')
+    setGenderFilter('all')
+    setActiveTag('הכל')
+    setTagFilter('')
+    setContactTypeFilter([])
+    setAgeMin('')
+    setAgeMax('')
+    setCityFilter('')
+    setSearch('')
+    setPage(1)
+    refreshRecipients()
+  }
+
   const baseList = searchResults !== null ? searchResults : recipients
 
   const filtered = baseList
@@ -1124,7 +1140,9 @@ export default function Audiences() {
                 </div>
                 {seg.filters && Object.keys(seg.filters).length > 0 && (
                   <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 10 }}>
-                    {Object.entries(seg.filters).map(([key, val]) => (
+                    {Object.entries(seg.filters)
+                      .filter(([key]) => key !== 'recipient_ids')
+                      .map(([key, val]) => (
                       <span
                         key={key}
                         style={{
@@ -1177,6 +1195,14 @@ export default function Audiences() {
                     type="button"
                     onClick={async () => {
                       setSearchResults(null)
+                      setGenderFilter('all')
+                      setActiveTag('הכל')
+                      setTagFilter('')
+                      setContactTypeFilter([])
+                      setAgeMin('')
+                      setAgeMax('')
+                      setCityFilter('')
+                      setSearch('')
 
                       const filters = seg.filters || {}
 
@@ -1194,7 +1220,10 @@ export default function Audiences() {
                             )
                             if (Array.isArray(result)) setSearchResults(result)
                           } catch (e) {
-                            console.error('segment load error:', e)
+                            console.error('[הצג קהל] שגיאה בטעינת IDs:', e.message)
+                            if (filters.gender || filters.age_min || filters.city || filters.tags) {
+                              applySegmentFilters(seg)
+                            }
                           } finally {
                             setLoading(false)
                           }
@@ -1819,6 +1848,33 @@ export default function Audiences() {
               </button>
             </div>
           </div>
+          {(activeSegment !== 'all' || searchResults !== null) && (
+            <div style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              padding: '8px 14px', marginBottom: '10px',
+              background: '#00C37A15', border: '1px solid #00C37A40',
+              borderRadius: '10px', direction: 'rtl',
+            }}
+            >
+              <span style={{ fontSize: '13px', color: 'var(--text)' }}>
+                {searchResults !== null
+                  ? `מציג סגמנט מסונן — ${filtered.length} אנשי קשר`
+                  : `מציג קהל מסונן — ${filtered.length} אנשי קשר`}
+              </span>
+              <button
+                type="button"
+                onClick={resetToAll}
+                style={{
+                  padding: '5px 12px', borderRadius: '8px', fontSize: '13px',
+                  border: '1px solid #00C37A', background: 'transparent',
+                  color: '#00C37A', cursor: 'pointer',
+                  WebkitTapHighlightColor: 'transparent',
+                }}
+              >
+                ← כל הקהל
+              </button>
+            </div>
+          )}
           {viewMode === 'cards' ? (
           <div id="recipients-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 14, padding: '16px' }}>
             {paginated.map((r, i) => (
