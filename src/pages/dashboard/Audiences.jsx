@@ -1422,9 +1422,43 @@ export default function Audiences() {
           </div>
           <div style={{ maxHeight: 180, overflowY: 'auto', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)', background: 'var(--card)', padding: '4px 0' }}>
             {Array.isArray(events) ? events.filter(ev => !eventSearch || ev.toLowerCase().includes(eventSearch.toLowerCase())).map(ev => (
-              <label key={ev} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', cursor: 'pointer', color: 'var(--text)' }}>
-                <input type="checkbox" checked={selectedEvents.includes(ev)} onChange={e => setSelectedEvents(prev => e.target.checked ? [...prev, ev] : prev.filter(x => x !== ev))} />
-                <span>{ev}</span>
+              <label key={ev} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 8px', cursor: 'pointer', borderRadius: '6px', color: 'var(--text)' }}>
+                <input
+                  type="checkbox"
+                  checked={selectedEvents.includes(ev)}
+                  onChange={e => setSelectedEvents(prev => e.target.checked ? [...prev, ev] : prev.filter(x => x !== ev))}
+                  style={{ accentColor: '#00C37A' }}
+                />
+                <span style={{ flex: 1, fontSize: '13px' }}>{ev}</span>
+                <button
+                  type="button"
+                  onClick={async e => {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    if (!window.confirm(`למחוק את האירוע "${ev}" מכל הקהל?`)) return
+                    try {
+                      await fetchWithAuth('/api/admin/recipients/events-list', {
+                        method: 'DELETE',
+                        body: JSON.stringify({ event_title: ev }),
+                      })
+                      queryClient.invalidateQueries({ queryKey: ['events', businessId] })
+                      setSelectedEvents(prev => prev.filter(x => x !== ev))
+                    } catch (err) {
+                      console.error('delete event error:', err)
+                    }
+                  }}
+                  style={{
+                    background: 'none', border: 'none', cursor: 'pointer',
+                    color: '#ef444460', padding: '2px 4px', borderRadius: '4px',
+                    fontSize: '14px', lineHeight: 1,
+                    WebkitTapHighlightColor: 'transparent',
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.color = '#ef4444' }}
+                  onMouseLeave={e => { e.currentTarget.style.color = '#ef444460' }}
+                  title={`מחק אירוע "${ev}"`}
+                >
+                  🗑
+                </button>
               </label>
             )) : null}
           </div>

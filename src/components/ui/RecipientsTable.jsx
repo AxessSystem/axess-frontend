@@ -100,6 +100,14 @@ export default function RecipientsTable({
       ),
     },
     {
+      accessorKey: 'city',
+      header: 'עיר',
+      size: 110,
+      cell: ({ getValue }) => (
+        <span style={{ fontSize: '13px' }}>{getValue() || '—'}</span>
+      ),
+    },
+    {
       accessorKey: 'gender',
       header: 'מין',
       size: 80,

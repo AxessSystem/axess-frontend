@@ -448,9 +448,19 @@ export default function ContactPage() {
                 </div>
               )}
             </div>
-            <div>
-              <label style={labelStyle}>עיר</label>
-              <input className="form-input input" style={inputStyle} value={overviewForm.city} onChange={(e) => setOverviewForm((f) => ({ ...f, city: e.target.value }))} />
+            <div style={{ marginBottom: '12px' }}>
+              <label style={{ fontSize: '12px', color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>עיר</label>
+              <input
+                value={overviewForm.city || ''}
+                onChange={e => setOverviewForm(p => ({ ...p, city: e.target.value }))}
+                placeholder="תל אביב"
+                style={{
+                  width: '100%', background: 'var(--bg)',
+                  border: '1px solid var(--border)', borderRadius: '8px',
+                  padding: '10px 12px', color: 'var(--text)',
+                  fontSize: '14px', direction: 'rtl',
+                }}
+              />
             </div>
             <div style={{ gridColumn: isMobile ? 'auto' : '1 / -1' }}>
               <label style={{ fontSize: '12px', color: 'var(--text-secondary)', display: 'block', marginBottom: '8px' }}>
