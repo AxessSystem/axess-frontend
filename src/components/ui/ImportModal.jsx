@@ -395,11 +395,20 @@ export default function ImportModal({ isOpen, onClose, businessId, onImportDone,
                   </table>
                 </div>
                 <div style={{ marginBottom: 20, fontSize: 14, color: 'var(--v2-gray-400)' }}>
-                  <div>נמצאו {preview.stats?.total ?? 0} שורות</div>
+                  <div>
+                    {preview.stats?.is_sample
+                      ? `דגימה: ${preview.stats?.sampled ?? 0} שורות (מתוך קובץ גדול)`
+                      : `נמצאו ${preview.stats?.total ?? 0} שורות`}
+                  </div>
                   <div style={{ display: 'flex', gap: 16, marginTop: 4 }}>
                     <span style={{ color: 'var(--v2-primary)' }}>{preview.stats?.valid_phones ?? 0} טלפונים תקינים</span>
                     <span style={{ color: '#EF4444' }}>{preview.stats?.invalid_phones ?? 0} טלפונים שגויים</span>
                   </div>
+                  {preview?.stats?.is_sample && (
+                    <p style={{ fontSize: '12px', color: 'var(--text-secondary)', textAlign: 'center', margin: '4px 0' }}>
+                      * מוצגת דגימה של {preview.stats.sampled} שורות ראשונות — הקובץ המלא יעובד בייבוא
+                    </p>
+                  )}
                 </div>
                 <button
                   onClick={() => { setStats(preview); setStep(3) }}
@@ -416,14 +425,19 @@ export default function ImportModal({ isOpen, onClose, businessId, onImportDone,
 
             {step === 3 && preview && (
               <motion.div key="s3" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+                {preview?.stats?.is_sample && (
+                  <p style={{ fontSize: '12px', color: 'var(--text-secondary)', textAlign: 'center', margin: '4px 0 12px' }}>
+                    * מוצגת דגימה של {preview.stats.sampled} שורות ראשונות — הקובץ המלא יעובד בייבוא
+                  </p>
+                )}
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 20 }}>
                   <div style={{ background: 'var(--v2-dark-3)', border: '1px solid var(--glass-border)', borderRadius: 'var(--radius-md)', padding: 16, textAlign: 'center' }}>
                     <div style={{ fontSize: 24, fontWeight: 800, color: 'var(--v2-primary)' }}>{preview.stats?.valid_phones ?? 0}</div>
                     <div style={{ fontSize: 12, color: 'var(--v2-gray-400)' }}>יעובדו (תקינים)</div>
                   </div>
                   <div style={{ background: 'var(--v2-dark-3)', border: '1px solid var(--glass-border)', borderRadius: 'var(--radius-md)', padding: 16, textAlign: 'center' }}>
-                    <div style={{ fontSize: 24, fontWeight: 800, color: '#F59E0B' }}>{preview.stats?.total ?? 0}</div>
-                    <div style={{ fontSize: 12, color: 'var(--v2-gray-400)' }}>סה"כ שורות</div>
+                    <div style={{ fontSize: 24, fontWeight: 800, color: '#F59E0B' }}>{preview.stats?.is_sample ? preview.stats?.sampled : (preview.stats?.total ?? 0)}</div>
+                    <div style={{ fontSize: 12, color: 'var(--v2-gray-400)' }}>{preview.stats?.is_sample ? 'שורות בדגימה' : 'סה"כ שורות'}</div>
                   </div>
                   <div style={{ background: 'var(--v2-dark-3)', border: '1px solid var(--glass-border)', borderRadius: 'var(--radius-md)', padding: 16, textAlign: 'center' }}>
                     <div style={{ fontSize: 24, fontWeight: 800, color: '#EF4444' }}>{preview.stats?.invalid_phones ?? 0}</div>
