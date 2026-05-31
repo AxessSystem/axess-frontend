@@ -101,9 +101,13 @@ export default function ContactPage() {
     subscribed: '',
     contact_types: [],
     internal_notes: '',
+    occupation: '',
+    website: '',
     vendor_type: '',
     organizer_type: '',
   })
+
+  const [newNote, setNewNote] = useState('')
 
   const [socialForm, setSocialForm] = useState({
     avatar_url: '',
@@ -151,6 +155,8 @@ export default function ContactPage() {
           subscribed: cd.subscribed != null ? String(cd.subscribed) : '',
           contact_types: Array.isArray(data.contact_types) ? data.contact_types : [],
           internal_notes: data.internal_notes || '',
+          occupation: cd.occupation || '',
+          website: cd.website || '',
           vendor_type: data.vendor_type || '',
           organizer_type: data.organizer_type || '',
         })
@@ -213,11 +219,32 @@ export default function ContactPage() {
     }
   }
 
+  const appendNote = async () => {
+    if (!newNote.trim() || !profile?.id) return
+    try {
+      await fetchWithAuth(`/api/admin/recipients/${profile.id}/profile`, {
+        method: 'PATCH',
+        body: JSON.stringify({ business_id: businessId, note_append: newNote.trim() }),
+      })
+      const timestamp = new Date().toLocaleString('he-IL')
+      const newLine = `[${timestamp}] ${newNote.trim()}`
+      setOverviewForm((p) => ({
+        ...p,
+        internal_notes: p.internal_notes ? `${p.internal_notes}\n${newLine}` : newLine,
+      }))
+      setNewNote('')
+    } catch (e) {
+      console.error('append note error:', e)
+    }
+  }
+
   const saveOverview = () => {
     const custom_data = {
       ...(profile?.custom_data && typeof profile.custom_data === 'object' ? profile.custom_data : {}),
       instagram_url: overviewForm.instagram_url || undefined,
       subscribed: overviewForm.subscribed || undefined,
+      occupation: overviewForm.occupation || undefined,
+      website: overviewForm.website || undefined,
     }
     patchProfile({
       first_name: overviewForm.first_name,
@@ -229,7 +256,6 @@ export default function ContactPage() {
       id_number: overviewForm.id_number,
       custom_data,
       contact_types: overviewForm.contact_types || [],
-      internal_notes: overviewForm.internal_notes || null,
       vendor_type: overviewForm.vendor_type || null,
       organizer_type: overviewForm.organizer_type || null,
     })
@@ -462,6 +488,25 @@ export default function ContactPage() {
                 }}
               />
             </div>
+            <div style={{ marginBottom: '12px' }}>
+              <label style={{ fontSize: '12px', color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>עיסוק / עבודה</label>
+              <input
+                value={overviewForm.occupation || ''}
+                onChange={e => setOverviewForm(p => ({ ...p, occupation: e.target.value }))}
+                placeholder="מפיק אירועים / שחקן / ..."
+                style={{ width: '100%', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: '8px', padding: '10px 12px', color: 'var(--text)', fontSize: '14px', direction: 'rtl' }}
+              />
+            </div>
+            <div style={{ marginBottom: '12px' }}>
+              <label style={{ fontSize: '12px', color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>אתר</label>
+              <input
+                value={overviewForm.website || ''}
+                onChange={e => setOverviewForm(p => ({ ...p, website: e.target.value }))}
+                placeholder="https://..."
+                dir="ltr"
+                style={{ width: '100%', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: '8px', padding: '10px 12px', color: 'var(--text)', fontSize: '14px' }}
+              />
+            </div>
             <div style={{ gridColumn: isMobile ? 'auto' : '1 / -1' }}>
               <label style={{ fontSize: '12px', color: 'var(--text-secondary)', display: 'block', marginBottom: '8px' }}>
                 סוגי קשר
@@ -527,28 +572,52 @@ export default function ContactPage() {
                 />
               </div>
             )}
-            <div style={{ gridColumn: isMobile ? 'auto' : '1 / -1' }}>
-              <label style={{ fontSize: '12px', color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>
+            <div style={{ gridColumn: isMobile ? 'auto' : '1 / -1', marginTop: '16px' }}>
+              <label style={{ fontSize: '12px', color: 'var(--text-secondary)', display: 'block', marginBottom: '8px', fontWeight: 600 }}>
                 הערות פנימיות
               </label>
-              <textarea
-                value={overviewForm.internal_notes || ''}
-                onChange={(e) => setOverviewForm((prev) => ({ ...prev, internal_notes: e.target.value }))}
-                placeholder="הערות שרק אתה רואה..."
-                rows={3}
-                style={{
-                  width: '100%',
-                  background: 'var(--bg)',
-                  border: '1px solid var(--border)',
-                  borderRadius: '8px',
-                  padding: '10px 12px',
-                  color: 'var(--text)',
-                  fontSize: '14px',
-                  resize: 'vertical',
-                  fontFamily: 'inherit',
-                  direction: 'rtl',
-                }}
-              />
+              {overviewForm.internal_notes && (
+                <div style={{
+                  background: 'var(--bg)', border: '1px solid var(--border)',
+                  borderRadius: '8px', padding: '10px 12px', marginBottom: '8px',
+                  maxHeight: '150px', overflowY: 'auto', fontSize: '13px',
+                  color: 'var(--text)', direction: 'rtl', whiteSpace: 'pre-wrap',
+                  lineHeight: 1.6,
+                }}>
+                  {overviewForm.internal_notes}
+                </div>
+              )}
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <input
+                  value={newNote}
+                  onChange={e => setNewNote(e.target.value)}
+                  onKeyDown={async (e) => {
+                    if (e.key === 'Enter' && newNote.trim()) {
+                      await appendNote()
+                    }
+                  }}
+                  placeholder="הוסף הערה... (Enter לשמירה)"
+                  style={{
+                    flex: 1, background: 'var(--bg)',
+                    border: '1px solid var(--border)', borderRadius: '8px',
+                    padding: '10px 12px', color: 'var(--text)',
+                    fontSize: '14px', direction: 'rtl',
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={appendNote}
+                  disabled={!newNote.trim()}
+                  style={{
+                    padding: '10px 14px', borderRadius: '8px',
+                    border: 'none', background: '#00C37A',
+                    color: '#fff', cursor: 'pointer', fontSize: '13px',
+                    opacity: !newNote.trim() ? 0.5 : 1,
+                  }}
+                >
+                  + הוסף
+                </button>
+              </div>
             </div>
             <div>
               <label style={labelStyle}>ת.ז.</label>

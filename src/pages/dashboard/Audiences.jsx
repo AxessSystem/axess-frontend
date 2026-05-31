@@ -576,6 +576,10 @@ export default function Audiences() {
   const [showContactTypesModal, setShowContactTypesModal] = useState(false)
   const [quickEditRecipient, setQuickEditRecipient] = useState(null)
   const [contactTypes, setContactTypes] = useState([])
+  const [showAddContact, setShowAddContact] = useState(false)
+  const [addForm, setAddForm] = useState({ phone: '', first_name: '', last_name: '', email: '', gender: '', city: '', contact_types: [] })
+  const [addError, setAddError] = useState('')
+  const [addSaving, setAddSaving] = useState(false)
   const [contactTypeFilter, setContactTypeFilter] = useState(savedAudiencesState.contactTypeFilter || [])
   const [bulkField, setBulkField] = useState({
     newTag: '',
@@ -954,6 +958,19 @@ export default function Audiences() {
           <p style={{ color: 'var(--v2-gray-400)', fontSize: 14, marginTop: 4 }}>{loadingRecipients ? 'טוען...' : `${recipients.length} אנשי קשר`}</p>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <button
+            type="button"
+            onClick={() => setShowAddContact(true)}
+            style={{
+              padding: '8px 16px', borderRadius: '10px',
+              border: '1px solid #00C37A', background: '#00C37A20',
+              color: '#00C37A', cursor: 'pointer', fontSize: '13px',
+              display: 'flex', alignItems: 'center', gap: '6px',
+              WebkitTapHighlightColor: 'transparent',
+            }}
+          >
+            + איש קשר
+          </button>
           <button onClick={() => setImportOpen(true)} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 16px', background: 'var(--v2-primary)', color: 'var(--v2-dark)', border: 'none', borderRadius: 'var(--radius-full)', fontWeight: 600, cursor: 'pointer' }}>
             <Upload size={16} /> ייבוא קהל
           </button>
@@ -2512,6 +2529,145 @@ export default function Audiences() {
         contactTypes={contactTypes}
         onImportDone={() => { queryClient.invalidateQueries({ queryKey: ['recipients', businessId] }) }}
       />
+
+      {showAddContact && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}
+          onClick={() => setShowAddContact(false)}>
+          <div style={{ background: 'var(--card)', borderRadius: '16px', padding: '24px', width: '100%', maxWidth: '420px', direction: 'rtl' }}
+            onClick={e => e.stopPropagation()}>
+
+            <h3 style={{ margin: '0 0 20px', fontSize: '16px', fontWeight: 600 }}>הוסף איש קשר</h3>
+
+            <div style={{ marginBottom: '12px' }}>
+              <label style={{ fontSize: '12px', color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>
+                טלפון <span style={{ color: '#ef4444' }}>*</span>
+              </label>
+              <input
+                value={addForm.phone}
+                onChange={e => setAddForm(p => ({ ...p, phone: e.target.value }))}
+                placeholder="05X-XXXXXXX"
+                type="tel" dir="ltr"
+                style={{ width: '100%', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: '8px', padding: '10px 12px', color: 'var(--text)', fontSize: '14px' }}
+              />
+            </div>
+
+            <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
+              {['first_name', 'last_name'].map(field => (
+                <div key={field} style={{ flex: 1 }}>
+                  <label style={{ fontSize: '12px', color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>
+                    {field === 'first_name' ? 'שם פרטי' : 'שם משפחה'}
+                  </label>
+                  <input
+                    value={addForm[field]}
+                    onChange={e => setAddForm(p => ({ ...p, [field]: e.target.value }))}
+                    style={{ width: '100%', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: '8px', padding: '10px 12px', color: 'var(--text)', fontSize: '14px', direction: 'rtl' }}
+                  />
+                </div>
+              ))}
+            </div>
+
+            <div style={{ marginBottom: '12px' }}>
+              <label style={{ fontSize: '12px', color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>אימייל</label>
+              <input
+                value={addForm.email}
+                onChange={e => setAddForm(p => ({ ...p, email: e.target.value }))}
+                type="email" dir="ltr"
+                style={{ width: '100%', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: '8px', padding: '10px 12px', color: 'var(--text)', fontSize: '14px' }}
+              />
+            </div>
+
+            <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
+              <div style={{ flex: 1 }}>
+                <label style={{ fontSize: '12px', color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>מין</label>
+                <CustomSelect
+                  value={addForm.gender}
+                  onChange={v => setAddForm(p => ({ ...p, gender: v }))}
+                  options={[
+                    { value: '', label: 'לא צוין' },
+                    { value: 'Male', label: '👨 זכר' },
+                    { value: 'Female', label: '👩 נקבה' },
+                  ]}
+                />
+              </div>
+              <div style={{ flex: 1 }}>
+                <label style={{ fontSize: '12px', color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>עיר</label>
+                <input
+                  value={addForm.city}
+                  onChange={e => setAddForm(p => ({ ...p, city: e.target.value }))}
+                  placeholder="תל אביב"
+                  style={{ width: '100%', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: '8px', padding: '10px 12px', color: 'var(--text)', fontSize: '14px', direction: 'rtl' }}
+                />
+              </div>
+            </div>
+
+            <div style={{ marginBottom: '16px' }}>
+              <label style={{ fontSize: '12px', color: 'var(--text-secondary)', display: 'block', marginBottom: '8px' }}>סוגי קשר</label>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                {contactTypes.map(ct => {
+                  const selected = addForm.contact_types.includes(ct.value)
+                  return (
+                    <button key={ct.value} type="button"
+                      onClick={() => setAddForm(p => ({
+                        ...p,
+                        contact_types: selected
+                          ? p.contact_types.filter(v => v !== ct.value)
+                          : [...p.contact_types, ct.value],
+                      }))}
+                      style={{
+                        padding: '4px 10px', borderRadius: '20px', fontSize: '12px', cursor: 'pointer',
+                        border: `1px solid ${selected ? '#00C37A' : 'var(--border)'}`,
+                        background: selected ? '#00C37A20' : 'transparent',
+                        color: selected ? '#00C37A' : 'var(--text-secondary)',
+                        WebkitTapHighlightColor: 'transparent',
+                      }}
+                    >
+                      {ct.emoji} {ct.label}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+
+            {addError && <p style={{ color: '#ef4444', fontSize: '13px', marginBottom: '8px' }}>{addError}</p>}
+
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button
+                type="button"
+                onClick={async () => {
+                  if (!addForm.phone.trim()) { setAddError('טלפון חובה'); return }
+                  setAddSaving(true)
+                  setAddError('')
+                  try {
+                    const result = await fetchWithAuth('/api/admin/recipients', {
+                      method: 'POST',
+                      body: JSON.stringify({ ...addForm, business_id: businessId }),
+                    })
+                    if (result?.error) { setAddError(result.error); return }
+                    setShowAddContact(false)
+                    setAddForm({ phone: '', first_name: '', last_name: '', email: '', gender: '', city: '', contact_types: [] })
+                    queryClient.invalidateQueries({ queryKey: ['recipients', businessId] })
+                  } catch (e) {
+                    setAddError(e.message || 'שגיאה בשמירה')
+                  } finally {
+                    setAddSaving(false)
+                  }
+                }}
+                disabled={addSaving || !addForm.phone.trim()}
+                style={{ flex: 1, background: '#00C37A', border: 'none', borderRadius: '10px', padding: '12px', color: '#fff', fontSize: '15px', fontWeight: 600, cursor: 'pointer', opacity: addSaving || !addForm.phone.trim() ? 0.6 : 1 }}
+              >
+                {addSaving ? 'שומר...' : 'הוסף איש קשר'}
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowAddContact(false)}
+                style={{ padding: '12px 16px', borderRadius: '10px', border: '1px solid var(--border)', background: 'transparent', color: 'var(--text-secondary)', cursor: 'pointer', fontSize: '14px' }}
+              >
+                ביטול
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
