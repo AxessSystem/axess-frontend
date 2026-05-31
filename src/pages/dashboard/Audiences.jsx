@@ -580,6 +580,10 @@ export default function Audiences() {
   const [addForm, setAddForm] = useState({ phone: '', first_name: '', last_name: '', email: '', gender: '', city: '', contact_types: [] })
   const [addError, setAddError] = useState('')
   const [addSaving, setAddSaving] = useState(false)
+  const [showMergeModal, setShowMergeModal] = useState(false)
+  const [mergeData, setMergeData] = useState(null)
+  const [merging, setMerging] = useState(false)
+  const [mergeResult, setMergeResult] = useState(null)
   const [contactTypeFilter, setContactTypeFilter] = useState(savedAudiencesState.contactTypeFilter || [])
   const [bulkField, setBulkField] = useState({
     newTag: '',
@@ -974,33 +978,18 @@ export default function Audiences() {
           <button
             type="button"
             onClick={async () => {
-              const check = await fetchWithAuth('/api/admin/recipients/merge-duplicates', {
-                method: 'POST',
-                body: JSON.stringify({ dry_run: true }),
-              })
-              if (check?.error) {
-                alert(check.error)
+              const data = await fetchWithAuth('/api/admin/recipients/duplicate-phones')
+              if (data?.error) {
+                alert(data.error)
                 return
               }
-              if (check.merged === 0) {
+              if (!data?.duplicates?.length) {
                 alert('לא נמצאו כפילויות!')
                 return
               }
-              if (!window.confirm(
-                `נמצאו ${check.merged} כפילויות.\n` +
-                (check.names_conflict > 0 ? `⚠️ ${check.names_conflict} מקרים עם שמות שונים — יסומנו בתגית "בדיקת_שם" ובהערה.\n` : '') +
-                'למזג אותן אוטומטית?'
-              )) return
-              const result = await fetchWithAuth('/api/admin/recipients/merge-duplicates', {
-                method: 'POST',
-                body: JSON.stringify({ dry_run: false }),
-              })
-              if (result?.error) {
-                alert(result.error)
-                return
-              }
-              alert(`✅ מוזגו ${result.merged} כפילויות בהצלחה!${result.errors?.length > 0 ? `\n⚠️ ${result.errors.length} שגיאות` : ''}`)
-              queryClient.invalidateQueries({ queryKey: ['recipients', businessId] })
+              setMergeData(data)
+              setMergeResult(null)
+              setShowMergeModal(true)
             }}
             style={{
               padding: '8px 16px', borderRadius: '10px',
@@ -2569,6 +2558,164 @@ export default function Audiences() {
         contactTypes={contactTypes}
         onImportDone={() => { queryClient.invalidateQueries({ queryKey: ['recipients', businessId] }) }}
       />
+
+      {showMergeModal && mergeData && (
+        <div style={{
+          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)',
+          zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center',
+          padding: '16px',
+        }}>
+          <div style={{
+            background: 'var(--card)', borderRadius: '16px', padding: '24px',
+            width: '100%', maxWidth: '560px', direction: 'rtl',
+            maxHeight: '80vh', display: 'flex', flexDirection: 'column',
+          }}>
+            <div style={{ marginBottom: '16px' }}>
+              <h3 style={{ margin: '0 0 4px', fontSize: '16px', fontWeight: 700 }}>
+                מיזוג כפילויות טלפון
+              </h3>
+              <p style={{ margin: 0, fontSize: '13px', color: 'var(--text-secondary)' }}>
+                נמצאו {mergeData.total_groups} זוגות כפילויות
+                {mergeData.duplicates?.filter(d => {
+                  const pName = (d.primary?.first_name || '').trim().toLowerCase()
+                  const dupName = (d.duplicates?.[0]?.first_name || '').trim().toLowerCase()
+                  return pName && dupName && pName !== dupName
+                }).length > 0 && (
+                  <span style={{ color: '#f59e0b', marginRight: '8px' }}>
+                    ⚠️ {mergeData.duplicates.filter(d => {
+                      const pName = (d.primary?.first_name || '').trim().toLowerCase()
+                      const dupName = (d.duplicates?.[0]?.first_name || '').trim().toLowerCase()
+                      return pName && dupName && pName !== dupName
+                    }).length} עם שמות שונים
+                  </span>
+                )}
+              </p>
+            </div>
+
+            <div style={{ overflowY: 'auto', flex: 1, marginBottom: '16px' }}>
+              {mergeData.duplicates?.map((group, i) => {
+                const pName = (group.primary?.first_name || '').trim().toLowerCase()
+                const dupName = (group.duplicates?.[0]?.first_name || '').trim().toLowerCase()
+                const nameConflict = pName && dupName && pName !== dupName
+
+                return (
+                  <div key={i} style={{
+                    padding: '10px 12px', borderRadius: '10px', marginBottom: '8px',
+                    border: `1px solid ${nameConflict ? '#f59e0b40' : 'var(--border)'}`,
+                    background: nameConflict ? '#f59e0b08' : 'var(--bg)',
+                  }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div>
+                        <span style={{ fontSize: '13px', fontWeight: 600 }}>
+                          {group.normalized_phone}
+                        </span>
+                        {nameConflict && (
+                          <span style={{ fontSize: '11px', color: '#f59e0b', marginRight: '8px' }}>
+                            ⚠️ שמות שונים
+                          </span>
+                        )}
+                      </div>
+                      <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
+                        {group.count} רשומות
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'flex', gap: '16px', marginTop: '6px' }}>
+                      <div style={{ flex: 1, fontSize: '12px' }}>
+                        <div style={{ color: '#00C37A', fontWeight: 600, marginBottom: '2px' }}>
+                          ✓ ישמר
+                        </div>
+                        <div>{group.primary?.first_name} {group.primary?.last_name}</div>
+                        <div style={{ color: 'var(--text-secondary)' }}>{group.primary?.phone}</div>
+                      </div>
+
+                      {group.duplicates?.map((dup, j) => (
+                        <div key={j} style={{ flex: 1, fontSize: '12px' }}>
+                          <div style={{ color: '#ef4444', fontWeight: 600, marginBottom: '2px' }}>
+                            → יימזג
+                          </div>
+                          <div>{dup.first_name} {dup.last_name}</div>
+                          <div style={{ color: 'var(--text-secondary)' }}>{dup.phone}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+
+            {mergeResult && (
+              <div style={{
+                padding: '10px 14px', borderRadius: '10px', marginBottom: '12px',
+                background: mergeResult.errors?.length > 0 ? '#f59e0b15' : '#00C37A15',
+                border: `1px solid ${mergeResult.errors?.length > 0 ? '#f59e0b40' : '#00C37A40'}`,
+              }}>
+                <p style={{ margin: 0, fontSize: '13px', fontWeight: 600 }}>
+                  {mergeResult.errors?.length > 0
+                    ? `⚠️ מוזגו ${mergeResult.merged} מתוך ${mergeData.total_groups} — ${mergeResult.errors.length} שגיאות`
+                    : `✅ מוזגו ${mergeResult.merged} כפילויות בהצלחה`}
+                </p>
+                {mergeResult.errors?.map((e, i) => (
+                  <p key={i} style={{ margin: '4px 0 0', fontSize: '12px', color: '#ef4444' }}>
+                    {e.phone}: {e.error}
+                  </p>
+                ))}
+              </div>
+            )}
+
+            <div style={{ display: 'flex', gap: '8px' }}>
+              {!mergeResult && (
+                <button
+                  type="button"
+                  onClick={async () => {
+                    setMerging(true)
+                    try {
+                      const result = await fetchWithAuth('/api/admin/recipients/merge-duplicates', {
+                        method: 'POST',
+                        body: JSON.stringify({ dry_run: false }),
+                      })
+                      if (result?.error) {
+                        setMergeResult({ merged: 0, errors: [{ phone: '', error: result.error }] })
+                        return
+                      }
+                      setMergeResult(result)
+                      if (result.merged > 0) {
+                        queryClient.invalidateQueries({ queryKey: ['recipients', businessId] })
+                      }
+                    } catch (e) {
+                      setMergeResult({ merged: 0, errors: [{ phone: '', error: e.message }] })
+                    } finally {
+                      setMerging(false)
+                    }
+                  }}
+                  disabled={merging}
+                  style={{
+                    flex: 1, background: '#00C37A', border: 'none',
+                    borderRadius: '10px', padding: '12px',
+                    color: '#fff', fontSize: '14px', fontWeight: 600,
+                    cursor: merging ? 'not-allowed' : 'pointer',
+                    opacity: merging ? 0.7 : 1,
+                  }}
+                >
+                  {merging ? 'ממזג...' : `מזג ${mergeData.total_groups} כפילויות`}
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => { setShowMergeModal(false); setMergeData(null); setMergeResult(null) }}
+                style={{
+                  flex: mergeResult ? 1 : 0, padding: '12px 20px',
+                  borderRadius: '10px', border: '1px solid var(--border)',
+                  background: 'transparent', color: 'var(--text-secondary)',
+                  cursor: 'pointer', fontSize: '14px',
+                }}
+              >
+                {mergeResult ? 'סגור' : 'ביטול'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {showAddContact && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}
