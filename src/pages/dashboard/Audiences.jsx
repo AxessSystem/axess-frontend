@@ -2584,7 +2584,20 @@ export default function Audiences() {
             background: 'var(--card)', borderRadius: '16px', padding: '24px',
             width: '100%', maxWidth: '560px', direction: 'rtl',
             maxHeight: '80vh', display: 'flex', flexDirection: 'column',
+            position: 'relative',
           }}>
+            <button
+              type="button"
+              onClick={() => { setShowMergeModal(false); setMergeData(null); setMergeResult(null) }}
+              style={{
+                position: 'absolute', top: '16px', left: '16px',
+                background: 'none', border: 'none', cursor: 'pointer',
+                color: 'var(--text-secondary)', fontSize: '20px',
+                lineHeight: 1, padding: '4px',
+              }}
+            >
+              ✕
+            </button>
             <div style={{ marginBottom: '16px' }}>
               <h3 style={{ margin: '0 0 4px', fontSize: '16px', fontWeight: 700 }}>
                 מיזוג כפילויות טלפון
