@@ -584,6 +584,21 @@ export default function Audiences() {
   const [mergeData, setMergeData] = useState(null)
   const [merging, setMerging] = useState(false)
   const [mergeResult, setMergeResult] = useState(null)
+
+  const swapPrimary = (groupIndex) => {
+    setMergeData((prev) => {
+      if (!prev?.duplicates?.length) return prev
+      const newDuplicates = [...prev.duplicates]
+      const group = { ...newDuplicates[groupIndex] }
+      if (!group.duplicates?.length) return prev
+      const oldPrimary = group.primary
+      group.primary = group.duplicates[0]
+      group.duplicates = [oldPrimary, ...group.duplicates.slice(1)]
+      newDuplicates[groupIndex] = group
+      return { ...prev, duplicates: newDuplicates }
+    })
+  }
+
   const [contactTypeFilter, setContactTypeFilter] = useState(savedAudiencesState.contactTypeFilter || [])
   const [bulkField, setBulkField] = useState({
     newTag: '',
@@ -2620,22 +2635,34 @@ export default function Audiences() {
                       </div>
                     </div>
 
-                    <div style={{ display: 'flex', gap: '16px', marginTop: '6px' }}>
+                    <div style={{ display: 'flex', gap: '16px', marginTop: '6px', alignItems: 'center' }}>
                       <div style={{ flex: 1, fontSize: '12px' }}>
-                        <div style={{ color: '#00C37A', fontWeight: 600, marginBottom: '2px' }}>
-                          ✓ ישמר
-                        </div>
+                        <div style={{ color: '#00C37A', fontWeight: 600, marginBottom: '2px' }}>✓ ישמר</div>
                         <div>{group.primary?.first_name} {group.primary?.last_name}</div>
-                        <div style={{ color: 'var(--text-secondary)' }}>{group.primary?.phone}</div>
+                        <div style={{ color: 'var(--text-secondary)', fontSize: '11px' }}>{group.primary?.phone}</div>
                       </div>
+
+                      {group.duplicates?.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => swapPrimary(i)}
+                          title="החלף בין ישמר לימזג"
+                          style={{
+                            background: 'none', border: '1px solid var(--border)',
+                            borderRadius: '6px', padding: '4px 8px',
+                            cursor: 'pointer', fontSize: '14px', color: 'var(--text-secondary)',
+                            flexShrink: 0,
+                          }}
+                        >
+                          ⇄
+                        </button>
+                      )}
 
                       {group.duplicates?.map((dup, j) => (
                         <div key={j} style={{ flex: 1, fontSize: '12px' }}>
-                          <div style={{ color: '#ef4444', fontWeight: 600, marginBottom: '2px' }}>
-                            → יימזג
-                          </div>
+                          <div style={{ color: '#ef4444', fontWeight: 600, marginBottom: '2px' }}>→ יימזג</div>
                           <div>{dup.first_name} {dup.last_name}</div>
-                          <div style={{ color: 'var(--text-secondary)' }}>{dup.phone}</div>
+                          <div style={{ color: 'var(--text-secondary)', fontSize: '11px' }}>{dup.phone}</div>
                         </div>
                       ))}
                     </div>
@@ -2657,7 +2684,7 @@ export default function Audiences() {
                 </p>
                 {mergeResult.errors?.map((e, i) => (
                   <p key={i} style={{ margin: '4px 0 0', fontSize: '12px', color: '#ef4444' }}>
-                    {e.phone}: {e.error}
+                    {e.phone || e.id}: {e.error}
                   </p>
                 ))}
               </div>
@@ -2672,7 +2699,13 @@ export default function Audiences() {
                     try {
                       const result = await fetchWithAuth('/api/admin/recipients/merge-duplicates', {
                         method: 'POST',
-                        body: JSON.stringify({ dry_run: false }),
+                        body: JSON.stringify({
+                          dry_run: false,
+                          custom_order: mergeData.duplicates.map((g) => ({
+                            primary_id: g.primary.id,
+                            duplicate_ids: g.duplicates.map((d) => d.id),
+                          })),
+                        }),
                       })
                       if (result?.error) {
                         setMergeResult({ merged: 0, errors: [{ phone: '', error: result.error }] })
