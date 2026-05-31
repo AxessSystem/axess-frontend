@@ -22,15 +22,28 @@ export default function QuickEditDrawer({ recipient, businessId, fetchWithAuth, 
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
 
   const save = async () => {
-    console.log('[QuickEdit] saving:', { id: recipient?.id, first_name: form.first_name, last_name: form.last_name })
+    if (!recipient?.id) {
+      setSaveError('חסר מזהה איש קשר')
+      return
+    }
+    if (!businessId) {
+      setSaveError('חסר מזהה עסק — נסה לרענן')
+      return
+    }
+
+    console.log('[QuickEdit] saving:', { id: recipient.id, businessId, first_name: form.first_name })
     setSaving(true)
     setSaveError('')
 
     let profileOk = false
 
     try {
+      const controller = new AbortController()
+      const timeout = setTimeout(() => controller.abort(), 15000)
+
       await fetchWithAuth(`/api/admin/recipients/${recipient.id}/profile`, {
         method: 'PATCH',
+        signal: controller.signal,
         body: JSON.stringify({
           business_id: businessId,
           first_name: form.first_name,
@@ -42,22 +55,27 @@ export default function QuickEditDrawer({ recipient, businessId, fetchWithAuth, 
           internal_notes: form.internal_notes,
         }),
       })
+      clearTimeout(timeout)
       profileOk = true
       console.log('[QuickEdit] profile saved ok')
     } catch (e) {
       console.error('[QuickEdit] profile error:', e.message)
-      setSaveError('שגיאה בשמירת פרטים: ' + e.message)
-      toast.error('שגיאה בשמירת פרטים')
+      setSaveError(e.name === 'AbortError' ? 'הבקשה נתקעה — נסה שוב' : 'שגיאה: ' + e.message)
     }
 
-    try {
-      await fetchWithAuth(`/api/admin/recipients/${recipient.id}/tags`, {
-        method: 'PATCH',
-        body: JSON.stringify({ business_id: businessId, tags: form.tags }),
-      })
-      console.log('[QuickEdit] tags saved ok')
-    } catch (e) {
-      console.error('[QuickEdit] tags error:', e.message)
+    if (profileOk && form.tags) {
+      try {
+        const controller2 = new AbortController()
+        const timeout2 = setTimeout(() => controller2.abort(), 10000)
+        await fetchWithAuth(`/api/admin/recipients/${recipient.id}/tags`, {
+          method: 'PATCH',
+          signal: controller2.signal,
+          body: JSON.stringify({ business_id: businessId, tags: form.tags }),
+        })
+        clearTimeout(timeout2)
+      } catch (e) {
+        console.error('[QuickEdit] tags error:', e.message)
+      }
     }
 
     if (profileOk) {
