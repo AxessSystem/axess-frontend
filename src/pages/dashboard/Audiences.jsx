@@ -986,7 +986,11 @@ export default function Audiences() {
                 alert('לא נמצאו כפילויות!')
                 return
               }
-              if (!window.confirm(`נמצאו ${check.merged} כפילויות. למזג אותן אוטומטית?`)) return
+              if (!window.confirm(
+                `נמצאו ${check.merged} כפילויות.\n` +
+                (check.names_conflict > 0 ? `⚠️ ${check.names_conflict} מקרים עם שמות שונים — יסומנו בתגית "בדיקת_שם" ובהערה.\n` : '') +
+                'למזג אותן אוטומטית?'
+              )) return
               const result = await fetchWithAuth('/api/admin/recipients/merge-duplicates', {
                 method: 'POST',
                 body: JSON.stringify({ dry_run: false }),
