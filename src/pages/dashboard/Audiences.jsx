@@ -971,6 +971,42 @@ export default function Audiences() {
           >
             + איש קשר
           </button>
+          <button
+            type="button"
+            onClick={async () => {
+              const check = await fetchWithAuth('/api/admin/recipients/merge-duplicates', {
+                method: 'POST',
+                body: JSON.stringify({ dry_run: true }),
+              })
+              if (check?.error) {
+                alert(check.error)
+                return
+              }
+              if (check.merged === 0) {
+                alert('לא נמצאו כפילויות!')
+                return
+              }
+              if (!window.confirm(`נמצאו ${check.merged} כפילויות. למזג אותן אוטומטית?`)) return
+              const result = await fetchWithAuth('/api/admin/recipients/merge-duplicates', {
+                method: 'POST',
+                body: JSON.stringify({ dry_run: false }),
+              })
+              if (result?.error) {
+                alert(result.error)
+                return
+              }
+              alert(`✅ מוזגו ${result.merged} כפילויות בהצלחה!${result.errors?.length > 0 ? `\n⚠️ ${result.errors.length} שגיאות` : ''}`)
+              queryClient.invalidateQueries({ queryKey: ['recipients', businessId] })
+            }}
+            style={{
+              padding: '8px 16px', borderRadius: '10px',
+              border: '1px solid var(--border)', background: 'transparent',
+              color: 'var(--text-secondary)', cursor: 'pointer', fontSize: '13px',
+              WebkitTapHighlightColor: 'transparent',
+            }}
+          >
+            🔀 מזג כפילויות
+          </button>
           <button onClick={() => setImportOpen(true)} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 16px', background: 'var(--v2-primary)', color: 'var(--v2-dark)', border: 'none', borderRadius: 'var(--radius-full)', fontWeight: 600, cursor: 'pointer' }}>
             <Upload size={16} /> ייבוא קהל
           </button>
