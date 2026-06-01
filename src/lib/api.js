@@ -57,7 +57,14 @@ export async function fetchWithAuth(url, options = {}, retries = 2) {
 
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {
-      const res = await fetch(fullUrl, buildConfig(session))
+      const controller = new AbortController()
+      const fetchTimeout = setTimeout(() => controller.abort(), 30000)
+      let res
+      try {
+        res = await fetch(fullUrl, { ...buildConfig(session), signal: controller.signal })
+      } finally {
+        clearTimeout(fetchTimeout)
+      }
 
       if (res.status === 401 && attempt === 0) {
         session = await safeRefresh(supabase)

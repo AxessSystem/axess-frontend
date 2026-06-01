@@ -38,9 +38,15 @@ export async function getValidSession(supabase) {
 
 export async function safeRefresh(supabase) {
   try {
-    const { data } = await supabase.auth.refreshSession();
-    return data?.session || null;
-  } catch(e) {
-    return null;
+    const refreshPromise = supabase.auth.refreshSession()
+    const timeoutPromise = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error('refresh timeout')), 8000)
+    )
+    const { data, error } = await Promise.race([refreshPromise, timeoutPromise])
+    if (error || !data?.session) return null
+    return data.session
+  } catch (e) {
+    console.warn('[auth] safeRefresh failed:', e.message)
+    return null
   }
 }
