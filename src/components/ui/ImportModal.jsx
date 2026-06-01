@@ -41,6 +41,8 @@ export default function ImportModal({ isOpen, onClose, businessId, onImportDone,
   const [duplicateFileWarning, setDuplicateFileWarning] = useState(null)
   const [inlineError, setInlineError] = useState(null)
   const [inlineWarning, setInlineWarning] = useState(null)
+  const [importMode, setImportMode] = useState('full')
+  const [ageReferenceYear, setAgeReferenceYear] = useState('')
   const [importEventTitle, setImportEventTitle] = useState('')
   const [importEventDate, setImportEventDate] = useState('')
   const [importContactTypes, setImportContactTypes] = useState([])
@@ -57,6 +59,8 @@ export default function ImportModal({ isOpen, onClose, businessId, onImportDone,
     setDuplicateFileWarning(null)
     setInlineError(null)
     setInlineWarning(null)
+    setImportMode('full')
+    setAgeReferenceYear('')
     setImportEventTitle('')
     setImportEventDate('')
     setImportContactTypes([])
@@ -88,7 +92,7 @@ export default function ImportModal({ isOpen, onClose, businessId, onImportDone,
 
   const handleAnalyze = async () => {
     if (!file || !businessId) return
-    if (!importEventTitle.trim()) {
+    if (importMode === 'full' && !importEventTitle.trim()) {
       setInlineError('נא להזין שם לרשימה לפני הניתוח')
       return
     }
@@ -143,6 +147,8 @@ export default function ImportModal({ isOpen, onClose, businessId, onImportDone,
           column_mapping: columnMapping,
           filename: file.name,
           force_reimport: forceReimport,
+          import_mode: importMode,
+          age_reference_year: ageReferenceYear || null,
           import_event_title: importEventTitle.trim() || file.name.replace(/\.[^/.]+$/, ''),
           import_event_date: importEventDate || null,
           import_contact_types: importContactTypes,
@@ -261,6 +267,58 @@ export default function ImportModal({ isOpen, onClose, businessId, onImportDone,
                 )}
                 {file && step === 1 && (
                   <div style={{ marginTop: '20px', direction: 'rtl' }}>
+                    {/* מצב ייבוא */}
+                    <div style={{ marginBottom: '16px' }}>
+                      <label style={{ fontSize: '13px', color: 'var(--text-secondary)', display: 'block', marginBottom: '8px', fontWeight: 600 }}>
+                        סוג הייבוא
+                      </label>
+                      <div style={{ display: 'flex', gap: '8px' }}>
+                        <button type="button" onClick={() => setImportMode('full')}
+                          style={{
+                            flex: 1, padding: '10px', borderRadius: '8px', fontSize: '13px', cursor: 'pointer',
+                            border: `1px solid ${importMode === 'full' ? '#00C37A' : 'var(--border)'}`,
+                            background: importMode === 'full' ? '#00C37A20' : 'transparent',
+                            color: importMode === 'full' ? '#00C37A' : 'var(--text-secondary)',
+                            WebkitTapHighlightColor: 'transparent'
+                          }}>
+                          ייבוא מלא
+                        </button>
+                        <button type="button" onClick={() => setImportMode('enrich')}
+                          style={{
+                            flex: 1, padding: '10px', borderRadius: '8px', fontSize: '13px', cursor: 'pointer',
+                            border: `1px solid ${importMode === 'enrich' ? '#00C37A' : 'var(--border)'}`,
+                            background: importMode === 'enrich' ? '#00C37A20' : 'transparent',
+                            color: importMode === 'enrich' ? '#00C37A' : 'var(--text-secondary)',
+                            WebkitTapHighlightColor: 'transparent'
+                          }}>
+                          השלמת פרטים בלבד
+                        </button>
+                      </div>
+                      {importMode === 'enrich' && (
+                        <p style={{ fontSize: '11px', color: 'var(--text-secondary)', margin: '6px 0 0' }}>
+                          ⚡ ממלא שדות חסרים בכרטיסים קיימים — ללא אירוע, ללא תגית, ללא נמענים חדשים
+                        </p>
+                      )}
+                    </div>
+
+                    {/* שנת ייחוס לגיל — רק במצב השלמה */}
+                    {importMode === 'enrich' && (
+                      <div style={{ marginBottom: '16px' }}>
+                        <label style={{ fontSize: '13px', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px', fontWeight: 600 }}>
+                          שנת הגיל בקובץ (להמרת גיל לשנת לידה)
+                        </label>
+                        <input type="number" value={ageReferenceYear}
+                          onChange={e => setAgeReferenceYear(e.target.value)}
+                          placeholder="למשל: 2021" dir="ltr"
+                          style={{ width: '100%', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: '8px', padding: '10px 12px', color: 'var(--text)', fontSize: '14px' }}
+                        />
+                        <p style={{ fontSize: '11px', color: 'var(--text-secondary)', margin: '4px 0 0' }}>
+                          שנת לידה תחושב: {ageReferenceYear || 'שנה'} פחות הגיל
+                        </p>
+                      </div>
+                    )}
+
+                    {importMode === 'full' && (
                     <div style={{ marginBottom: '16px' }}>
                       <label style={{ fontSize: '13px', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px', fontWeight: 600 }}>
                         שם האירוע / הרשימה *
@@ -280,6 +338,7 @@ export default function ImportModal({ isOpen, onClose, businessId, onImportDone,
                         יופיע בהיסטוריית האירועים של כל נמען ברשימה
                       </p>
                     </div>
+                    )}
 
                     <div style={{ marginBottom: '16px' }}>
                       <label style={{ fontSize: '13px', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px', fontWeight: 600 }}>
@@ -559,6 +618,11 @@ export default function ImportModal({ isOpen, onClose, businessId, onImportDone,
                   <h3 style={{ fontSize: 20, fontWeight: 800, color: '#fff', marginBottom: 12 }}>הייבוא הושלם</h3>
                   <p style={{ color: 'var(--v2-gray-400)' }}>{result.new_rows} לקוחות חדשים נוספו</p>
                   <p style={{ color: 'var(--v2-gray-400)' }}>{result.updated_rows} לקוחות עודכנו</p>
+                  {(result.skipped_rows ?? 0) > 0 && (
+                    <p style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
+                      {result.skipped_rows} מספרים לא נמצאו במערכת — דולגו
+                    </p>
+                  )}
                   {(result.duplicate_rows ?? 0) > 0 && (
                     <div style={{
                       display: 'flex', alignItems: 'center', gap: 8, marginTop: 8, padding: 12,
