@@ -60,7 +60,11 @@ export default function QuickEditDrawer({ recipient, businessId, fetchWithAuth, 
       console.log('[QuickEdit] profile saved ok')
     } catch (e) {
       console.error('[QuickEdit] profile error:', e.message)
-      setSaveError(e.name === 'AbortError' ? 'הבקשה נתקעה — נסה שוב' : 'שגיאה: ' + e.message)
+      if (e.message.includes('פג תוקף') || e.message.includes('session')) {
+        setSaveError('פג תוקף החיבור — נא לרענן את הדף (F5)')
+      } else {
+        setSaveError(e.name === 'AbortError' ? 'הבקשה נתקעה — נסה שוב' : 'שגיאה: ' + e.message)
+      }
     }
 
     if (profileOk && form.tags) {
