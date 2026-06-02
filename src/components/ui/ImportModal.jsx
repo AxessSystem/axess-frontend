@@ -606,53 +606,42 @@ export default function ImportModal({ isOpen, onClose, businessId, onImportDone,
 
             {step === 4 && result && (
               <motion.div key="s4" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-                <div style={{
-                  display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20, padding: 14,
-                  background: 'var(--primary-dim, rgba(0,195,122,0.12))', border: '1px solid var(--v2-primary)',
-                  borderRadius: 'var(--radius-md)', color: 'var(--v2-primary)', fontSize: 14,
-                }}>
-                  <Check size={20} style={{ flexShrink: 0 }} />
-                  הקובץ יובא בהצלחה
-                </div>
-                <div style={{ textAlign: 'center', marginBottom: 24 }}>
-                  <h3 style={{ fontSize: 20, fontWeight: 800, color: '#fff', marginBottom: 12 }}>הייבוא הושלם</h3>
-                  <p style={{ color: 'var(--v2-gray-400)' }}>{result.new_rows} לקוחות חדשים נוספו</p>
-                  <p style={{ color: 'var(--v2-gray-400)' }}>{result.updated_rows} לקוחות עודכנו</p>
-                  {(result.skipped_rows ?? 0) > 0 && (
-                    <p style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
-                      {result.skipped_rows} מספרים לא נמצאו במערכת — דולגו
+                <div style={{ direction: 'rtl', padding: '8px 0', marginBottom: 24 }}>
+                  <p style={{ fontSize: '15px', fontWeight: 700, color: '#00C37A', margin: '0 0 12px' }}>
+                    ✅ הייבוא הושלם בהצלחה
+                  </p>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <p style={{ margin: 0, fontSize: '14px', color: 'var(--v2-gray-400)' }}>
+                      👤 <strong>{result.new_rows || 0}</strong> לקוחות חדשים נוספו
                     </p>
-                  )}
-                  {(result.duplicate_rows ?? 0) > 0 && (
-                    <div style={{
-                      display: 'flex', alignItems: 'center', gap: 8, marginTop: 8, padding: 12,
-                      background: 'rgba(245, 158, 11, 0.1)', border: '1px solid rgba(245, 158, 11, 0.4)',
-                      borderRadius: 'var(--radius-md)', color: '#f59e0b', fontSize: 14,
-                    }}>
-                      <AlertTriangle size={18} style={{ flexShrink: 0 }} />
-                      {result.duplicate_rows} שורות כפולות דולגו
-                    </div>
-                  )}
-                  {result.error_rows > 0 && (
-                    <div style={{
-                      display: 'flex', alignItems: 'center', gap: 8, marginTop: 12, padding: 12,
-                      background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.4)',
-                      borderRadius: 'var(--radius-md)', color: '#ef4444', fontSize: 14,
-                    }}>
-                      <XCircle size={18} style={{ flexShrink: 0 }} />
-                      <span>{result.error_rows} שורות לא יובאו</span>
-                      <button
-                        onClick={downloadErrors}
-                        style={{
-                          display: 'inline-flex', alignItems: 'center', gap: 8, marginTop: 8,
-                          padding: '8px 16px', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.4)',
-                          borderRadius: 'var(--radius-md)', color: '#ef4444', fontWeight: 600, cursor: 'pointer',
-                        }}
-                      >
-                        <Download size={16} /> הורד קובץ שגויים
-                      </button>
-                    </div>
-                  )}
+                    <p style={{ margin: 0, fontSize: '14px', color: 'var(--v2-gray-400)' }}>
+                      🔄 <strong>{result.updated_rows || 0}</strong> לקוחות קיימים עודכנו
+                    </p>
+                    {result.duplicate_rows > 0 && (
+                      <p style={{ margin: 0, fontSize: '14px', color: 'var(--text-secondary)' }}>
+                        ⏭️ <strong>{result.duplicate_rows}</strong> שורות כפולות דולגו
+                      </p>
+                    )}
+                    {result.skipped_rows > 0 && (
+                      <p style={{ margin: 0, fontSize: '14px', color: 'var(--text-secondary)' }}>
+                        ⏭️ <strong>{result.skipped_rows}</strong> מספרים לא נמצאו — דולגו
+                      </p>
+                    )}
+                    {result.error_rows > 0 && (
+                      <p style={{ margin: 0, fontSize: '14px', color: '#ef4444' }}>
+                        ❌ <strong>{result.error_rows}</strong> שורות לא יובאו
+                        {result.error_csv_base64 && (
+                          <button type="button" onClick={downloadErrors}
+                            style={{ marginRight: '8px', background: 'none', border: '1px solid #ef4444', borderRadius: '6px', padding: '2px 8px', color: '#ef4444', cursor: 'pointer', fontSize: '12px' }}>
+                            הורד קובץ שגויים
+                          </button>
+                        )}
+                      </p>
+                    )}
+                    <p style={{ margin: '8px 0 0', fontSize: '12px', color: 'var(--text-secondary)' }}>
+                      סה"כ עובדו: {(result.new_rows || 0) + (result.updated_rows || 0) + (result.duplicate_rows || 0) + (result.error_rows || 0)} שורות
+                    </p>
+                  </div>
                 </div>
                 <button
                   onClick={() => { onImportDone?.(); handleClose(); }}
