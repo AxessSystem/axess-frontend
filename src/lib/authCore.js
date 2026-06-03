@@ -3,7 +3,7 @@ export async function getValidSession(supabase) {
     setTimeout(() => {
       console.warn('[auth] getValidSession timeout — returning null')
       resolve(null)
-    }, 15000)
+    }, 25000)
   )
 
   const sessionWork = async () => {
@@ -53,16 +53,26 @@ export async function getValidSession(supabase) {
 }
 
 export async function safeRefresh(supabase) {
-  try {
-    const refreshPromise = supabase.auth.refreshSession()
-    const timeoutPromise = new Promise((_, reject) =>
-      setTimeout(() => reject(new Error('refresh timeout')), 8000)
-    )
-    const { data, error } = await Promise.race([refreshPromise, timeoutPromise])
-    if (error || !data?.session) return null
-    return data.session
-  } catch (e) {
-    console.warn('[auth] safeRefresh failed:', e.message)
-    return null
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    try {
+      const refreshPromise = supabase.auth.refreshSession()
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('refresh timeout')), 20000)
+      )
+      const { data, error } = await Promise.race([refreshPromise, timeoutPromise])
+      if (error || !data?.session) {
+        console.warn(`[auth] safeRefresh attempt ${attempt} failed:`, error?.message)
+        if (attempt === 2) return null
+        await new Promise(r => setTimeout(r, 2000))
+        continue
+      }
+      console.log(`[auth] safeRefresh succeeded on attempt ${attempt}`)
+      return data.session
+    } catch (e) {
+      console.warn(`[auth] safeRefresh attempt ${attempt} error:`, e.message)
+      if (attempt === 2) return null
+      await new Promise(r => setTimeout(r, 2000))
+    }
   }
+  return null
 }
