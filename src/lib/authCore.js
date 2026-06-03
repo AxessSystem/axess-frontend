@@ -106,10 +106,23 @@ export async function safeRefresh(supabase) {
         return null
       }
 
-      await supabase.auth.setSession({
-        access_token: newSession.access_token,
-        refresh_token: newSession.refresh_token,
-      })
+      try {
+        const storageKey = Object.keys(localStorage).find(k => k.startsWith('sb-') && k.endsWith('-auth-token'))
+        if (storageKey) {
+          const existing = JSON.parse(localStorage.getItem(storageKey))
+          const updated = {
+            ...existing,
+            access_token: newSession.access_token,
+            refresh_token: newSession.refresh_token,
+            expires_at: Math.floor(Date.now() / 1000) + (newSession.expires_in || 3600),
+            expires_in: newSession.expires_in || 3600,
+          }
+          localStorage.setItem(storageKey, JSON.stringify(updated))
+          console.log('[auth] localStorage updated with new tokens')
+        }
+      } catch (e) {
+        console.warn('[auth] failed to update localStorage:', e.message)
+      }
 
       console.log(`[auth] safeRefresh succeeded on attempt ${attempt}`)
       return newSession
