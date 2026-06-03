@@ -3,7 +3,7 @@ export async function getValidSession(supabase) {
     setTimeout(() => {
       console.warn('[auth] getValidSession timeout — returning null')
       resolve(null)
-    }, 5000)
+    }, 15000)
   )
 
   const sessionWork = async () => {

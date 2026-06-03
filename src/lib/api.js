@@ -13,8 +13,14 @@ export async function fetchWithAuth(url, options = {}, retries = 2) {
   let session = await getValidSession(supabase)
 
   if (!session?.access_token) {
-    console.error('[fetchWithAuth] no valid session — aborting')
-    throw new Error('פג תוקף החיבור — נא לרענן את הדף')
+    console.warn('[fetchWithAuth] no session — attempting refresh...')
+    session = await safeRefresh(supabase)
+
+    if (!session?.access_token) {
+      console.error('[fetchWithAuth] refresh failed — aborting')
+      throw new Error('פג תוקף החיבור — נא לרענן את הדף')
+    }
+    console.log('[fetchWithAuth] refresh succeeded')
   }
 
   const impersonateRaw = sessionStorage.getItem('axess_impersonate')

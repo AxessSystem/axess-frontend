@@ -2,6 +2,7 @@ import { lazy, Suspense, useEffect } from 'react'
 import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom'
 import { Toaster } from 'react-hot-toast'
 import { AuthProvider, useAuth } from '@/contexts/AuthContext'
+import { supabase } from '@/lib/supabase'
 
 import AdminRoute from '@/components/guards/AdminRoute'
 import ProducerRoute from '@/components/guards/ProducerRoute'
@@ -150,6 +151,19 @@ function DashboardWrapper() {
 }
 
 export default function App() {
+  useEffect(() => {
+    const interval = setInterval(async () => {
+      try {
+        const { data, error } = await supabase.auth.refreshSession()
+        if (error) console.warn('[auth] bg refresh failed:', error.message)
+        else if (data?.session) console.log('[auth] bg refresh ok')
+      } catch (e) {
+        console.warn('[auth] bg refresh error:', e.message)
+      }
+    }, 40 * 60 * 1000)
+    return () => clearInterval(interval)
+  }, [])
+
   return (
     <BrowserRouter>
       <AuthProvider>
