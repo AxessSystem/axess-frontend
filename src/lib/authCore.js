@@ -1,59 +1,31 @@
 export async function getValidSession(supabase) {
-  const sessionTimeout = new Promise((resolve) =>
-    setTimeout(() => {
-      console.warn('[auth] getValidSession timeout — returning null')
-      resolve(null)
-    }, 25000)
-  )
-
-  const sessionWork = async () => {
+  try {
+    let isExpiredInStorage = false
     try {
-      // Safari detection:
-      const isSafari = /^((?!chrome|android).)*safari/i.test(navigator?.userAgent || '');
-
-      // Direct getSession without lock for Safari or as fallback:
-      const directGetSession = async () => {
-        try {
-          const { data } = await supabase.auth.getSession();
-          return data?.session || null;
-        } catch (e) {
-          return null;
+      const storageKey = Object.keys(localStorage).find(k =>
+        k.startsWith('sb-') && k.endsWith('-auth-token')
+      )
+      if (storageKey) {
+        const stored = JSON.parse(localStorage.getItem(storageKey))
+        const expiresAt = stored?.expires_at
+        if (expiresAt) {
+          isExpiredInStorage = (expiresAt * 1000) < (Date.now() + 60000)
         }
-      };
-
-      if (isSafari) return directGetSession();
-
-      // For Chrome/Firefox — race with timeout:
-      const timeout = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('timeout')), 5000)
-      );
-
-      try {
-        return await Promise.race([
-          (async () => {
-            const { data, error } = await supabase.auth.getSession();
-            if (error || !data?.session) return null;
-            const isExpired = data.session.expires_at * 1000 < Date.now();
-            const isExpiringSoon = data.session.expires_at * 1000 < Date.now() + 60000;
-            if (isExpired || isExpiringSoon) {
-              console.log('[auth] token expired/expiring — refreshing immediately');
-              return await safeRefresh(supabase);
-            }
-            return data.session;
-          })(),
-          timeout
-        ]);
-      } catch (e) {
-        // LockManager timeout — fallback:
-        return directGetSession();
       }
-    } catch (e) {
-      console.warn('[auth] getValidSession error:', e.message)
-      return null
-    }
-  }
+    } catch (e) {}
 
-  return Promise.race([sessionWork(), sessionTimeout])
+    if (isExpiredInStorage) {
+      console.log('[auth] token expired in storage — refreshing immediately')
+      return await safeRefresh(supabase)
+    }
+
+    const { data, error } = await supabase.auth.getSession()
+    if (error || !data?.session) return null
+    return data.session
+  } catch (e) {
+    console.warn('[auth] getValidSession error:', e.message)
+    return null
+  }
 }
 
 export async function safeRefresh(supabase) {
