@@ -33,8 +33,12 @@ export async function getValidSession(supabase) {
           (async () => {
             const { data, error } = await supabase.auth.getSession();
             if (error || !data?.session) return null;
-            const isExpired = data.session.expires_at * 1000 < Date.now() + 30000;
-            if (isExpired) return await safeRefresh(supabase);
+            const isExpired = data.session.expires_at * 1000 < Date.now();
+            const isExpiringSoon = data.session.expires_at * 1000 < Date.now() + 60000;
+            if (isExpired || isExpiringSoon) {
+              console.log('[auth] token expired/expiring — refreshing immediately');
+              return await safeRefresh(supabase);
+            }
             return data.session;
           })(),
           timeout
