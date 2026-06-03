@@ -57,11 +57,19 @@ export async function safeRefresh(supabase) {
     try {
       console.log(`[auth] safeRefresh attempt ${attempt}`)
 
-      const { data: sessionData } = await supabase.auth.getSession()
-      const refreshToken = sessionData?.session?.refresh_token
+      let refreshToken = null
+      try {
+        const storageKey = Object.keys(localStorage).find(k => k.startsWith('sb-') && k.endsWith('-auth-token'))
+        if (storageKey) {
+          const stored = JSON.parse(localStorage.getItem(storageKey))
+          refreshToken = stored?.refresh_token
+        }
+      } catch (e) {
+        console.warn('[auth] failed to read localStorage:', e.message)
+      }
 
       if (!refreshToken) {
-        console.warn('[auth] no refresh token in storage')
+        console.warn('[auth] no refresh token in localStorage')
         return null
       }
 
@@ -84,7 +92,8 @@ export async function safeRefresh(supabase) {
       clearTimeout(timeout)
 
       if (!response.ok) {
-        console.warn(`[auth] refresh HTTP ${response.status}`)
+        const errBody = await response.json().catch(() => ({}))
+        console.warn(`[auth] refresh HTTP ${response.status}:`, errBody)
         if (attempt === 2) return null
         await new Promise(r => setTimeout(r, 2000))
         continue
