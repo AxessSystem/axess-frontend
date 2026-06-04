@@ -1,4 +1,6 @@
 let refreshInFlight = null
+let lastChecked = 0
+const CHECK_INTERVAL = 30000
 
 export async function safeRefresh(supabase) {
   if (refreshInFlight) {
@@ -68,20 +70,26 @@ export async function safeRefresh(supabase) {
 
 export async function refreshIfNeeded(supabase) {
   try {
+    const now = Date.now()
+
     const storageKey = Object.keys(localStorage).find(k =>
       k.startsWith('sb-') && k.endsWith('-auth-token')
     )
-    if (storageKey) {
-      const stored = JSON.parse(localStorage.getItem(storageKey))
-      const expiresAt = stored?.expires_at
-      if (expiresAt && (expiresAt * 1000) < (Date.now() + 5 * 60 * 1000)) {
-        console.log('[auth] refreshIfNeeded — token expiring, refreshing')
-        return await safeRefresh(supabase)
-      }
-      if (stored?.access_token) return stored
+    if (!storageKey) return null
+
+    const stored = JSON.parse(localStorage.getItem(storageKey))
+    const expiresAt = stored?.expires_at
+
+    if (expiresAt && (expiresAt * 1000) < (now + 5 * 60 * 1000)) {
+      lastChecked = now
+      return await safeRefresh(supabase)
     }
-    const { data } = await supabase.auth.getSession()
-    return data?.session || null
+
+    if (stored?.access_token) {
+      return stored
+    }
+
+    return null
   } catch (e) {
     return await safeRefresh(supabase)
   }
