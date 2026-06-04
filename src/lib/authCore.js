@@ -8,13 +8,51 @@ export async function safeRefresh(supabase) {
 
   refreshInFlight = (async () => {
     try {
-      const { data, error } = await Promise.race([
-        supabase.auth.refreshSession(),
-        new Promise((_, reject) => setTimeout(() => reject(new Error('refresh timeout')), 10000)),
-      ])
-      if (error || !data?.session) return null
+      const storageKey = Object.keys(localStorage).find(k =>
+        k.startsWith('sb-') && k.endsWith('-auth-token')
+      )
+      if (!storageKey) return null
+
+      const stored = JSON.parse(localStorage.getItem(storageKey))
+      const refreshToken = stored?.refresh_token
+      if (!refreshToken) return null
+
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
+      const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
+
+      const controller = new AbortController()
+      const timeout = setTimeout(() => controller.abort(), 10000)
+
+      const response = await fetch(`${supabaseUrl}/auth/v1/token?grant_type=refresh_token`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': supabaseKey,
+        },
+        body: JSON.stringify({ refresh_token: refreshToken }),
+        signal: controller.signal,
+      })
+
+      clearTimeout(timeout)
+
+      if (!response.ok) {
+        console.warn(`[auth] refresh HTTP ${response.status}`)
+        return null
+      }
+
+      const newSession = await response.json()
+      if (!newSession?.access_token) return null
+
+      const updated = {
+        ...stored,
+        access_token: newSession.access_token,
+        refresh_token: newSession.refresh_token,
+        expires_at: Math.floor(Date.now() / 1000) + (newSession.expires_in || 3600),
+        expires_in: newSession.expires_in || 3600,
+      }
+      localStorage.setItem(storageKey, JSON.stringify(updated))
       console.log('[auth] refresh succeeded')
-      return data.session
+      return updated
     } catch (e) {
       console.warn('[auth] refresh failed:', e.message)
       return null
