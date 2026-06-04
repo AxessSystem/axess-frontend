@@ -28,6 +28,27 @@ export async function safeRefresh(supabase) {
   }
 }
 
+export async function refreshIfNeeded(supabase) {
+  try {
+    const storageKey = Object.keys(localStorage).find(k =>
+      k.startsWith('sb-') && k.endsWith('-auth-token')
+    )
+    if (storageKey) {
+      const stored = JSON.parse(localStorage.getItem(storageKey))
+      const expiresAt = stored?.expires_at
+      if (expiresAt && (expiresAt * 1000) < (Date.now() + 5 * 60 * 1000)) {
+        console.log('[auth] refreshIfNeeded — token expiring, refreshing')
+        return await safeRefresh(supabase)
+      }
+      if (stored?.access_token) return stored
+    }
+    const { data } = await supabase.auth.getSession()
+    return data?.session || null
+  } catch (e) {
+    return await safeRefresh(supabase)
+  }
+}
+
 export async function getValidSession(supabase) {
   try {
     try {

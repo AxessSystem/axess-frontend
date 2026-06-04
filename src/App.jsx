@@ -3,7 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-route
 import { Toaster } from 'react-hot-toast'
 import { AuthProvider, useAuth } from '@/contexts/AuthContext'
 import { supabase } from '@/lib/supabase'
-import { safeRefresh } from '@/lib/authCore'
+import { refreshIfNeeded } from '@/lib/authCore'
 
 import AdminRoute from '@/components/guards/AdminRoute'
 import ProducerRoute from '@/components/guards/ProducerRoute'
@@ -155,18 +155,7 @@ export default function App() {
   useEffect(() => {
     const onVisible = async () => {
       if (document.visibilityState !== 'visible') return
-      try {
-        const storageKey = Object.keys(localStorage).find(k =>
-          k.startsWith('sb-') && k.endsWith('-auth-token')
-        )
-        if (!storageKey) return
-        const stored = JSON.parse(localStorage.getItem(storageKey))
-        const expiresAt = stored?.expires_at
-        if (expiresAt && (expiresAt * 1000) < (Date.now() + 60000)) {
-          console.log('[auth] tab visible + token expiring — refreshing')
-          await safeRefresh(supabase)
-        }
-      } catch (e) {}
+      await refreshIfNeeded(supabase)
     }
     document.addEventListener('visibilitychange', onVisible)
     return () => document.removeEventListener('visibilitychange', onVisible)

@@ -1,5 +1,5 @@
 import { supabase } from '@/lib/supabase'
-import { getValidSession, safeRefresh } from '@/lib/authCore'
+import { refreshIfNeeded, safeRefresh } from '@/lib/authCore'
 
 let _cachedBusinessId = null
 let _cachedUserId = null
@@ -10,13 +10,9 @@ export async function fetchWithAuth(url, options = {}, retries = 2) {
   // Resolve full URL if path only (starts with /)
   const fullUrl = url.startsWith('http') ? url : `${BASE}${url}`
 
-  let session = await getValidSession(supabase)
-
+  let session = await refreshIfNeeded(supabase)
   if (!session?.access_token) {
-    session = await safeRefresh(supabase)
-    if (!session?.access_token) {
-      throw new Error('פג תוקף החיבור — נא לרענן את הדף')
-    }
+    throw new Error('פג תוקף החיבור — נא לרענן את הדף')
   }
 
   const impersonateRaw = sessionStorage.getItem('axess_impersonate')
