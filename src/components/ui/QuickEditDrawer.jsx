@@ -38,56 +38,58 @@ export default function QuickEditDrawer({ recipient, businessId, fetchWithAuth, 
     let profileOk = false
 
     try {
-      const controller = new AbortController()
-      const timeout = setTimeout(() => controller.abort(), 15000)
-
-      await fetchWithAuth(`/api/admin/recipients/${recipient.id}/profile`, {
-        method: 'PATCH',
-        signal: controller.signal,
-        body: JSON.stringify({
-          business_id: businessId,
-          first_name: form.first_name,
-          last_name: form.last_name,
-          phone: form.phone,
-          gender: form.gender || null,
-          birth_date: form.birth_date || null,
-          contact_types: form.contact_types,
-          internal_notes: form.internal_notes,
-        }),
-      })
-      clearTimeout(timeout)
-      profileOk = true
-      console.log('[QuickEdit] profile saved ok')
-    } catch (e) {
-      console.error('[QuickEdit] profile error:', e.message)
-      if (e.message.includes('פג תוקף') || e.message.includes('session')) {
-        setSaveError('פג תוקף החיבור — נא לרענן את הדף (F5)')
-      } else {
-        setSaveError(e.name === 'AbortError' ? 'הבקשה נתקעה — נסה שוב' : 'שגיאה: ' + e.message)
-      }
-    }
-
-    if (profileOk && form.tags) {
       try {
-        const controller2 = new AbortController()
-        const timeout2 = setTimeout(() => controller2.abort(), 10000)
-        await fetchWithAuth(`/api/admin/recipients/${recipient.id}/tags`, {
+        const controller = new AbortController()
+        const timeout = setTimeout(() => controller.abort(), 15000)
+
+        await fetchWithAuth(`/api/admin/recipients/${recipient.id}/profile`, {
           method: 'PATCH',
-          signal: controller2.signal,
-          body: JSON.stringify({ business_id: businessId, tags: form.tags }),
+          signal: controller.signal,
+          body: JSON.stringify({
+            business_id: businessId,
+            first_name: form.first_name,
+            last_name: form.last_name,
+            phone: form.phone,
+            gender: form.gender || null,
+            birth_date: form.birth_date || null,
+            contact_types: form.contact_types,
+            internal_notes: form.internal_notes,
+          }),
         })
-        clearTimeout(timeout2)
+        clearTimeout(timeout)
+        profileOk = true
+        console.log('[QuickEdit] profile saved ok')
       } catch (e) {
-        console.error('[QuickEdit] tags error:', e.message)
+        console.error('[QuickEdit] profile error:', e.message)
+        if (e.message.includes('פג תוקף') || e.message.includes('session')) {
+          setSaveError('פג תוקף החיבור — נא לרענן את הדף (F5)')
+        } else {
+          setSaveError(e.name === 'AbortError' ? 'הבקשה נתקעה — נסה שוב' : 'שגיאה: ' + e.message)
+        }
       }
-    }
 
-    if (profileOk) {
-      onSaved({ ...recipient, ...form })
-      onClose()
-    }
+      if (profileOk && form.tags) {
+        try {
+          const controller2 = new AbortController()
+          const timeout2 = setTimeout(() => controller2.abort(), 10000)
+          await fetchWithAuth(`/api/admin/recipients/${recipient.id}/tags`, {
+            method: 'PATCH',
+            signal: controller2.signal,
+            body: JSON.stringify({ business_id: businessId, tags: form.tags }),
+          })
+          clearTimeout(timeout2)
+        } catch (e) {
+          console.error('[QuickEdit] tags error:', e.message)
+        }
+      }
 
-    setSaving(false)
+      if (profileOk) {
+        onSaved({ ...recipient, ...form })
+        onClose()
+      }
+    } finally {
+      setSaving(false)
+    }
   }
 
   const addTag = () => {

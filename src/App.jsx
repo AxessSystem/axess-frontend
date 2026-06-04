@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-route
 import { Toaster } from 'react-hot-toast'
 import { AuthProvider, useAuth } from '@/contexts/AuthContext'
 import { supabase } from '@/lib/supabase'
+import { safeRefresh } from '@/lib/authCore'
 
 import AdminRoute from '@/components/guards/AdminRoute'
 import ProducerRoute from '@/components/guards/ProducerRoute'
@@ -152,16 +153,23 @@ function DashboardWrapper() {
 
 export default function App() {
   useEffect(() => {
-    const interval = setInterval(async () => {
+    const onVisible = async () => {
+      if (document.visibilityState !== 'visible') return
       try {
-        const { data, error } = await supabase.auth.refreshSession()
-        if (error) console.warn('[auth] bg refresh failed:', error.message)
-        else if (data?.session) console.log('[auth] bg refresh ok')
-      } catch (e) {
-        console.warn('[auth] bg refresh error:', e.message)
-      }
-    }, 40 * 60 * 1000)
-    return () => clearInterval(interval)
+        const storageKey = Object.keys(localStorage).find(k =>
+          k.startsWith('sb-') && k.endsWith('-auth-token')
+        )
+        if (!storageKey) return
+        const stored = JSON.parse(localStorage.getItem(storageKey))
+        const expiresAt = stored?.expires_at
+        if (expiresAt && (expiresAt * 1000) < (Date.now() + 60000)) {
+          console.log('[auth] tab visible + token expiring — refreshing')
+          await safeRefresh(supabase)
+        }
+      } catch (e) {}
+    }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => document.removeEventListener('visibilitychange', onVisible)
   }, [])
 
   return (
