@@ -71,6 +71,26 @@ function initialsFrom(profile) {
   return name.split(/\s+/).map((p) => p[0]).join('').slice(0, 2)
 }
 
+function genderDisplay(gender) {
+  if (gender === 'Male') return '👨 זכר'
+  if (gender === 'Female') return '👩 נקבה'
+  return 'לא צוין'
+}
+
+function FieldWrapper({ label, children }) {
+  return (
+    <div style={{ marginBottom: '14px' }}>
+      <label style={{
+        fontSize: '11px', color: 'var(--text-secondary)',
+        display: 'block', marginBottom: '4px', fontWeight: 500,
+      }}>
+        {label}
+      </label>
+      {children}
+    </div>
+  )
+}
+
 export default function ContactPage() {
   const { id } = useParams()
   const navigate = useNavigate()
@@ -317,14 +337,19 @@ export default function ContactPage() {
 
   const inputStyle = {
     width: '100%',
-    fontSize: 14,
-    background: 'var(--card)',
+    background: 'var(--bg)',
     border: '1px solid var(--border)',
+    borderRadius: '10px',
+    padding: '11px 14px',
     color: 'var(--text)',
-    padding: '10px 12px',
-    borderRadius: 8,
+    fontSize: '14px',
+    direction: 'rtl',
+    outline: 'none',
     boxSizing: 'border-box',
+    transition: 'border-color 0.2s',
   }
+
+  const ltrInputStyle = { ...inputStyle, direction: 'ltr', textAlign: 'right' }
 
   const labelStyle = { fontSize: 12, color: 'var(--text-secondary)', marginBottom: 6, display: 'block' }
 
@@ -434,24 +459,19 @@ export default function ContactPage() {
       return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 14 }}>
-            <div>
-              <label style={labelStyle}>שם פרטי</label>
+            <FieldWrapper label="שם פרטי">
               <input className="form-input input" style={inputStyle} value={overviewForm.first_name} onChange={(e) => setOverviewForm((f) => ({ ...f, first_name: e.target.value }))} />
-            </div>
-            <div>
-              <label style={labelStyle}>שם משפחה</label>
+            </FieldWrapper>
+            <FieldWrapper label="שם משפחה">
               <input className="form-input input" style={inputStyle} value={overviewForm.last_name} onChange={(e) => setOverviewForm((f) => ({ ...f, last_name: e.target.value }))} />
-            </div>
-            <div>
-              <label style={labelStyle}>טלפון</label>
-              <input className="form-input input" style={{ ...inputStyle, opacity: 0.7 }} value={profile?.phone || ''} readOnly dir="ltr" />
-            </div>
-            <div>
-              <label style={labelStyle}>אימייל</label>
-              <input type="email" className="form-input input" style={inputStyle} value={overviewForm.email} onChange={(e) => setOverviewForm((f) => ({ ...f, email: e.target.value }))} />
-            </div>
-            <div>
-              <label style={labelStyle}>מגדר</label>
+            </FieldWrapper>
+            <FieldWrapper label="טלפון">
+              <input className="form-input input" style={{ ...ltrInputStyle, opacity: 0.7 }} value={profile?.phone || ''} readOnly />
+            </FieldWrapper>
+            <FieldWrapper label="אימייל">
+              <input type="email" className="form-input input" style={ltrInputStyle} value={overviewForm.email} onChange={(e) => setOverviewForm((f) => ({ ...f, email: e.target.value }))} />
+            </FieldWrapper>
+            <FieldWrapper label="מגדר">
               <CustomSelect
                 className="form-input input"
                 value={overviewForm.gender}
@@ -460,122 +480,107 @@ export default function ContactPage() {
                 placeholder="לא צוין"
                 options={[
                   { value: '', label: 'לא צוין' },
-                  { value: 'Male', label: 'זכר' },
-                  { value: 'Female', label: 'נקבה' },
+                  { value: 'Male', label: '👨 זכר' },
+                  { value: 'Female', label: '👩 נקבה' },
                 ]}
               />
-            </div>
-            <div>
-              <label style={labelStyle}>תאריך לידה</label>
-              <input type="date" className="form-input input" style={inputStyle} value={overviewForm.birth_date} onChange={(e) => setOverviewForm((f) => ({ ...f, birth_date: e.target.value }))} />
+            </FieldWrapper>
+            <FieldWrapper label="תאריך לידה">
+              <input type="date" className="form-input input" style={ltrInputStyle} value={overviewForm.birth_date} onChange={(e) => setOverviewForm((f) => ({ ...f, birth_date: e.target.value }))} />
               {overviewForm.birth_date && (
                 <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 4 }}>
                   גיל: {calcAge(overviewForm.birth_date) ?? '—'}
                 </div>
               )}
-            </div>
-            <div style={{ marginBottom: '12px' }}>
-              <label style={{ fontSize: '12px', color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>עיר</label>
+            </FieldWrapper>
+            <FieldWrapper label="עיר">
               <input
                 value={overviewForm.city || ''}
                 onChange={e => setOverviewForm(p => ({ ...p, city: e.target.value }))}
                 placeholder="תל אביב"
-                style={{
-                  width: '100%', background: 'var(--bg)',
-                  border: '1px solid var(--border)', borderRadius: '8px',
-                  padding: '10px 12px', color: 'var(--text)',
-                  fontSize: '14px', direction: 'rtl',
-                }}
+                style={inputStyle}
               />
-            </div>
-            <div style={{ marginBottom: '12px' }}>
-              <label style={{ fontSize: '12px', color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>עיסוק / עבודה</label>
+            </FieldWrapper>
+            <FieldWrapper label="עיסוק / עבודה">
               <input
                 value={overviewForm.occupation || ''}
                 onChange={e => setOverviewForm(p => ({ ...p, occupation: e.target.value }))}
                 placeholder="מפיק אירועים / שחקן / ..."
-                style={{ width: '100%', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: '8px', padding: '10px 12px', color: 'var(--text)', fontSize: '14px', direction: 'rtl' }}
+                style={inputStyle}
               />
-            </div>
-            <div style={{ marginBottom: '12px' }}>
-              <label style={{ fontSize: '12px', color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>אתר</label>
+            </FieldWrapper>
+            <FieldWrapper label="אתר">
               <input
                 value={overviewForm.website || ''}
                 onChange={e => setOverviewForm(p => ({ ...p, website: e.target.value }))}
                 placeholder="https://..."
-                dir="ltr"
-                style={{ width: '100%', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: '8px', padding: '10px 12px', color: 'var(--text)', fontSize: '14px' }}
+                style={ltrInputStyle}
               />
-            </div>
+            </FieldWrapper>
             <div style={{ gridColumn: isMobile ? 'auto' : '1 / -1' }}>
-              <label style={{ fontSize: '12px', color: 'var(--text-secondary)', display: 'block', marginBottom: '8px' }}>
-                סוגי קשר
-              </label>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                {contactTypes.map((type) => {
-                  const selected = (overviewForm.contact_types || []).includes(type.value)
-                  return (
-                    <button
-                      key={type.value}
-                      type="button"
-                      onClick={() => {
-                        const current = overviewForm.contact_types || []
-                        setOverviewForm((prev) => ({
-                          ...prev,
-                          contact_types: selected
-                            ? current.filter((t) => t !== type.value)
-                            : [...current, type.value],
-                        }))
-                      }}
-                      style={{
-                        padding: '6px 12px',
-                        borderRadius: '20px',
-                        border: `1px solid ${selected ? '#00C37A' : 'var(--border)'}`,
-                        background: selected ? '#00C37A20' : 'transparent',
-                        color: selected ? '#00C37A' : 'var(--text-secondary)',
-                        cursor: 'pointer',
-                        fontSize: '13px',
-                        WebkitTapHighlightColor: 'transparent',
-                      }}
-                    >
-                      {type.emoji} {type.label}
-                    </button>
-                  )
-                })}
-              </div>
+              <FieldWrapper label="סוגי קשר">
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                  {contactTypes.map((type) => {
+                    const selected = (overviewForm.contact_types || []).includes(type.value)
+                    return (
+                      <button
+                        key={type.value}
+                        type="button"
+                        onClick={() => {
+                          const current = overviewForm.contact_types || []
+                          setOverviewForm((prev) => ({
+                            ...prev,
+                            contact_types: selected
+                              ? current.filter((t) => t !== type.value)
+                              : [...current, type.value],
+                          }))
+                        }}
+                        style={{
+                          padding: '6px 12px',
+                          borderRadius: '20px',
+                          border: `1px solid ${selected ? '#00C37A' : 'var(--border)'}`,
+                          background: selected ? '#00C37A20' : 'transparent',
+                          color: selected ? '#00C37A' : 'var(--text-secondary)',
+                          cursor: 'pointer',
+                          fontSize: '13px',
+                          WebkitTapHighlightColor: 'transparent',
+                        }}
+                      >
+                        {type.emoji} {type.label}
+                      </button>
+                    )
+                  })}
+                </div>
+              </FieldWrapper>
             </div>
             {(overviewForm.contact_types || []).includes('vendor') && (
               <div style={{ gridColumn: isMobile ? 'auto' : '1 / -1' }}>
-                <label style={{ fontSize: '12px', color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>
-                  סוג ספק
-                </label>
-                <input
-                  value={overviewForm.vendor_type || ''}
-                  onChange={(e) => setOverviewForm((prev) => ({ ...prev, vendor_type: e.target.value }))}
-                  placeholder="אטרקציות / קייטרינג / צילום..."
-                  className="form-input input"
-                  style={{ ...inputStyle, direction: 'rtl' }}
-                />
+                <FieldWrapper label="סוג ספק">
+                  <input
+                    value={overviewForm.vendor_type || ''}
+                    onChange={(e) => setOverviewForm((prev) => ({ ...prev, vendor_type: e.target.value }))}
+                    placeholder="אטרקציות / קייטרינג / צילום..."
+                    className="form-input input"
+                    style={inputStyle}
+                  />
+                </FieldWrapper>
               </div>
             )}
             {(overviewForm.contact_types || []).includes('organizer') && (
               <div style={{ gridColumn: isMobile ? 'auto' : '1 / -1' }}>
-                <label style={{ fontSize: '12px', color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>
-                  סוג אירועים
-                </label>
-                <input
-                  value={overviewForm.organizer_type || ''}
-                  onChange={(e) => setOverviewForm((prev) => ({ ...prev, organizer_type: e.target.value }))}
-                  placeholder="חתונות / בר מצוות / מסיבות..."
-                  className="form-input input"
-                  style={{ ...inputStyle, direction: 'rtl' }}
-                />
+                <FieldWrapper label="סוג אירועים">
+                  <input
+                    value={overviewForm.organizer_type || ''}
+                    onChange={(e) => setOverviewForm((prev) => ({ ...prev, organizer_type: e.target.value }))}
+                    placeholder="חתונות / בר מצוות / מסיבות..."
+                    className="form-input input"
+                    style={inputStyle}
+                  />
+                </FieldWrapper>
               </div>
             )}
-            <div style={{ gridColumn: isMobile ? 'auto' : '1 / -1', marginTop: '16px' }}>
-              <label style={{ fontSize: '12px', color: 'var(--text-secondary)', display: 'block', marginBottom: '8px', fontWeight: 600 }}>
-                הערות פנימיות
-              </label>
+            <div style={{ gridColumn: isMobile ? 'auto' : '1 / -1' }}>
+              <FieldWrapper label="הערות פנימיות">
               {overviewForm.internal_notes && (
                 <div style={{
                   background: 'var(--bg)', border: '1px solid var(--border)',
@@ -618,18 +623,20 @@ export default function ContactPage() {
                   + הוסף
                 </button>
               </div>
+              </FieldWrapper>
             </div>
-            <div>
-              <label style={labelStyle}>ת.ז.</label>
+            <FieldWrapper label="ת.ז.">
               <input className="form-input input" style={inputStyle} value={overviewForm.id_number} onChange={(e) => setOverviewForm((f) => ({ ...f, id_number: e.target.value }))} />
+            </FieldWrapper>
+            <div style={{ gridColumn: isMobile ? 'auto' : '1 / -1' }}>
+              <FieldWrapper label="אינסטגרם (URL)">
+                <input className="form-input input" style={ltrInputStyle} value={overviewForm.instagram_url} onChange={(e) => setOverviewForm((f) => ({ ...f, instagram_url: e.target.value }))} />
+              </FieldWrapper>
             </div>
             <div style={{ gridColumn: isMobile ? 'auto' : '1 / -1' }}>
-              <label style={labelStyle}>אינסטגרם (URL)</label>
-              <input className="form-input input" style={inputStyle} value={overviewForm.instagram_url} onChange={(e) => setOverviewForm((f) => ({ ...f, instagram_url: e.target.value }))} dir="ltr" />
-            </div>
-            <div style={{ gridColumn: isMobile ? 'auto' : '1 / -1' }}>
-              <label style={labelStyle}>מנוי לדיוור</label>
-              <input className="form-input input" style={inputStyle} value={overviewForm.subscribed} onChange={(e) => setOverviewForm((f) => ({ ...f, subscribed: e.target.value }))} placeholder="כן / לא / פעיל..." />
+              <FieldWrapper label="מנוי לדיוור">
+                <input className="form-input input" style={inputStyle} value={overviewForm.subscribed} onChange={(e) => setOverviewForm((f) => ({ ...f, subscribed: e.target.value }))} placeholder="כן / לא / פעיל..." />
+              </FieldWrapper>
             </div>
           </div>
           <button

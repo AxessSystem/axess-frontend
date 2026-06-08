@@ -80,6 +80,17 @@ export default function RecipientsTable({
       ),
     },
     {
+      accessorKey: 'last_name',
+      header: 'שם משפחה',
+      size: 120,
+      cell: ({ row }) => {
+        const name = row.original.name || ''
+        const parts = name.trim().split(' ')
+        const lastName = parts.length > 1 ? parts.slice(1).join(' ') : '—'
+        return <span style={{ fontSize: '13px' }}>{lastName}</span>
+      },
+    },
+    {
       accessorKey: 'phone',
       header: 'טלפון',
       size: 130,

@@ -545,7 +545,9 @@ export default function Audiences() {
   const [ageMax, setAgeMax] = useState('')
   const [cityFilter, setCityFilter] = useState('')
   const [tagFilter, setTagFilter] = useState('')
-  const [sortBy, setSortBy] = useState('score')
+  const [sortBy, setSortBy] = useState(savedAudiencesState.sortBy || '')
+  const [bulkCity, setBulkCity] = useState('')
+  const [showContactTypeDropdown, setShowContactTypeDropdown] = useState(false)
   const [selectedCustomerId, setSelectedCustomerId] = useState(null)
   const [importOpen, setImportOpen] = useState(false)
   const [showBulkTagModal, setShowBulkTagModal] = useState(false)
@@ -713,9 +715,24 @@ export default function Audiences() {
         searchResults,
         searchScope,
         scopeSegments,
+        sortBy,
       }))
     } catch {}
-  }, [search, activeTag, contactTypeFilter, activeSegment, activeCategory, page, searchResults, searchScope, scopeSegments])
+  }, [search, activeTag, contactTypeFilter, activeSegment, activeCategory, page, searchResults, searchScope, scopeSegments, sortBy])
+
+  useEffect(() => {
+    const handler = () => setShowContactTypeDropdown(false)
+    if (showContactTypeDropdown) document.addEventListener('click', handler)
+    return () => document.removeEventListener('click', handler)
+  }, [showContactTypeDropdown])
+
+  const handleSortChange = (val) => {
+    setSortBy(val)
+    try {
+      const state = JSON.parse(sessionStorage.getItem('audiences_state') || '{}')
+      sessionStorage.setItem('audiences_state', JSON.stringify({ ...state, sortBy: val }))
+    } catch {}
+  }
 
   useEffect(() => {
     if (recipientsError) {
@@ -954,9 +971,11 @@ export default function Audiences() {
       return contactTypeFilter.every(ct => (r.contact_types || []).includes(ct))
     })
     .sort((a, b) => {
+      if (!sortBy) return 0
       if (sortBy === 'score') return (b.score || 0) - (a.score || 0)
       if (sortBy === 'campaigns') return (b.campaigns || 0) - (a.campaigns || 0)
-      if (sortBy === 'name') return (a.name || '').localeCompare(b.name || '', 'he')
+      if (sortBy === 'name_asc') return (a.name || '').localeCompare(b.name || '', 'he')
+      if (sortBy === 'name_desc') return (b.name || '').localeCompare(a.name || '', 'he')
       return 0
     })
 
@@ -976,7 +995,11 @@ export default function Audiences() {
           <h1 style={{ fontFamily: "'Bricolage Grotesque','Outfit',sans-serif", fontWeight: 800, fontSize: 26, color: '#ffffff' }}>קהלים</h1>
           <p style={{ color: 'var(--v2-gray-400)', fontSize: 14, marginTop: 4 }}>{loadingRecipients ? 'טוען...' : `${recipients.length} אנשי קשר`}</p>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div style={{
+          display: 'flex', gap: '8px', alignItems: 'center',
+          overflowX: 'auto', WebkitOverflowScrolling: 'touch',
+          scrollbarWidth: 'none', paddingBottom: '4px',
+        }}>
           <button
             type="button"
             onClick={() => setShowAddContact(true)}
@@ -985,11 +1008,26 @@ export default function Audiences() {
               border: '1px solid #00C37A', background: '#00C37A20',
               color: '#00C37A', cursor: 'pointer', fontSize: '13px',
               display: 'flex', alignItems: 'center', gap: '6px',
-              WebkitTapHighlightColor: 'transparent',
+              WebkitTapHighlightColor: 'transparent', flexShrink: 0,
             }}
           >
             + איש קשר
           </button>
+          <button
+            type="button"
+            onClick={() => setImportOpen(true)}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 8, padding: '10px 16px',
+              background: 'var(--v2-primary)', color: 'var(--v2-dark)', border: 'none',
+              borderRadius: 'var(--radius-full)', fontWeight: 600, cursor: 'pointer',
+              flexShrink: 0,
+            }}
+          >
+            <Upload size={16} /> ייבוא קהל
+          </button>
+          <div style={{ flexShrink: 0 }}>
+            <ExportButton businessId={businessId} segment="all" label="ייצוא" />
+          </div>
           <button
             type="button"
             onClick={async () => {
@@ -1010,15 +1048,11 @@ export default function Audiences() {
               padding: '8px 16px', borderRadius: '10px',
               border: '1px solid var(--border)', background: 'transparent',
               color: 'var(--text-secondary)', cursor: 'pointer', fontSize: '13px',
-              WebkitTapHighlightColor: 'transparent',
+              WebkitTapHighlightColor: 'transparent', flexShrink: 0,
             }}
           >
             🔀 מזג כפילויות
           </button>
-          <button onClick={() => setImportOpen(true)} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 16px', background: 'var(--v2-primary)', color: 'var(--v2-dark)', border: 'none', borderRadius: 'var(--radius-full)', fontWeight: 600, cursor: 'pointer' }}>
-            <Upload size={16} /> ייבוא קהל
-          </button>
-          <ExportButton businessId={businessId} segment="all" label="ייצוא" />
         </div>
       </div>
 
@@ -1732,11 +1766,13 @@ export default function Audiences() {
               className="input audience-search-row-3-sort"
               style={{ width: 'auto' }}
               value={sortBy}
-              onChange={(val) => setSortBy(val)}
+              onChange={handleSortChange}
               options={[
-                { value: 'score', label: 'מיין: ציון' },
-                { value: 'campaigns', label: 'מיין: קמפיינים' },
-                { value: 'name', label: 'מיין: שם' },
+                { value: '', label: 'ללא מיון' },
+                { value: 'name_asc', label: 'א→ת' },
+                { value: 'name_desc', label: 'ת→א' },
+                { value: 'score', label: 'לפי ציון' },
+                { value: 'campaigns', label: 'לפי קמפיינים' },
               ]}
             />
           </div>
@@ -1946,27 +1982,80 @@ export default function Audiences() {
               </>
             )}
             <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginRight: 'auto' }}>
-              {contactTypes.slice(0, 6).map(ct => {
-                const active = contactTypeFilter.includes(ct.value)
-                return (
-                  <button
-                    key={ct.value}
-                    type="button"
-                    onClick={() => setContactTypeFilter(p =>
-                      active ? p.filter(v => v !== ct.value) : [...p, ct.value]
-                    )}
+              <div style={{ position: 'relative' }}>
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); setShowContactTypeDropdown(p => !p) }}
+                  style={{
+                    padding: '6px 12px', borderRadius: '20px', fontSize: '13px',
+                    border: `1px solid ${contactTypeFilter.length ? '#00C37A' : 'var(--border)'}`,
+                    background: contactTypeFilter.length ? '#00C37A20' : 'transparent',
+                    color: contactTypeFilter.length ? '#00C37A' : 'var(--text-secondary)',
+                    cursor: 'pointer', WebkitTapHighlightColor: 'transparent',
+                  }}
+                >
+                  {contactTypeFilter.length ? `סוגי קשר (${contactTypeFilter.length})` : 'סוגי קשר ▼'}
+                </button>
+
+                {showContactTypeDropdown && (
+                  <div
+                    onClick={(e) => e.stopPropagation()}
                     style={{
-                      padding: '5px 10px', borderRadius: '20px', fontSize: '12px', cursor: 'pointer',
-                      border: `1px solid ${active ? '#00C37A' : 'var(--border)'}`,
-                      background: active ? '#00C37A20' : 'transparent',
-                      color: active ? '#00C37A' : 'var(--text-secondary)',
-                      WebkitTapHighlightColor: 'transparent'
+                      position: 'absolute', top: '100%', right: 0, zIndex: 100,
+                      background: 'var(--card)', border: '1px solid var(--border)',
+                      borderRadius: '12px', padding: '8px', minWidth: '180px',
+                      boxShadow: '0 4px 20px rgba(0,0,0,0.3)', marginTop: '4px',
                     }}
                   >
-                    {ct.emoji} {ct.label}
-                  </button>
-                )
-              })}
+                    {contactTypes.map(ct => {
+                      const selected = contactTypeFilter.includes(ct.value)
+                      return (
+                        <label key={ct.value} style={{
+                          display: 'flex', alignItems: 'center', gap: '8px',
+                          padding: '8px 10px', borderRadius: '8px', cursor: 'pointer',
+                          background: selected ? '#00C37A15' : 'transparent',
+                        }}>
+                          <input
+                            type="checkbox"
+                            checked={selected}
+                            onChange={() => setContactTypeFilter(p =>
+                              selected ? p.filter(v => v !== ct.value) : [...p, ct.value]
+                            )}
+                            style={{ accentColor: '#00C37A' }}
+                          />
+                          <span style={{ fontSize: '13px' }}>{ct.emoji} {ct.label}</span>
+                        </label>
+                      )
+                    })}
+
+                    <div style={{ borderTop: '1px solid var(--border)', marginTop: '4px', paddingTop: '4px', display: 'flex', gap: '6px' }}>
+                      <button
+                        type="button"
+                        onClick={() => setShowContactTypeDropdown(false)}
+                        style={{
+                          flex: 1, padding: '8px', borderRadius: '8px', fontSize: '13px',
+                          border: 'none', background: '#00C37A', color: '#fff', cursor: 'pointer',
+                        }}
+                      >
+                        חפש
+                      </button>
+                      {contactTypeFilter.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => setContactTypeFilter([])}
+                          style={{
+                            padding: '8px 10px', borderRadius: '8px', fontSize: '13px',
+                            border: '1px solid var(--border)', background: 'transparent',
+                            color: 'var(--text-secondary)', cursor: 'pointer',
+                          }}
+                        >
+                          נקה
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
               <button
                 type="button"
                 onClick={() => setShowContactTypesModal(true)}
@@ -2411,6 +2500,54 @@ export default function Audiences() {
                   החל
                 </button>
               )}
+            </div>
+
+            {/* מין */}
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+              <span style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>מין:</span>
+              {[
+                { value: 'Male', label: '👨 זכר' },
+                { value: 'Female', label: '👩 נקבה' },
+              ].map(opt => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => bulkUpdate('set_gender', opt.value)}
+                  style={{
+                    padding: '6px 12px', borderRadius: '8px', fontSize: '13px',
+                    border: '1px solid var(--border)', background: 'transparent',
+                    color: 'var(--text)', cursor: 'pointer',
+                    WebkitTapHighlightColor: 'transparent',
+                  }}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+
+            {/* עיר */}
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+              <input
+                placeholder="עיר..."
+                value={bulkCity || ''}
+                onChange={e => setBulkCity(e.target.value)}
+                style={{
+                  padding: '6px 10px', borderRadius: '8px', fontSize: '13px',
+                  border: '1px solid var(--border)', background: 'var(--bg)',
+                  color: 'var(--text)', direction: 'rtl', width: '120px',
+                }}
+              />
+              <button
+                type="button"
+                onClick={() => bulkCity && bulkUpdate('set_city', bulkCity)}
+                style={{
+                  padding: '6px 12px', borderRadius: '8px', fontSize: '13px',
+                  border: 'none', background: '#00C37A', color: '#fff',
+                  cursor: 'pointer',
+                }}
+              >
+                החל עיר
+              </button>
             </div>
 
             <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
