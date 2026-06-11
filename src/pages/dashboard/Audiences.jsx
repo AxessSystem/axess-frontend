@@ -925,6 +925,9 @@ export default function Audiences() {
         body: JSON.stringify({ ids, action, value, business_id: businessId }),
       })
       console.log(`[bulk] ${action} על ${result.affected} רשומות`)
+      if (action === 'set_gender') {
+        queryClient.invalidateQueries({ queryKey: ['segments', businessId] })
+      }
     } catch (e) {
       console.error('[bulk] שגיאה:', e.message)
     } finally {
