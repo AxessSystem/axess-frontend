@@ -701,11 +701,11 @@ export default function Audiences() {
   useEffect(() => {
     if (!recipientsData) return
     if (activeSegment === 'all' || !activeSegment) {
-      console.log('[Audiences] recipients loaded:', recipientsData?.recipients?.length ?? 0)
-      setRecipients(recipientsData?.recipients || recipientsData || [])
-      setTotalCount(recipientsData?.total || recipientsData?.recipients?.length || 0)
-      setHasMore(recipientsData?.has_more || false)
-      setLoadedCount(recipientsData?.loaded || recipientsData?.recipients?.length || 0)
+      const data = recipientsData
+      if (data.total !== undefined) setTotalCount(data.total)
+      if (data.has_more !== undefined) setHasMore(data.has_more)
+      if (data.loaded !== undefined) setLoadedCount(data.loaded)
+      setRecipients(data.recipients || data || [])
       setLoadError(null)
     }
   }, [recipientsData, activeSegment])
@@ -1018,6 +1018,18 @@ export default function Audiences() {
       return 0
     })
 
+  const filteredCount = useMemo(() => {
+    if (searchResults) return searchResults.length
+
+    const hasActiveFilter = genderFilter !== 'all' ||
+      activeTag !== 'הכל' ||
+      contactTypeFilter.length > 0
+
+    if (!hasActiveFilter) return totalCount || recipients.length
+
+    return filtered.length
+  }, [searchResults, filtered, genderFilter, activeTag, contactTypeFilter, totalCount, recipients])
+
   const PER_PAGE = 100
   const totalPages = Math.max(1, Math.ceil(filtered.length / PER_PAGE))
   const paginated = filtered.slice((page - 1) * PER_PAGE, page * PER_PAGE)
@@ -1032,7 +1044,7 @@ export default function Audiences() {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <div>
           <h1 style={{ fontFamily: "'Bricolage Grotesque','Outfit',sans-serif", fontWeight: 800, fontSize: 26, color: '#ffffff' }}>קהלים</h1>
-          <p style={{ color: 'var(--v2-gray-400)', fontSize: 14, marginTop: 4 }}>{loadingRecipients ? 'טוען...' : `${recipients.length} אנשי קשר`}</p>
+          <p style={{ color: 'var(--v2-gray-400)', fontSize: 14, marginTop: 4 }}>{loadingRecipients ? 'טוען...' : `${(totalCount || recipients.length).toLocaleString()} אנשי קשר`}</p>
         </div>
         <div style={{
           display: 'flex', gap: '8px', alignItems: 'center',
@@ -1831,8 +1843,13 @@ export default function Audiences() {
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, flex: 1, flexWrap: 'wrap' }}>
               <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, flexWrap: 'wrap' }}>
                 <span style={{ fontSize: 13, color: 'var(--v2-gray-400)' }}>מציג</span>
-                <span style={{ fontSize: 24, fontWeight: 700, color: 'var(--v2-primary)' }}>{loadingRecipients || loading ? 'טוען...' : filtered.length}</span>
+                <span style={{ fontSize: 24, fontWeight: 700, color: 'var(--v2-primary)' }}>{loadingRecipients || loading ? 'טוען...' : filteredCount.toLocaleString()}</span>
                 <span style={{ fontSize: 14, color: '#fff' }}>אנשי קשר</span>
+                {hasMore && !searchResults && genderFilter === 'all' && activeTag === 'הכל' && contactTypeFilter.length === 0 && (
+                  <span style={{ fontSize: '11px', color: 'var(--text-secondary)', marginRight: '4px' }}>
+                    (מוצגים {loadedCount.toLocaleString()})
+                  </span>
+                )}
               </div>
               <button
                 type="button"
@@ -1852,7 +1869,7 @@ export default function Audiences() {
                   gap: 6,
                 }}
               >
-                <Save size={14} /> שמור כסגמנט ({recipients.length})
+                <Save size={14} /> שמור כסגמנט ({filteredCount.toLocaleString()})
               </button>
             </div>
             <button
@@ -2264,15 +2281,16 @@ export default function Audiences() {
           {hasMore && (
             <div style={{ textAlign: 'center', padding: '16px' }}>
               <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: '0 0 8px' }}>
-                מוצגים {loadedCount.toLocaleString()} מתוך {totalCount.toLocaleString()} אנשי קשר
+                מוצגים {loadedCount.toLocaleString()} מתוך {totalCount.toLocaleString()} — גלול לראות עוד או לחץ לטעון
               </p>
               <button
                 onClick={async () => {
                   const newLimit = loadedCount + 2000
                   const data = await fetchWithAuth(`/api/admin/recipients?limit=${newLimit}`)
                   setRecipients(data.recipients || [])
-                  setLoadedCount(data.loaded || data.recipients?.length || 0)
-                  setHasMore(data.has_more || false)
+                  if (data.total !== undefined) setTotalCount(data.total)
+                  if (data.loaded !== undefined) setLoadedCount(data.loaded)
+                  if (data.has_more !== undefined) setHasMore(data.has_more)
                 }}
                 style={{
                   padding: '8px 20px', borderRadius: '10px',
@@ -2306,7 +2324,7 @@ export default function Audiences() {
                 gap: 6,
               }}
             >
-              <Save size={14} /> שמור כסגמנט ({recipients.length})
+              <Save size={14} /> שמור כסגמנט ({filteredCount.toLocaleString()})
             </button>
           </div>
           </>
