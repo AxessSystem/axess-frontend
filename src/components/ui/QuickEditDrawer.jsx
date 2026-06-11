@@ -106,7 +106,6 @@ export default function QuickEditDrawer({
 
       if (profileOk) {
         onSaved({ ...recipient, ...form })
-        onClose()
       }
     } finally {
       setSaving(false)

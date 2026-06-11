@@ -471,8 +471,11 @@ export default function ContactPage() {
   const tabContent = () => {
     if (activeTab === 'overview') {
       return (
-        <div style={{ display: 'flex', flexDirection: 'column', minHeight: '60vh' }}>
-          <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <div style={{
+          display: 'flex', flexDirection: 'column',
+          height: '100%', overflow: 'hidden'
+        }}>
+          <div style={{ flex: 1, overflowY: 'auto', padding: '16px' }}>
           <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 14 }}>
             <FieldWrapper label="שם פרטי">
               <input className="form-input input" style={inputStyle} value={overviewForm.first_name} onChange={(e) => setOverviewForm((f) => ({ ...f, first_name: e.target.value }))} />
@@ -728,12 +731,9 @@ export default function ContactPage() {
           </div>
           </div>
           <div style={{
-            position: 'sticky', bottom: 0,
-            background: 'var(--card)',
             borderTop: '1px solid var(--border)',
-            padding: '12px 16px',
-            display: 'flex', gap: '8px',
-            zIndex: 10
+            padding: '12px 16px', background: 'var(--card)',
+            display: 'flex', gap: '8px', flexShrink: 0
           }}>
             <button
               type="button"
@@ -756,7 +756,7 @@ export default function ContactPage() {
               style={{
                 padding: '12px 16px', borderRadius: '10px',
                 border: '1px solid #ef4444', background: 'transparent',
-                color: '#ef4444', cursor: 'pointer', fontSize: '14px',
+                color: '#ef4444', cursor: 'pointer',
                 WebkitTapHighlightColor: 'transparent'
               }}
             >

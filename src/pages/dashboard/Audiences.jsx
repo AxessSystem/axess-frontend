@@ -2218,75 +2218,63 @@ export default function Audiences() {
                       <EngagementScore score={r.axess_data?.engagement_score ?? r.score} size={40} />
                     </div>
                     {r.phone && (
-                      <div style={{ direction: 'ltr', marginTop: 2 }}>
-                        <div style={{
-                          fontSize: '12px', color: 'var(--text-secondary)',
-                          textAlign: 'center', marginBottom: '6px', direction: 'ltr'
-                        }}>
-                          {r.phone}
-                        </div>
-                        <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
+                      <div style={{
+                        fontSize: '13px', color: 'var(--text-secondary)',
+                        textAlign: 'right', marginBottom: '6px',
+                        direction: 'ltr', textAlign: 'right'
+                      }}>
+                        {r.phone}
+                      </div>
+                    )}
+                    {r.phone && (
+                      <div style={{
+                        display: 'flex', gap: '8px',
+                        justifyContent: 'flex-end', marginBottom: '8px'
+                      }}>
+                        {[
+                          {
+                            href: `https://wa.me/${r.phone.replace(/^0/, '972')}`,
+                            icon: <MessageCircle size={16} />,
+                            color: '#25D366', bg: '#25D36620', border: '#25D36640',
+                            external: true
+                          },
+                          {
+                            href: `tel:${r.phone}`,
+                            icon: <Phone size={16} />,
+                            color: '#00C37A', bg: '#00C37A20', border: '#00C37A40',
+                            external: false
+                          },
+                          {
+                            href: `sms:${r.phone}`,
+                            icon: <MessageSquare size={16} />,
+                            color: 'var(--text-secondary)', bg: 'var(--bg)', border: 'var(--border)',
+                            external: false
+                          },
+                          {
+                            href: `https://me.app/search?q=${r.phone.replace(/^0/, '972')}`,
+                            icon: <Search size={16} />,
+                            color: 'var(--text-secondary)', bg: 'var(--bg)', border: 'var(--border)',
+                            external: true
+                          },
+                        ].map((btn, i) => (
                           <a
-                            href={`https://wa.me/${r.phone.replace(/^0/, '972')}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
+                            key={i}
+                            href={btn.href}
+                            target={btn.external ? '_blank' : undefined}
+                            rel={btn.external ? 'noopener noreferrer' : undefined}
                             onClick={e => e.stopPropagation()}
                             style={{
                               display: 'flex', alignItems: 'center', justifyContent: 'center',
                               width: '36px', height: '36px', borderRadius: '50%',
-                              background: '#25D36620', color: '#25D366',
-                              border: '1.5px solid #25D36640',
+                              background: btn.bg, color: btn.color,
+                              border: `1.5px solid ${btn.border}`,
                               textDecoration: 'none', flexShrink: 0,
                               WebkitTapHighlightColor: 'transparent'
                             }}
                           >
-                            <MessageCircle size={16} />
+                            {btn.icon}
                           </a>
-                          <a
-                            href={`tel:${r.phone}`}
-                            onClick={e => e.stopPropagation()}
-                            style={{
-                              display: 'flex', alignItems: 'center', justifyContent: 'center',
-                              width: '36px', height: '36px', borderRadius: '50%',
-                              background: '#00C37A20', color: '#00C37A',
-                              border: '1.5px solid #00C37A40',
-                              textDecoration: 'none', flexShrink: 0,
-                              WebkitTapHighlightColor: 'transparent'
-                            }}
-                          >
-                            <Phone size={16} />
-                          </a>
-                          <a
-                            href={`sms:${r.phone}`}
-                            onClick={e => e.stopPropagation()}
-                            style={{
-                              display: 'flex', alignItems: 'center', justifyContent: 'center',
-                              width: '36px', height: '36px', borderRadius: '50%',
-                              background: 'var(--bg)', color: 'var(--text-secondary)',
-                              border: '1.5px solid var(--border)',
-                              textDecoration: 'none', flexShrink: 0,
-                              WebkitTapHighlightColor: 'transparent'
-                            }}
-                          >
-                            <MessageSquare size={16} />
-                          </a>
-                          <a
-                            href={`https://me.app/search?q=${r.phone.replace(/^0/, '972')}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            onClick={e => e.stopPropagation()}
-                            style={{
-                              display: 'flex', alignItems: 'center', justifyContent: 'center',
-                              width: '36px', height: '36px', borderRadius: '50%',
-                              background: 'var(--bg)', color: 'var(--text-secondary)',
-                              border: '1.5px solid var(--border)',
-                              textDecoration: 'none', flexShrink: 0,
-                              WebkitTapHighlightColor: 'transparent'
-                            }}
-                          >
-                            <Search size={16} />
-                          </a>
-                        </div>
+                        ))}
                       </div>
                     )}
                     <div style={{ display: 'flex', gap: 8, marginTop: 3 }}>
@@ -2880,7 +2868,7 @@ export default function Audiences() {
                 r.id === updatedWithName.id ? { ...r, ...updatedWithName } : r
               ))
             }
-            setQuickEditRecipient(null)
+            setQuickEditRecipient(updatedWithName)
             queryClient.invalidateQueries({ queryKey: ['recipients', businessId] })
           }}
           onDeleted={(deletedId) => {
