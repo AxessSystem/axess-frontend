@@ -516,6 +516,9 @@ export default function Audiences() {
   const [activeCategory, setActiveCategory] = useState(savedAudiencesState.activeCategory || 'all_cat')
   const [selectedSegments, setSelectedSegments] = useState([])
   const [recipients, setRecipients] = useState([])
+  const [totalCount, setTotalCount] = useState(0)
+  const [hasMore, setHasMore] = useState(false)
+  const [loadedCount, setLoadedCount] = useState(0)
   const [segments, setSegments] = useState({ presets: PRESET_SEGMENTS, saved: [] })
   const [loading, setLoading] = useState(false)
   const [loadingRecipients, setLoadingRecipients] = useState(true)
@@ -611,6 +614,7 @@ export default function Audiences() {
     eventDate: '',
   })
   const [showBulkEditPanel, setShowBulkEditPanel] = useState(false)
+  const [applyToAll, setApplyToAll] = useState(false)
   if (typeof localStorage !== 'undefined') {
     localStorage.removeItem('audiences_view')
   }
@@ -699,6 +703,9 @@ export default function Audiences() {
     if (activeSegment === 'all' || !activeSegment) {
       console.log('[Audiences] recipients loaded:', recipientsData?.recipients?.length ?? 0)
       setRecipients(recipientsData?.recipients || recipientsData || [])
+      setTotalCount(recipientsData?.total || recipientsData?.recipients?.length || 0)
+      setHasMore(recipientsData?.has_more || false)
+      setLoadedCount(recipientsData?.loaded || recipientsData?.recipients?.length || 0)
       setLoadError(null)
     }
   }, [recipientsData, activeSegment])
@@ -916,6 +923,35 @@ export default function Audiences() {
   }
 
   const bulkUpdate = async (action, value) => {
+    if (applyToAll) {
+      const activeFilter = {
+        gender: genderFilter !== 'all' ? genderFilter : undefined,
+        gender_null: genderFilter === 'unknown' ? true : undefined,
+        tag: activeTag !== 'הכל' ? activeTag : undefined,
+        contact_type: contactTypeFilter.length === 1 ? contactTypeFilter[0] : undefined,
+        ids: searchResults ? searchResults.map(r => r.id) : undefined,
+      }
+      try {
+        const result = await fetchWithAuth('/api/admin/recipients/bulk-update-filtered', {
+          method: 'POST',
+          body: JSON.stringify({ action, value, filter: activeFilter }),
+        })
+        console.log(`[bulk-filtered] ${action} על ${result.affected} רשומות`)
+        if (action === 'set_gender') {
+          queryClient.invalidateQueries({ queryKey: ['segments', businessId] })
+        }
+      } catch (e) {
+        console.error('[bulk-filtered] שגיאה:', e.message)
+      } finally {
+        setSelectedIds(new Set())
+        setSelectMode(false)
+        setShowBulkEditPanel(false)
+        setApplyToAll(false)
+        resetToAll()
+      }
+      return
+    }
+
     const ids = [...selectedIds]
     if (ids.length === 0) return
 
@@ -2225,6 +2261,29 @@ export default function Audiences() {
               <button disabled={page === totalPages} onClick={() => setPage(p => p + 1)} style={{ padding: '6px 12px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)', background: page === totalPages ? 'rgba(255,255,255,0.04)' : 'transparent', color: 'var(--text-secondary)', cursor: page === totalPages ? 'not-allowed' : 'pointer' }}>הבא</button>
             </div>
           )}
+          {hasMore && (
+            <div style={{ textAlign: 'center', padding: '16px' }}>
+              <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: '0 0 8px' }}>
+                מוצגים {loadedCount.toLocaleString()} מתוך {totalCount.toLocaleString()} אנשי קשר
+              </p>
+              <button
+                onClick={async () => {
+                  const newLimit = loadedCount + 2000
+                  const data = await fetchWithAuth(`/api/admin/recipients?limit=${newLimit}`)
+                  setRecipients(data.recipients || [])
+                  setLoadedCount(data.loaded || data.recipients?.length || 0)
+                  setHasMore(data.has_more || false)
+                }}
+                style={{
+                  padding: '8px 20px', borderRadius: '10px',
+                  border: '1px solid var(--border)', background: 'transparent',
+                  color: 'var(--text)', cursor: 'pointer', fontSize: '13px',
+                  WebkitTapHighlightColor: 'transparent'
+                }}>
+                טען עוד 2,000
+              </button>
+            </div>
+          )}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 0', borderTop: '1px solid var(--glass-border)' }}>
             <span style={{ fontSize: 13, color: 'var(--v2-gray-400)' }}>
               מציג {recipients.length} תוצאות
@@ -2423,9 +2482,26 @@ export default function Audiences() {
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
 
-            <span style={{ fontSize: '14px', fontWeight: 600, color: '#00C37A' }}>
-              {selectedIds.size} נבחרו
-            </span>
+            <div style={{
+              padding: '8px 12px', background: '#00C37A15',
+              border: '1px solid #00C37A40', borderRadius: '8px',
+              fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '8px',
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              width: '100%',
+            }}>
+              <span>{selectedIds.size} נבחרו</span>
+              <button
+                type="button"
+                onClick={() => setApplyToAll(p => !p)}
+                style={{
+                  background: applyToAll ? '#00C37A' : 'none',
+                  border: '1px solid #00C37A',
+                  borderRadius: '6px', color: applyToAll ? '#fff' : '#00C37A',
+                  cursor: 'pointer', fontSize: '12px', padding: '3px 10px'
+                }}>
+                {applyToAll ? '✓ על כל הפילטר' : 'החל על כל הפילטר'}
+              </button>
+            </div>
 
             <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
               <input
