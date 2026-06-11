@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useRef } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Search, Users, Phone, Tag, X, ShoppingBag, Activity, Clock, Upload, Crown, RefreshCw, Sparkles, CheckCircle, Radio, Scan, AlertTriangle, Ticket, Cake, Send, Calendar, Pencil, Workflow, Plus, Zap, Download, Save, Trash2, Filter, MessageCircle } from 'lucide-react'
+import { Search, Users, Phone, Tag, X, ShoppingBag, Activity, Clock, Upload, Crown, RefreshCw, Sparkles, CheckCircle, Radio, Scan, AlertTriangle, Ticket, Cake, Send, Calendar, Pencil, Workflow, Plus, Zap, Download, Save, Trash2, Filter, MessageCircle, MessageSquare } from 'lucide-react'
 import EngagementScore from '@/components/ui/EngagementScore'
 import EmptyState from '@/components/ui/EmptyState'
 import ImportModal from '@/components/ui/ImportModal'
@@ -2218,50 +2218,75 @@ export default function Audiences() {
                       <EngagementScore score={r.axess_data?.engagement_score ?? r.score} size={40} />
                     </div>
                     {r.phone && (
-                      <div style={{ display: 'flex', gap: '6px', alignItems: 'center', marginTop: 2 }}>
-                        <a
-                          href={`https://wa.me/${r.phone.replace(/^0/, '972')}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          onClick={e => e.stopPropagation()}
-                          style={{
-                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            width: '34px', height: '34px', borderRadius: '50%',
-                            background: '#25D36615', color: '#25D366',
-                            textDecoration: 'none', flexShrink: 0,
-                            WebkitTapHighlightColor: 'transparent'
-                          }}
-                        >
-                          <MessageCircle size={16} />
-                        </a>
-                        <a
-                          href={`tel:${r.phone}`}
-                          onClick={e => e.stopPropagation()}
-                          style={{
-                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            width: '34px', height: '34px', borderRadius: '50%',
-                            background: 'var(--bg)', border: '1px solid var(--border)',
-                            color: '#00C37A', textDecoration: 'none', flexShrink: 0,
-                            WebkitTapHighlightColor: 'transparent'
-                          }}
-                        >
-                          <Phone size={16} />
-                        </a>
-                        <a
-                          href={`https://me.app/search?q=${r.phone.replace(/^0/, '972')}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          onClick={e => e.stopPropagation()}
-                          style={{
-                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            width: '34px', height: '34px', borderRadius: '50%',
-                            background: 'var(--bg)', border: '1px solid var(--border)',
-                            color: 'var(--text-secondary)', textDecoration: 'none', flexShrink: 0,
-                            WebkitTapHighlightColor: 'transparent'
-                          }}
-                        >
-                          <Search size={16} />
-                        </a>
+                      <div style={{ direction: 'ltr', marginTop: 2 }}>
+                        <div style={{
+                          fontSize: '12px', color: 'var(--text-secondary)',
+                          textAlign: 'center', marginBottom: '6px', direction: 'ltr'
+                        }}>
+                          {r.phone}
+                        </div>
+                        <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
+                          <a
+                            href={`https://wa.me/${r.phone.replace(/^0/, '972')}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={e => e.stopPropagation()}
+                            style={{
+                              display: 'flex', alignItems: 'center', justifyContent: 'center',
+                              width: '36px', height: '36px', borderRadius: '50%',
+                              background: '#25D36620', color: '#25D366',
+                              border: '1.5px solid #25D36640',
+                              textDecoration: 'none', flexShrink: 0,
+                              WebkitTapHighlightColor: 'transparent'
+                            }}
+                          >
+                            <MessageCircle size={16} />
+                          </a>
+                          <a
+                            href={`tel:${r.phone}`}
+                            onClick={e => e.stopPropagation()}
+                            style={{
+                              display: 'flex', alignItems: 'center', justifyContent: 'center',
+                              width: '36px', height: '36px', borderRadius: '50%',
+                              background: '#00C37A20', color: '#00C37A',
+                              border: '1.5px solid #00C37A40',
+                              textDecoration: 'none', flexShrink: 0,
+                              WebkitTapHighlightColor: 'transparent'
+                            }}
+                          >
+                            <Phone size={16} />
+                          </a>
+                          <a
+                            href={`sms:${r.phone}`}
+                            onClick={e => e.stopPropagation()}
+                            style={{
+                              display: 'flex', alignItems: 'center', justifyContent: 'center',
+                              width: '36px', height: '36px', borderRadius: '50%',
+                              background: 'var(--bg)', color: 'var(--text-secondary)',
+                              border: '1.5px solid var(--border)',
+                              textDecoration: 'none', flexShrink: 0,
+                              WebkitTapHighlightColor: 'transparent'
+                            }}
+                          >
+                            <MessageSquare size={16} />
+                          </a>
+                          <a
+                            href={`https://me.app/search?q=${r.phone.replace(/^0/, '972')}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={e => e.stopPropagation()}
+                            style={{
+                              display: 'flex', alignItems: 'center', justifyContent: 'center',
+                              width: '36px', height: '36px', borderRadius: '50%',
+                              background: 'var(--bg)', color: 'var(--text-secondary)',
+                              border: '1.5px solid var(--border)',
+                              textDecoration: 'none', flexShrink: 0,
+                              WebkitTapHighlightColor: 'transparent'
+                            }}
+                          >
+                            <Search size={16} />
+                          </a>
+                        </div>
                       </div>
                     )}
                     <div style={{ display: 'flex', gap: 8, marginTop: 3 }}>
@@ -2829,6 +2854,18 @@ export default function Audiences() {
           businessId={businessId}
           fetchWithAuth={fetchWithAuth}
           contactTypes={contactTypes}
+          currentIndex={recipients.findIndex(r => r.id === quickEditRecipient?.id)}
+          total={recipients.length}
+          hasPrev={recipients.findIndex(r => r.id === quickEditRecipient?.id) > 0}
+          hasNext={recipients.findIndex(r => r.id === quickEditRecipient?.id) < recipients.length - 1}
+          onNavigate={(dir) => {
+            const idx = recipients.findIndex(r => r.id === quickEditRecipient?.id)
+            if (dir === 'next' && idx < recipients.length - 1) {
+              setQuickEditRecipient(recipients[idx + 1])
+            } else if (dir === 'prev' && idx > 0) {
+              setQuickEditRecipient(recipients[idx - 1])
+            }
+          }}
           onClose={() => setQuickEditRecipient(null)}
           onSaved={(updated) => {
             const updatedWithName = {

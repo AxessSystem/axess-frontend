@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
-import { Phone, Loader2, Plus, X, MessageCircle, Search } from 'lucide-react'
+import { Phone, Loader2, Plus, X, MessageCircle, Search, MessageSquare, Trash2 } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { api } from '@/services/api'
 import { fetchWithAuth } from '@/lib/supabase'
@@ -258,6 +258,20 @@ export default function ContactPage() {
     }
   }
 
+  const handleDeleteContact = async () => {
+    if (!profile?.id || !window.confirm(`למחוק את ${fullNameFrom(profile)}? פעולה זו אינה הפיכה.`)) return
+    try {
+      await fetchWithAuth(`/api/admin/recipients/${profile.id}`, {
+        method: 'DELETE',
+        body: JSON.stringify({ business_id: businessId }),
+      })
+      toast.success('איש הקשר נמחק')
+      navigate('/dashboard/audiences')
+    } catch (e) {
+      toast.error(e.message || 'שגיאה במחיקה')
+    }
+  }
+
   const saveOverview = () => {
     const custom_data = {
       ...(profile?.custom_data && typeof profile.custom_data === 'object' ? profile.custom_data : {}),
@@ -457,7 +471,8 @@ export default function ContactPage() {
   const tabContent = () => {
     if (activeTab === 'overview') {
       return (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', minHeight: '60vh' }}>
+          <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 16 }}>
           <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 14 }}>
             <FieldWrapper label="שם פרטי">
               <input className="form-input input" style={inputStyle} value={overviewForm.first_name} onChange={(e) => setOverviewForm((f) => ({ ...f, first_name: e.target.value }))} />
@@ -468,50 +483,75 @@ export default function ContactPage() {
             <FieldWrapper label="טלפון">
               <input className="form-input input" style={{ ...ltrInputStyle, opacity: 0.7 }} value={profile?.phone || ''} readOnly />
               {profile?.phone && (
-                <div style={{ display: 'flex', gap: '10px', alignItems: 'center', marginTop: '8px' }}>
-                  <a
-                    href={`https://wa.me/${profile.phone.replace(/^0/, '972')}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    style={{
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      width: '40px', height: '40px', borderRadius: '50%',
-                      background: '#25D36620', color: '#25D366',
-                      textDecoration: 'none', flexShrink: 0,
-                      WebkitTapHighlightColor: 'transparent'
-                    }}
-                    title="פתח בוואטסאפ"
-                  >
-                    <MessageCircle size={20} />
-                  </a>
-                  <a
-                    href={`tel:${profile.phone}`}
-                    style={{
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      width: '40px', height: '40px', borderRadius: '50%',
-                      background: 'var(--bg)', border: '1px solid var(--border)',
-                      color: '#00C37A', textDecoration: 'none', flexShrink: 0,
-                      WebkitTapHighlightColor: 'transparent'
-                    }}
-                    title="התקשר"
-                  >
-                    <Phone size={20} />
-                  </a>
-                  <a
-                    href={`https://me.app/search?q=${profile.phone.replace(/^0/, '972')}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    style={{
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      width: '40px', height: '40px', borderRadius: '50%',
-                      background: 'var(--bg)', border: '1px solid var(--border)',
-                      color: 'var(--text-secondary)', textDecoration: 'none', flexShrink: 0,
-                      WebkitTapHighlightColor: 'transparent'
-                    }}
-                    title="חפש ב-me.app"
-                  >
-                    <Search size={20} />
-                  </a>
+                <div style={{ direction: 'ltr', marginTop: '8px' }}>
+                  <div style={{
+                    fontSize: '12px', color: 'var(--text-secondary)',
+                    textAlign: 'center', marginBottom: '6px', direction: 'ltr'
+                  }}>
+                    {profile.phone}
+                  </div>
+                  <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
+                    <a
+                      href={`https://wa.me/${profile.phone.replace(/^0/, '972')}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      title="פתח בוואטסאפ"
+                      style={{
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        width: '36px', height: '36px', borderRadius: '50%',
+                        background: '#25D36620', color: '#25D366',
+                        border: '1.5px solid #25D36640',
+                        textDecoration: 'none', flexShrink: 0,
+                        WebkitTapHighlightColor: 'transparent'
+                      }}
+                    >
+                      <MessageCircle size={16} />
+                    </a>
+                    <a
+                      href={`tel:${profile.phone}`}
+                      title="התקשר"
+                      style={{
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        width: '36px', height: '36px', borderRadius: '50%',
+                        background: '#00C37A20', color: '#00C37A',
+                        border: '1.5px solid #00C37A40',
+                        textDecoration: 'none', flexShrink: 0,
+                        WebkitTapHighlightColor: 'transparent'
+                      }}
+                    >
+                      <Phone size={16} />
+                    </a>
+                    <a
+                      href={`sms:${profile.phone}`}
+                      title="SMS"
+                      style={{
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        width: '36px', height: '36px', borderRadius: '50%',
+                        background: 'var(--bg)', color: 'var(--text-secondary)',
+                        border: '1.5px solid var(--border)',
+                        textDecoration: 'none', flexShrink: 0,
+                        WebkitTapHighlightColor: 'transparent'
+                      }}
+                    >
+                      <MessageSquare size={16} />
+                    </a>
+                    <a
+                      href={`https://me.app/search?q=${profile.phone.replace(/^0/, '972')}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      title="חפש ב-me.app"
+                      style={{
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        width: '36px', height: '36px', borderRadius: '50%',
+                        background: 'var(--bg)', color: 'var(--text-secondary)',
+                        border: '1.5px solid var(--border)',
+                        textDecoration: 'none', flexShrink: 0,
+                        WebkitTapHighlightColor: 'transparent'
+                      }}
+                    >
+                      <Search size={16} />
+                    </a>
+                  </div>
                 </div>
               )}
             </FieldWrapper>
@@ -686,14 +726,43 @@ export default function ContactPage() {
               </FieldWrapper>
             </div>
           </div>
-          <button
-            type="button"
-            disabled={saving}
-            onClick={saveOverview}
-            style={{ ...btnBase, background: ACCENT, color: '#000', alignSelf: 'flex-start', opacity: saving ? 0.6 : 1 }}
-          >
-            {saving ? 'שומר...' : 'שמור שינויים'}
-          </button>
+          </div>
+          <div style={{
+            position: 'sticky', bottom: 0,
+            background: 'var(--card)',
+            borderTop: '1px solid var(--border)',
+            padding: '12px 16px',
+            display: 'flex', gap: '8px',
+            zIndex: 10
+          }}>
+            <button
+              type="button"
+              onClick={saveOverview}
+              disabled={saving}
+              style={{
+                flex: 1, background: '#00C37A', border: 'none',
+                borderRadius: '10px', padding: '12px',
+                color: '#fff', fontSize: '14px', fontWeight: 600,
+                cursor: saving ? 'not-allowed' : 'pointer',
+                opacity: saving ? 0.7 : 1,
+                WebkitTapHighlightColor: 'transparent'
+              }}
+            >
+              {saving ? 'שומר...' : 'שמור שינויים'}
+            </button>
+            <button
+              type="button"
+              onClick={handleDeleteContact}
+              style={{
+                padding: '12px 16px', borderRadius: '10px',
+                border: '1px solid #ef4444', background: 'transparent',
+                color: '#ef4444', cursor: 'pointer', fontSize: '14px',
+                WebkitTapHighlightColor: 'transparent'
+              }}
+            >
+              <Trash2 size={16} />
+            </button>
+          </div>
         </div>
       )
     }
