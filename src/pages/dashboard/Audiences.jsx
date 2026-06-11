@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useRef } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Search, Users, Phone, Tag, X, ShoppingBag, Activity, Clock, Upload, Crown, RefreshCw, Sparkles, CheckCircle, Radio, Scan, AlertTriangle, Ticket, Cake, Send, Calendar, Pencil, Workflow, Plus, Zap, Download, Save, Trash2, Filter } from 'lucide-react'
+import { Search, Users, Phone, Tag, X, ShoppingBag, Activity, Clock, Upload, Crown, RefreshCw, Sparkles, CheckCircle, Radio, Scan, AlertTriangle, Ticket, Cake, Send, Calendar, Pencil, Workflow, Plus, Zap, Download, Save, Trash2, Filter, MessageCircle } from 'lucide-react'
 import EngagementScore from '@/components/ui/EngagementScore'
 import EmptyState from '@/components/ui/EmptyState'
 import ImportModal from '@/components/ui/ImportModal'
@@ -2217,7 +2217,53 @@ export default function Audiences() {
                       </div>
                       <EngagementScore score={r.axess_data?.engagement_score ?? r.score} size={40} />
                     </div>
-                    <div style={{ fontSize: 12, color: 'var(--v2-gray-400)', marginTop: 2 }}><Phone size={11} /> {r.phone}</div>
+                    {r.phone && (
+                      <div style={{ display: 'flex', gap: '6px', alignItems: 'center', marginTop: 2 }}>
+                        <a
+                          href={`https://wa.me/${r.phone.replace(/^0/, '972')}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={e => e.stopPropagation()}
+                          style={{
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            width: '34px', height: '34px', borderRadius: '50%',
+                            background: '#25D36615', color: '#25D366',
+                            textDecoration: 'none', flexShrink: 0,
+                            WebkitTapHighlightColor: 'transparent'
+                          }}
+                        >
+                          <MessageCircle size={16} />
+                        </a>
+                        <a
+                          href={`tel:${r.phone}`}
+                          onClick={e => e.stopPropagation()}
+                          style={{
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            width: '34px', height: '34px', borderRadius: '50%',
+                            background: 'var(--bg)', border: '1px solid var(--border)',
+                            color: '#00C37A', textDecoration: 'none', flexShrink: 0,
+                            WebkitTapHighlightColor: 'transparent'
+                          }}
+                        >
+                          <Phone size={16} />
+                        </a>
+                        <a
+                          href={`https://me.app/search?q=${r.phone.replace(/^0/, '972')}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={e => e.stopPropagation()}
+                          style={{
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            width: '34px', height: '34px', borderRadius: '50%',
+                            background: 'var(--bg)', border: '1px solid var(--border)',
+                            color: 'var(--text-secondary)', textDecoration: 'none', flexShrink: 0,
+                            WebkitTapHighlightColor: 'transparent'
+                          }}
+                        >
+                          <Search size={16} />
+                        </a>
+                      </div>
+                    )}
                     <div style={{ display: 'flex', gap: 8, marginTop: 3 }}>
                       {r.gender && (
                         <span style={{ fontSize: 11, color: 'var(--v2-gray-400)' }}>

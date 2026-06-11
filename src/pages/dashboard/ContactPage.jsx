@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
-import { Phone, Loader2, Plus, X } from 'lucide-react'
+import { Phone, Loader2, Plus, X, MessageCircle, Search } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { api } from '@/services/api'
 import { fetchWithAuth } from '@/lib/supabase'
@@ -467,6 +467,53 @@ export default function ContactPage() {
             </FieldWrapper>
             <FieldWrapper label="טלפון">
               <input className="form-input input" style={{ ...ltrInputStyle, opacity: 0.7 }} value={profile?.phone || ''} readOnly />
+              {profile?.phone && (
+                <div style={{ display: 'flex', gap: '10px', alignItems: 'center', marginTop: '8px' }}>
+                  <a
+                    href={`https://wa.me/${profile.phone.replace(/^0/, '972')}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      width: '40px', height: '40px', borderRadius: '50%',
+                      background: '#25D36620', color: '#25D366',
+                      textDecoration: 'none', flexShrink: 0,
+                      WebkitTapHighlightColor: 'transparent'
+                    }}
+                    title="פתח בוואטסאפ"
+                  >
+                    <MessageCircle size={20} />
+                  </a>
+                  <a
+                    href={`tel:${profile.phone}`}
+                    style={{
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      width: '40px', height: '40px', borderRadius: '50%',
+                      background: 'var(--bg)', border: '1px solid var(--border)',
+                      color: '#00C37A', textDecoration: 'none', flexShrink: 0,
+                      WebkitTapHighlightColor: 'transparent'
+                    }}
+                    title="התקשר"
+                  >
+                    <Phone size={20} />
+                  </a>
+                  <a
+                    href={`https://me.app/search?q=${profile.phone.replace(/^0/, '972')}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      width: '40px', height: '40px', borderRadius: '50%',
+                      background: 'var(--bg)', border: '1px solid var(--border)',
+                      color: 'var(--text-secondary)', textDecoration: 'none', flexShrink: 0,
+                      WebkitTapHighlightColor: 'transparent'
+                    }}
+                    title="חפש ב-me.app"
+                  >
+                    <Search size={20} />
+                  </a>
+                </div>
+              )}
             </FieldWrapper>
             <FieldWrapper label="אימייל">
               <input type="email" className="form-input input" style={ltrInputStyle} value={overviewForm.email} onChange={(e) => setOverviewForm((f) => ({ ...f, email: e.target.value }))} />
