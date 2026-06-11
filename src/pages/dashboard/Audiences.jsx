@@ -1253,6 +1253,15 @@ export default function Audiences() {
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
                   <h4 style={{ margin: 0, fontSize: 15, fontWeight: 700 }}>
+                    {seg.is_system && (
+                      <span style={{
+                        fontSize: '10px', color: '#00C37A',
+                        border: '1px solid #00C37A40', borderRadius: '4px',
+                        padding: '1px 5px', marginRight: '6px'
+                      }}>
+                        מערכת
+                      </span>
+                    )}
                     {seg.is_default && '⭐ '}{seg.name}
                   </h4>
                   {!seg.is_default && (
