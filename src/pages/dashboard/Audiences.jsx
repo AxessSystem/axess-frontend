@@ -515,7 +515,6 @@ export default function Audiences() {
   const [activeSegment, setActiveSegment] = useState(savedAudiencesState.activeSegment || 'all')
   const [activeCategory, setActiveCategory] = useState(savedAudiencesState.activeCategory || 'all_cat')
   const [selectedSegments, setSelectedSegments] = useState([])
-  const [showSegmentsDrawer, setShowSegmentsDrawer] = useState(false)
   const [segmentSearch, setSegmentSearch] = useState('')
   const [selectedSavedSegments, setSelectedSavedSegments] = useState([])
   const [recipients, setRecipients] = useState([])
@@ -1290,166 +1289,184 @@ export default function Audiences() {
       </div>
 
       {activeCategory === 'saved' && (
-        <div style={{ marginBottom: '16px' }}>
-          <button
-            type="button"
-            onClick={() => setShowSegmentsDrawer(p => !p)}
-            style={{
-              width: '100%', padding: '12px 16px',
-              background: 'var(--card)', border: '1px solid var(--glass-border)',
-              borderRadius: '12px', color: 'var(--text)',
-              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-              cursor: 'pointer', fontSize: '14px', fontWeight: 500,
-              WebkitTapHighlightColor: 'transparent', direction: 'rtl'
-            }}
-          >
-            <span>
-              {selectedSavedSegments.length > 0
-                ? `${selectedSavedSegments.length} סגמנטים נבחרו`
-                : 'בחר סגמנטים שמורים'}
-            </span>
-            <ChevronDown size={16} style={{
-              transform: showSegmentsDrawer ? 'rotate(180deg)' : 'none',
-              transition: 'transform 0.2s'
-            }} />
-          </button>
+        <div>
+          <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
+            <input
+              value={segmentSearch}
+              onChange={e => setSegmentSearch(e.target.value)}
+              placeholder="חפש סגמנט..."
+              style={{
+                flex: 1, background: 'var(--card)',
+                border: '1px solid var(--border)', borderRadius: '10px',
+                padding: '8px 12px', color: 'var(--text)',
+                fontSize: '13px', direction: 'rtl', outline: 'none'
+              }}
+            />
+            {selectedSavedSegments.length > 0 && (
+              <button
+                type="button"
+                onClick={async () => {
+                  const allResults = []
+                  for (const segId of selectedSavedSegments) {
+                    try {
+                      const result = await fetchWithAuth(
+                        `/api/admin/segments/${segId}/run`,
+                        { method: 'POST', body: JSON.stringify({ business_id: businessId }) }
+                      )
+                      if (result?.recipients) allResults.push(...result.recipients)
+                    } catch (e) {}
+                  }
+                  const unique = Array.from(new Map(allResults.map(r => [r.id, r])).values())
+                  setSearchResults(unique)
+                  setTimeout(() => {
+                    document.getElementById('recipients-grid')?.scrollIntoView({ behavior: 'smooth' })
+                  }, 300)
+                }}
+                style={{
+                  padding: '8px 14px', borderRadius: '10px',
+                  background: '#00C37A', border: 'none',
+                  color: '#fff', fontSize: '13px', fontWeight: 600,
+                  cursor: 'pointer', whiteSpace: 'nowrap',
+                  WebkitTapHighlightColor: 'transparent'
+                }}>
+                הצג {selectedSavedSegments.length} סגמנטים
+              </button>
+            )}
+          </div>
 
-          {showSegmentsDrawer && (
-            <div style={{
-              background: 'var(--card)', border: '1px solid var(--glass-border)',
-              borderRadius: '12px', marginTop: '8px', overflow: 'hidden'
-            }}>
-              <div style={{ padding: '12px', borderBottom: '1px solid var(--border)' }}>
-                <input
-                  value={segmentSearch}
-                  onChange={e => setSegmentSearch(e.target.value)}
-                  placeholder="חפש סגמנט..."
-                  style={{
-                    width: '100%', background: 'var(--bg)',
-                    border: '1px solid var(--border)', borderRadius: '8px',
-                    padding: '8px 12px', color: 'var(--text)',
-                    fontSize: '13px', direction: 'rtl', outline: 'none',
-                    boxSizing: 'border-box'
-                  }}
-                />
-              </div>
-
-              <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
-                {segments.saved
-                  ?.filter(seg =>
-                    !segmentSearch ||
-                    seg.name?.toLowerCase().includes(segmentSearch.toLowerCase())
-                  )
-                  .map(seg => {
-                    const isSelected = selectedSavedSegments.includes(seg.id)
-                    return (
+          <div style={{ maxHeight: '70vh', overflowY: 'auto' }}>
+            {segments.saved
+              ?.filter(seg =>
+                !segmentSearch ||
+                seg.name?.toLowerCase().includes(segmentSearch.toLowerCase())
+              )
+              .map(seg => {
+                const isSelected = selectedSavedSegments.includes(seg.id)
+                return (
+                  <div key={seg.id} style={{
+                    background: 'var(--card)',
+                    borderRadius: '12px',
+                    padding: '16px',
+                    border: `1px solid ${isSelected ? '#00C37A' : 'var(--glass-border)'}`,
+                    marginBottom: '12px',
+                    direction: 'rtl',
+                    transition: 'border-color 0.15s'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
                       <div
-                        key={seg.id}
-                        onClick={() => {
-                          setSelectedSavedSegments(p =>
-                            isSelected ? p.filter(id => id !== seg.id) : [...p, seg.id]
-                          )
+                        onClick={() => setSelectedSavedSegments(p =>
+                          isSelected ? p.filter(id => id !== seg.id) : [...p, seg.id]
+                        )}
+                        style={{
+                          width: '20px', height: '20px', borderRadius: '5px', flexShrink: 0,
+                          border: `2px solid ${isSelected ? '#00C37A' : 'var(--border)'}`,
+                          background: isSelected ? '#00C37A' : 'transparent',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          cursor: 'pointer'
+                        }}>
+                        {isSelected && <Check size={13} color="#fff" />}
+                      </div>
+
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: '14px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          {seg.is_system && (
+                            <span style={{
+                              fontSize: '10px', color: '#00C37A',
+                              border: '1px solid #00C37A40', borderRadius: '4px',
+                              padding: '1px 5px'
+                            }}>מערכת</span>
+                          )}
+                          {seg.name}
+                        </div>
+                        {seg.description && (
+                          <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                            {seg.description}
+                          </div>
+                        )}
+                      </div>
+
+                      {seg.recipient_count > 0 && (
+                        <div style={{ fontSize: '13px', color: '#00C37A', fontWeight: 600, flexShrink: 0 }}>
+                          {seg.recipient_count.toLocaleString()}
+                        </div>
+                      )}
+                    </div>
+
+                    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          const hasSavedFilters = seg.type === 'saved_audience' ||
+                            (seg.filters && Object.keys(seg.filters).length > 0)
+                          if (hasSavedFilters) applySegmentFilters(seg)
+                          else runSaved(seg)
                         }}
                         style={{
-                          padding: '12px 16px', cursor: 'pointer',
-                          borderBottom: '1px solid var(--border)',
-                          background: isSelected ? '#00C37A10' : 'transparent',
-                          display: 'flex', alignItems: 'center',
-                          justifyContent: 'space-between', direction: 'rtl',
-                          transition: 'background 0.15s'
+                          padding: '6px 12px', borderRadius: '8px', fontSize: '12px',
+                          border: '1px solid var(--border)', background: 'transparent',
+                          color: 'var(--text)', cursor: 'pointer',
+                          WebkitTapHighlightColor: 'transparent'
+                        }}>
+                        {seg.type === 'saved_audience' ||
+                        (seg.filters && Object.keys(seg.filters).length > 0)
+                          ? 'החל פילטרים' : 'טען רשימה'}
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          setSearchResults(null)
+                          if (seg.filters?.recipient_ids?.length > 0) {
+                            const result = await fetchWithAuth(
+                              `/api/admin/recipients/search?ids=${seg.filters.recipient_ids.slice(0, 500).join(',')}`
+                            )
+                            setSearchResults(result)
+                          } else {
+                            await runSaved(seg)
+                          }
+                          setTimeout(() => {
+                            document.getElementById('recipients-grid')?.scrollIntoView({ behavior: 'smooth' })
+                          }, 600)
                         }}
-                      >
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                          <div style={{
-                            width: '18px', height: '18px', borderRadius: '4px',
-                            border: `2px solid ${isSelected ? '#00C37A' : 'var(--border)'}`,
-                            background: isSelected ? '#00C37A' : 'transparent',
-                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            flexShrink: 0
+                        style={{
+                          padding: '6px 12px', borderRadius: '8px', fontSize: '12px',
+                          border: '1px solid #00C37A', background: '#00C37A15',
+                          color: '#00C37A', cursor: 'pointer',
+                          WebkitTapHighlightColor: 'transparent'
+                        }}>
+                        הצג קהל
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => sendToSegment(seg)}
+                        style={{
+                          padding: '6px 12px', borderRadius: '8px', fontSize: '12px',
+                          border: '1px solid var(--border)', background: 'transparent',
+                          color: 'var(--text)', cursor: 'pointer',
+                          WebkitTapHighlightColor: 'transparent'
+                        }}>
+                        שלח קמפיין
+                      </button>
+
+                      {!seg.is_system && (
+                        <button
+                          type="button"
+                          onClick={() => deleteSegment(seg.id)}
+                          style={{
+                            padding: '6px 12px', borderRadius: '8px', fontSize: '12px',
+                            border: '1px solid #ef444440', background: 'transparent',
+                            color: '#ef4444', cursor: 'pointer',
+                            WebkitTapHighlightColor: 'transparent'
                           }}>
-                            {isSelected && <Check size={12} color="#fff" />}
-                          </div>
-                          <div>
-                            <div style={{ fontSize: '13px', fontWeight: 500 }}>
-                              {seg.is_system && (
-                                <span style={{
-                                  fontSize: '10px', color: '#00C37A',
-                                  border: '1px solid #00C37A40', borderRadius: '4px',
-                                  padding: '1px 4px', marginLeft: '6px'
-                                }}>מערכת</span>
-                              )}
-                              {seg.name}
-                            </div>
-                            {seg.recipient_count > 0 && (
-                              <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
-                                {seg.recipient_count.toLocaleString()} אנשי קשר
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    )
-                  })}
-              </div>
-
-              {selectedSavedSegments.length > 0 && (
-                <div style={{
-                  padding: '12px', borderTop: '1px solid var(--border)',
-                  display: 'flex', gap: '8px'
-                }}>
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      const allResults = []
-                      for (const segId of selectedSavedSegments) {
-                        try {
-                          const result = await fetchWithAuth(
-                            `/api/admin/segments/${segId}/run`,
-                            { method: 'POST', body: JSON.stringify({ business_id: businessId }) }
-                          )
-                          if (result?.recipients) allResults.push(...result.recipients)
-                        } catch (e) {}
-                      }
-                      const unique = Array.from(
-                        new Map(allResults.map(r => [r.id, r])).values()
-                      )
-                      setSearchResults(unique)
-                      setShowSegmentsDrawer(false)
-                      setTimeout(() => {
-                        document.getElementById('recipients-grid')?.scrollIntoView({ behavior: 'smooth' })
-                      }, 300)
-                    }}
-                    style={{
-                      flex: 1, background: '#00C37A', border: 'none',
-                      borderRadius: '8px', padding: '10px',
-                      color: '#fff', fontSize: '13px', fontWeight: 600,
-                      cursor: 'pointer', WebkitTapHighlightColor: 'transparent'
-                    }}
-                  >
-                    הצג קהל ({selectedSavedSegments.length} סגמנטים)
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setSelectedSavedSegments([])}
-                    style={{
-                      padding: '10px 14px', borderRadius: '8px',
-                      border: '1px solid var(--border)', background: 'transparent',
-                      color: 'var(--text-secondary)', cursor: 'pointer', fontSize: '13px',
-                      WebkitTapHighlightColor: 'transparent'
-                    }}
-                  >
-                    נקה
-                  </button>
-                </div>
-              )}
-            </div>
-          )}
-
-          {!showSegmentsDrawer && selectedSavedSegments.length === 0 && (
-            <p style={{ fontSize: '13px', color: 'var(--text-secondary)', textAlign: 'center', marginTop: '12px' }}>
-              בחר סגמנט אחד או יותר להצגה
-            </p>
-          )}
+                          מחק
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
+          </div>
         </div>
       )}
 
