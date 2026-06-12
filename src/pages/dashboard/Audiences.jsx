@@ -652,6 +652,7 @@ export default function Audiences() {
 
       const first = await fetchWithAuth('/api/admin/recipients?limit=2000')
       setRecipients(first.recipients || [])
+      setSearchResults(prev => (Array.isArray(prev) && prev.length === 0) ? null : prev)
       setTotalCount(first.total || 0)
       setLoadedCount(first.loaded || 0)
       if (first.has_more !== undefined) setHasMore(first.has_more)
@@ -720,18 +721,19 @@ export default function Audiences() {
 
   useEffect(() => {
     try {
-      sessionStorage.setItem('audiences_state', JSON.stringify({
+      const stateToSave = {
         search,
         activeTag,
         contactTypeFilter,
         activeSegment,
         activeCategory,
         page,
-        searchResults,
+        searchResults: searchResults?.length > 0 ? searchResults : null,
         searchScope,
         scopeSegments,
         sortBy,
-      }))
+      }
+      sessionStorage.setItem('audiences_state', JSON.stringify(stateToSave))
     } catch {}
   }, [search, activeTag, contactTypeFilter, activeSegment, activeCategory, page, searchResults, searchScope, scopeSegments, sortBy])
 
