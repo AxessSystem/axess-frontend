@@ -641,20 +641,37 @@ export default function Audiences() {
     return () => window.removeEventListener('resize', check)
   }, [])
 
-  const {
-    data: recipientsData,
-    error: recipientsError,
-    isLoading: recipientsLoading,
-    refetch: refreshRecipients,
-  } = useQuery({
-    queryKey: ['recipients', businessId],
-    queryFn: () =>
-      fetchWithAuth(
-        `/api/admin/recipients`
-      ),
-    staleTime: 1000 * 60 * 3,
-    enabled: !!businessId && !!session?.access_token,
-  })
+  const loadRecipients = async () => {
+    try {
+      setLoading(true)
+      setLoadingRecipients(true)
+
+      const first = await fetchWithAuth('/api/admin/recipients?limit=2000')
+      setRecipients(first.recipients || [])
+      setTotalCount(first.total || 0)
+      setLoadedCount(first.loaded || 0)
+      if (first.has_more !== undefined) setHasMore(first.has_more)
+      setLoadError(null)
+      setLoading(false)
+      setLoadingRecipients(false)
+
+      if (first.has_more) {
+        const all = await fetchWithAuth(`/api/admin/recipients?limit=${first.total}`)
+        if (all.recipients) {
+          setRecipients(all.recipients)
+          setLoadedCount(all.loaded || all.recipients.length)
+          setHasMore(false)
+        }
+      }
+    } catch (e) {
+      console.error('[loadRecipients]', e.message)
+      setLoadError('שגיאה בטעינת נתונים — נסה לרענן')
+      setLoading(false)
+      setLoadingRecipients(false)
+    }
+  }
+
+  const refreshRecipients = loadRecipients
 
   const { data: segmentsData } = useQuery({
     queryKey: ['segments', businessId],
@@ -687,28 +704,15 @@ export default function Audiences() {
   })
 
   useEffect(() => {
-    // סנכרון מצב טעינה עם React Query
     if (!businessId || !session?.access_token) {
       setLoadingRecipients(false)
       return
     }
-    setLoadingRecipients(recipientsLoading)
+    loadRecipients()
     fetchWithAuth(`/api/admin/contact-types?business_id=${businessId}`)
       .then(d => Array.isArray(d) && setContactTypes(d))
       .catch(() => {})
-  }, [businessId, session?.access_token, recipientsLoading])
-
-  useEffect(() => {
-    if (!recipientsData) return
-    if (activeSegment === 'all' || !activeSegment) {
-      const data = recipientsData
-      if (data.total !== undefined) setTotalCount(data.total)
-      if (data.has_more !== undefined) setHasMore(data.has_more)
-      if (data.loaded !== undefined) setLoadedCount(data.loaded)
-      setRecipients(data.recipients || data || [])
-      setLoadError(null)
-    }
-  }, [recipientsData, activeSegment])
+  }, [businessId, session?.access_token])
 
   useEffect(() => {
     try {
@@ -740,12 +744,6 @@ export default function Audiences() {
       sessionStorage.setItem('audiences_state', JSON.stringify({ ...state, sortBy: val }))
     } catch {}
   }
-
-  useEffect(() => {
-    if (recipientsError) {
-      setLoadError('שגיאה בטעינת נתונים — נסה לרענן')
-    }
-  }, [recipientsError])
 
   useEffect(() => {
     if (segmentsData) {
@@ -2338,29 +2336,20 @@ export default function Audiences() {
             </div>
           )}
           {hasMore && (
-            <div style={{ textAlign: 'center', padding: '16px' }}>
-              <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: '0 0 8px' }}>
-                מוצגים {loadedCount.toLocaleString()} מתוך {totalCount.toLocaleString()} — גלול לראות עוד או לחץ לטעון
-              </p>
-              <button
-                onClick={async () => {
-                  const newLimit = loadedCount + 2000
-                  const data = await fetchWithAuth(`/api/admin/recipients?limit=${newLimit}`)
-                  setRecipients(data.recipients || [])
-                  if (data.total !== undefined) setTotalCount(data.total)
-                  if (data.loaded !== undefined) setLoadedCount(data.loaded)
-                  if (data.has_more !== undefined) setHasMore(data.has_more)
-                }}
-                style={{
-                  padding: '8px 20px', borderRadius: '10px',
-                  border: '1px solid var(--border)', background: 'transparent',
-                  color: 'var(--text)', cursor: 'pointer', fontSize: '13px',
-                  WebkitTapHighlightColor: 'transparent'
-                }}>
-                טען עוד 2,000
-              </button>
+            <div style={{
+              fontSize: '11px', color: 'var(--text-secondary)',
+              textAlign: 'center', padding: '4px',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px'
+            }}>
+              <div style={{
+                width: '8px', height: '8px', borderRadius: '50%',
+                border: '2px solid #00C37A', borderTopColor: 'transparent',
+                animation: 'spin 0.8s linear infinite'
+              }} />
+              טוען נתונים...
             </div>
           )}
+          <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 0', borderTop: '1px solid var(--glass-border)' }}>
             <span style={{ fontSize: 13, color: 'var(--v2-gray-400)' }}>
               מציג {recipients.length} תוצאות
