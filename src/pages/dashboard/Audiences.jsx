@@ -517,6 +517,7 @@ export default function Audiences() {
   const [selectedSegments, setSelectedSegments] = useState([])
   const [segmentSearch, setSegmentSearch] = useState('')
   const [selectedSavedSegments, setSelectedSavedSegments] = useState([])
+  const [activeSegmentName, setActiveSegmentName] = useState('')
   const [recipients, setRecipients] = useState([])
   const [totalCount, setTotalCount] = useState(0)
   const [hasMore, setHasMore] = useState(false)
@@ -1272,6 +1273,16 @@ export default function Audiences() {
         }
         @media (max-width: 768px) {
           .audience-search-count-row { display: none; }
+          .saved-segments-tab {
+            display: block !important;
+            width: 100%;
+            overflow: visible;
+            visibility: visible;
+          }
+          .saved-segments-tab .saved-segment-card {
+            display: block !important;
+            visibility: visible !important;
+          }
         }
       `}</style>
 
@@ -1289,7 +1300,7 @@ export default function Audiences() {
       </div>
 
       {activeCategory === 'saved' && (
-        <div>
+        <div className="saved-segments-tab">
           <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
             <input
               value={segmentSearch}
@@ -1302,37 +1313,86 @@ export default function Audiences() {
                 fontSize: '13px', direction: 'rtl', outline: 'none'
               }}
             />
-            {selectedSavedSegments.length > 0 && (
+          </div>
+
+          {selectedSavedSegments.length > 0 && (
+            <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
               <button
                 type="button"
                 onClick={async () => {
                   const allResults = []
+                  const segmentNames = []
+
                   for (const segId of selectedSavedSegments) {
+                    const seg = segments.saved?.find(s => s.id === segId)
+                    if (seg) segmentNames.push(seg.name)
+
                     try {
                       const result = await fetchWithAuth(
                         `/api/admin/segments/${segId}/run`,
                         { method: 'POST', body: JSON.stringify({ business_id: businessId }) }
                       )
                       if (result?.recipients) allResults.push(...result.recipients)
-                    } catch (e) {}
+                    } catch (e) {
+                      console.error('[merge segments]', e.message)
+                    }
                   }
-                  const unique = Array.from(new Map(allResults.map(r => [r.id, r])).values())
+
+                  const unique = Array.from(
+                    new Map(allResults.map(r => [r.id, r])).values()
+                  )
+
                   setSearchResults(unique)
+                  setActiveSegmentName(segmentNames.join(' + '))
+                  setSelectedSavedSegments([])
+
                   setTimeout(() => {
                     document.getElementById('recipients-grid')?.scrollIntoView({ behavior: 'smooth' })
                   }, 300)
                 }}
                 style={{
-                  padding: '8px 14px', borderRadius: '10px',
+                  flex: 1, padding: '8px 14px', borderRadius: '10px',
                   background: '#00C37A', border: 'none',
                   color: '#fff', fontSize: '13px', fontWeight: 600,
-                  cursor: 'pointer', whiteSpace: 'nowrap',
-                  WebkitTapHighlightColor: 'transparent'
+                  cursor: 'pointer', WebkitTapHighlightColor: 'transparent'
                 }}>
                 הצג {selectedSavedSegments.length} סגמנטים
               </button>
-            )}
-          </div>
+              <button
+                type="button"
+                onClick={() => setSelectedSavedSegments([])}
+                style={{
+                  padding: '8px 14px', borderRadius: '10px',
+                  border: '1px solid var(--border)', background: 'transparent',
+                  color: 'var(--text-secondary)', fontSize: '13px',
+                  cursor: 'pointer', WebkitTapHighlightColor: 'transparent'
+                }}>
+                נקה
+              </button>
+            </div>
+          )}
+
+          {activeSegmentName && searchResults && (
+            <div style={{
+              padding: '8px 12px', marginBottom: '8px',
+              background: '#00C37A15', borderRadius: '8px',
+              border: '1px solid #00C37A40',
+              fontSize: '13px', color: '#00C37A',
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between'
+            }}>
+              <span>מוצג: {activeSegmentName}</span>
+              <button
+                type="button"
+                onClick={() => { setSearchResults(null); setActiveSegmentName('') }}
+                style={{
+                  background: 'none', border: 'none', color: '#00C37A',
+                  cursor: 'pointer', fontSize: '12px',
+                  WebkitTapHighlightColor: 'transparent'
+                }}>
+                ✕ נקה
+              </button>
+            </div>
+          )}
 
           <div style={{ maxHeight: '70vh', overflowY: 'auto' }}>
             {segments.saved
@@ -1343,7 +1403,7 @@ export default function Audiences() {
               .map(seg => {
                 const isSelected = selectedSavedSegments.includes(seg.id)
                 return (
-                  <div key={seg.id} style={{
+                  <div key={seg.id} className="saved-segment-card" style={{
                     background: 'var(--card)',
                     borderRadius: '12px',
                     padding: '16px',
@@ -1359,10 +1419,10 @@ export default function Audiences() {
                         )}
                         style={{
                           width: '20px', height: '20px', borderRadius: '5px', flexShrink: 0,
-                          border: `2px solid ${isSelected ? '#00C37A' : 'var(--border)'}`,
+                          border: `2px solid ${isSelected ? '#00C37A' : '#ffffff60'}`,
                           background: isSelected ? '#00C37A' : 'transparent',
                           display: 'flex', alignItems: 'center', justifyContent: 'center',
-                          cursor: 'pointer'
+                          cursor: 'pointer', WebkitTapHighlightColor: 'transparent'
                         }}>
                         {isSelected && <Check size={13} color="#fff" />}
                       </div>
