@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useRef } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Search, Users, Phone, Tag, X, ShoppingBag, Activity, Clock, Upload, Crown, RefreshCw, Sparkles, CheckCircle, Radio, Scan, AlertTriangle, Ticket, Cake, Send, Calendar, Pencil, Workflow, Plus, Zap, Download, Save, Trash2, Filter, MessageCircle, MessageSquare } from 'lucide-react'
+import { Search, Users, Phone, Tag, X, ShoppingBag, Activity, Clock, Upload, Crown, RefreshCw, Sparkles, CheckCircle, Radio, Scan, AlertTriangle, Ticket, Cake, Send, Calendar, Pencil, Workflow, Plus, Zap, Download, Save, Trash2, Filter, MessageCircle, MessageSquare, ChevronDown, Check } from 'lucide-react'
 import EngagementScore from '@/components/ui/EngagementScore'
 import EmptyState from '@/components/ui/EmptyState'
 import ImportModal from '@/components/ui/ImportModal'
@@ -515,6 +515,9 @@ export default function Audiences() {
   const [activeSegment, setActiveSegment] = useState(savedAudiencesState.activeSegment || 'all')
   const [activeCategory, setActiveCategory] = useState(savedAudiencesState.activeCategory || 'all_cat')
   const [selectedSegments, setSelectedSegments] = useState([])
+  const [showSegmentsDrawer, setShowSegmentsDrawer] = useState(false)
+  const [segmentSearch, setSegmentSearch] = useState('')
+  const [selectedSavedSegments, setSelectedSavedSegments] = useState([])
   const [recipients, setRecipients] = useState([])
   const [totalCount, setTotalCount] = useState(0)
   const [hasMore, setHasMore] = useState(false)
@@ -1286,186 +1289,171 @@ export default function Audiences() {
         ))}
       </div>
 
-      {activeCategory === 'saved' ? (
-        segments.saved?.length > 0 ? (
-          <div style={{ marginBottom: '16px' }}>
-            {segments.saved.map((seg) => (
-              <div
-                key={seg.id}
-                style={{
-                  background: 'var(--card)',
-                  borderRadius: 12,
-                  padding: 16,
-                  border: '1px solid var(--glass-border)',
-                  marginBottom: 12,
-                }}
-              >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                  <h4 style={{ margin: 0, fontSize: 15, fontWeight: 700 }}>
-                    {seg.is_system && (
-                      <span style={{
-                        fontSize: '10px', color: '#00C37A',
-                        border: '1px solid #00C37A40', borderRadius: '4px',
-                        padding: '1px 5px', marginRight: '6px'
-                      }}>
-                        מערכת
-                      </span>
-                    )}
-                    {seg.is_default && '⭐ '}{seg.name}
-                  </h4>
-                  {!seg.is_default && (
-                    <button
-                      type="button"
-                      onClick={() => deleteSegment(seg.id)}
-                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#EF4444' }}
-                      aria-label="מחק סגמנט"
-                    >
-                      <Trash2 size={14} />
-                    </button>
-                  )}
-                </div>
-                {seg.filters && Object.keys(seg.filters).length > 0 && (
-                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 10 }}>
-                    {Object.entries(seg.filters)
-                      .filter(([key]) => key !== 'recipient_ids')
-                      .map(([key, val]) => (
-                      <span
-                        key={key}
+      {activeCategory === 'saved' && (
+        <div style={{ marginBottom: '16px' }}>
+          <button
+            type="button"
+            onClick={() => setShowSegmentsDrawer(p => !p)}
+            style={{
+              width: '100%', padding: '12px 16px',
+              background: 'var(--card)', border: '1px solid var(--glass-border)',
+              borderRadius: '12px', color: 'var(--text)',
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              cursor: 'pointer', fontSize: '14px', fontWeight: 500,
+              WebkitTapHighlightColor: 'transparent', direction: 'rtl'
+            }}
+          >
+            <span>
+              {selectedSavedSegments.length > 0
+                ? `${selectedSavedSegments.length} סגמנטים נבחרו`
+                : 'בחר סגמנטים שמורים'}
+            </span>
+            <ChevronDown size={16} style={{
+              transform: showSegmentsDrawer ? 'rotate(180deg)' : 'none',
+              transition: 'transform 0.2s'
+            }} />
+          </button>
+
+          {showSegmentsDrawer && (
+            <div style={{
+              background: 'var(--card)', border: '1px solid var(--glass-border)',
+              borderRadius: '12px', marginTop: '8px', overflow: 'hidden'
+            }}>
+              <div style={{ padding: '12px', borderBottom: '1px solid var(--border)' }}>
+                <input
+                  value={segmentSearch}
+                  onChange={e => setSegmentSearch(e.target.value)}
+                  placeholder="חפש סגמנט..."
+                  style={{
+                    width: '100%', background: 'var(--bg)',
+                    border: '1px solid var(--border)', borderRadius: '8px',
+                    padding: '8px 12px', color: 'var(--text)',
+                    fontSize: '13px', direction: 'rtl', outline: 'none',
+                    boxSizing: 'border-box'
+                  }}
+                />
+              </div>
+
+              <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
+                {segments.saved
+                  ?.filter(seg =>
+                    !segmentSearch ||
+                    seg.name?.toLowerCase().includes(segmentSearch.toLowerCase())
+                  )
+                  .map(seg => {
+                    const isSelected = selectedSavedSegments.includes(seg.id)
+                    return (
+                      <div
+                        key={seg.id}
+                        onClick={() => {
+                          setSelectedSavedSegments(p =>
+                            isSelected ? p.filter(id => id !== seg.id) : [...p, seg.id]
+                          )
+                        }}
                         style={{
-                          padding: '2px 8px',
-                          borderRadius: 12,
-                          fontSize: 11,
-                          background: 'rgba(0,195,122,0.1)',
-                          color: '#00C37A',
-                          border: '1px solid rgba(0,195,122,0.3)',
+                          padding: '12px 16px', cursor: 'pointer',
+                          borderBottom: '1px solid var(--border)',
+                          background: isSelected ? '#00C37A10' : 'transparent',
+                          display: 'flex', alignItems: 'center',
+                          justifyContent: 'space-between', direction: 'rtl',
+                          transition: 'background 0.15s'
                         }}
                       >
-                        {FILTER_LABELS[key] || key}: {Array.isArray(val) ? val.join(', ') : val}
-                      </span>
-                    ))}
-                  </div>
-                )}
-                <p style={{ margin: '0 0 12px', fontSize: 13, color: 'var(--v2-gray-400)' }}>
-                  {seg.count || seg.recipient_count || 0} אנשי קשר
-                </p>
-                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const hasSavedFilters =
-                        seg.type === 'saved_audience' ||
-                        (seg.filters && typeof seg.filters === 'object' && Object.keys(seg.filters).length > 0)
-                      if (hasSavedFilters) applySegmentFilters(seg)
-                      else runSaved(seg)
-                    }}
-                    style={{
-                      padding: '6px 12px',
-                      borderRadius: 8,
-                      border: '1px solid var(--glass-border)',
-                      background: 'var(--glass-bg)',
-                      color: 'var(--text)',
-                      fontSize: 12,
-                      cursor: 'pointer',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: 4,
-                    }}
-                  >
-                    <Filter size={12} />{' '}
-                    {seg.type === 'saved_audience' ||
-                    (seg.filters && typeof seg.filters === 'object' && Object.keys(seg.filters).length > 0)
-                      ? 'החל פילטרים'
-                      : 'טען רשימה'}
-                  </button>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                          <div style={{
+                            width: '18px', height: '18px', borderRadius: '4px',
+                            border: `2px solid ${isSelected ? '#00C37A' : 'var(--border)'}`,
+                            background: isSelected ? '#00C37A' : 'transparent',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            flexShrink: 0
+                          }}>
+                            {isSelected && <Check size={12} color="#fff" />}
+                          </div>
+                          <div>
+                            <div style={{ fontSize: '13px', fontWeight: 500 }}>
+                              {seg.is_system && (
+                                <span style={{
+                                  fontSize: '10px', color: '#00C37A',
+                                  border: '1px solid #00C37A40', borderRadius: '4px',
+                                  padding: '1px 4px', marginLeft: '6px'
+                                }}>מערכת</span>
+                              )}
+                              {seg.name}
+                            </div>
+                            {seg.recipient_count > 0 && (
+                              <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
+                                {seg.recipient_count.toLocaleString()} אנשי קשר
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })}
+              </div>
+
+              {selectedSavedSegments.length > 0 && (
+                <div style={{
+                  padding: '12px', borderTop: '1px solid var(--border)',
+                  display: 'flex', gap: '8px'
+                }}>
                   <button
                     type="button"
                     onClick={async () => {
-                      setSearchResults(null)
-                      setGenderFilter('all')
-                      setActiveTag('הכל')
-                      setTagFilter('')
-                      setContactTypeFilter([])
-                      setAgeMin('')
-                      setAgeMax('')
-                      setCityFilter('')
-                      setSearch('')
-
-                      const filters = seg.filters || {}
-
-                      if (filters.recipient_ids && filters.recipient_ids.length > 0) {
-                        const segmentRecipients = recipients.filter(r =>
-                          filters.recipient_ids.includes(r.id)
-                        )
-                        if (segmentRecipients.length > 0) {
-                          setSearchResults(segmentRecipients)
-                        } else {
-                          setLoading(true)
-                          try {
-                            const result = await fetchWithAuth(
-                              `/api/admin/recipients/search?ids=${filters.recipient_ids.slice(0, 500).join(',')}`
-                            )
-                            if (Array.isArray(result)) setSearchResults(result)
-                          } catch (e) {
-                            console.error('[הצג קהל] שגיאה בטעינת IDs:', e.message)
-                            if (filters.gender || filters.age_min || filters.city || filters.tags) {
-                              applySegmentFilters(seg)
-                            }
-                          } finally {
-                            setLoading(false)
-                          }
-                        }
-                        setActiveSegment(seg.id)
-                      } else if (filters.gender || filters.age_min || filters.age_max || filters.city || filters.tags || filters.search) {
-                        applySegmentFilters(seg)
-                        setActiveSegment(seg.id)
-                      } else {
-                        await runSaved(seg)
+                      const allResults = []
+                      for (const segId of selectedSavedSegments) {
+                        try {
+                          const result = await fetchWithAuth(
+                            `/api/admin/segments/${segId}/run`,
+                            { method: 'POST', body: JSON.stringify({ business_id: businessId }) }
+                          )
+                          if (result?.recipients) allResults.push(...result.recipients)
+                        } catch (e) {}
                       }
-
+                      const unique = Array.from(
+                        new Map(allResults.map(r => [r.id, r])).values()
+                      )
+                      setSearchResults(unique)
+                      setShowSegmentsDrawer(false)
                       setTimeout(() => {
                         document.getElementById('recipients-grid')?.scrollIntoView({ behavior: 'smooth' })
-                      }, 600)
+                      }, 300)
                     }}
                     style={{
-                      padding: '6px 14px',
-                      borderRadius: '8px',
-                      fontSize: '13px',
-                      border: '1px solid #00C37A',
-                      background: '#00C37A20',
-                      color: '#00C37A',
-                      cursor: 'pointer',
-                      WebkitTapHighlightColor: 'transparent',
+                      flex: 1, background: '#00C37A', border: 'none',
+                      borderRadius: '8px', padding: '10px',
+                      color: '#fff', fontSize: '13px', fontWeight: 600,
+                      cursor: 'pointer', WebkitTapHighlightColor: 'transparent'
                     }}
                   >
-                    הצג קהל
+                    הצג קהל ({selectedSavedSegments.length} סגמנטים)
                   </button>
                   <button
                     type="button"
-                    onClick={() => sendToSegment(seg)}
+                    onClick={() => setSelectedSavedSegments([])}
                     style={{
-                      padding: '6px 12px',
-                      borderRadius: 8,
-                      border: 'none',
-                      background: '#00C37A',
-                      color: '#000',
-                      fontSize: 12,
-                      fontWeight: 600,
-                      cursor: 'pointer',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: 4,
+                      padding: '10px 14px', borderRadius: '8px',
+                      border: '1px solid var(--border)', background: 'transparent',
+                      color: 'var(--text-secondary)', cursor: 'pointer', fontSize: '13px',
+                      WebkitTapHighlightColor: 'transparent'
                     }}
                   >
-                    <Send size={12} /> שלח קמפיין
+                    נקה
                   </button>
                 </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div style={{ fontSize: '13px', color: 'var(--v2-gray-500)', marginBottom: '16px' }}>אין סגמנטים שמורים</div>
-        )
-      ) : (
+              )}
+            </div>
+          )}
+
+          {!showSegmentsDrawer && selectedSavedSegments.length === 0 && (
+            <p style={{ fontSize: '13px', color: 'var(--text-secondary)', textAlign: 'center', marginTop: '12px' }}>
+              בחר סגמנט אחד או יותר להצגה
+            </p>
+          )}
+        </div>
+      )}
+
+      {activeCategory !== 'saved' && (
       <div className="audience-segment-chips" style={isMobile ? { gap: '8px', paddingBottom: '8px', marginBottom: '16px' } : { display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '8px', marginBottom: '16px', whiteSpace: 'nowrap' }}>
         {(activeCategory === 'all_cat' ? PRESET_SEGMENTS : PRESET_SEGMENTS.filter(s => s.category === activeCategory)).map(seg => {
           const IconComp = SEGMENT_ICONS[seg.id] || Users
