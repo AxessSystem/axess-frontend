@@ -979,11 +979,38 @@ export default function Audiences() {
     }
   }
 
-  const baseList = searchResults !== null ? searchResults : recipients
+  const clientSearch = useMemo(() => {
+    if (!search || search.length < 2) return null
+
+    const isSimpleSearch = !searchScope.tags &&
+      !searchScope.notes &&
+      !searchScope.contact_types
+
+    if (!isSimpleSearch) return null
+
+    const q = search.toLowerCase().trim()
+    return recipients.filter(r => {
+      if (searchScope.name) {
+        const name = (r.name || '').toLowerCase()
+        if (name.includes(q)) return true
+      }
+      if (searchScope.phone) {
+        const phone = (r.phone || '')
+        if (phone.includes(q)) return true
+      }
+      return false
+    })
+  }, [search, recipients, searchScope])
+
+  const baseList = clientSearch !== null
+    ? clientSearch
+    : searchResults !== null
+      ? searchResults
+      : recipients
 
   const filtered = baseList
     .filter((r) => {
-      if (searchResults !== null) return true
+      if (searchResults !== null || clientSearch !== null) return true
       if (search.trim()) {
         const s = search.toLowerCase()
         const name = (r.name || '').toLowerCase()
@@ -1784,6 +1811,13 @@ export default function Audiences() {
                           setSearchResults(null)
                           return
                         }
+                        const isSimpleSearch = !searchScope.tags &&
+                          !searchScope.notes &&
+                          !searchScope.contact_types
+                        if (isSimpleSearch) {
+                          setSearchResults(null)
+                          return
+                        }
                         searchTimeout.current = setTimeout(async () => {
                           setSearching(true)
                           try {
@@ -1838,6 +1872,11 @@ export default function Audiences() {
                     {Object.values(searchScope).every(Boolean) ? 'בכולם ▼' : 'מסונן ▼'}
                   </button>
                 </div>
+                {clientSearch !== null && (
+                  <div style={{ fontSize: '12px', color: 'var(--text-secondary)', padding: '4px 8px', textAlign: 'right' }}>
+                    נמצאו {clientSearch.length.toLocaleString()} תוצאות
+                  </div>
+                )}
                 {searchResults !== null && searchTotalCount > 0 && (
                   <div style={{
                     fontSize: '12px', color: 'var(--text-secondary)',
