@@ -1423,7 +1423,13 @@ export default function Audiences() {
               אין סגמנטים שמורים עדיין
             </div>
           ) : (
-          <div>
+          <div style={{
+            maxHeight: '60vh',
+            overflowY: 'auto',
+            WebkitOverflowScrolling: 'touch',
+            borderRadius: '12px',
+            border: '1px solid var(--border)',
+          }}>
             {segments.saved
               ?.filter(seg =>
                 !segmentSearch ||
