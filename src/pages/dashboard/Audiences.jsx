@@ -534,6 +534,7 @@ export default function Audiences() {
   const [lastWhereClause, setLastWhereClause] = useState('')
   const [search, setSearch] = useState(savedAudiencesState.search || '')
   const [searchResults, setSearchResults] = useState(savedAudiencesState.searchResults ?? null)
+  const [searchTotalCount, setSearchTotalCount] = useState(0)
   const [searching, setSearching] = useState(false)
   const searchTimeout = useRef(null)
   const [searchScope, setSearchScope] = useState(savedAudiencesState.searchScope || {
@@ -1793,8 +1794,14 @@ export default function Audiences() {
                             if (!searchScope.notes) params.append('skip_notes', '1')
                             if (!searchScope.contact_types) params.append('skip_contact_types', '1')
                             if (scopeSegments.length > 0) params.append('segment_ids', scopeSegments.join(','))
-                            const results = await fetchWithAuth(`/api/admin/recipients/search?${params}`)
-                            if (Array.isArray(results)) setSearchResults(results)
+                            const data = await fetchWithAuth(`/api/admin/recipients/search?${params}`)
+                            if (data?.results) {
+                              setSearchResults(data.results)
+                              setSearchTotalCount(data.total_count || data.results.length)
+                            } else {
+                              setSearchResults(data)
+                              setSearchTotalCount(data?.length || 0)
+                            }
                           } catch (err) {
                             console.error('search error:', err)
                           } finally {
@@ -1831,6 +1838,19 @@ export default function Audiences() {
                     {Object.values(searchScope).every(Boolean) ? 'בכולם ▼' : 'מסונן ▼'}
                   </button>
                 </div>
+                {searchResults !== null && searchTotalCount > 0 && (
+                  <div style={{
+                    fontSize: '12px', color: 'var(--text-secondary)',
+                    textAlign: 'right', padding: '4px 8px'
+                  }}>
+                    נמצאו {searchTotalCount.toLocaleString()} תוצאות
+                    {searchTotalCount > 500 && (
+                      <span style={{ color: '#f59e0b', marginRight: '4px' }}>
+                        (מוצגות 500 הראשונות)
+                      </span>
+                    )}
+                  </div>
+                )}
                 {searchScopeOpen && (
                   <div style={{
                     position: 'absolute', top: '100%', left: 0, right: 0,
