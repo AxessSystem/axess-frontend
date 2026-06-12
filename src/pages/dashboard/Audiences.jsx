@@ -518,6 +518,7 @@ export default function Audiences() {
   const [segmentSearch, setSegmentSearch] = useState('')
   const [selectedSavedSegments, setSelectedSavedSegments] = useState([])
   const [activeSegmentName, setActiveSegmentName] = useState('')
+  const [loadingSegments, setLoadingSegments] = useState(false)
   const [recipients, setRecipients] = useState([])
   const [totalCount, setTotalCount] = useState(0)
   const [hasMore, setHasMore] = useState(false)
@@ -1320,35 +1321,40 @@ export default function Audiences() {
               <button
                 type="button"
                 onClick={async () => {
-                  const allResults = []
-                  const segmentNames = []
+                  setLoadingSegments(true)
+                  try {
+                    const allResults = []
+                    const segmentNames = []
 
-                  for (const segId of selectedSavedSegments) {
-                    const seg = segments.saved?.find(s => s.id === segId)
-                    if (seg) segmentNames.push(seg.name)
+                    for (const segId of selectedSavedSegments) {
+                      const seg = segments.saved?.find(s => s.id === segId)
+                      if (seg) segmentNames.push(seg.name)
 
-                    try {
-                      const result = await fetchWithAuth(
-                        `/api/admin/segments/${segId}/run`,
-                        { method: 'POST', body: JSON.stringify({ business_id: businessId }) }
-                      )
-                      if (result?.recipients) allResults.push(...result.recipients)
-                    } catch (e) {
-                      console.error('[merge segments]', e.message)
+                      try {
+                        const result = await fetchWithAuth(
+                          `/api/admin/segments/${segId}/run`,
+                          { method: 'POST', body: JSON.stringify({ business_id: businessId }) }
+                        )
+                        if (result?.recipients) allResults.push(...result.recipients)
+                      } catch (e) {
+                        console.error('[merge segments]', e.message)
+                      }
                     }
+
+                    const unique = Array.from(
+                      new Map(allResults.map(r => [r.id, r])).values()
+                    )
+
+                    setSearchResults(unique)
+                    setActiveSegmentName(segmentNames.join(' + '))
+                    setSelectedSavedSegments([])
+
+                    setTimeout(() => {
+                      document.getElementById('recipients-grid')?.scrollIntoView({ behavior: 'smooth' })
+                    }, 300)
+                  } finally {
+                    setLoadingSegments(false)
                   }
-
-                  const unique = Array.from(
-                    new Map(allResults.map(r => [r.id, r])).values()
-                  )
-
-                  setSearchResults(unique)
-                  setActiveSegmentName(segmentNames.join(' + '))
-                  setSelectedSavedSegments([])
-
-                  setTimeout(() => {
-                    document.getElementById('recipients-grid')?.scrollIntoView({ behavior: 'smooth' })
-                  }, 300)
                 }}
                 style={{
                   flex: 1, padding: '8px 14px', borderRadius: '10px',
@@ -1394,7 +1400,30 @@ export default function Audiences() {
             </div>
           )}
 
-          <div style={{ maxHeight: '70vh', overflowY: 'auto' }}>
+          {loadingSegments && (
+            <div style={{
+              textAlign: 'center', padding: '16px',
+              color: 'var(--text-secondary)', fontSize: '13px',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px'
+            }}>
+              <div style={{
+                width: '16px', height: '16px', borderRadius: '50%',
+                border: '2px solid #00C37A', borderTopColor: 'transparent',
+                animation: 'spin 0.8s linear infinite'
+              }} />
+              טוען סגמנטים...
+            </div>
+          )}
+
+          {segments.saved?.length === 0 ? (
+            <div style={{
+              textAlign: 'center', padding: '32px 16px',
+              color: 'var(--text-secondary)', fontSize: '14px'
+            }}>
+              אין סגמנטים שמורים עדיין
+            </div>
+          ) : (
+          <div>
             {segments.saved
               ?.filter(seg =>
                 !segmentSearch ||
@@ -1527,6 +1556,7 @@ export default function Audiences() {
                 )
               })}
           </div>
+          )}
         </div>
       )}
 
