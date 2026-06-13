@@ -1872,22 +1872,13 @@ export default function Audiences() {
                     {Object.values(searchScope).every(Boolean) ? 'בכולם ▼' : 'מסונן ▼'}
                   </button>
                 </div>
-                {clientSearch !== null && (
-                  <div style={{ fontSize: '12px', color: 'var(--text-secondary)', padding: '4px 8px', textAlign: 'right' }}>
-                    נמצאו {clientSearch.length.toLocaleString()} תוצאות
-                  </div>
-                )}
-                {searchResults !== null && searchTotalCount > 0 && (
+                {/* מונה תוצאות חיפוש */}
+                {(clientSearch !== null || searchResults !== null) && (
                   <div style={{
                     fontSize: '12px', color: 'var(--text-secondary)',
-                    textAlign: 'right', padding: '4px 8px'
+                    padding: '4px 8px', textAlign: 'right'
                   }}>
-                    נמצאו {searchTotalCount.toLocaleString()} תוצאות
-                    {searchTotalCount > 500 && (
-                      <span style={{ color: '#f59e0b', marginRight: '4px' }}>
-                        (מוצגות 500 הראשונות)
-                      </span>
-                    )}
+                    נמצאו {(clientSearch ?? searchResults ?? []).length.toLocaleString()} תוצאות
                   </div>
                 )}
                 {searchScopeOpen && (
