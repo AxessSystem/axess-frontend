@@ -982,25 +982,16 @@ export default function Audiences() {
   const clientSearch = useMemo(() => {
     if (!search || search.length < 2) return null
 
-    const isSimpleSearch = !searchScope.tags &&
-      !searchScope.notes &&
-      !searchScope.contact_types
-
-    if (!isSimpleSearch) return null
-
     const q = search.toLowerCase().trim()
-    return recipients.filter(r => {
-      if (searchScope.name) {
-        const name = (r.name || '').toLowerCase()
-        if (name.includes(q)) return true
-      }
-      if (searchScope.phone) {
-        const phone = (r.phone || '')
-        if (phone.includes(q)) return true
-      }
-      return false
+
+    const namePhoneResults = recipients.filter(r => {
+      const name = (r.name || '').toLowerCase()
+      const phone = (r.phone || '')
+      return name.includes(q) || phone.includes(q)
     })
-  }, [search, recipients, searchScope])
+
+    return namePhoneResults
+  }, [search, recipients])
 
   const baseList = clientSearch !== null
     ? clientSearch
