@@ -104,6 +104,7 @@ function applyBusinessNavConfig(items, businessConfig) {
     if (item.path === '/dashboard/sub-accounts') return true
     if (item.path === '/dashboard/validators') return true
     if (item.path === '/dashboard/audiences') return true
+    if (item.path === '/dashboard/pipeline') return true
     if (item.path === '/dashboard/new-campaign') return true
     if (item.path === '/dashboard/reports') return true
     const key = pathToNavKey[item.path]

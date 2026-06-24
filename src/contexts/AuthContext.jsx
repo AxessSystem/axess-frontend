@@ -271,6 +271,8 @@ export function AuthProvider({ children }) {
       identityReady,
       user: session?.user,
       businessId: businessMember?.businessId ?? null,
+      memberRole: businessMember?.role ?? null,
+      role: businessMember?.role ?? null,
       hasPermission,
       signIn,
       signOut,
