@@ -15,6 +15,8 @@ import toast from 'react-hot-toast'
 import CustomSelect from '@/components/ui/CustomSelect'
 import ContactTypesModal from '@/components/ui/ContactTypesModal'
 import QuickEditDrawer from '@/components/ui/QuickEditDrawer'
+import ActivityLogModal from '@/components/ActivityLogModal'
+import { linkifyText } from '@/utils/linkify'
 import { ErrorBoundary } from 'react-error-boundary'
 import RecipientsTable from '@/components/ui/RecipientsTable'
 
@@ -115,6 +117,7 @@ function CustomerProfileDrawer({ open, onClose, masterRecipientId, businessId, o
   const [showTagInput, setShowTagInput] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
   const [editForm, setEditForm] = useState({ first_name: '', last_name: '', email: '', gender: '', birth_date: '', id_number: '' })
+  const [showActivityModal, setShowActivityModal] = useState(false)
 
   const refetch = () => {
     if (masterRecipientId && businessId) {
@@ -437,11 +440,20 @@ function CustomerProfileDrawer({ open, onClose, masterRecipientId, businessId, o
                 )}
 
                 {/* שכבה 5 — היסטוריית פעילות */}
-                {(profile.activity_log ?? []).length > 0 && (
-                  <div>
-                    <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--v2-gray-400)', marginBottom: 10 }}>היסטוריית פעילות</div>
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--v2-gray-400)' }}>היסטוריית פעילות</span>
+                    <button
+                      type="button"
+                      onClick={() => setShowActivityModal(true)}
+                      style={{ fontSize: 12, padding: '4px 10px', background: 'rgba(0,195,122,0.15)', border: '1px solid rgba(0,195,122,0.3)', color: 'var(--v2-primary)', borderRadius: 6, cursor: 'pointer', WebkitTapHighlightColor: 'transparent' }}
+                    >
+                      תיעד פעילות
+                    </button>
+                  </div>
+                  {(profile.activity_log ?? []).length > 0 ? (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
-                      {(profile.activity_log || []).map((item, i) => (
+                      {(profile.activity_log || []).slice(0, 3).map((item, i) => (
                         <div key={i} style={{ display: 'flex', gap: 10, padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,.06)' }}>
                           <div style={{
                             width: 8, height: 8, borderRadius: '50%', marginTop: 5, flexShrink: 0,
@@ -451,7 +463,9 @@ function CustomerProfileDrawer({ open, onClose, masterRecipientId, businessId, o
                             <div style={{ fontSize: 13, fontWeight: 500, color: '#fff' }}>
                               {eventLabels[item.activity_type] || item.activity_type}
                             </div>
-                            {item.note && <div style={{ fontSize: 12, color: 'var(--v2-gray-400)' }}>{item.note}</div>}
+                            {item.note && (
+                              <div style={{ fontSize: 12, color: 'var(--v2-gray-400)' }}>{linkifyText(item.note)}</div>
+                            )}
                             <div style={{ fontSize: 11, color: 'var(--v2-gray-500)' }}>
                               {new Date(item.created_at).toLocaleDateString('he-IL', { dateStyle: 'medium', timeStyle: 'short' })}
                             </div>
@@ -459,8 +473,17 @@ function CustomerProfileDrawer({ open, onClose, masterRecipientId, businessId, o
                         </div>
                       ))}
                     </div>
-                  </div>
-                )}
+                  ) : (
+                    <span style={{ fontSize: 12, color: 'var(--v2-gray-500)' }}>אין רשומות</span>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => navigate(`/dashboard/contacts/${masterRecipientId}`, { state: { tab: 'activity' } })}
+                    style={{ marginTop: 10, background: 'none', border: 'none', color: 'var(--v2-primary)', fontSize: 13, cursor: 'pointer', padding: 0, WebkitTapHighlightColor: 'transparent' }}
+                  >
+                    ראה הכל ←
+                  </button>
+                </div>
 
                 {/* כפתורי פעולה */}
                 <div style={{ paddingTop: 16, borderTop: '1px solid var(--glass-border)', display: 'flex', gap: 8 }}>
@@ -481,6 +504,13 @@ function CustomerProfileDrawer({ open, onClose, masterRecipientId, businessId, o
           </div>
         </motion.div>
       </motion.div>
+      <ActivityLogModal
+        isOpen={showActivityModal}
+        onClose={() => setShowActivityModal(false)}
+        recipientId={masterRecipientId}
+        recipientName={fullName}
+        onSaved={() => { refetch(); setShowActivityModal(false) }}
+      />
     </AnimatePresence>
   )
 }

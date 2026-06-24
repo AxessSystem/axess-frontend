@@ -68,6 +68,7 @@ const Flows = lazy(() => import('@/pages/dashboard/Flows'))
 const ScanManagement = lazy(() => import('@/pages/dashboard/ScanManagement'))
 const PixelSettings = lazy(() => import('@/pages/dashboard/PixelSettings'))
 const Notifications  = lazy(() => import('@/pages/dashboard/Notifications'))
+const Pipeline       = lazy(() => import('@/pages/dashboard/Pipeline'))
 
 /* ── Existing admin/producer pages (lazy) ── */
 const AdminDashboard    = lazy(() => import('@/pages/admin/Dashboard'))
@@ -242,6 +243,7 @@ export default function App() {
               <Route index element={<Overview />} />
               <Route path="new-campaign" element={<NewCampaign />} />
               <Route path="audiences" element={<Audiences />} />
+              <Route path="pipeline" element={<Pipeline />} />
               <Route path="contacts/:id" element={<ContactPage />} />
               <Route path="events/new" element={<EventEditorPage />} />
               <Route path="events/:id/edit" element={<EventEditorPage />} />

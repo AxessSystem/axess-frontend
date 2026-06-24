@@ -6,6 +6,8 @@ import { api } from '@/services/api'
 import { fetchWithAuth } from '@/lib/supabase'
 import CustomSelect from '@/components/ui/CustomSelect'
 import EngagementScore from '@/components/ui/EngagementScore'
+import ActivityTimeline from '@/components/ActivityTimeline'
+import ActivityLogModal from '@/components/ActivityLogModal'
 import toast from 'react-hot-toast'
 
 const ACCENT = '#00C37A'
@@ -14,8 +16,28 @@ const TABS = [
   { id: 'events', label: 'אירועים ורכישות' },
   { id: 'campaigns', label: 'קמפיינים' },
   { id: 'activity', label: 'פעילות' },
+  { id: 'projects', label: 'פרויקטים' },
   { id: 'social', label: 'פרופיל חברתי' },
 ]
+
+const ROLE_OPTIONS = [
+  { value: 'customer', label: 'לקוח' },
+  { value: 'supplier', label: 'ספק' },
+  { value: 'partner', label: 'שותף' },
+  { value: 'colleague', label: 'עמית' },
+  { value: 'lead', label: 'ליד' },
+  { value: 'other', label: 'אחר' },
+]
+
+const CRM_STATUS_LABELS = {
+  new_lead: 'ליד חדש',
+  in_treatment: 'בטיפול',
+  waiting_callback: 'ממתין לחזרה',
+  meeting_scheduled: 'פגישה נקבעה',
+  proposal_sent: 'הצעה נשלחה',
+  completed: 'הושלם',
+  lost: 'אבוד',
+}
 
 const TIMELINE_LABELS = {
   sms_sent: 'SMS נשלח',
@@ -37,12 +59,6 @@ const TIMELINE_COLORS = {
   checkin: '#10b981',
 }
 
-const ACTIVITY_ICONS = {
-  sms_reply: '💬',
-  sms_reply_sent: '💬',
-  checkin: '✅',
-  intent_signal: '⭐',
-}
 
 const btnBase = {
   WebkitTapHighlightColor: 'transparent',
@@ -108,6 +124,12 @@ export default function ContactPage() {
   const [activeTab, setActiveTab] = useState('overview')
   const [isMobile, setIsMobile] = useState(typeof window !== 'undefined' && window.innerWidth < 768)
   const [saving, setSaving] = useState(false)
+  const [showActivityModal, setShowActivityModal] = useState(false)
+  const [contactProjects, setContactProjects] = useState([])
+  const [allProjects, setAllProjects] = useState([])
+  const [projectsLoading, setProjectsLoading] = useState(false)
+  const [showAddProjectModal, setShowAddProjectModal] = useState(false)
+  const [addProjectForm, setAddProjectForm] = useState({ project_id: '', role: 'customer' })
 
   const [overviewForm, setOverviewForm] = useState({
     first_name: '',
@@ -153,6 +175,55 @@ export default function ContactPage() {
     window.addEventListener('resize', onResize)
     return () => window.removeEventListener('resize', onResize)
   }, [])
+
+  useEffect(() => {
+    if (location.state?.tab) setActiveTab(location.state.tab)
+  }, [location.state?.tab])
+
+  const loadContactProjects = useCallback(async () => {
+    if (!id || !businessId) return
+    setProjectsLoading(true)
+    try {
+      const data = await fetchWithAuth(`/api/projects?master_recipient_id=${id}`)
+      if (data?.error) throw new Error(data.error)
+      setContactProjects(data.projects || [])
+    } catch (err) {
+      toast.error(err.message || 'שגיאה בטעינת פרויקטים')
+    } finally {
+      setProjectsLoading(false)
+    }
+  }, [id, businessId])
+
+  useEffect(() => {
+    if (activeTab === 'projects') loadContactProjects()
+  }, [activeTab, loadContactProjects])
+
+  const loadAllProjects = useCallback(async () => {
+    try {
+      const data = await fetchWithAuth('/api/projects')
+      if (data?.error) throw new Error(data.error)
+      setAllProjects(data.projects || [])
+    } catch (err) {
+      toast.error(err.message || 'שגיאה בטעינת פרויקטים')
+    }
+  }, [])
+
+  const handleAddToProject = async () => {
+    if (!addProjectForm.project_id || !id) return
+    try {
+      const data = await fetchWithAuth(`/api/projects/${addProjectForm.project_id}/contacts`, {
+        method: 'POST',
+        body: JSON.stringify({ master_recipient_id: id, role: addProjectForm.role }),
+      })
+      if (data?.error) throw new Error(data.error)
+      toast.success('נוסף לפרויקט')
+      setShowAddProjectModal(false)
+      setAddProjectForm({ project_id: '', role: 'customer' })
+      loadContactProjects()
+    } catch (err) {
+      toast.error(err.message || 'שגיאה')
+    }
+  }
 
   const loadProfile = useCallback(() => {
     if (!id || !businessId) return Promise.resolve()
@@ -343,10 +414,6 @@ export default function ContactPage() {
 
   const timeline = [...(profile?.timeline || [])].sort(
     (a, b) => new Date(b.created_at || b.date || 0) - new Date(a.created_at || a.date || 0)
-  )
-
-  const activityLog = [...(profile?.activity_log || [])].sort(
-    (a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0)
   )
 
   const inputStyle = {
@@ -854,30 +921,62 @@ export default function ContactPage() {
     }
 
     if (activeTab === 'activity') {
-      return activityLog.length === 0 ? (
-        <p style={{ color: 'var(--text-secondary)', fontSize: 14 }}>אין רשומות פעילות</p>
-      ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
-          {activityLog.map((item, i) => (
-            <div
-              key={`${item.activity_type}-${item.created_at}-${i}`}
-              style={{
-                display: 'flex',
-                gap: 12,
-                padding: '12px 0',
-                borderBottom: i < activityLog.length - 1 ? '1px solid var(--border)' : 'none',
-              }}
+      return (
+        <div>
+          <div style={{ marginBottom: 16 }}>
+            <button
+              type="button"
+              onClick={() => setShowActivityModal(true)}
+              style={{ ...btnBase, background: ACCENT, color: '#000', display: 'inline-flex', alignItems: 'center', gap: 6 }}
             >
-              <span style={{ fontSize: 20, flexShrink: 0 }}>{ACTIVITY_ICONS[item.activity_type] || '•'}</span>
-              <div>
-                <div style={{ fontWeight: 600 }}>{item.activity_type || 'פעילות'}</div>
-                {item.note && <div style={{ fontSize: 13, color: 'var(--text-secondary)' }}>{item.note}</div>}
-                <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 4 }}>
-                  {new Date(item.created_at).toLocaleString('he-IL', { dateStyle: 'medium', timeStyle: 'short' })}
+              <Plus size={16} />
+              תיעד פעילות
+            </button>
+          </div>
+          <ActivityTimeline recipientId={id} showFilters />
+        </div>
+      )
+    }
+
+    if (activeTab === 'projects') {
+      return (
+        <div>
+          <div style={{ marginBottom: 16 }}>
+            <button
+              type="button"
+              onClick={() => { loadAllProjects(); setShowAddProjectModal(true) }}
+              style={{ ...btnBase, background: ACCENT, color: '#000', display: 'inline-flex', alignItems: 'center', gap: 6 }}
+            >
+              <Plus size={16} />
+              הוסף לפרויקט
+            </button>
+          </div>
+          {projectsLoading ? (
+            <p style={{ color: 'var(--text-secondary)', fontSize: 14 }}>טוען...</p>
+          ) : contactProjects.length === 0 ? (
+            <p style={{ color: 'var(--text-secondary)', fontSize: 14 }}>לא משויך לפרויקטים</p>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+              {contactProjects.map((proj, i) => (
+                <div
+                  key={proj.id}
+                  style={{
+                    padding: '12px 0',
+                    borderBottom: i < contactProjects.length - 1 ? '1px solid var(--border)' : 'none',
+                  }}
+                >
+                  <div style={{ fontWeight: 600, marginBottom: 4 }}>{proj.name}</div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, fontSize: 13, color: 'var(--text-secondary)' }}>
+                    <span>{ROLE_OPTIONS.find((r) => r.value === proj.contact_role)?.label || proj.contact_role}</span>
+                    <span>{CRM_STATUS_LABELS[proj.contact_crm_status] || proj.contact_crm_status}</span>
+                    {proj.contact_follow_up_date && (
+                      <span>המשך: {new Date(proj.contact_follow_up_date).toLocaleDateString('he-IL')}</span>
+                    )}
+                  </div>
                 </div>
-              </div>
+              ))}
             </div>
-          ))}
+          )}
         </div>
       )
     }
@@ -1191,6 +1290,55 @@ export default function ContactPage() {
               {tabContent()}
             </div>
           </main>
+        </div>
+      )}
+
+      <ActivityLogModal
+        isOpen={showActivityModal}
+        onClose={() => setShowActivityModal(false)}
+        recipientId={id}
+        recipientName={fullNameFrom(profile)}
+        onSaved={() => setShowActivityModal(false)}
+      />
+
+      {showAddProjectModal && (
+        <div
+          style={{ position: 'fixed', inset: 0, zIndex: 120, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}
+          onClick={() => setShowAddProjectModal(false)}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: 'var(--card)',
+              borderRadius: '16px 16px 0 0',
+              width: 'min(420px, 100%)',
+              padding: 20,
+            }}
+          >
+            <h3 style={{ margin: '0 0 16px', fontSize: 17, fontWeight: 700 }}>הוסף לפרויקט</h3>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <CustomSelect
+                options={allProjects.map((p) => ({ value: p.id, label: p.name }))}
+                value={addProjectForm.project_id}
+                onChange={(v) => setAddProjectForm((f) => ({ ...f, project_id: v }))}
+                placeholder="בחר פרויקט..."
+              />
+              <CustomSelect
+                options={ROLE_OPTIONS}
+                value={addProjectForm.role}
+                onChange={(v) => setAddProjectForm((f) => ({ ...f, role: v }))}
+                placeholder="תפקיד"
+              />
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button type="button" onClick={handleAddToProject} style={{ ...btnBase, flex: 1, background: ACCENT, color: '#000' }}>
+                  הוסף
+                </button>
+                <button type="button" onClick={() => setShowAddProjectModal(false)} style={{ ...btnBase, background: 'transparent', border: '1px solid var(--border)', color: 'var(--text)' }}>
+                  ביטול
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </div>

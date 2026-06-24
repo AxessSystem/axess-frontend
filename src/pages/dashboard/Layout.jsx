@@ -4,7 +4,7 @@ import {
   Send, Users, BarChart2, QrCode, Settings,
   Bell, Menu, X, ChevronDown, Wallet, LogOut, Calendar, Megaphone, UserCheck, Building,
   Info, AlertTriangle, Wrench, MessageSquare, Layers, GitBranch, ScanLine, Radio,
-  PieChart, Globe,
+  PieChart, Globe, TrendingUp,
 } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { supabase, fetchWithAuth } from '@/lib/supabase'
@@ -39,6 +39,7 @@ const pathToNavKey = {
   '/dashboard': 'overview',
   '/dashboard/new-campaign': 'campaigns',
   '/dashboard/audiences': 'audiences',
+  '/dashboard/pipeline': 'pipeline',
   '/dashboard/events': 'events',
   '/dashboard/promoters': 'promoters',
   '/dashboard/staff': 'staff',
@@ -60,6 +61,7 @@ const DASHBOARD_NAV_BASE = [
   { path: '/dashboard/assets', label: 'נכסים שלי', icon: Layers, permission: null },
   { path: '/dashboard/new-campaign', label: 'קמפיין חדש', icon: Send, permission: 'can_create_campaigns' },
   { path: '/dashboard/audiences', label: 'קהלים', icon: Users, permission: 'can_view_audiences' },
+  { path: '/dashboard/pipeline', label: 'Pipeline', icon: TrendingUp, permission: 'can_view_pipeline' },
   { path: '/dashboard/webview', label: 'Webview', icon: Globe, permission: 'can_manage_webview' },
   { path: '/dashboard/flows', label: 'Flows', icon: GitBranch, permission: 'can_manage_flows' },
   { path: '/dashboard/events', label: 'אירועים', icon: Calendar, permission: 'can_view_events' },
