@@ -1,13 +1,31 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { X, ChevronUp, ChevronDown, Trash2 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import CustomSelect from '@/components/ui/CustomSelect'
+import { linkifyText } from '@/utils/linkify'
+
+const ACTIVITY_TYPE_LABELS = {
+  meeting: 'פגישה',
+  call: 'שיחה',
+  note: 'הערה',
+  email: 'אימייל',
+  document_sent: 'מסמך נשלח',
+  document_received: 'מסמך התקבל',
+  task: 'משימה',
+  message: 'הודעה',
+  checkin: "צ'ק-אין",
+  interest: 'עניין',
+  lead_captured: 'ליד נקלט',
+}
 
 export default function QuickEditDrawer({
   recipient, businessId, fetchWithAuth, contactTypes,
   onClose, onSaved, onDeleted,
   onNavigate, currentIndex, total, hasPrev, hasNext,
+  onOpenActivityModal,
 }) {
+  const navigate = useNavigate()
   const [form, setForm] = useState({
     first_name: recipient?.first_name ||
       (recipient?.name ? recipient.name.split(' ')[0] : ''),
@@ -24,6 +42,8 @@ export default function QuickEditDrawer({
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState('')
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [activityLog, setActivityLog] = useState([])
+  const [activityLoading, setActivityLoading] = useState(false)
 
   useEffect(() => {
     setForm({
@@ -41,6 +61,32 @@ export default function QuickEditDrawer({
     setShowDeleteConfirm(false)
     setSaveError('')
   }, [recipient?.id])
+
+  useEffect(() => {
+    if (!recipient?.id) {
+      setActivityLog([])
+      return
+    }
+    let cancelled = false
+    setActivityLoading(true)
+    fetchWithAuth(`/api/audiences/activity/${recipient.id}?limit=3`)
+      .then((data) => {
+        if (cancelled) return
+        if (data?.error) throw new Error(data.error)
+        setActivityLog(data.items || [])
+      })
+      .catch((err) => {
+        if (!cancelled) toast.error(err.message || 'שגיאה בטעינת פעילות')
+      })
+      .finally(() => {
+        if (!cancelled) setActivityLoading(false)
+      })
+    return () => { cancelled = true }
+  }, [recipient?.id, fetchWithAuth])
+
+  const recipientDisplayName = [form.first_name, form.last_name].filter(Boolean).join(' ')
+    || recipient?.name
+    || '—'
 
   const save = async () => {
     if (!recipient?.id) {
@@ -310,6 +356,76 @@ export default function QuickEditDrawer({
             rows={3}
             style={{ width: '100%', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: '8px', padding: '10px 12px', color: 'var(--text)', fontSize: '14px', resize: 'vertical', fontFamily: 'inherit', direction: 'rtl', marginBottom: '20px' }}
           />
+
+          <div style={{ marginBottom: '20px', paddingTop: '16px', borderTop: '1px solid var(--border)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+              <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)' }}>היסטוריית פעילות</span>
+              <button
+                type="button"
+                onClick={() => onOpenActivityModal?.({ id: recipient?.id, name: recipientDisplayName })}
+                style={{
+                  fontSize: '12px',
+                  padding: '6px 12px',
+                  background: '#00C37A20',
+                  border: '1px solid #00C37A',
+                  borderRadius: '8px',
+                  color: '#00C37A',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  WebkitTapHighlightColor: 'transparent',
+                }}
+              >
+                תיעד פעילות
+              </button>
+            </div>
+            {activityLoading ? (
+              <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: 0 }}>טוען...</p>
+            ) : activityLog.length === 0 ? (
+              <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: 0 }}>אין פעילות עדיין</p>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+                {activityLog.slice(0, 3).map((item, i) => (
+                  <div
+                    key={item.id || i}
+                    style={{
+                      padding: '8px 0',
+                      borderBottom: i < Math.min(activityLog.length, 3) - 1 ? '1px solid var(--border)' : 'none',
+                    }}
+                  >
+                    <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text)' }}>
+                      {ACTIVITY_TYPE_LABELS[item.activity_type] || item.activity_type}
+                    </div>
+                    {item.note && (
+                      <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                        {linkifyText(item.note)}
+                      </div>
+                    )}
+                    <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '4px' }}>
+                      {item.created_at
+                        ? new Date(item.created_at).toLocaleString('he-IL', { dateStyle: 'medium', timeStyle: 'short' })
+                        : '—'}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+            <button
+              type="button"
+              onClick={() => navigate(`/dashboard/contacts/${recipient?.id}`, { state: { tab: 'activity' } })}
+              style={{
+                marginTop: '10px',
+                background: 'none',
+                border: 'none',
+                color: '#00C37A',
+                fontSize: '13px',
+                cursor: 'pointer',
+                padding: 0,
+                WebkitTapHighlightColor: 'transparent',
+              }}
+            >
+              ראה הכל ←
+            </button>
+          </div>
 
           {saveError && (
             <p style={{ color: '#ef4444', fontSize: '13px', textAlign: 'center', marginBottom: '8px' }}>

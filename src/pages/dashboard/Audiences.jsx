@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useRef } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Search, Users, Phone, Tag, X, ShoppingBag, Activity, Clock, Upload, Crown, RefreshCw, Sparkles, CheckCircle, Radio, Scan, AlertTriangle, Ticket, Cake, Send, Calendar, Pencil, Workflow, Plus, Zap, Download, Save, Trash2, Filter, MessageCircle, MessageSquare, ChevronDown, Check } from 'lucide-react'
+import { Search, Users, Phone, Tag, X, ShoppingBag, Activity, Clock, Upload, Crown, RefreshCw, Sparkles, CheckCircle, Radio, Scan, AlertTriangle, Ticket, Cake, Send, Calendar, Pencil, Workflow, Plus, Zap, Download, Save, Trash2, Filter, MessageCircle, MessageSquare, ChevronDown, Check, FileText } from 'lucide-react'
 import EngagementScore from '@/components/ui/EngagementScore'
 import EmptyState from '@/components/ui/EmptyState'
 import ImportModal from '@/components/ui/ImportModal'
@@ -615,6 +615,7 @@ export default function Audiences() {
   const [selectMode, setSelectMode] = useState(false)
   const [showContactTypesModal, setShowContactTypesModal] = useState(false)
   const [quickEditRecipient, setQuickEditRecipient] = useState(null)
+  const [activityModalRecipient, setActivityModalRecipient] = useState(null)
   const [contactTypes, setContactTypes] = useState([])
   const [showAddContact, setShowAddContact] = useState(false)
   const [addForm, setAddForm] = useState({ phone: '', first_name: '', last_name: '', email: '', gender: '', city: '', contact_types: [] })
@@ -2369,22 +2370,43 @@ export default function Audiences() {
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ fontSize: 14, fontWeight: 600, color: '#ffffff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.name || '—'}</div>
                         {!selectMode && (
-                          <span
-                            role="button"
-                            tabIndex={0}
-                            onClick={e => { e.stopPropagation(); setQuickEditRecipient(r) }}
-                            onKeyDown={e => { if (e.key === 'Enter') { e.stopPropagation(); setQuickEditRecipient(r) } }}
-                            style={{
-                              fontSize: '11px',
-                              color: '#00C37A',
-                              cursor: 'pointer',
-                              display: 'block',
-                              marginTop: '2px',
-                              WebkitTapHighlightColor: 'transparent',
-                            }}
-                          >
-                            עריכה מהירה
-                          </span>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: '2px' }}>
+                            <span
+                              role="button"
+                              tabIndex={0}
+                              onClick={e => { e.stopPropagation(); setQuickEditRecipient(r) }}
+                              onKeyDown={e => { if (e.key === 'Enter') { e.stopPropagation(); setQuickEditRecipient(r) } }}
+                              style={{
+                                fontSize: '11px',
+                                color: '#00C37A',
+                                cursor: 'pointer',
+                                WebkitTapHighlightColor: 'transparent',
+                              }}
+                            >
+                              עריכה מהירה
+                            </span>
+                            <button
+                              type="button"
+                              aria-label="תיעד פעילות"
+                              title="תיעד פעילות"
+                              onClick={e => {
+                                e.stopPropagation()
+                                setActivityModalRecipient({ id: r.id, name: r.name || '—' })
+                              }}
+                              style={{
+                                background: 'none',
+                                border: 'none',
+                                padding: '2px',
+                                cursor: 'pointer',
+                                color: '#00C37A',
+                                display: 'flex',
+                                alignItems: 'center',
+                                WebkitTapHighlightColor: 'transparent',
+                              }}
+                            >
+                              <FileText size={14} />
+                            </button>
+                          </div>
                         )}
                       </div>
                       <EngagementScore score={r.axess_data?.engagement_score ?? r.score} size={40} />
@@ -3039,8 +3061,17 @@ export default function Audiences() {
             setQuickEditRecipient(null)
             queryClient.invalidateQueries({ queryKey: ['recipients', businessId] })
           }}
+          onOpenActivityModal={setActivityModalRecipient}
         />
       )}
+
+      <ActivityLogModal
+        isOpen={!!activityModalRecipient}
+        onClose={() => setActivityModalRecipient(null)}
+        recipientId={activityModalRecipient?.id}
+        recipientName={activityModalRecipient?.name}
+        onSaved={() => setActivityModalRecipient(null)}
+      />
 
       <CustomerProfileDrawer open={!!selectedCustomerId} onClose={() => setSelectedCustomerId(null)} masterRecipientId={selectedCustomerId} businessId={businessId} onTagUpdate={() => queryClient.invalidateQueries({ queryKey: ['recipients', businessId] })} />
       <ImportModal
