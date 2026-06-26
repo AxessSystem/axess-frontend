@@ -7,6 +7,8 @@ export default function MultiSelect({
 }) {
   const selected = Array.isArray(value) ? value : []
 
+  const selectableOptions = options.filter((o) => o.value != null)
+
   const toggle = (optValue) => {
     if (selected.includes(optValue)) {
       onChange(selected.filter((v) => v !== optValue))
@@ -14,6 +16,15 @@ export default function MultiSelect({
       onChange([...selected, optValue])
     }
   }
+
+  const isLastSelectable = (index) => {
+    for (let i = index + 1; i < options.length; i += 1) {
+      if (options[i].value != null) return false
+    }
+    return true
+  }
+
+  let groupCount = 0
 
   return (
     <div style={{ marginBottom: 16 }}>
@@ -40,8 +51,28 @@ export default function MultiSelect({
         }}
       >
         {options.map((opt, i) => {
+          if (opt.group) {
+            groupCount += 1
+            return (
+              <div
+                key={`group-${i}-${opt.group}`}
+                style={{
+                  fontSize: 11,
+                  color: 'var(--v2-gray-400)',
+                  textTransform: 'uppercase',
+                  padding: '8px 16px 4px',
+                  borderTop: groupCount > 1 ? '1px solid var(--v2-gray-100)' : 'none',
+                  letterSpacing: '0.03em',
+                }}
+              >
+                {opt.group}
+              </div>
+            )
+          }
+
           const checked = selected.includes(opt.value)
-          const isLast = i === options.length - 1
+          const isLast = isLastSelectable(i)
+
           return (
             <label
               key={String(opt.value)}
@@ -101,6 +132,11 @@ export default function MultiSelect({
             </label>
           )
         })}
+        {selectableOptions.length === 0 && (
+          <div style={{ padding: '12px 16px', fontSize: 13, color: 'var(--v2-gray-400)' }}>
+            אין אפשרויות
+          </div>
+        )}
       </div>
     </div>
   )

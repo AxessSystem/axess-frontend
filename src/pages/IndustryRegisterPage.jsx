@@ -3,6 +3,7 @@ import CustomSelect from '@/components/ui/CustomSelect'
 import FormPhoneInput from '@/components/ui/FormPhoneInput'
 import StepIndicator from '@/components/ui/StepIndicator'
 import MultiSelect from '@/components/ui/MultiSelect'
+import InfoTooltip from '@/components/ui/InfoTooltip'
 import { validateIsraeliPhone } from '@/utils/validation'
 
 const API_BASE = import.meta.env.VITE_API_URL || 'https://api.axess.pro'
@@ -15,10 +16,16 @@ const ROLE_OPTIONS = [
   { value: 'מתעניין/ת — המסיבה והאירוע', label: 'מתעניין/ת — המסיבה והאירוע' },
 ]
 
-const EMPLOYMENT_OPTIONS = [
-  { value: 'לא', label: 'לא' },
-  { value: 'כן — מחפש עבודה / פרויקטים', label: 'כן — מחפש עבודה / פרויקטים' },
-  { value: 'כן — מגייס', label: 'כן — מגייס' },
+const EMPLOYMENT_INTEREST_OPTIONS = [
+  { value: 'seeking_work', label: 'מחפש עבודה / פרויקטים' },
+  { value: 'hiring', label: 'מגייס לצוות שלי' },
+]
+
+const BUYER_TYPES_OPTIONS = [
+  { value: 'private', label: 'פרטי' },
+  { value: 'business', label: 'עסקי' },
+  { value: 'institutional', label: 'מוסדי' },
+  { value: 'producer', label: 'מפיק' },
 ]
 
 const CONNECT_OPTIONS = [
@@ -68,22 +75,69 @@ const EVENT_SIZE_OPTIONS = [
 ]
 
 const EVENT_TYPE_OPTIONS = [
-  { value: 'private', label: 'פרטי (חתונות / בר מצווה)' },
-  { value: 'corporate', label: 'קורפורט / עסקי' },
-  { value: 'public', label: 'ציבורי / עירוני' },
-  { value: 'festivals', label: 'פסטיבלים / מסיבות' },
+  { group: 'אירועי בידור ותרבות' },
+  { value: 'festivals', label: 'פסטיבלים' },
+  { value: 'parties', label: 'מסיבות' },
+  { value: 'concerts', label: 'הופעות' },
+  { value: 'lectures', label: 'הרצאות' },
+  { value: 'masterclass', label: 'כיתות אמן' },
+  { value: 'workshops', label: 'סדנאות' },
+  { value: 'shows', label: 'מופעי בידור' },
+  { value: 'standup', label: 'סטנדאפ' },
+  { value: 'theater', label: 'הצגות' },
+  { group: 'אירועי ילדים ונוער' },
+  { value: 'activities', label: 'הפעלות ופעילויות' },
+  { value: 'clubs', label: 'חוגים' },
+  { value: 'kids_entertainment', label: 'מפעילים לילדים' },
+  { value: 'youth_events', label: 'אירועי נוער' },
+  { group: 'אירועים עסקיים וארגוניים' },
+  { value: 'corporate', label: 'אירועי חברה' },
+  { value: 'conferences', label: 'כנסים' },
+  { value: 'fun_days', label: 'ימי כיף' },
+  { value: 'team_building', label: 'גיבוש' },
+  { value: 'odt', label: 'ODT' },
+  { value: 'happy_hour', label: 'שעה שמחה' },
+  { value: 'holiday_events', label: 'אירועי חגים' },
+  { value: 'ceremonies', label: 'טקסים' },
+  { group: 'אירועים פרטיים' },
+  { value: 'weddings', label: 'חתונות' },
+  { value: 'bar_mitzvah', label: 'בר / בת מצווה' },
+  { value: 'brit', label: 'בריתות' },
+  { value: 'henna', label: 'חינה' },
+  { value: 'mikve', label: 'מקווה' },
+  { value: 'shabbat_hatan', label: 'שבת חתן' },
+  { value: 'proposal', label: 'הצעות נישואין' },
+  { value: 'bachelor', label: 'מסיבות רווקים/ת' },
+  { value: 'birthday', label: 'ימי הולדת ויובלים' },
+  { value: 'chef_dinner', label: 'ארוחות שף' },
+  { value: 'graduation', label: 'מסיבות סיום' },
 ]
 
 const BUYER_TYPE_OPTIONS = [
-  { value: 'corporate_large', label: 'חברות גדולות' },
-  { value: 'corporate_sme', label: 'חברות קטנות-בינוניות' },
-  { value: 'municipality', label: 'עיריות ורשויות' },
-  { value: 'private_wedding', label: 'חתונות' },
-  { value: 'private_bar_mitzvah', label: 'בר/בת מצווה' },
-  { value: 'private_birthday', label: 'ימי הולדת ויובלים' },
-  { value: 'festivals', label: 'פסטיבלים' },
-  { value: 'ngo', label: 'עמותות ומגזר שלישי' },
-  { value: 'other', label: 'אחר' },
+  { group: 'ארגונים ומוסדות' },
+  { value: 'welfare_hr', label: 'מנהלות רווחה / משאבי אנוש' },
+  { value: 'workers_committee', label: 'ועדי עובדים' },
+  { value: 'government', label: 'מוסדות ממשלתיים' },
+  { value: 'municipality_culture', label: 'עיריות — מחלקת תרבות' },
+  { value: 'municipality_youth', label: 'עיריות — מחלקת נוער' },
+  { value: 'municipality_sport', label: 'עיריות — מחלקת ספורט' },
+  { value: 'municipality_young', label: 'עיריות — מחלקת צעירים' },
+  { value: 'student_unions', label: 'יו"רים אגודות סטודנטים' },
+  { value: 'colleges', label: 'מכללות ואוניברסיטאות' },
+  { value: 'schools', label: 'רכזות בתי ספר' },
+  { value: 'community_centers', label: 'מתנסים' },
+  { value: 'shopping_centers', label: 'מרכזים מסחריים וקניונים' },
+  { value: 'ngo', label: 'עמותות' },
+  { value: 'marketing_launches', label: 'מחלקות שיווק — השקות עסקיות' },
+  { group: 'חברות' },
+  { value: 'production_companies', label: 'חברות הפקה' },
+  { value: 'corporate_welfare', label: 'חברות — מנהלות רווחה ומשאבי אנוש' },
+  { value: 'commercial_centers', label: 'מרכזים מסחריים' },
+  { group: 'פרטיים ומפיקים' },
+  { value: 'freelance_producers', label: 'מפיקים פרילנסרים' },
+  { value: 'private_person', label: 'אנשים פרטיים' },
+  { value: 'kindergartens', label: 'גני ילדים' },
+  { value: 'summer_camps', label: 'קייטנות' },
 ]
 
 const SUPPLIER_GOAL_OPTIONS = [
@@ -225,12 +279,25 @@ function buildSteps(participantRoles) {
   return steps
 }
 
+function flattenOptions(options) {
+  return (options || []).filter((o) => o.value != null)
+}
+
 function labelOf(options, value) {
+  const flat = flattenOptions(options)
   if (!value) return '—'
   if (Array.isArray(value)) {
-    return value.map((v) => options.find((o) => o.value === v)?.label || v).join(', ') || '—'
+    return value.map((v) => flat.find((o) => o.value === v)?.label || v).join(', ') || '—'
   }
-  return options.find((o) => o.value === value)?.label || value
+  return flat.find((o) => o.value === value)?.label || value
+}
+
+function filterValidL2(l1Keys, l2Keys, categories) {
+  const valid = new Set()
+  for (const l1 of l1Keys || []) {
+    for (const c of categories.l2?.[l1] || []) valid.add(c.key)
+  }
+  return (l2Keys || []).filter((k) => valid.has(k))
 }
 
 const INITIAL_FORM = {
@@ -238,12 +305,13 @@ const INITIAL_FORM = {
   first_name: '',
   last_name: '',
   participant_roles: [],
-  employment_interest: 'לא',
+  employment_interests: [],
+  buyer_types: [],
   open_to_connect: 'כן — פתוח לחלוטין',
   hear_about: '',
   sms_updates: true,
-  category_l1: '',
-  category_l2: '',
+  category_l1: [],
+  category_l2: [],
   category_free_text: '',
   brand_name: '',
   bio: '',
@@ -313,12 +381,22 @@ const labelStyle = {
   color: '#fff',
 }
 
-function FieldLabel({ children, required }) {
+function FieldLabel({ children, required, tooltip }) {
   return (
-    <label style={labelStyle}>
-      {children}
-      {required && <span style={{ color: '#EF4444' }}> *</span>}
-    </label>
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 6,
+        marginBottom: 8,
+      }}
+    >
+      <label style={{ ...labelStyle, marginBottom: 0 }}>
+        {children}
+        {required && <span style={{ color: '#EF4444' }}> *</span>}
+      </label>
+      {tooltip && <InfoTooltip text={tooltip} />}
+    </div>
   )
 }
 
@@ -443,14 +521,35 @@ export default function IndustryRegisterPage() {
   const stepKey = steps[currentStep - 1]
 
   const l2Options = useMemo(() => {
-    if (!form.category_l1 || !categories.l2[form.category_l1]) return []
-    return categories.l2[form.category_l1].map((c) => ({ value: c.key, label: c.label_he }))
+    if (!form.category_l1?.length) return []
+    const merged = []
+    const seen = new Set()
+    for (const l1 of form.category_l1) {
+      for (const c of categories.l2[l1] || []) {
+        if (!seen.has(c.key)) {
+          seen.add(c.key)
+          merged.push({ value: c.key, label: c.label_he })
+        }
+      }
+    }
+    return merged
   }, [form.category_l1, categories.l2])
 
   const l1Options = useMemo(
     () => categories.l1.map((c) => ({ value: c.key, label: c.label_he })),
     [categories.l1],
   )
+
+  const showBuyerTypes = mappedRoles.includes('buyer_corporate')
+    || mappedRoles.includes('buyer_private')
+
+  const handleCategoryL1Change = (nextL1) => {
+    setForm((f) => ({
+      ...f,
+      category_l1: nextL1,
+      category_l2: filterValidL2(nextL1, f.category_l2, categories),
+    }))
+  }
 
   const categoryL1Labels = useMemo(
     () => categories.l1.map((c) => ({ value: c.key, label: c.label_he })),
@@ -479,7 +578,7 @@ export default function IndustryRegisterPage() {
       if (!form.participant_roles.length) e.participant_roles = 'יש לבחור לפחות תפקיד אחד'
     }
     if (stepKey === 'פרטי ספק') {
-      if (!form.category_l1) e.category_l1 = 'שדה חובה'
+      if (!form.category_l1?.length) e.category_l1 = 'שדה חובה'
       if (!form.brand_name.trim()) e.brand_name = 'שדה חובה'
     }
     if (stepKey === 'פרטי מזמין') {
@@ -498,32 +597,58 @@ export default function IndustryRegisterPage() {
   const goPrev = () => setCurrentStep((s) => Math.max(s - 1, 1))
 
   const buildPayload = () => {
+    const interests = form.employment_interests || []
     const employment_details = {}
-    if (form.employment_interest === 'כן — מגייס') {
+
+    if (interests.includes('hiring')) {
       employment_details.open_positions = form.open_positions || null
       employment_details.business_type = form.employment_business_type || null
     }
-    if (form.employment_interest === 'כן — מחפש עבודה / פרויקטים') {
+    if (interests.includes('seeking_work')) {
       employment_details.work_type = form.work_type || null
       employment_details.availability = form.availability || null
       employment_details.cv_url = form.cv_url || null
     }
+    if (interests.length) {
+      employment_details.employment_interests = interests
+    }
+    if (form.category_l1.length > 1 || form.category_l2.length > 1) {
+      employment_details.categories_l1 = form.category_l1.length ? form.category_l1 : null
+      employment_details.categories_l2 = form.category_l2.length ? form.category_l2 : null
+    }
 
     let instagram = form.instagram_handle?.trim() || null
     if (instagram && !instagram.startsWith('@')) instagram = `@${instagram.replace(/^@/, '')}`
+
+    let employment_interest = null
+    if (interests.includes('seeking_work')) {
+      employment_interest = 'כן — מחפש עבודה / פרויקטים'
+    } else if (interests.includes('hiring')) {
+      employment_interest = 'כן — מגייס'
+    }
+
+    let employment_role = null
+    if (interests.includes('hiring') && interests.includes('seeking_work')) {
+      employment_role = 'both'
+    } else if (interests.includes('hiring')) {
+      employment_role = 'hiring'
+    } else if (interests.includes('seeking_work')) {
+      employment_role = 'seeking_work'
+    }
 
     return {
       phone: form.phone.replace(/\D/g, ''),
       first_name: form.first_name.trim(),
       last_name: form.last_name.trim() || null,
       participant_roles: form.participant_roles,
-      employment_interest: form.employment_interest || null,
+      buyer_types: form.buyer_types.length ? form.buyer_types : null,
+      employment_interest,
       open_to_connect: form.open_to_connect || null,
       hear_about: form.hear_about || null,
       sms_updates: form.sms_updates,
       brand_name: form.brand_name.trim() || null,
-      category_l1: form.category_l1 || null,
-      category_l2: form.category_l2 || null,
+      category_l1: form.category_l1[0] || null,
+      category_l2: form.category_l2[0] || null,
       category_free_text: form.category_free_text.trim() || null,
       bio: form.bio.trim() || null,
       years_active: form.years_active || null,
@@ -542,12 +667,7 @@ export default function IndustryRegisterPage() {
       current_buyer_types: form.current_buyer_types.length ? form.current_buyer_types : null,
       desired_buyer_types: form.desired_buyer_types.length ? form.desired_buyer_types : null,
       open_to_new_buyer_types: form.open_to_new_buyer_types,
-      employment_role:
-        form.employment_interest === 'כן — מגייס'
-          ? 'hiring'
-          : form.employment_interest === 'כן — מחפש עבודה / פרויקטים'
-          ? 'seeking_work'
-          : null,
+      employment_role,
       employment_details: Object.keys(employment_details).length ? employment_details : null,
       org_name: form.org_name.trim() || null,
       job_title: form.job_title.trim() || null,
@@ -701,16 +821,32 @@ export default function IndustryRegisterPage() {
                 <p style={{ color: '#EF4444', fontSize: 12, margin: '-8px 0 12px' }}>{errors.participant_roles}</p>
               )}
 
-              <FieldLabel>האם אתה גם מחפש/מציע הזדמנויות תעסוקה?</FieldLabel>
-              <CustomSelect
-                value={form.employment_interest}
-                onChange={(v) => set('employment_interest', v)}
-                options={EMPLOYMENT_OPTIONS}
-                style={selectStyle}
+              {showBuyerTypes && (
+                <MultiSelect
+                  label="כמזמין, אני:"
+                  options={BUYER_TYPES_OPTIONS}
+                  value={form.buyer_types}
+                  onChange={(v) => set('buyer_types', v)}
+                />
+              )}
+
+              <FieldLabel
+                tooltip={'סמן אם אתה מחפש הזדמנויות עבודה, פרויקטים חדשים,\nאו אם אתה מעסיק שמחפש כוח אדם לצוות שלך.\nניתן לסמן את שתי האפשרויות.'}
+              >
+                האם אתה גם מחפש/מציע הזדמנויות תעסוקה?
+              </FieldLabel>
+              <MultiSelect
+                options={EMPLOYMENT_INTEREST_OPTIONS}
+                value={form.employment_interests}
+                onChange={(v) => set('employment_interests', v)}
               />
 
               <div style={{ marginTop: 16 }}>
-                <FieldLabel>פתוח לחיבורים עם משתתפים אחרים?</FieldLabel>
+                <FieldLabel
+                  tooltip={'בחר את רמת הפתיחות שלך לחיבורים עם משתתפים אחרים.\nפתוח לחלוטין — כל משתתף יכול לפנות אליך ישירות.\nרק עם אישורי — תקבל בקשות חיבור ותחליט מי מאושר.\nלא כרגע — הפרופיל שלך גלוי אבל לא ניתן לפנות אליך.'}
+                >
+                  פתיחות לחיבורים עם משתתפים אחרים בקהילת הנטוורקינג שלנו
+                </FieldLabel>
                 <CustomSelect
                   value={form.open_to_connect}
                   onChange={(v) => set('open_to_connect', v)}
@@ -760,30 +896,22 @@ export default function IndustryRegisterPage() {
 
               <SectionTitle>קטגוריות</SectionTitle>
               <FieldLabel required>קטגוריה ראשית</FieldLabel>
-              <CustomSelect
-                value={form.category_l1}
-                onChange={(v) => {
-                  set('category_l1', v)
-                  set('category_l2', '')
-                }}
+              <MultiSelect
                 options={l1Options}
-                placeholder={loadingCategories ? 'טוען...' : 'בחר קטגוריה...'}
-                disabled={loadingCategories}
-                style={selectStyle}
+                value={form.category_l1}
+                onChange={handleCategoryL1Change}
               />
               {errors.category_l1 && (
                 <p style={{ color: '#EF4444', fontSize: 12, margin: '4px 0 12px' }}>{errors.category_l1}</p>
               )}
 
-              {form.category_l1 && l2Options.length > 0 && (
+              {form.category_l1.length > 0 && l2Options.length > 0 && (
                 <>
                   <FieldLabel>תחום התמחות</FieldLabel>
-                  <CustomSelect
+                  <MultiSelect
+                    options={l2Options}
                     value={form.category_l2}
                     onChange={(v) => set('category_l2', v)}
-                    options={l2Options}
-                    placeholder="בחר תחום..."
-                    style={selectStyle}
                   />
                 </>
               )}
@@ -960,7 +1088,7 @@ export default function IndustryRegisterPage() {
                 </>
               )}
 
-              {form.employment_interest === 'כן — מגייס' && (
+              {form.employment_interests.includes('hiring') && (
                 <>
                   <SectionTitle>גיוס</SectionTitle>
                   <FieldLabel>תפקידים פתוחים</FieldLabel>
@@ -978,7 +1106,7 @@ export default function IndustryRegisterPage() {
                 </>
               )}
 
-              {form.employment_interest === 'כן — מחפש עבודה / פרויקטים' && (
+              {form.employment_interests.includes('seeking_work') && (
                 <>
                   <SectionTitle>חיפוש עבודה</SectionTitle>
                   <FieldLabel>סוג עבודה מבוקשת</FieldLabel>
@@ -1155,7 +1283,14 @@ export default function IndustryRegisterPage() {
               <SummaryRow label="טלפון" value={form.phone} />
               <SummaryRow label="שם" value={`${form.first_name} ${form.last_name}`.trim()} />
               <SummaryRow label="תפקידים" value={form.participant_roles.join(', ')} />
-              <SummaryRow label="תעסוקה" value={form.employment_interest} />
+              <SummaryRow
+                label="סוג מזמין"
+                value={labelOf(BUYER_TYPES_OPTIONS, form.buyer_types)}
+              />
+              <SummaryRow
+                label="תעסוקה"
+                value={labelOf(EMPLOYMENT_INTEREST_OPTIONS, form.employment_interests)}
+              />
               <SummaryRow label="חיבורים" value={form.open_to_connect} />
               <SummaryRow label="איך שמעת" value={form.hear_about} />
               <SummaryRow label="SMS" value={form.sms_updates ? 'כן' : 'לא'} />
@@ -1164,18 +1299,19 @@ export default function IndustryRegisterPage() {
                 <>
                   <SectionTitle>ספק</SectionTitle>
                   <SummaryRow
-                    label="קטגוריה"
-                    value={
-                      l1Options.find((o) => o.value === form.category_l1)?.label
-                      + (form.category_l2
-                        ? ` / ${l2Options.find((o) => o.value === form.category_l2)?.label || form.category_l2}`
-                        : '')
-                    }
+                    label="קטגוריות"
+                    value={labelOf(l1Options, form.category_l1)}
+                  />
+                  <SummaryRow
+                    label="תחומי התמחות"
+                    value={labelOf(l2Options, form.category_l2)}
                   />
                   <SummaryRow label="מותג" value={form.brand_name} />
                   <SummaryRow label="תיאור" value={form.bio} />
                   <SummaryRow label="עיר" value={form.business_city} />
                   <SummaryRow label="אזורים" value={labelOf(REGION_OPTIONS, form.activity_regions)} />
+                  <SummaryRow label="סוגי אירועים" value={labelOf(EVENT_TYPE_OPTIONS, form.event_types)} />
+                  <SummaryRow label="סוגי מזמינים" value={labelOf(BUYER_TYPE_OPTIONS, form.current_buyer_types)} />
                   <SummaryRow label="מטרות" value={labelOf(SUPPLIER_GOAL_OPTIONS, form.supplier_goals)} />
                 </>
               )}
