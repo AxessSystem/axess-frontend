@@ -44,6 +44,7 @@ const BookingManagementPage = lazy(() => import('@/pages/BookingManagementPage')
 const GuestPaymentPage = lazy(() => import('@/pages/GuestPaymentPage'))
 const SharedEventReport = lazy(() => import('@/pages/SharedEventReport'))
 const PromoterJoinPage = lazy(() => import('@/pages/PromoterJoinPage'))
+const IndustryRegisterPage = lazy(() => import('@/pages/IndustryRegisterPage'))
 
 /* ── Client Dashboard (lazy bundle) ── */
 const ClientLayout   = lazy(() => import('@/pages/dashboard/Layout'))
@@ -203,6 +204,7 @@ export default function App() {
             <Route path="/privacy" element={<Privacy />} />
             <Route path="/auth" element={<AuthConnect />} />
             <Route path="/v/:slug" element={<Validator />} />
+            <Route path="/industry/register" element={<IndustryRegisterPage />} />
             <Route path="/e/:slug" element={<EventPage />} />
             <Route path="/e/:slug/group-register" element={<GroupRegistrationPage />} />
             <Route path="/group/:code" element={<GroupManagementPage />} />
