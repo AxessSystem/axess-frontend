@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import {
   X, Upload, Link, Plus, Trash2, QrCode, Globe, MapPin, Navigation, Share2, Copy,
@@ -2164,6 +2165,7 @@ function TicketsTab({ eventId }) {
 }
 
 function RegistrationFieldsTab({ event }) {
+  const navigate = useNavigate()
   const [fields, setFields] = useState(
     Array.isArray(event?.registration_fields) && event.registration_fields.length > 0
       ? event.registration_fields
@@ -2203,6 +2205,24 @@ function RegistrationFieldsTab({ event }) {
 
   return (
     <div>
+      <button
+        type="button"
+        onClick={() => navigate(`/dashboard/form-builder/${event.id}`)}
+        style={{
+          width: '100%',
+          marginBottom: 16,
+          height: 40,
+          borderRadius: 8,
+          border: '1px solid var(--v2-primary)',
+          background: 'rgba(0,195,122,0.08)',
+          color: '#00C37A',
+          fontWeight: 700,
+          fontSize: 13,
+          cursor: 'pointer',
+        }}
+      >
+        פתח Form Builder מתקדם ↗
+      </button>
       <p style={{ fontSize: 13, color: 'var(--v2-gray-400)', margin: '0 0 16px' }}>
         הגדר אילו שדות יוצגו בטופס ההרשמה ואילו יהיו חובה.
       </p>

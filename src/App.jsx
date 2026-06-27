@@ -70,6 +70,7 @@ const ScanManagement = lazy(() => import('@/pages/dashboard/ScanManagement'))
 const PixelSettings = lazy(() => import('@/pages/dashboard/PixelSettings'))
 const Notifications  = lazy(() => import('@/pages/dashboard/Notifications'))
 const Pipeline       = lazy(() => import('@/pages/dashboard/Pipeline'))
+const FormBuilderPage = lazy(() => import('@/pages/dashboard/FormBuilderPage'))
 
 /* ── Existing admin/producer pages (lazy) ── */
 const AdminDashboard    = lazy(() => import('@/pages/admin/Dashboard'))
@@ -265,6 +266,7 @@ export default function App() {
               <Route path="flows" element={<Flows />} />
               <Route path="scan-management" element={<ScanManagement />} />
               <Route path="notifications" element={<Notifications />} />
+              <Route path="form-builder/:eventId" element={<FormBuilderPage />} />
             </Route>
 
             {/* ── Admin ── */}
